@@ -1,0 +1,51 @@
+# 30" Short Scale Bass with active 18V EMG MMTW (Dual-Mode MM Humbucker / J Single-Coil)
+id = "30in_emg_mmtw"
+name = "30\" Short Scale MM (EMG MMTW)"
+scale_length_in = 30.0
+scale_length_m = 0.762
+string_wave_speeds = [62.79, 83.82, 111.89, 149.35]
+default_pickup = "mmtw_dual"
+
+[pickups.mmtw_dual]
+name = "EMG MMTW Dual-Coil (Centerline)"
+position_from_bridge_m = 0.0775
+aperture_width_in = 1.50
+coil_spacing_in = 0.90
+type = "dual_coil_parallel"
+coils = [
+    { strings = ["all"], position_from_bridge_m = 0.08893, aperture_width_in = 0.75, weight = 0.5 },
+    { strings = ["all"], position_from_bridge_m = 0.06607, aperture_width_in = 0.75, weight = 0.5 }
+]
+
+[pickups.mmtw_single]
+name = "EMG MMTW Single-Coil (Bridge Coil)"
+position_from_bridge_m = 0.06607
+aperture_width_in = 0.75
+coil_spacing_in = 0.0
+type = "single_coil"
+coils = [
+    { strings = ["all"], position_from_bridge_m = 0.06607, aperture_width_in = 0.75, weight = 1.0 }
+]
+
+[pickups.mmtw_single_neck]
+name = "EMG MMTW Single-Coil (Neck Coil)"
+position_from_bridge_m = 0.08893
+aperture_width_in = 0.75
+coil_spacing_in = 0.0
+type = "single_coil"
+coils = [
+    { strings = ["all"], position_from_bridge_m = 0.08893, aperture_width_in = 0.75, weight = 1.0 }
+]
+
+[pickup_mapping]
+"01_jazz_bass_pair" = "mmtw_dual"
+"02_jazz_bridge_70s" = "mmtw_single"
+"03_modern_p_ceramic" = "mmtw_dual"
+"04_vintage_62_p_alnico" = "mmtw_dual"
+"05_p_bass_47nf_rolloff" = "mmtw_dual"
+"06_pj_hybrid_parallel" = "mmtw_dual"
+"07_stingray_mm_parallel" = "mmtw_dual"
+"08_rickenbacker_bridge_hpf" = "mmtw_single"
+"09_pmm_hybrid_series" = "mmtw_dual"
+"10_mudbucker_ultra_series" = "mmtw_dual"
+"11_dingwall_multiscale_bridge" = "mmtw_dual"

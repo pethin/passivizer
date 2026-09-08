@@ -14,7 +14,7 @@ from scripts.model_physics import (
 
 def test_load_all_default_instruments():
     instruments = load_all_instruments()
-    expected_ids = ["30in_emg_mm", "32in_custom_pmm", "34in_standard_p", "34in_standard_jazz"]
+    expected_ids = ["30in_emg_mm", "30in_emg_mmtw", "32in_custom_pmm", "34in_standard_p", "34in_standard_jazz"]
     for iid in expected_ids:
         assert iid in instruments, f"Default instrument '{iid}' not found"
 
@@ -33,17 +33,30 @@ def test_load_all_default_instruments():
             assert pcfg["aperture_width_in"] > 0
             assert pcfg["coil_spacing_in"] >= 0
 
-def test_30in_mm_routing():
+def test_30in_mmtw_routing():
     inst = load_instrument("30in")
-    assert inst["id"] == "30in_emg_mm"
+    assert inst["id"] == "30in_emg_mmtw"
+    assert "mmtw_dual" in inst["pickups"]
+    assert "mmtw_single" in inst["pickups"]
 
-    # All target voices should route to the single MM humbucker
-    for vid in VOICES.keys():
-        pickup = get_source_pickup(inst, vid)
-        assert pickup["name"] == "EMG MM Dual Coil"
-        assert math.isclose(pickup["position_from_bridge_m"], 0.0775, abs_tol=1e-4)
-        assert math.isclose(pickup["aperture_width_in"], 1.50, abs_tol=1e-4)
-        assert math.isclose(pickup["coil_spacing_in"], 0.75, abs_tol=1e-4)
+    # 70s Jazz Bridge should route to single-coil mode
+    j_pickup = get_source_pickup(inst, "02_jazz_bridge_70s")
+    assert j_pickup["name"] == "EMG MMTW Single-Coil (Bridge Coil)"
+    assert math.isclose(j_pickup["position_from_bridge_m"], 0.06607, abs_tol=1e-4)
+
+    # StingRay should route to dual-coil mode
+    mm_pickup = get_source_pickup(inst, "07_stingray_mm_parallel")
+    assert mm_pickup["name"] == "EMG MMTW Dual-Coil (Centerline)"
+    assert math.isclose(mm_pickup["position_from_bridge_m"], 0.0775, abs_tol=1e-4)
+    assert math.isclose(mm_pickup["coil_spacing_in"], 0.90, abs_tol=1e-4)
+
+def test_30in_mm_legacy_routing():
+    inst = load_instrument("30in_emg_mm")
+    assert inst["id"] == "30in_emg_mm"
+    pickup = get_source_pickup(inst, "07_stingray_mm_parallel")
+    assert pickup["name"] == "EMG MM Dual Coil"
+    assert math.isclose(pickup["position_from_bridge_m"], 0.0775, abs_tol=1e-4)
+    assert math.isclose(pickup["coil_spacing_in"], 0.90, abs_tol=1e-4)
 
 def test_32in_custom_pmm_routing():
     inst = load_instrument("32in")
@@ -125,6 +138,14 @@ def test_resolve_pickup_coils():
     coils_30 = resolve_pickup_coils(inst_30["pickups"]["mm"], inst_30)
     assert len(coils_30) == 2
     assert all("all" in c["strings"] for c in coils_30)
+
+    # 1b. 30" MMTW (dual and single coil)
+    inst_30_tw = load_instrument("30in_emg_mmtw")
+    coils_tw_dual = resolve_pickup_coils(inst_30_tw["pickups"]["mmtw_dual"], inst_30_tw)
+    assert len(coils_tw_dual) == 2
+    coils_tw_single = resolve_pickup_coils(inst_30_tw["pickups"]["mmtw_single"], inst_30_tw)
+    assert len(coils_tw_single) == 1
+    assert math.isclose(coils_tw_single[0]["position_from_bridge_m"], 0.06607, abs_tol=1e-4)
 
     # 2. 34" P (split coils with E/A and D/G binding)
     inst_p = load_instrument("34in_standard_p")

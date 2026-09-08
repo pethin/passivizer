@@ -136,7 +136,10 @@ def load_instrument(identifier_or_path):
         return identifier_or_path
 
     aliases = {
-        "30in": "30in_emg_mm",
+        "30in": "30in_emg_mmtw",
+        "30in_mm": "30in_emg_mmtw",
+        "30in_mmtw": "30in_emg_mmtw",
+        "30in_emg_mmtw": "30in_emg_mmtw",
         "32in": "32in_custom_pmm",
         "34in": "34in_standard_p"
     }
