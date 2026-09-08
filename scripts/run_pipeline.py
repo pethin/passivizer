@@ -235,8 +235,8 @@ def main():
     print("========================================")
 
     input_wav = args.input_wav
-    if not (REPO_ROOT / input_wav).exists():
-        for candidate in ["T3K-sweep-v3.wav", "v3_0_0.wav", "input.wav"]:
+    if not input_wav or not (REPO_ROOT / input_wav).exists():
+        for candidate in ["T3K-sweep-v3.wav", "v3_0_0.wav", "v1_1_1.wav", "input.wav"]:
             if (REPO_ROOT / candidate).exists():
                 input_wav = candidate
                 break
