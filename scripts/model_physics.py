@@ -332,10 +332,19 @@ def resolve_pickup_coils(pickup_dict, instrument=None):
 def resolve_voice_coils(voice_cfg):
     """Resolves target voice configuration into a canonical list of coil dicts."""
     if "coils" in voice_cfg:
-        return voice_cfg["coils"]
-    pos_m = voice_cfg.get("pos_34", 0.088)
-    w_in = voice_cfg.get("w", 0.75)
-    d_in = voice_cfg.get("d", 0.0)
+        normalized = []
+        for c in voice_cfg["coils"]:
+            normalized.append({
+                "position_from_bridge_m": float(c["position_from_bridge_m"]),
+                "aperture_width_in": float(c.get("aperture_width_in", 0.75)),
+                "weight": float(c.get("weight", 1.0)),
+                "polarity": float(c.get("polarity", 1.0)),
+                "strings": list(c.get("strings", ["all"])),
+            })
+        return normalized
+    pos_m = float(voice_cfg.get("pos_34", 0.088))
+    w_in = float(voice_cfg.get("w", 0.75))
+    d_in = float(voice_cfg.get("d", 0.0))
     d_m = d_in * 0.0254
     if d_in > 0:
         return [

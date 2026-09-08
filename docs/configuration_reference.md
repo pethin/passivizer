@@ -202,23 +202,85 @@ $$v_s = 2 \cdot L \cdot f_{0,s}$$
 
 ## 4. Target Voice Definitions (`config/voices.toml`)
 
-`config/voices.toml` links each of the 11 digital twin voices to its LTspice netlist and acoustic parameters:
+`config/voices.toml` links each of the 11 digital twin voices to its LTspice netlist and acoustic parameters. Voices use the same flexible multi-coil schema as source instruments, supporting arbitrary coil counts (>2 coils) and per-string coil bindings:
 
 | Field | Type | Units | Description |
 | :--- | :--- | :--- | :--- |
 | `name` | `string` | — | Full display name (e.g. `"03. Modern Split-Coil P (Ceramic)"`). |
 | `circuit` | `string` | Path | Relative path to standalone SPICE netlist (`circuits/03_modern_p_ceramic.cir`). |
 | `topology` | `string` | — | Circuit topology classification (e.g. `"Split-Coil Ceramic"`). |
-| `description` | `string` | — | Tonal character and pickup reference. |
-| `pos_34` | `float` | Meters | Effective target centerline position on a standard 34" bass. |
-| `w` | `float` | Inches | Target coil magnetic aperture width. |
-| `d` | `float` | Inches | Target coil spacing (for humbuckers/pairs). |
+| `description` | `string` | — | Tonal character, reference pickup model, and hardware notes. |
 | `fr` | `float` | Hz | Target electrical resonant peak frequency under load. |
 | `Q` | `float` | — | Target electrical quality factor under pot and cable load. |
 | `gain_db` | `float` | dB | Output gain trim for volume normalization. |
 | `scale` | `string` | Key | Target scale key in `scales.toml` (`"34in"` or `"multiscale"`). |
-| `hpf` | `float` | Hz | *(Optional)* High-pass filter cutoff frequency (e.g. $105.0\text{ Hz}$ for Rickenbacker). |
-| `coils` | `array[table]` | — | *(Optional)* Multi-coil definitions for target geometry (P-Bass split, J-pair). |
+| `hpf` | `float` | Hz | *(Optional)* High-pass filter cutoff frequency (e.g. $150.0\text{ Hz}$ for Rickenbacker). |
+| `coils` | `array[table]` | — | **Primary Coil Array:** List of physical sensing coils with string bindings and positions. |
+
+### Coil Table Attributes (`coils = [...]`)
+
+| Key | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `strings` | `list[str]` | `["all"]` | Strings sensed by this coil: `["all"]`, `["E", "A"]`, `["D", "G"]`, etc. |
+| `position_from_bridge_m` | `float` | **Required** | Physical distance from bridge saddle in meters. |
+| `aperture_width_in` | `float` | `0.75` | Magnetic window aperture width in inches. |
+| `weight` | `float` | `1.0` | Relative electrical/spatial weighting (e.g. `0.5` for parallel/series humbucker coils). |
+| `polarity` | `float` | `1.0` | Phase polarity (`+1.0` in-phase, `-1.0` reverse). |
+
+### Target Voice Multi-Coil Examples
+
+#### 1. Split-Coil Precision Bass (String-Bound Geometry)
+```toml
+[voices.03_modern_p_ceramic]
+name = "03. Modern Split-Coil P (Ceramic)"
+circuit = "circuits/03_modern_p_ceramic.cir"
+topology = "Split-Coil Ceramic"
+fr = 2200.0
+Q = 1.8
+gain_db = 1.5
+scale = "34in"
+coils = [
+    { strings = ["E", "A"], position_from_bridge_m = 0.1390, aperture_width_in = 1.00, weight = 1.0 },
+    { strings = ["D", "G"], position_from_bridge_m = 0.1110, aperture_width_in = 1.00, weight = 1.0 }
+]
+```
+
+#### 2. Compound 3-Coil P/J Hybrid (Split P + Jazz Bridge)
+```toml
+[voices.06_pj_hybrid_parallel]
+name = "06. P/J Hybrid (Parallel)"
+circuit = "circuits/06_pj_hybrid_parallel.cir"
+topology = "P/J Parallel Sum"
+fr = 3600.0
+Q = 1.4
+gain_db = 0.8
+scale = "34in"
+coils = [
+    { strings = ["E", "A"], position_from_bridge_m = 0.1390, aperture_width_in = 1.00, weight = 0.5 },
+    { strings = ["D", "G"], position_from_bridge_m = 0.1110, aperture_width_in = 1.00, weight = 0.5 },
+    { strings = ["all"],    position_from_bridge_m = 0.0406, aperture_width_in = 0.75, weight = 0.5 }
+]
+```
+
+#### 3. Compound 4-Coil P/MM Hybrid (Split P + Music Man Humbucker)
+```toml
+[voices.09_pmm_hybrid_series]
+name = "09. P/MM Hybrid (Series Sum)"
+circuit = "circuits/09_pmm_hybrid_series.cir"
+topology = "P/MM Series Sum"
+fr = 2000.0
+Q = 2.2
+gain_db = 5.8
+scale = "34in"
+coils = [
+    { strings = ["E", "A"], position_from_bridge_m = 0.1390, aperture_width_in = 1.00, weight = 0.5 },
+    { strings = ["D", "G"], position_from_bridge_m = 0.1110, aperture_width_in = 1.00, weight = 0.5 },
+    { strings = ["all"],    position_from_bridge_m = 0.0755, aperture_width_in = 0.75, weight = 0.5 },
+    { strings = ["all"],    position_from_bridge_m = 0.0565, aperture_width_in = 0.75, weight = 0.5 }
+]
+```
+
+*(Note: Legacy configurations specifying `pos_34`, `w`, and optional `d` continue to be supported through automatic fallback resolution in `resolve_voice_coils()`.)*
 
 ---
 

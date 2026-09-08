@@ -22,7 +22,7 @@ SCRIPTS_DIR = REPO_ROOT / "scripts"
 if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
 
-from model_physics import INSTRUMENTS, VOICES, resolve_voices
+from model_physics import INSTRUMENTS, VOICES, resolve_voices, resolve_voice_coils, compute_effective_position
 
 DEFAULT_LTSPICE_BIN = "/Applications/LTspice.app/Contents/MacOS/LTspice"
 
@@ -133,7 +133,9 @@ def list_voices():
     print("Available Passivizer Target Pickup Voices (SPICE Digital Twins):")
     for vid, cfg in VOICES.items():
         print(f"  - {vid}: {cfg.get('name', vid)} ({cfg.get('topology', '')})")
-        print(f"      Circuit: {cfg.get('circuit', '')} | Target pos={cfg.get('pos_34', 0)*1000:.1f}mm | fr={cfg.get('fr', 0)}Hz (Q={cfg.get('Q', 0)})")
+        coils = resolve_voice_coils(cfg)
+        eff_pos = compute_effective_position(coils)
+        print(f"      Circuit: {cfg.get('circuit', '')} | Coils={len(coils)} (Eff pos={eff_pos*1000:.1f}mm) | fr={cfg.get('fr', 0)}Hz (Q={cfg.get('Q', 0)})")
 
 def main():
     parser = argparse.ArgumentParser(description="Passivizer SPICE -> NAM Automation Pipeline")

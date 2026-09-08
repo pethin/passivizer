@@ -18,7 +18,15 @@ SCRIPTS_DIR = REPO_ROOT / "scripts"
 if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
 
-from model_physics import VOICES, load_instrument, get_source_pickup, INSTRUMENTS, resolve_voices
+from model_physics import (
+    VOICES,
+    load_instrument,
+    get_source_pickup,
+    INSTRUMENTS,
+    resolve_voices,
+    resolve_voice_coils,
+    compute_effective_position,
+)
 
 def find_sweep_input(candidate_path=None):
     if candidate_path and Path(candidate_path).exists():
@@ -155,7 +163,9 @@ def train_voice(
             "topology": vcfg.get("topology", ""),
             "resonant_frequency_hz": vcfg.get("fr", 0.0),
             "q_factor": vcfg.get("Q", 0.0),
-            "target_position_34_m": vcfg.get("pos_34", 0.0),
+            "target_position_34_m": compute_effective_position(resolve_voice_coils(vcfg)),
+            "effective_position_m": compute_effective_position(resolve_voice_coils(vcfg)),
+            "coils": resolve_voice_coils(vcfg),
             "circuit": vcfg.get("circuit", ""),
         },
     }

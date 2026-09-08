@@ -27,10 +27,59 @@ def test_voice_parameter_validity():
         assert cfg["fr"] > 0, f"{vid} invalid resonant frequency fr: {cfg['fr']}"
         assert 200.0 <= cfg["fr"] <= 6000.0, f"{vid} fr outside audible musical range: {cfg['fr']}"
         assert cfg["Q"] > 0, f"{vid} invalid Q: {cfg['Q']}"
-        assert cfg["pos_34"] > 0, f"{vid} invalid pos_34: {cfg['pos_34']}"
-        assert cfg["w"] > 0, f"{vid} invalid aperture w: {cfg['w']}"
-        assert cfg["d"] >= 0, f"{vid} invalid spacing d: {cfg['d']}"
         assert isinstance(cfg["gain_db"], (int, float)), f"{vid} gain_db not float"
+        assert "coils" in cfg, f"{vid} missing coils array"
+        assert len(cfg["coils"]) >= 1, f"{vid} has empty coils list"
+        for i, c in enumerate(cfg["coils"]):
+            assert "position_from_bridge_m" in c, f"{vid} coil {i} missing position_from_bridge_m"
+            assert c["position_from_bridge_m"] > 0, f"{vid} coil {i} invalid position: {c['position_from_bridge_m']}"
+            assert c.get("aperture_width_in", 0.75) > 0, f"{vid} coil {i} invalid aperture"
+            assert c.get("weight", 1.0) > 0, f"{vid} coil {i} invalid weight"
+            assert "strings" in c, f"{vid} coil {i} missing strings binding"
+            assert isinstance(c["strings"], list) and len(c["strings"]) >= 1
+
+def test_resolve_voice_coils():
+    from scripts.model_physics import resolve_voice_coils, compute_effective_position
+
+    # 01 Jazz pair should have 2 coils, each with strings=["all"]
+    c01 = resolve_voice_coils(VOICES["01_jazz_bass_pair"])
+    assert len(c01) == 2
+    assert c01[0]["position_from_bridge_m"] == 0.1480
+    assert c01[1]["position_from_bridge_m"] == 0.0406
+    assert c01[0]["strings"] == ["all"]
+
+    # 03 Modern P ceramic should have 2 split coils with specific string bindings
+    c03 = resolve_voice_coils(VOICES["03_modern_p_ceramic"])
+    assert len(c03) == 2
+    assert c03[0]["strings"] == ["E", "A"]
+    assert c03[0]["position_from_bridge_m"] == 0.1390
+    assert c03[1]["strings"] == ["D", "G"]
+    assert c03[1]["position_from_bridge_m"] == 0.1110
+
+    # 06 PJ hybrid should have 3 coils (split P + J bridge)
+    c06 = resolve_voice_coils(VOICES["06_pj_hybrid_parallel"])
+    assert len(c06) == 3
+    assert c06[0]["strings"] == ["E", "A"]
+    assert c06[1]["strings"] == ["D", "G"]
+    assert c06[2]["strings"] == ["all"]
+
+    # 09 P/MM hybrid should have 4 coils (split P + MM humbucker pair)
+    c09 = resolve_voice_coils(VOICES["09_pmm_hybrid_series"])
+    assert len(c09) == 4
+    assert c09[0]["strings"] == ["E", "A"]
+    assert c09[1]["strings"] == ["D", "G"]
+    assert c09[2]["strings"] == ["all"]
+    assert c09[3]["strings"] == ["all"]
+
+    # Check effective positions are calculated correctly
+    eff01 = compute_effective_position(c01)
+    assert 0.09 < eff01 < 0.10  # Average of 0.1480 and 0.0406 is 0.0943
+
+    # Legacy backward compatibility test: dict with pos_34, w, d
+    legacy_cfg = {"pos_34": 0.066, "w": 0.75, "d": 0.75}
+    c_legacy = resolve_voice_coils(legacy_cfg)
+    assert len(c_legacy) == 2
+    assert c_legacy[0]["strings"] == ["all"]
 
 def test_voice_netlist_existence():
     for vid, cfg in VOICES.items():
