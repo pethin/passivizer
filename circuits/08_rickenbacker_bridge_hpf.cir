@@ -1,5 +1,5 @@
-* Passivizer Netlist 08: Prog Rock Rickenbacker 4003 Clank (High-Pass Series Cap)
-* Target: Rickenbacker Bridge Pickup with vintage 4.7nF series capacitor
+* Passivizer Netlist 08: Rickenbacker 4003 Bridge (4.7nF HPF)
+* Target: High-Output Single-Coil with Vintage 4.7nF Series HPF
 * Models Chris Squire / Geddy Lee / Tool pick aggression
 .options plotwinsize=0 numdgt=7
 
@@ -35,5 +35,5 @@ C_anagram node3 0 30p
 .tran 0 180 0 20.8333u
 
 * 9. Output Audio Export for NAM Training
-.wave "out_08_prog_rick_clank.wav" 24 48000 V(node3)
+.wave "out_08_rickenbacker_bridge_hpf.wav" 24 48000 V(node3)
 .end

@@ -1,12 +1,12 @@
-# Darkglass Anagram Integration & Preset Architecture
+# Darkglass Anagram Integration & Routing Architecture
 
-This document provides a guide for deploying **Passivizer** IRs and NAM models onto the **Darkglass Anagram** workstation.
+This document provides a reference for deploying **Passivizer** IRs and NAM models onto the **Darkglass Anagram** pedalboard.
 
 ---
 
 ## 1. Optimal Block Layout
 
-The Darkglass Anagram allows up to 24 simultaneous blocks in series or parallel. To maintain authentic analog behavior, the Passivizer model should always occupy **Block 1 (immediately following the hardware input stage)**:
+The Darkglass Anagram allows up to 24 simultaneous blocks in series or parallel. To maintain authentic passive circuit loading behavior, the Passivizer model should always occupy **Block 1 (immediately following the hardware input stage)**:
 
 ```
 [Hardware 1/4" Input]
@@ -14,8 +14,8 @@ The Darkglass Anagram allows up to 24 simultaneous blocks in series or parallel.
           ▼
 ┌────────────────────────────────────────────────────────┐
 │ Block 1: Passivizer Pickup Emulation                   │
-│   ├── Choice A: NAM Preamp ("Bartolini_8CBP.nam")      │
-│   └── Choice B: IR Loader ("EMG_to_Bartolini_8CBP.wav")│
+│   ├── Choice A: NAM Preamp ("03_modern_p_ceramic.nam") │
+│   └── Choice B: IR Loader ("03_modern_p_ceramic.wav")  │
 └────────────────────────────────────────────────────────┘
           │
           ▼
@@ -43,86 +43,59 @@ The Darkglass Anagram allows up to 24 simultaneous blocks in series or parallel.
 
 > [!IMPORTANT]
 > **Why Block 1?**
-> Overdrive and fuzz circuits react dramatically to input impedance and pickup resonant peaks. By placing the Passivizer model in Block 1, the Darkglass drive engines (B7K, Alpha·Omega, etc.) distort the *passive* resonant peak and rolled-off top end, rather than distorting the raw, ultra-wideband active EMG signal.
+> Overdrive, distortion, and preamp stages react directly to the input frequency envelope and pickup resonant peaks. By placing the Passivizer model in Block 1, subsequent drive engines distort the *passive* resonant peak and roll-off, rather than distorting an unshaped wideband active signal.
 
 ---
 
 ## 2. Gain Staging & Volume Normalization
 
-One of the greatest annoyances of physical passive multi-coil basses is **level disparity**:
-* Splitting an MM humbucker to a single-coil drops volume by $\sim 3\text{--}4\text{ dB}$.
-* Switching into Series boosts volume by $+4\text{ to }+6\text{ dB}$, often pushing analog preamps into unwanted clipping.
+Passive multi-coil instruments often present notable level disparities:
+* Splitting an MM humbucker to a single coil drops output level by $\sim 3	ext{--}4	ext{ dB}$.
+* Switching pickups into Series configuration produces an inductive voltage surge of $+4	ext{ to }+6	ext{ dB}$.
 
-### In the Anagram:
-Inside your Anagram presets, use the Block 1 output level trim to normalize all 10 voices to an identical target RMS level:
+In your presets, use the Block 1 output level trim to normalize all voices to an even target RMS level:
 
-| Profile | Raw Circuit Offset | Recommended Anagram Block 1 Trim |
-| :--- | :--- | :--- |
-| **`01_j_jazz_atelier_pair`** | $-0.5\text{ dB}$ | $+0.5\text{ dB}$ |
-| **`02_jaco_fusion_bridge`** | $-2.5\text{ dB}$ | $+2.5\text{ dB}$ (Brings solo single-coil to parity) |
-| **`03_jrock_modern_p`** | $+1.5\text{ dB}$ | $0.0\text{ dB}$ (Reference Baseline) |
-| **`04_vintage_62_alnico_p`** | $+0.5\text{ dB}$ | $+1.0\text{ dB}$ |
-| **`05_motown_neo_soul_dub`** | $-1.0\text{ dB}$ | $+1.0\text{ dB}$ |
-| **`06_studio_workhorse_pj`** | $+0.8\text{ dB}$ | $+0.5\text{ dB}$ |
-| **`07_jmetal_prog_stingray`**| $0.0\text{ dB}$ | $+1.5\text{ dB}$ |
-| **`08_prog_rick_clank`** | $-1.5\text{ dB}$ | $+2.0\text{ dB}$ (Compensates for series HPF cut) |
-| **`09_power_trio_bulldozer`**| $+5.8\text{ dB}$ | $-4.0\text{ dB}$ (Prevents clipping drive blocks) |
-| **`10_stoner_doom_mudbucker`**| $+6.2\text{ dB}$ | $-4.5\text{ dB}$ (Controls high-inductance surge) |
+| Profile ID | Pickup Configuration | Raw Offset | Recommended Block 1 Trim |
+| :--- | :--- | :--- | :--- |
+| **`01_jazz_bass_pair`** | Jazz Bass Pair (Parallel) | $-0.5	ext{ dB}$ | $+0.5	ext{ dB}$ |
+| **`02_jazz_bridge_70s`** | 70s Jazz Bridge Single-Coil | $-2.5	ext{ dB}$ | $+2.5	ext{ dB}$ (Compensates single-coil drop) |
+| **`03_modern_p_ceramic`** | Modern Split-Coil P (Ceramic) | $+1.5	ext{ dB}$ | $0.0	ext{ dB}$ (Reference Baseline) |
+| **`04_vintage_62_p_alnico`** | Vintage '62 Split-Coil P (Alnico V) | $+0.5	ext{ dB}$ | $+1.0	ext{ dB}$ |
+| **`05_p_bass_47nf_rolloff`** | Split-Coil P (47nF Tone Rolloff) | $-1.0	ext{ dB}$ | $+1.0	ext{ dB}$ |
+| **`06_pj_hybrid_parallel`** | P/J Hybrid (Parallel) | $+0.8	ext{ dB}$ | $+0.5	ext{ dB}$ |
+| **`07_stingray_mm_parallel`** | Music Man MM (Parallel Humbucker)| $0.0	ext{ dB}$ | $+1.5	ext{ dB}$ |
+| **`08_rickenbacker_bridge_hpf`**| Rickenbacker Bridge (4.7nF HPF) | $-1.5	ext{ dB}$ | $+2.0	ext{ dB}$ (Compensates series HPF cut) |
+| **`09_pmm_hybrid_series`** | P/MM Hybrid (Series Sum) | $+5.8	ext{ dB}$ | $-4.0	ext{ dB}$ (Prevents clipping downstream drives)|
+| **`10_mudbucker_ultra_series`**| Mudbucker Ultra Series | $+6.2	ext{ dB}$ | $-4.5	ext{ dB}$ (Controls high-inductance surge) |
+| **`11_dingwall_multiscale_bridge`**| Dingwall Multi-Scale Bridge | $+1.0	ext{ dB}$ | $+0.5	ext{ dB}$ |
 
 ---
 
-## 3. Footswitching & Preset Architecture (3 Core Banks)
+## 3. Footswitching & Bank Organization
 
-The Darkglass Anagram features three tactile footswitches and a 7-inch touchscreen. Group the 10 voices into **three dedicated 3-button banks** for seamless genre switching on stage:
+Group the pickup profiles into dedicated 3-button banks on the Anagram hardware:
 
-### Bank 1: Anisong, J-Jazz & Modern Slap
-* **Footswitch A: "Atelier Slap"**
-  * Block 1: `01_j_jazz_atelier_pair.nam`
-  * Block 2: Clean Studio Preamp (subtle $1\text{ kHz}$ scoop)
-  * Block 3: Ported 4x10 Cab IR
-* **Footswitch B: "J-Rock Pick"**
-  * Block 1: `03_jrock_modern_p.nam`
-  * Block 2: Vintage Microtubes (aggressive pick bite)
-  * Block 3: Sealed 8x10 Cab IR
-* **Footswitch C: "J-Fusion Solo"**
-  * Block 1: `02_jaco_fusion_bridge.nam`
-  * Block 2: Mild optical compression + mid boost @ $1.2\text{ kHz}$
-  * Block 3: 2x10 Ported Cab IR
+### Bank 1: Single-Coil & Split Foundations
+* **Footswitch A:** `01_jazz_bass_pair.wav` (Jazz Bass Pair)
+* **Footswitch B:** `03_modern_p_ceramic.wav` (Modern Split-Coil P)
+* **Footswitch C:** `02_jazz_bridge_70s.wav` (70s Jazz Bridge)
 
-### Bank 2: Heavy Rock, Prog & J-Metal
-* **Footswitch A: "Prog StingRay"**
-  * Block 1: `07_jmetal_prog_stingray.nam`
-  * Block 2: Microtubes B7K Ultra (aggressive high-mid grind)
-  * Block 3: Darkglass 4x10 Cab IR
-* **Footswitch B: "Rick Clank"**
-  * Block 1: `08_prog_rick_clank.nam`
-  * Block 2: Alpha·Omega (ferocious dual-drive pick bite)
-  * Block 3: 8x10 High-Output Cab IR
-* **Footswitch C: "Stoner Fuzz Doom"**
-  * Block 1: `10_stoner_doom_mudbucker.nam`
-  * Block 2: Darkglass Duality / Fuzz engine (thick saturated doom)
-  * Block 3: 2x15 Sub-Heavy Cab IR
+### Bank 2: Dual-Coil & Series Topologies
+* **Footswitch A:** `07_stingray_mm_parallel.wav` (Music Man Parallel Humbucker)
+* **Footswitch B:** `09_pmm_hybrid_series.wav` (P/MM Series Sum)
+* **Footswitch C:** `10_mudbucker_ultra_series.wav` (Mudbucker Series)
 
-### Bank 3: Vintage Foundations & Everyday Studio
-* **Footswitch A: "Studio P/J"**
-  * Block 1: `06_studio_workhorse_pj.nam`
-  * Block 2: Clean Tube Preamp (warm, transparent)
-  * Block 3: Ampeg 8x10 Sealed Cab IR
-* **Footswitch B: "'62 Alnico P"**
-  * Block 1: `04_vintage_62_alnico_p.nam`
-  * Block 2: Vintage Microtubes (mild warm tube saturation)
-  * Block 3: Ampeg B-15 Flip-Top Cab IR
-* **Footswitch C: "Motown / Dub"**
-  * Block 1: `05_motown_neo_soul_dub.nam`
-  * Block 2: Tube compressor (slow attack, fat sustain)
-  * Block 3: 1x15 Sealed Vintage Cab IR
+### Bank 3: Vintage & Filtered Topologies
+* **Footswitch A:** `06_pj_hybrid_parallel.wav` (P/J Hybrid Parallel)
+* **Footswitch B:** `04_vintage_62_p_alnico.wav` (Vintage '62 P Alnico V)
+* **Footswitch C:** `08_rickenbacker_bridge_hpf.wav` (Rickenbacker 4.7nF HPF)
 
 ---
 
 ## 4. Importing Files via Darkglass Suite
 
-1. Connect your Darkglass Anagram to your Mac via USB-C.
-2. Launch the **Darkglass Suite** application.
-3. **For IRs:** Navigate to the **IR Manager** tab, drag and drop `irs/*.wav` into user slots 1–10.
-4. **For NAM Models:** Navigate to the **NAM / Neural Capture** library, drag and drop `models/*.nam` into your preset bank.
-5. In the touchscreen interface, tap Block 1, select your custom NAM or IR file, and save your preset.
+1. Connect your Darkglass Anagram to your computer via USB-C.
+2. Open the **Darkglass Suite** application.
+3. **For IRs:** Navigate to the **IR Manager** tab, drag and drop `irs/*.wav` into user slots.
+4. **For NAM Models:** Navigate to the **NAM / Neural Capture** library, drag and drop `models/*.nam` into your model library.
+5. In your preset chain on the pedalboard, assign Block 1 to your imported IR or NAM capture.

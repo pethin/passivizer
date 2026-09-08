@@ -1,15 +1,15 @@
-* Passivizer Netlist 07: J-Metal / Prog StingRay (MM4CBC Parallel / Modern Clank)
-* Target: Bartolini MM4CBC Dual-Coil in Parallel (Cuts through 7/8-string guitars)
+* Passivizer Netlist 11: Dingwall Fanned-Fret Bridge (Multi-Scale)
+* Target: Multi-scale angled dual-coil bridge sweet spot (3.4 kHz Peak)
 .options plotwinsize=0 numdgt=7
 
 * 1. Audio Source (Pre-filtered NAM Training Track)
 V_in in 0 wavefile="v1_1_1_aperture.wav"
 
-* 2. Pickup Coils (Bartolini MM4CBC Dual Coils in Parallel)
-L_coil in node1 2.4
-R_dc node1 node2 4.6k
-R_eddy in node2 140k
-C_coil node2 0 130p
+* 2. Pickup Coils (Dingwall FD3 Dual Coils in Parallel)
+L_coil in node1 2.3
+R_dc node1 node2 4.4k
+R_eddy in node2 150k
+C_coil node2 0 120p
 
 * 3. Dunlop 500k Super Pot (Volume @ 100%)
 R_pot_top node2 node3 10
@@ -31,5 +31,5 @@ C_anagram node3 0 30p
 .tran 0 180 0 20.8333u
 
 * 8. Output Audio Export for NAM Training
-.wave "out_07_jmetal_prog_stingray.wav" 24 48000 V(node3)
+.wave "out_11_dingwall_multiscale_bridge.wav" 24 48000 V(node3)
 .end

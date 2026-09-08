@@ -1,15 +1,15 @@
-* Passivizer Netlist 01: J-Jazz / Anisong Slap (Atelier Z / Sadowsky Tokyo Style)
-* Target: Dual Jazz Single-Coil Pair in Parallel (Symmetrical 1 kHz hollow scoop)
+* Passivizer Netlist 03: Modern Split-Coil P (Ceramic)
+* Target: High-Inductance Split-Coil (Bartolini 8CBP style, 2.2 kHz Peak)
 .options plotwinsize=0 numdgt=7
 
 * 1. Audio Source (Pre-filtered NAM Training Track)
 V_in in 0 wavefile="v1_1_1_aperture.wav"
 
-* 2. Pickup Coils (Bartolini 9CBJS1 Neck & Bridge in Parallel)
-L_coil in node1 1.69
-R_dc node1 node2 3.69k
-R_eddy in node2 65k
-C_coil node2 0 145p
+* 2. Pickup Coils (Bartolini 8CBP Ceramic Split-P)
+L_coil in node1 4.8
+R_dc node1 node2 9.5k
+R_eddy in node2 110k
+C_coil node2 0 80p
 
 * 3. Dunlop 500k Super Pot (Volume @ 100%)
 R_pot_top node2 node3 10
@@ -31,5 +31,5 @@ C_anagram node3 0 30p
 .tran 0 180 0 20.8333u
 
 * 8. Output Audio Export for NAM Training
-.wave "out_01_j_jazz_atelier_pair.wav" 24 48000 V(node3)
+.wave "out_03_modern_p_ceramic.wav" 24 48000 V(node3)
 .end

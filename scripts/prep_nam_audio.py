@@ -1,7 +1,8 @@
 """
-Passivizer - Scale-Length & Multi-Scale Audio Pre-Filter for NAM Training
-Converts audio recorded on 30" (short) or 32" (medium) scale basses to sound
-like authentic 34" standard or 34"-37" multi-scale (Dingwall-style) instruments.
+Passivizer - Scale-Length & Acoustic Aperture Pre-Filter for NAM Training
+Pre-filters NAM calibration audio (e.g. v1_1_1.wav) through the physical
+acoustic aperture, dual-coil spacing, placement delta, and scale tension filters.
+The resulting audio is placed in circuits/v1_1_1_aperture.wav to drive SPICE simulation.
 
 Uses Spotify's Pedalboard library for SIMD-accelerated C++ convolution and 24-bit audio I/O.
 """
@@ -9,75 +10,71 @@ Uses Spotify's Pedalboard library for SIMD-accelerated C++ convolution and 24-bi
 import argparse
 import os
 import sys
+import tempfile
 from pathlib import Path
 
-# Add scripts directory to path to reuse generate_irs engine
 SCRIPTS_DIR = Path(__file__).resolve().parent
+REPO_ROOT = SCRIPTS_DIR.parent
+CIRCUITS_DIR = REPO_ROOT / "circuits"
+
 if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
 
-from generate_irs import VOICES, generate_voice_ir
+from model_physics import VOICES, compute_aperture_prefilter_fir, write_wav_24bit
 
-def process_audio(input_wav_path, output_wav_path, ir_wav_path):
+def prefilter_audio(input_wav_path, output_wav_path, fir_samples):
     """
-    Applies the Passivizer IR to the NAM calibration audio using Spotify's Pedalboard.
-    Executes in under 200ms using JUCE SIMD-accelerated partitioned convolution.
+    Applies the aperture and scale tension FIR to NAM calibration audio
+    using Spotify's Pedalboard SIMD convolution engine in under 200ms.
     """
     try:
         from pedalboard import Pedalboard, Convolution
         from pedalboard.io import AudioFile
         import numpy as np
     except ImportError:
-        print("Error: 'pedalboard' is required for NAM audio processing.")
+        print("Error: 'pedalboard' is required for audio pre-filtering.")
         print("Install it with: uv add pedalboard")
         sys.exit(1)
 
-    with AudioFile(input_wav_path) as f:
-        audio = f.read(f.frames)
-        sr = f.samplerate
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmp_fir_path = os.path.join(tmpdir, "fir.wav")
+        write_wav_24bit(tmp_fir_path, fir_samples, sample_rate=48000)
 
-    board = Pedalboard([Convolution(ir_wav_path)])
-    effected = board(audio, sr)
+        with AudioFile(str(input_wav_path)) as f:
+            audio = f.read(f.frames)
+            sr = f.samplerate
 
-    # Peak normalize to -0.1 dBFS
-    max_val = np.max(np.abs(effected))
-    if max_val > 0:
-        effected = (effected / max_val) * 0.99
+        board = Pedalboard([Convolution(tmp_fir_path)])
+        effected = board(audio, sr)
 
-    with AudioFile(output_wav_path, "w", samplerate=sr, num_channels=effected.shape[0], bit_depth=24) as out:
-        out.write(effected)
-    print(f"Exported [NAM Pre-filtered]: {output_wav_path}")
+        max_val = np.max(np.abs(effected))
+        if max_val > 0:
+            effected = (effected / max_val) * 0.99
+
+        with AudioFile(str(output_wav_path), "w", samplerate=sr, num_channels=effected.shape[0], bit_depth=24) as out:
+            out.write(effected)
+
+    print(f"Pre-filtered audio written to: {output_wav_path}")
 
 def main():
-    parser = argparse.ArgumentParser(description="Pre-filter NAM audio using Spotify Pedalboard.")
+    parser = argparse.ArgumentParser(description="Pre-filter NAM audio for SPICE simulation.")
     parser.add_argument("--input", default="v1_1_1.wav", help="Input NAM calibration audio (e.g. v1_1_1.wav)")
     parser.add_argument("--source-scale", choices=["30in", "32in"], default="30in", help="Physical source bass scale")
-    parser.add_argument("--target-scale", choices=["34in", "multiscale"], default="34in", help="Target tonal scale")
-    parser.add_argument("--voice", choices=VOICES.keys(), help="Specific voice to process")
-    parser.add_argument("--irs-dir", default="irs", help="Directory storing Passivizer IRs")
+    parser.add_argument("--voice", choices=VOICES.keys(), default="03_modern_p_ceramic", help="Target pickup voice")
+    parser.add_argument("--out", help="Output WAV path (default: circuits/v1_1_1_aperture.wav)")
     args = parser.parse_args()
 
-    if not os.path.exists(args.input):
+    input_path = Path(args.input)
+    if not input_path.exists():
         print(f"Notice: '{args.input}' not found. Place the official 3-minute NAM calibration file here to render.")
         return
 
-    os.makedirs(args.irs_dir, exist_ok=True)
+    out_path = Path(args.out) if args.out else CIRCUITS_DIR / "v1_1_1_aperture.wav"
+    out_path.parent.mkdir(parents=True, exist_ok=True)
 
-    voices_to_process = [args.voice] if args.voice else list(VOICES.keys())
-
-    for voice_id in voices_to_process:
-        cfg = VOICES[voice_id]
-        tgt_s = cfg.get("scale", args.target_scale)
-        ir_name = f"{voice_id}_{args.source_scale}_to_{tgt_s}.wav"
-        ir_path = os.path.join(args.irs_dir, ir_name)
-
-        # Ensure IR exists; generate on-the-fly if missing
-        if not os.path.exists(ir_path):
-            print(f"Generating missing IR for {voice_id}...")
-            generate_voice_ir(voice_id, cfg, src_scale=args.source_scale, out_dir=args.irs_dir)
-
-        out_name = f"v1_1_1_{voice_id}_{args.source_scale}_to_{tgt_s}.wav"
-        process_audio(args.input, out_name, ir_path)
+    print(f"Synthesizing aperture & scale pre-filter for {args.voice} (Source: {args.source_scale})...")
+    fir_samples = compute_aperture_prefilter_fir(args.voice, src_scale=args.source_scale)
+    prefilter_audio(input_path, out_path, fir_samples)
 
 if __name__ == "__main__":
     main()

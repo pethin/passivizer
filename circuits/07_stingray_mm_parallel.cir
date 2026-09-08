@@ -1,15 +1,15 @@
-* Passivizer Netlist 06: Studio Workhorse P/J (8CBP Neck + 9CBJS1 Bridge in Parallel)
-* Target: The #1 Recorded Bass Setup (P-Bass chest thump + J-Bridge finger snap)
+* Passivizer Netlist 07: Music Man MM (Parallel Humbucker)
+* Target: Dual-Coil Parallel Humbucker (0.75" Spacing Comb + 3.5 kHz Peak)
 .options plotwinsize=0 numdgt=7
 
 * 1. Audio Source (Pre-filtered NAM Training Track)
 V_in in 0 wavefile="v1_1_1_aperture.wav"
 
-* 2. Pickup Coils (8CBP P-Neck & 9CBJS1 J-Bridge in Parallel)
-L_coil in node1 2.06
-R_dc node1 node2 4.28k
-R_eddy in node2 60k
-C_coil node2 0 150p
+* 2. Pickup Coils (Bartolini MM4CBC Dual Coils in Parallel)
+L_coil in node1 2.4
+R_dc node1 node2 4.6k
+R_eddy in node2 140k
+C_coil node2 0 130p
 
 * 3. Dunlop 500k Super Pot (Volume @ 100%)
 R_pot_top node2 node3 10
@@ -31,5 +31,5 @@ C_anagram node3 0 30p
 .tran 0 180 0 20.8333u
 
 * 8. Output Audio Export for NAM Training
-.wave "out_06_studio_workhorse_pj.wav" 24 48000 V(node3)
+.wave "out_07_stingray_mm_parallel.wav" 24 48000 V(node3)
 .end

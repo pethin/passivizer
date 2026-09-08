@@ -1,5 +1,5 @@
-* Passivizer Netlist 05: Motown / Neo-Soul / Dub P-Bass (Tone Rolled Off to 0)
-* Target: Bartolini 8CBP with 47nF Tone Capacitor engaged (Pillowy sub-thump)
+* Passivizer Netlist 05: Split-Coil P (47nF Tone Rolloff)
+* Target: Split-Coil P with Tone at 0 (47nF Shunt Loading, 450 Hz Peak)
 .options plotwinsize=0 numdgt=7
 
 * 1. Audio Source (Pre-filtered NAM Training Track)
@@ -34,5 +34,5 @@ C_anagram node3 0 30p
 .tran 0 180 0 20.8333u
 
 * 9. Output Audio Export for NAM Training
-.wave "out_05_motown_neo_soul_dub.wav" 24 48000 V(node3)
+.wave "out_05_p_bass_47nf_rolloff.wav" 24 48000 V(node3)
 .end

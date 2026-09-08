@@ -1,5 +1,5 @@
-* Passivizer Netlist 09: Power-Trio Bulldozer (8CBP P-Neck + MM4CBC Bridge in Series)
-* Target: Maximum low-mid thrust (+5.8 dB) to fill the mix during guitar solos
+* Passivizer Netlist 09: P/MM Hybrid (Series Sum)
+* Target: Split-P + MM Dual-Coil in Series (7.2H Inductive Sum, 2.0 kHz Peak)
 .options plotwinsize=0 numdgt=7
 
 * 1. Audio Source (Pre-filtered NAM Training Track)
@@ -31,5 +31,5 @@ C_anagram node3 0 30p
 .tran 0 180 0 20.8333u
 
 * 8. Output Audio Export for NAM Training
-.wave "out_09_power_trio_bulldozer.wav" 24 48000 V(node3)
+.wave "out_09_pmm_hybrid_series.wav" 24 48000 V(node3)
 .end

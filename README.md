@@ -58,71 +58,82 @@ Passivizer converts the lower tension and warm low-mid "bloom" of **30" short-sc
 
 ---
 
-## Target Voice Catalog (10 Master Genre-Proof Profiles)
+## Target Voice Catalog (10 Master Passive Pickup Configurations + Multi-Scale)
 
-Passivizer includes pre-configured physical and electrical parameters for **10 distinct pickup topologies and combinations** engineered specifically to eliminate blindspots across **Jazz, Rock, Metal, Anisong, Pop, Stoner, Prog, J-Jazz, J-Rock, and J-Metal** (see [`docs/voice_catalog.md`](file:///Users/peter/Projects/pethin/passivizer/docs/voice_catalog.md) for full engineering specifications and band mix roles):
+Passivizer includes pre-configured physical and electrical parameters for **10 distinct pickup topologies and combinations** plus a fanned-fret multi-scale configuration (see [`docs/voice_catalog.md`](file:///Users/peter/Projects/pethin/passivizer/docs/voice_catalog.md) for full engineering specifications):
 
-| # | Profile ID | Pickup Type | Topology | $L_{\text{eq}}$ | $f_r$ (Peak) | Primary Musical Genre & Character |
+| # | Profile ID | Pickup Type | Topology | $L_{\text{eq}}$ | $f_r$ (Peak) | Circuit & Acoustic Character |
 | :- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **01** | `01_j_jazz_atelier_pair` | J-Bass Pair | Dual Parallel | $1.69\text{ H}$ | $3.9\text{ kHz}$ | **J-Jazz / Anisong / Pop Slap:** Atelier Z / Sadowsky Tokyo symmetrical 1 kHz scoop. |
-| **02** | `02_jaco_fusion_bridge` | J-Bass Bridge | Single Coil | $3.60\text{ H}$ | $3.2\text{ kHz}$ | **Jazz / J-Fusion Soloing:** Maximum staccato articulation, 1.2 kHz fingerstyle burp. |
-| **03** | `03_jrock_modern_p` | Split P-Bass | Single Split | $4.80\text{ H}$ | $2.2\text{ kHz}$ | **J-Rock / Anisong Pick:** Bartolini 8CBP ceramic attack; cuts through dense distorted guitars. |
-| **04** | `04_vintage_62_alnico_p` | Split P-Bass | Single Split | $3.80\text{ H}$ | $2.8\text{ kHz}$ | **Classic Rock / Pop / Blues:** Organic, dynamic, uncompressed woody breath. |
-| **05** | `05_motown_neo_soul_dub` | Split P-Bass | Split w/ 47nF | $4.80\text{ H}$ | $0.45\text{ kHz}$| **Neo-Soul / Reggae / Dub:** Tone rolled to 0; deep, pillowy thumb-and-palm-mute thud. |
-| **06** | `06_studio_workhorse_pj` | P + J Hybrid | Parallel Sum | $2.06\text{ H}$ | $3.6\text{ kHz}$ | **Everyday Rock / Studio Pop:** The #1 recorded hybrid: P-thump + J-snap. |
-| **07** | `07_jmetal_prog_stingray` | MM Humbucker | Dual Parallel | $2.40\text{ H}$ | $3.5\text{ kHz}$ | **J-Metal / Prog / Djent:** StingRay clank into Darkglass drives; tight, fast lows. |
-| **08** | `08_prog_rick_clank` | High-Pass Bridge | Series HPF | $3.80\text{ H}$ | $2.2\text{ kHz}$ | **Prog Rock Pick:** Chris Squire / Geddy Lee / Tool aggressive midrange pick crunch. |
-| **09** | `09_power_trio_bulldozer` | P + MM Hybrid | Series Sum | $7.20\text{ H}$ | $2.0\text{ kHz}$ | **Hard Rock / Metal Solos:** $+5.8\text{ dB}$ low-mid wall that fills the mix for power trios. |
-| **10** | `10_stoner_doom_mudbucker` | Heavy Series MM | Ultra Series | $14.40\text{ H}$| $1.2\text{ kHz}$ | **Stoner / Doom / Sludge:** Earth-shattering sub-bass; tames fuzz-pedal top-end fizz. |
+| **01** | `01_jazz_bass_pair` | J-Bass Pair | Dual Parallel | $1.69\text{ H}$ | $3.9\text{ kHz}$ | Dual narrow single-coils in parallel; symmetrical wide-aperture $1\text{ kHz}$ hollow scoop with top sparkle. |
+| **02** | `02_jazz_bridge_70s` | J-Bass Bridge | Single Coil | $3.60\text{ H}$ | $3.2\text{ kHz}$ | 70s bridge single-coil ($40.6\text{ mm}$ datum); focused $1.2\text{ kHz}$ harmonic bite with tight low end. |
+| **03** | `03_modern_p_ceramic` | Split P-Bass | Single Split | $4.80\text{ H}$ | $2.2\text{ kHz}$ | Modern ceramic split-coil (Bartolini 8CBP style); high-inductance punch and fast pick transient attack. |
+| **04** | `04_vintage_62_p_alnico` | Split P-Bass | Single Split | $3.80\text{ H}$ | $2.8\text{ kHz}$ | Classic Alnico V split-coil; lower eddy-current damping, open and dynamic woody resonance. |
+| **05** | `05_p_bass_47nf_rolloff` | Split P-Bass | Split w/ 47nF | $4.80\text{ H}$ | $0.45\text{ kHz}$| Split-coil with passive tone rolled to 0; deep, fundamental-heavy pillowy sub-bass. |
+| **06** | `06_pj_hybrid_parallel` | P + J Hybrid | Parallel Sum | $2.06\text{ H}$ | $3.6\text{ kHz}$ | Split P-neck and single-coil J-bridge summed in parallel; balanced low thump with bridge snap. |
+| **07** | `07_stingray_mm_parallel` | MM Humbucker | Dual Parallel | $2.40\text{ H}$ | $3.5\text{ kHz}$ | Music Man dual-coil humbucker in parallel; $0.75''$ spacing comb filter with prominent $3.5\text{ kHz}$ clank. |
+| **08** | `08_rickenbacker_bridge_hpf` | High-Pass Bridge | Series HPF | $3.80\text{ H}$ | $2.2\text{ kHz}$ | High-output bridge coil with vintage $4.7\text{ nF}$ series capacitor; tight high-pass cut below $150\text{ Hz}$. |
+| **09** | `09_pmm_hybrid_series` | P + MM Hybrid | Series Sum | $7.20\text{ H}$ | $2.0\text{ kHz}$ | Split P and MM humbucker wired in series; massive $+5.8\text{ dB}$ inductive boost with $2.0\text{ kHz}$ focus. |
+| **10** | `10_mudbucker_ultra_series` | Heavy Series MM | Ultra Series | $14.40\text{ H}$| $1.2\text{ kHz}$ | Overwound dual-coil series humbucker; subterranean low end with natural high-frequency rolloff. |
+| **11** | `11_dingwall_multiscale_bridge` | Multi-Scale MM | Angled Parallel | $2.30\text{ H}$| $3.4\text{ kHz}$ | 34"-37" fanned-fret angled bridge sweet spot ($48.0\text{ mm}$) with high-tension wave-speed clank filter. |
 
 ---
 
-## Two Output Pipelines & CLI Usage
+## SPICE $\to$ NAM Pipeline & CLI Usage
 
-### 1. The Fast Linear IR Pipeline (`scripts/generate_irs.py`)
-Generates 2048-tap, minimum-phase Impulse Responses for loading directly into hardware IR blocks (e.g., the Darkglass Anagram's Cab/IR Loader block).
-* **Zero Latency:** Instant preset switching at your feet.
-* **Multi-String Wave Speed Integration:** Eliminates harsh aperture notches across strings.
-* **Full Scale & Placement Conversion:** Maps from 30" or 32" bridge datums into standard 34" and 37" multi-scale tones.
+Passivizer models the acoustic aperture and scale tension in Python, feeds the pre-filtered signal into LTspice circuit digital twins, and trains lightweight NAM (`.nam`) neural captures for Block 1 of the Darkglass Anagram:
+
+### 1. Interactive Acoustic & Electrical Visualizer (`scripts/analyze_voices.py`)
+Renders interactive frequency response curves in Altair (Vega-Lite), comparing all 11 passive configurations against the source instrument:
 
 ```bash
-# Generate IRs from your 30" single EMG MM bass into 34" / 37" target tones:
-uv run python scripts/generate_irs.py --source-scale 30in
+# Generate interactive chart for 30" short-scale source bass:
+uv run python scripts/analyze_voices.py --source-scale 30in
 
-# When your 32" medium-scale P/MM bass is complete:
-uv run python scripts/generate_irs.py --source-scale 32in
+# Generate interactive chart for 32" medium-scale source bass:
+uv run python scripts/analyze_voices.py --source-scale 32in
 ```
-*Outputs: 48 kHz / 24-bit `.wav` files into `passivizer/irs/`.*
+*Outputs: Standalone interactive HTML visualizer at `docs/frequency_responses.html`.*
 
-### 2. The SPICE $\to$ NAM Pipeline (`circuits/` & `scripts/prep_nam_audio.py`)
-Generates Neural Amp Modeler (`.nam`) captures trained on electrical circuit simulations:
-1. **Pre-Filter (`prep_nam_audio.py`):** Pre-filters the official NAM calibration file (`v1_1_1.wav`) using Spotify's `pedalboard` SIMD convolution engine, applying aperture de-humbucking, spatial displacement ($\Delta x$), and string tension filtering in under 200 ms.
-2. **SPICE Simulation (`circuits/*.cir`):** Streams the pre-filtered audio through the digital twin of the passive coils, eddy currents, Dunlop 500k pot, treble bleed, and cable.
-3. **NAM Neural Training:** Trains a lightweight `nano` architecture model on the input/output audio pair.
+### 2. Acoustic Pre-Filtering (`scripts/prep_nam_audio.py`)
+Applies aperture de-humbucking, spatial displacement ($\Delta x$), and string tension filtering to NAM calibration audio (`v1_1_1.wav`) using Spotify's `pedalboard` SIMD convolution engine in under 200 ms:
 
 ```bash
-# Pre-filter audio for a specific voice (e.g., J-Rock P-Bass on 30" source):
-uv run python scripts/prep_nam_audio.py --source-scale 30in --target-scale 34in --voice 03_jrock_modern_p
+# Pre-filter audio for Modern Ceramic P from a 30" source bass:
+uv run python scripts/prep_nam_audio.py --source-scale 30in --voice 03_modern_p_ceramic
 
-# Pre-filter for a 34"-37" Dingwall-style multi-scale metal clank:
-uv run python scripts/prep_nam_audio.py --source-scale 30in --target-scale multiscale --voice 07_dingwall_ng_multiscale
+# Pre-filter audio for Dingwall Multi-Scale Bridge:
+uv run python scripts/prep_nam_audio.py --source-scale 30in --voice 11_dingwall_multiscale_bridge
+```
+*Outputs: `circuits/v1_1_1_aperture.wav` ready to drive SPICE transient simulation.*
 
-# Run SPICE headless simulation (via LTspice):
-/Applications/LTspice.app/Contents/MacOS/LTspice -b circuits/03_jrock_modern_p.cir
+### 3. Headless SPICE Circuit Twin Simulation (`circuits/*.cir`)
+Streams the acoustic pre-filtered audio through physical digital twins of passive pickup coils, eddy-current damping, Dunlop 500k volume pot, hybrid treble bleed, cable capacitance, and pedalboard input impedance:
 
-# Train lightweight nano model for Darkglass Anagram:
-nam train v1_1_1_03_jrock_modern_p_30in_to_34in.wav out_03_jrock_modern_p.wav ./models/03_jrock_modern_p --architecture "nano"
+```bash
+# Run headless SPICE simulation via LTspice on macOS:
+/Applications/LTspice.app/Contents/MacOS/LTspice -b circuits/03_modern_p_ceramic.cir
 ```
 
-### 3. Master Automation Runner (`scripts/run_pipeline.py`)
-Run all stages (IR generation, Altair interactive chart rendering, and SPICE batch) in a single command:
+### 4. NAM Neural Model Training
+Trains a lightweight `nano` or `feather` architecture model on the input/output audio pair for zero-latency, non-linear hardware execution:
 
 ```bash
-# Run complete pipeline for 30" single EMG MM bass:
-uv run python scripts/run_pipeline.py --source-scale 30in
+# Train lightweight nano model for Darkglass Anagram Block 1:
+nam train circuits/v1_1_1_aperture.wav circuits/03_modern_p_ceramic.wav ./models/03_modern_p_ceramic --architecture "nano"
+```
 
-# Generate only IRs and interactive frequency chart:
-uv run python scripts/run_pipeline.py --source-scale 30in --stage all
+### 5. Master Automation Runner (`scripts/run_pipeline.py` & `main.py`)
+Execute the entire pipeline or specific stages with a single command:
+
+```bash
+# Run complete pipeline for 30" source instrument:
+uv run python main.py --source-scale 30in
+
+# Run only visualization:
+uv run python main.py --stage viz
+
+# Run audio pre-filtering for a specific voice:
+uv run python main.py --stage prep --voice 07_stingray_mm_parallel
 ```
 
 ---
@@ -133,17 +144,16 @@ uv run python scripts/run_pipeline.py --source-scale 30in --stage all
 [Bass: EMG PX / MMTWX @ 18V]
              │
              ▼
-[Block 1: Passivizer Block]
-   ├── Mode A: IR Loader ("01_j_jazz_atelier_pair_30in_to_34in.wav")
-   └── Mode B: NAM Preamp ("07_jmetal_prog_stingray.nam")
+[Block 1: Passivizer NAM Preamp]
+    └── Model: "07_stingray_mm_parallel.nam" (Nano/Feather neural capture)
              │
              ▼
 [Block 2: Darkglass Preamp / Drive]
-   └── Microtubes B7K, Vintage Deluxe, or Alpha·Omega
+    └── Microtubes B7K, Vintage Ultra, or Alpha·Omega
              │
              ▼
-[Block 3: Speaker Cabinet IR]
-   └── Ampeg 8x10, Darkglass 4x10, or custom speaker impulse
+[Block 3: Speaker Cabinet IR Loader]
+    └── Ampeg 8x10, Darkglass 4x10, or custom speaker cab impulse
              │
              ▼
 [Output to FOH / Audio Interface]
@@ -157,25 +167,28 @@ uv run python scripts/run_pipeline.py --source-scale 30in --stage all
 passivizer/
 ├── README.md                              # Project vision, theory, architecture, and CLI guide
 ├── docs/                                  # In-depth technical guides
-│   ├── voice_catalog.md                   # Complete 10-voice technical catalog & band roles
+│   ├── voice_catalog.md                   # Complete passive pickup technical catalog & parameters
 │   ├── circuit_theory.md                  # RLC, eddy current, and cable impedance math
 │   ├── aperture_math.md                   # Magnetic aperture sinc, multi-string & scale physics
-│   └── anagram_workflow.md                # Darkglass Anagram preset setup & gain staging
-├── circuits/                              # 10 SPICE netlists & digital twins
-│   ├── 01_j_jazz_atelier_pair.cir         # J-Jazz / Anisong Slap (Atelier Z / Sadowsky)
-│   ├── 02_jaco_fusion_bridge.cir          # J-Fusion / Soloing Bark (Jaco 70s Bridge)
-│   ├── 03_jrock_modern_p.cir              # J-Rock / Anisong Pick (Bartolini 8CBP)
-│   ├── 04_vintage_62_alnico_p.cir         # Classic Rock / Blues (Vintage '62 Alnico P)
-│   ├── 05_motown_neo_soul_dub.cir         # Neo-Soul / Reggae (Tone Rolled to 0 w/ 47nF)
-│   ├── 06_studio_workhorse_pj.cir         # Everyday Rock / Pop (Studio P/J Parallel)
-│   ├── 07_jmetal_prog_stingray.cir        # J-Metal / Prog / Djent (MM Parallel Clank)
-│   ├── 08_prog_rick_clank.cir             # Prog Rock Pick (Rickenbacker 4003 Clank)
-│   ├── 09_power_trio_bulldozer.cir        # Heavy Rock / Solos (P/MM Series Wall)
-│   └── 10_stoner_doom_mudbucker.cir       # Stoner / Doom / Sludge (14.4H Fuzz Engine)
+│   └── anagram_workflow.md                # Darkglass Anagram Block 1 routing & gain staging
+├── circuits/                              # Standalone SPICE netlists (.cir)
+│   ├── 01_jazz_bass_pair.cir              # Dual single-coils in parallel
+│   ├── 02_jazz_bridge_70s.cir             # 70s bridge single-coil
+│   ├── 03_modern_p_ceramic.cir            # Modern ceramic split-coil P
+│   ├── 04_vintage_62_p_alnico.cir         # Vintage '62 Alnico V split-coil P
+│   ├── 05_p_bass_47nf_rolloff.cir         # Split-coil P with 47nF tone shunt
+│   ├── 06_pj_hybrid_parallel.cir          # P/J hybrid parallel
+│   ├── 07_stingray_mm_parallel.cir        # Music Man parallel humbucker
+│   ├── 08_rickenbacker_bridge_hpf.cir     # 4003 bridge with 4.7nF series HPF
+│   ├── 09_pmm_hybrid_series.cir           # P/MM hybrid in series
+│   ├── 10_mudbucker_ultra_series.cir      # Overwound series humbucker
+│   └── 11_dingwall_multiscale_bridge.cir  # Multi-scale angled bridge position
 ├── scripts/                               # Generation utilities (Python / uv)
-│   ├── generate_irs.py                    # Linear minimum-phase IR generator with scale conversion
-│   └── prep_nam_audio.py                  # Aperture & scale tension pre-filtering for NAM
-├── irs/                                   # Exported WAV impulse responses (48kHz / 24-bit)
+│   ├── model_physics.py                   # Aperture sinc, scale wave speeds, and FIR engine
+│   ├── analyze_voices.py                  # Polars + Altair frequency curve visualizer
+│   ├── prep_nam_audio.py                  # Aperture & scale tension pre-filtering for NAM
+│   └── run_pipeline.py                    # Master end-to-end automated runner
+├── tests/                                 # Pytest test suite (16 tests)
 └── models/                                # Exported .nam neural models
 ```
 
@@ -186,24 +199,24 @@ passivizer/
 ### Phase 1: Architecture & Modeling Definition
 - [x] Project initialization with `uv`
 - [x] Technical documentation suite (`docs/voice_catalog.md`, `circuit_theory.md`, `aperture_math.md`, `anagram_workflow.md`)
-- [x] Master 10-voice genre-proof catalog spanning Jazz, Rock, Metal, Anisong, Pop, Stoner, Prog, J-Jazz, J-Rock, J-Metal
+- [x] Master passive pickup catalog covering single-coil, split-coil, dual-coil, series/parallel hybrids, and fanned multi-scale
 
 ### Phase 2: SPICE Circuit Digital Twins
-- [x] 10 Parameterized SPICE netlists with Dunlop pot, hybrid treble bleed, and cable loading (`circuits/*.cir`)
-- [x] Specialty circuit digital twins: Rickenbacker $4.7\text{ nF}$ series HPF & Motown $47\text{ nF}$ tone shunt
+- [x] 11 Parameterized SPICE netlists with Dunlop pot, hybrid treble bleed, and cable loading (`circuits/*.cir`)
+- [x] Specialty circuit digital twins: Rickenbacker $4.7\text{ nF}$ series HPF, Motown $47\text{ nF}$ tone shunt, and Dingwall multi-scale bridge
 
 ### Phase 3: Spatial Placement & Scale-Length Engine
 - [x] Integration of 30" EMG MM datum ($77.5\text{ mm}$ from bridge) and 32" P/MM datums
 - [x] Scale-length wave-speed scaling ($\kappa_v$) for 30"/32" $\to$ 34" and 37" Multi-Scale conversion
 - [x] String tension & piano-clank filter modeling ($H_{\text{tension}}$)
 - [x] Pre-filtering utility for NAM audio (`scripts/prep_nam_audio.py`)
-- [x] Linear minimum-phase 48kHz / 24-bit IR generator (`scripts/generate_irs.py`)
+- [x] Pure-Python minimum-phase FIR synthesis engine (`scripts/model_physics.py`)
 
-### Phase 4: Pipeline Automation & Verification (Upcoming)
-- [ ] Install project Python dependencies (`uv add polars altair pedalboard`)
-- [ ] Automated end-to-end runner (`scripts/run_pipeline.py`) to execute batch SPICE runs and NAM rendering
-- [ ] Pre-generate standard 48kHz / 24-bit IR release bundles into `irs/` for both 30" and 32" instruments
+### Phase 4: Pipeline Automation & Verification
+- [x] Install project Python dependencies with `uv` on Python 3.14 (`polars`, `altair`, `pedalboard`, `pytest`)
+- [x] Automated end-to-end runner (`scripts/run_pipeline.py` & `main.py`) for Altair charts, audio pre-filtering, and SPICE simulations
+- [x] Comprehensive `pytest` test suite (16 tests) for aperture sinc/comb math, minimum-phase FIR DSP, voice catalogs, visualizer, and audio pipeline (`uv run pytest`)
 
-### Phase 5: Darkglass Ecosystem Integration (Upcoming)
-- [ ] Darkglass Suite preset pack bundle (`.darkglass` XML format) connecting with `~/Projects/pethin/anagram-presets/`
+### Phase 5: Hardware & Modeler Integration (Upcoming)
+- [ ] Darkglass Suite preset pack export bundle (`.darkglass` XML format)
 - [ ] A/B verification and dry-DI calibration against reference recordings

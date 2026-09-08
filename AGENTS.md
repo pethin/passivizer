@@ -45,30 +45,32 @@ passivizer/
 ├── pyproject.toml            # Project metadata (polars, altair, pedalboard)
 ├── README.md                 # Comprehensive architecture, CLI usage, roadmap
 ├── main.py                   # Main CLI entrypoint delegation
-├── circuits/                 # 10 Standalone SPICE circuit netlists (.cir)
-│   ├── 01_j_jazz_atelier_pair.cir
-│   └── ... (01 through 10)
+├── circuits/                 # Standalone SPICE circuit netlists (.cir)
+│   ├── 01_jazz_bass_pair.cir
+│   └── ... (01 through 11)
 ├── docs/                     # Technical documentation & interactive charts
-│   ├── voice_catalog.md      # 10 Master voices, RLC parameters, genre mix roles
+│   ├── voice_catalog.md      # Passive pickup models, RLC parameters, character
 │   ├── circuit_theory.md     # Differential equations, Dunlop pot, treble bleed
 │   ├── aperture_math.md      # Aperture sinc, wave speeds, multi-scale filters
 │   ├── anagram_workflow.md   # Darkglass Anagram Block 1 routing & banks
 │   └── frequency_responses.html # Interactive Altair visualization
-├── irs/                      # Generated 48 kHz / 24-bit FIR impulse responses
-└── scripts/                  # Core Python pipelines
-    ├── analyze_voices.py     # Polars + Altair frequency curve visualizer
-    ├── generate_irs.py       # Linear minimum-phase FIR generator
-    ├── prep_nam_audio.py     # Spotify Pedalboard NAM audio pre-filter
-    └── run_pipeline.py       # Master end-to-end automated runner
+├── models/                   # Trained Neural Amp Modeler (.nam) models
+├── scripts/                  # Core Python pipelines
+│   ├── model_physics.py      # Aperture sinc, scale wave speeds, and FIR engine
+│   ├── analyze_voices.py     # Polars + Altair frequency curve visualizer
+│   ├── prep_nam_audio.py     # Spotify Pedalboard NAM audio pre-filter
+│   └── run_pipeline.py       # Master end-to-end automated runner
+└── tests/                    # Pytest test suite (16 tests)
 ```
 
 ---
 
 ## 4. Signal Flow on Darkglass Anagram
 
-The models produced by Passivizer are meant for **Block 1** (before the preamp and drive):
+The models produced by Passivizer are loaded into **Block 1** (as a high-impedance passive pickup front-end before preamp and drive):
 ```
-[Bass: 18V EMG] -> [Block 1: Passivizer IR / NAM] -> [Block 2: Darkglass Preamp/Drive] -> [Block 3: Cab IR] -> [FOH/Audio Interface]
+[Bass: 18V EMG] -> [Block 1: Passivizer NAM] -> [Block 2: Darkglass Preamp/Drive] -> [Block 3: Cab IR Loader] -> [FOH/Audio Interface]
 ```
-- **Block 1 Mode A:** Load 48 kHz / 24-bit IR (`irs/*.wav`) into the Cab/IR Loader block.
-- **Block 1 Mode B:** Load trained `.nam` neural model into the NAM block.
+- **Block 1 (NAM Preamp):** Load trained `.nam` neural model (feather/nano architecture) capturing full RLC resonance, eddy currents, and non-linear magnetic feel.
+- **Block 2 (Darkglass Preamp/Drive):** Microtubes B7K, Vintage Ultra, or Alpha·Omega for bass saturation.
+- **Block 3 (Cabinet IR Loader):** Downstream speaker cabinet impulse responses (4x10, 8x10, 2x12).

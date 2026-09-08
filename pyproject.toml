@@ -3,9 +3,14 @@ name = "passivizer"
 version = "0.1.0"
 description = "Digital twin & analog modeling pipeline for EMG bass pickups"
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.14"
 dependencies = [
     "polars>=1.20.0",
     "altair>=5.5.0",
     "pedalboard>=0.9.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
 ]

@@ -1,11 +1,10 @@
 """
-Passivizer - Linear Minimum-Phase Impulse Response (IR) Generator
-Built with Polars for high-performance tabular DSP modeling.
-Converts 30" (short) or 32" (medium) bass signals into authentic 34" standard
-or 34"-37" multi-scale (Dingwall-style) passive pickup tones.
+Passivizer - Physical & Acoustic Modeling Engine
+Computes magnetic aperture sinc windows, dual-coil humbucker comb filtering,
+scale-length wave-speed conversions, and string tension filters using Polars.
+Synthesizes minimum-phase causal FIR filters for NAM audio pre-filtering.
 """
 
-import argparse
 import cmath
 import math
 import os
@@ -33,15 +32,15 @@ def _ifft(x):
     transformed = _fft(x_conj)
     return [val.conjugate() / n for val in transformed]
 
-def synthesize_minimum_phase_ir(magnitude_curve, num_taps=2048):
+def synthesize_minimum_phase_fir(magnitude_curve, num_taps=NUM_TAPS):
     """
-    Synthesizes a causal, minimum-phase impulse response from a desired magnitude
+    Synthesizes a causal, minimum-phase FIR filter from a desired magnitude
     curve using the homomorphic real-cepstrum Hilbert transform.
-    Runs in ~3ms without Scipy or heavy scientific dependencies.
+    Pure Python, zero heavy scientific dependencies, executes in ~3ms.
     """
     n_fft = 4096
     half = n_fft // 2
-    
+
     # Linear interpolation of input magnitude curve to half + 1 points
     m_in = len(magnitude_curve)
     mag_grid = []
@@ -52,45 +51,42 @@ def synthesize_minimum_phase_ir(magnitude_curve, num_taps=2048):
         frac = idx_f - idx_low
         val = (1.0 - frac) * magnitude_curve[idx_low] + frac * magnitude_curve[idx_hi]
         mag_grid.append(max(val, 1e-6))
-        
+
     # Build full symmetric log-magnitude spectrum
     log_mag = [math.log(m) for m in mag_grid]
     full_log_mag = log_mag + [log_mag[k] for k in range(half - 1, 0, -1)]
-    
+
     # Real cepstrum via IFFT
     c = _ifft([complex(v, 0.0) for v in full_log_mag])
-    
+
     # Minimum-phase causal folding (Hilbert transform operator in cepstral domain)
     c_hat = [complex(0.0, 0.0)] * n_fft
     c_hat[0] = c[0]
     c_hat[half] = c[half]
     for n in range(1, half):
         c_hat[n] = 2.0 * c[n]
-        
+
     # Complex minimum-phase frequency spectrum H_min = exp(FFT(c_hat))
     spec = _fft(c_hat)
     h_min_spec = [cmath.exp(s) for s in spec]
-    
+
     # Causal impulse response h[n] = Re(IFFT(H_min))
     h = [val.real for val in _ifft(h_min_spec)]
-    ir = h[:num_taps]
-    
+    fir = h[:num_taps]
+
     # Smooth tail (final 15%) with a cosine taper to eliminate truncation artifacts
     taper_len = int(num_taps * 0.15)
     start_taper = num_taps - taper_len
     for i in range(taper_len):
         w = 0.5 * (1.0 + math.cos(math.pi * i / taper_len))
-        ir[start_taper + i] *= w
-        
-    # Peak normalization to -0.1 dBFS (0.99)
-    max_peak = max(abs(x) for x in ir)
-    return [(x / max_peak) * 0.99 for x in ir] if max_peak > 0 else ir
+        fir[start_taper + i] *= w
 
-def write_wav_24bit(filepath, samples, sample_rate=48000):
-    """
-    Exports a 48 kHz / 24-bit mono PCM WAV file.
-    Prefers pedalboard.io.AudioFile, with native standard library wave fallback.
-    """
+    # Peak normalization to -0.1 dBFS (0.99)
+    max_peak = max(abs(x) for x in fir)
+    return [(x / max_peak) * 0.99 for x in fir] if max_peak > 0 else fir
+
+def write_wav_24bit(filepath, samples, sample_rate=FS):
+    """Exports a 48 kHz / 24-bit mono PCM WAV file."""
     try:
         from pedalboard.io import AudioFile
         import numpy as np
@@ -133,53 +129,98 @@ SCALES = {
 }
 
 VOICES = {
-    "01_j_jazz_atelier_pair": {
+    "01_jazz_bass_pair": {
+        "name": "01. Jazz Bass Pair (Parallel)",
+        "topology": "Dual Single-Coil Parallel",
+        "description": "Dual narrow single-coils in parallel with wide-aperture phase cancellation",
         "pos_34": 0.0880, "w": 0.75, "d": 0.0,
+        "src_32": {"pos": 0.0868, "w": 0.75, "d": 0.0},
         "fr": 3900.0, "Q": 1.3, "gain_db": -0.5, "scale": "34in"
     },
-    "02_jaco_fusion_bridge": {
+    "02_jazz_bridge_70s": {
+        "name": "02. 70s Jazz Bridge Single-Coil",
+        "topology": "Single-Coil Bridge",
+        "description": "Narrow single-coil placed close to bridge (1.6\" / 40.6mm datum)",
         "pos_34": 0.0406, "w": 0.75, "d": 0.0,
+        "src_32": {"pos": 0.0508, "w": 0.75, "d": 0.0},
         "fr": 3200.0, "Q": 1.6, "gain_db": -2.5, "scale": "34in"
     },
-    "03_jrock_modern_p": {
+    "03_modern_p_ceramic": {
+        "name": "03. Modern Split-Coil P (Ceramic)",
+        "topology": "Split-Coil Ceramic",
+        "description": "High-inductance ceramic split-coil pickup (Bartolini 8CBP style)",
         "pos_34": 0.1250, "w": 1.00, "d": 0.0,
+        "src_32": {"pos": 0.1228, "w": 1.00, "d": 0.0},
         "fr": 2200.0, "Q": 1.8, "gain_db": +1.5, "scale": "34in"
     },
-    "04_vintage_62_alnico_p": {
+    "04_vintage_62_p_alnico": {
+        "name": "04. Vintage '62 Split-Coil P (Alnico V)",
+        "topology": "Split-Coil Alnico V",
+        "description": "Classic Alnico V split-coil pickup with lower eddy-current damping",
         "pos_34": 0.1250, "w": 1.00, "d": 0.0,
+        "src_32": {"pos": 0.1228, "w": 1.00, "d": 0.0},
         "fr": 2800.0, "Q": 1.4, "gain_db": +0.5, "scale": "34in"
     },
-    "05_motown_neo_soul_dub": {
+    "05_p_bass_47nf_rolloff": {
+        "name": "05. Split-Coil P (47nF Tone Rolloff)",
+        "topology": "Split-Coil w/ 47nF Shunt",
+        "description": "P-Bass circuit with passive tone pot rolled to 0 (47nF capacitor loading)",
         "pos_34": 0.1250, "w": 1.00, "d": 0.0,
+        "src_32": {"pos": 0.1228, "w": 1.00, "d": 0.0},
         "fr": 450.0, "Q": 0.9, "gain_db": -1.0, "scale": "34in"
     },
-    "06_studio_workhorse_pj": {
+    "06_pj_hybrid_parallel": {
+        "name": "06. P/J Hybrid (Parallel)",
+        "topology": "P/J Parallel Sum",
+        "description": "Split P-neck and single-coil J-bridge summed in parallel",
         "pos_34": 0.0880, "w": 0.88, "d": 0.0,
+        "src_32": {"pos": 0.0868, "w": 0.88, "d": 0.0},
         "fr": 3600.0, "Q": 1.4, "gain_db": +0.8, "scale": "34in"
     },
-    "07_jmetal_prog_stingray": {
+    "07_stingray_mm_parallel": {
+        "name": "07. Music Man MM (Parallel Humbucker)",
+        "topology": "Dual-Coil Parallel",
+        "description": "Dual-coil humbucker in parallel with 0.75\" coil spacing comb filter",
         "pos_34": 0.0660, "w": 1.50, "d": 0.75,
+        "src_32": {"pos": 0.0622, "w": 1.50, "d": 0.75},
         "fr": 3500.0, "Q": 1.5, "gain_db": 0.0, "scale": "34in"
     },
-    "08_prog_rick_clank": {
+    "08_rickenbacker_bridge_hpf": {
+        "name": "08. Rickenbacker 4003 Bridge (4.7nF HPF)",
+        "topology": "Single-Coil w/ 4.7nF Series HPF",
+        "description": "High-output bridge coil loaded with vintage 4.7nF series high-pass capacitor",
         "pos_34": 0.0406, "w": 1.10, "d": 0.0,
+        "src_32": {"pos": 0.0508, "w": 0.75, "d": 0.0},
         "fr": 2200.0, "Q": 2.2, "gain_db": -1.5, "hpf": 150.0, "scale": "34in"
     },
-    "09_power_trio_bulldozer": {
+    "09_pmm_hybrid_series": {
+        "name": "09. P/MM Hybrid (Series Sum)",
+        "topology": "P/MM Series Sum",
+        "description": "Split P and MM humbucker wired in series (7.2H high inductive load)",
         "pos_34": 0.0950, "w": 1.25, "d": 0.75,
+        "src_32": {"pos": 0.0925, "w": 1.25, "d": 0.75},
         "fr": 2000.0, "Q": 2.2, "gain_db": +5.8, "scale": "34in"
     },
-    "10_stoner_doom_mudbucker": {
+    "10_mudbucker_ultra_series": {
+        "name": "10. Mudbucker Ultra Series",
+        "topology": "Ultra-High Inductance Series",
+        "description": "Overwound dual-coil series humbucker (14.4H, dark low-resonant peak)",
         "pos_34": 0.0950, "w": 1.50, "d": 0.75,
+        "src_32": {"pos": 0.0925, "w": 1.50, "d": 0.75},
         "fr": 1200.0, "Q": 1.6, "gain_db": +6.2, "scale": "34in"
     },
-    "07_dingwall_ng_multiscale": {
+    "11_dingwall_multiscale_bridge": {
+        "name": "11. Dingwall Fanned-Fret Bridge (Multi-Scale)",
+        "topology": "Multi-Scale Angled Dual-Coil",
+        "description": "34\"-37\" fanned fret bridge sweet spot with high wave-speed tension filter",
         "pos_34": 0.0480, "w": 1.25, "d": 0.75,
+        "src_32": {"pos": 0.0622, "w": 1.50, "d": 0.75},
         "fr": 3400.0, "Q": 1.7, "gain_db": +1.0, "scale": "multiscale"
     }
 }
 
 def polars_aperture(freq_expr, w_in, d_in, speeds):
+    """Computes multi-string aperture sinc + dual-coil comb using Polars."""
     w_m = w_in * 0.0254
     d_m = d_in * 0.0254
     acc = pl.lit(0.0)
@@ -195,43 +236,55 @@ def polars_aperture(freq_expr, w_in, d_in, speeds):
     return acc / len(speeds)
 
 def polars_position(freq_expr, pos_m, speeds):
+    """Computes spatial standing wave envelope using Polars."""
     acc = pl.lit(0.0)
     for v in speeds:
         arg_p = freq_expr * (2.0 * math.pi * pos_m / v)
         acc = acc + (arg_p.sin().abs() + 0.15)
     return acc / len(speeds)
 
-def generate_voice_ir(name, cfg, src_scale="30in", out_dir="irs"):
-    os.makedirs(out_dir, exist_ok=True)
+def compute_aperture_prefilter_fir(voice_id, src_scale="30in", num_taps=NUM_TAPS):
+    """
+    Computes the acoustic pre-filter FIR (aperture de-humbucking, displacement delta,
+    and scale tension) to pre-filter audio before feeding SPICE circuit digital twins.
+    """
+    cfg = VOICES[voice_id]
     src = SCALES[src_scale]
     tgt_scale = cfg.get("scale", "34in")
     tgt = SCALES[tgt_scale]
-    
+
     df = pl.DataFrame({"freq": FREQS})
     f = pl.col("freq")
-    
+
+    # Determine physical source pickup geometry
+    if src_scale == "32in" and "src_32" in cfg:
+        src_w = cfg["src_32"]["w"]
+        src_d = cfg["src_32"]["d"]
+        src_pos_m = cfg["src_32"]["pos"]
+    else:
+        src_w = src.get("w_in", 1.50)
+        src_d = src.get("d_in", 0.75)
+        src_pos_m = src.get("pickup_from_bridge_m", 0.0775)
+
     # 1. Aperture Transfer via Polars
-    src_w = src.get("w_in", 1.50)
-    src_d = src.get("d_in", 0.75)
     h_src_ap = polars_aperture(f, src_w, src_d, src["speeds"])
     h_tgt_ap = polars_aperture(f, cfg["w"], cfg["d"], tgt["speeds"])
     h_ap_transfer = (h_tgt_ap * h_src_ap) / (h_src_ap.pow(2) + 0.001)
-    
+
     # 2. Position Transfer via Polars
-    src_pos_m = src.get("pickup_from_bridge_m", 0.0775)
     h_src_pos = polars_position(f, src_pos_m, src["speeds"])
     h_tgt_pos = polars_position(f, cfg["pos_34"], tgt["speeds"])
     h_pos_transfer = (h_tgt_pos * h_src_pos) / (h_src_pos.pow(2) + 0.002)
-    
-    # 3. Macro Position Displacement Tilt via Polars
+
+    # 3. Macro Position Displacement Tilt
     delta_in = (cfg["pos_34"] - src_pos_m) / 0.0254
     tilt_db = delta_in * 1.5
     g_low = 10.0 ** (tilt_db / 20.0)
     g_hi = 10.0 ** (-tilt_db / 20.0)
     h_low_tilt = ((g_low ** 2 + (f / 250.0).pow(2)) / (1.0 + (f / 250.0).pow(2))).sqrt()
     h_hi_tilt = ((1.0 + g_hi ** 2 * (f / 2200.0).pow(2)) / (1.0 + (f / 2200.0).pow(2))).sqrt()
-    
-    # 4. Scale-Length Tension Filter via Polars
+
+    # 4. Scale-Length Tension Filter
     if tgt_scale == "multiscale":
         sub_gain = 10.0 ** (1.5 / 20.0)
         h_sub = ((sub_gain ** 2 + (f / 75.0).pow(2)) / (1.0 + (f / 75.0).pow(2))).sqrt()
@@ -245,38 +298,14 @@ def generate_voice_ir(name, cfg, src_scale="30in", out_dir="irs"):
         h_tension = ((1.0 + g_snap ** 2 * (f / 2800.0).pow(2)) / (1.0 + (f / 2800.0).pow(2))).sqrt()
     else:
         h_tension = pl.lit(1.0)
-        
-    # 5. Target Electrical RLC Resonance
-    fr, Q = cfg["fr"], cfg["Q"]
-    h_elec = 1.0 / (((1.0 - (f / fr).pow(2)).pow(2) + (1.0 / Q ** 2) * (f / fr).pow(2))).sqrt()
-    if "hpf" in cfg:
-        fc_hpf = cfg["hpf"]
-        h_elec = h_elec * (f / (f.pow(2) + fc_hpf ** 2).sqrt())
-        
+
+    # Total acoustic/spatial pre-filter response (RLC electronics handled in SPICE)
     df = df.with_columns(
-        (h_ap_transfer * h_pos_transfer * (h_low_tilt * h_hi_tilt) * h_tension * h_elec).alias("response")
+        (h_ap_transfer * h_pos_transfer * (h_low_tilt * h_hi_tilt) * h_tension).alias("prefilter_curve")
     )
-    
-    # Synthesize minimum-phase FIR from Polars response curve
-    resp_series = df["response"]
+
+    resp_series = df["prefilter_curve"]
     max_val = resp_series.max()
     resp_norm = [v / max_val for v in resp_series.to_list()]
-    
-    ir_min_phase = synthesize_minimum_phase_ir(resp_norm, num_taps=NUM_TAPS)
-    
-    out_file = os.path.join(out_dir, f"{name}_{src_scale}_to_{tgt_scale}.wav")
-    write_wav_24bit(out_file, ir_min_phase, sample_rate=FS)
-    print(f"Generated IR [{src_scale} -> {tgt_scale}]: {out_file}")
 
-def main():
-    parser = argparse.ArgumentParser(description="Generate 48kHz / 24-bit IRs using Polars.")
-    parser.add_argument("--source-scale", choices=["30in", "32in"], default="30in", help="Physical source scale")
-    args = parser.parse_args()
-
-    print(f"Generating Passivizer IRs (Polars engine): [{args.source_scale}] -> [34\" Standard & 37\" Multi-Scale]...")
-    for voice_id, cfg in VOICES.items():
-        generate_voice_ir(voice_id, cfg, src_scale=args.source_scale)
-    print("\nDone! IR files saved in passivizer/irs/")
-
-if __name__ == "__main__":
-    main()
+    return synthesize_minimum_phase_fir(resp_norm, num_taps=num_taps)
