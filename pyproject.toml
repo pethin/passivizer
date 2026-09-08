@@ -8,6 +8,7 @@ dependencies = [
     "polars>=1.20.0",
     "altair>=5.5.0",
     "pedalboard>=0.9.0",
+    "neural-amp-modeler>=0.13.0",
 ]
 
 [dependency-groups]

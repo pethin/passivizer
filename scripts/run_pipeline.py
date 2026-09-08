@@ -22,7 +22,7 @@ SCRIPTS_DIR = REPO_ROOT / "scripts"
 if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
 
-from model_physics import INSTRUMENTS, VOICES
+from model_physics import INSTRUMENTS, VOICES, resolve_voices
 
 DEFAULT_LTSPICE_BIN = "/Applications/LTspice.app/Contents/MacOS/LTspice"
 
@@ -45,7 +45,7 @@ def run_prep_audio(input_wav="v1_1_1.wav", instrument="30in", voice="03_modern_p
                 input_wav = candidate
                 break
 
-    print(f"\n[Stage 2] Pre-filtering audio for {voice} (Instrument: {instrument}, Input: {input_wav})...")
+    print(f"\n[Prep Audio] Pre-filtering for {voice} (Instrument: {instrument}, Input: {input_wav})...")
     script = SCRIPTS_DIR / "prep_nam_audio.py"
     cmd = [
         sys.executable, str(script),
@@ -57,41 +57,55 @@ def run_prep_audio(input_wav="v1_1_1.wav", instrument="30in", voice="03_modern_p
     if res.returncode != 0:
         print(f"Notice: Pre-filtering returned code {res.returncode}")
 
-def run_spice_batch(ltspice_bin=DEFAULT_LTSPICE_BIN):
-    """Executes headless batch simulation of all SPICE netlists."""
+def run_spice_voice(voice, ltspice_bin=DEFAULT_LTSPICE_BIN):
+    """Executes headless simulation for a single target voice netlist."""
+    if not os.path.exists(ltspice_bin):
+        print(f"Notice: LTspice executable not found at '{ltspice_bin}'.")
+        return False
+
+    vcfg = VOICES.get(voice, {})
+    cir_rel = vcfg.get("circuit", f"circuits/{voice}.cir")
+    cir_path = REPO_ROOT / cir_rel
+    if not cir_path.exists():
+        cir_path = CIRCUITS_DIR / f"{voice}.cir"
+    if not cir_path.exists():
+        print(f"Warning: Netlist '{cir_path.name}' not found.")
+        return False
+
+    input_wav = CIRCUITS_DIR / "v1_1_1_aperture.wav"
+    if not input_wav.exists():
+        print(f"Notice: Audio source '{input_wav.name}' not found in circuits/.")
+        return False
+
+    print(f"  -> Simulating SPICE: {cir_path.name}...")
+    cmd = [ltspice_bin, "-b", str(cir_path.resolve())]
+    try:
+        res = subprocess.run(cmd, cwd=str(CIRCUITS_DIR), timeout=300)
+        if res.returncode != 0:
+            print(f"     Warning: Simulation of {cir_path.name} exited with code {res.returncode}")
+            return False
+        return True
+    except subprocess.TimeoutExpired:
+        print(f"     Warning: Simulation of {cir_path.name} timed out after 300s")
+        return False
+
+def run_spice_batch(voices=None, ltspice_bin=DEFAULT_LTSPICE_BIN):
+    """Executes headless batch simulation of specified SPICE netlists."""
     print("\n[Stage 3] Executing headless SPICE simulations...")
     if not os.path.exists(ltspice_bin):
         print(f"Notice: LTspice executable not found at '{ltspice_bin}'.")
         print("Skipping headless SPICE batch. To run, pass --ltspice-path /path/to/LTspice")
         return
 
-    cir_files = sorted(CIRCUITS_DIR.glob("*.cir"))
-    if not cir_files:
-        print("No .cir netlists found in circuits/")
-        return
-
-    # Check if input wavefile exists in circuits directory to avoid headless modal dialog hang
-    input_wav = CIRCUITS_DIR / "v1_1_1_aperture.wav"
-    if not input_wav.exists():
-        print(f"Notice: Audio source '{input_wav.name}' not found in circuits/.")
-        print("Skipping SPICE transient simulation. Pre-filter audio with prep_nam_audio.py first.")
-        return
-
-    for cir in cir_files:
-        print(f"  -> Simulating: {cir.name}...")
-        cmd = [ltspice_bin, "-b", str(cir.resolve())]
-        try:
-            res = subprocess.run(cmd, cwd=str(CIRCUITS_DIR), timeout=300)
-            if res.returncode != 0:
-                print(f"     Warning: Simulation of {cir.name} exited with code {res.returncode}")
-        except subprocess.TimeoutExpired:
-            print(f"     Warning: Simulation of {cir.name} timed out after 300s")
+    target_voices = voices if voices else list(VOICES.keys())
+    for voice in target_voices:
+        run_spice_voice(voice, ltspice_bin=ltspice_bin)
 
     print("Batch SPICE execution finished.")
 
 def run_training(instrument="30in", voice="03_modern_p_ceramic", input_wav=None, epochs=100, fast_dev_run=False):
     """Trains a Neural Amp Modeler (NAM) Architecture 2 model locally with MPS GPU acceleration."""
-    print(f"\n[Stage 4] Training Neural Amp Modeler A2 model for {voice} (Instrument: {instrument})...")
+    print(f"\n[Training] Training Neural Amp Modeler A2 model for {voice} (Instrument: {instrument})...")
     script = SCRIPTS_DIR / "train_nam.py"
     cmd = [
         sys.executable, str(script),
@@ -142,7 +156,7 @@ def main():
     parser.add_argument(
         "--voice",
         default="03_modern_p_ceramic",
-        help="Target pickup voice for audio pre-filtering and training"
+        help="Target pickup voice for audio pre-filtering and training (voice ID, comma-separated list, or 'all')"
     )
     parser.add_argument(
         "--input-wav",
@@ -185,10 +199,13 @@ def main():
         list_voices()
         return
 
+    voices_to_run = resolve_voices(args.voice)
+
     print("========================================")
     print("  PASSIVIZER SPICE -> NAM PIPELINE")
     print(f"  Instrument: {args.instrument}")
     print(f"  Stage:      {args.stage}")
+    print(f"  Voices ({len(voices_to_run)}): {', '.join(voices_to_run)}")
     print("========================================")
 
     input_wav = args.input_wav
@@ -201,14 +218,42 @@ def main():
     if args.stage in ["all", "viz"]:
         run_visualization(instrument=args.instrument)
 
-    if args.stage in ["all", "prep"]:
-        run_prep_audio(input_wav=input_wav, instrument=args.instrument, voice=args.voice)
+    if args.stage == "prep":
+        for idx, voice in enumerate(voices_to_run, 1):
+            print(f"\n[{idx}/{len(voices_to_run)}] Pre-filtering audio: {voice}...")
+            run_prep_audio(input_wav=input_wav, instrument=args.instrument, voice=voice)
 
-    if args.stage in ["all", "spice"]:
-        run_spice_batch(ltspice_bin=args.ltspice_path)
+    elif args.stage == "spice":
+        for idx, voice in enumerate(voices_to_run, 1):
+            print(f"\n[{idx}/{len(voices_to_run)}] SPICE simulation: {voice}...")
+            run_prep_audio(input_wav=input_wav, instrument=args.instrument, voice=voice)
+            run_spice_voice(voice=voice, ltspice_bin=args.ltspice_path)
 
-    if args.stage in ["train"]:
-        run_training(instrument=args.instrument, voice=args.voice, input_wav=input_wav, epochs=args.epochs, fast_dev_run=args.fast_dev_run)
+    elif args.stage == "train":
+        for idx, voice in enumerate(voices_to_run, 1):
+            print(f"\n[{idx}/{len(voices_to_run)}] Training NAM A2 Model: {voice}...")
+            run_training(
+                instrument=args.instrument,
+                voice=voice,
+                input_wav=input_wav,
+                epochs=args.epochs,
+                fast_dev_run=args.fast_dev_run,
+            )
+
+    elif args.stage == "all":
+        for idx, voice in enumerate(voices_to_run, 1):
+            print(f"\n==================================================")
+            print(f"  [{idx}/{len(voices_to_run)}] Full Cycle for Voice: {voice}")
+            print(f"==================================================")
+            run_prep_audio(input_wav=input_wav, instrument=args.instrument, voice=voice)
+            run_spice_voice(voice=voice, ltspice_bin=args.ltspice_path)
+            run_training(
+                instrument=args.instrument,
+                voice=voice,
+                input_wav=input_wav,
+                epochs=args.epochs,
+                fast_dev_run=args.fast_dev_run,
+            )
 
     print("\n[Pipeline Complete]")
 

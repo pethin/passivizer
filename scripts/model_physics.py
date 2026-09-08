@@ -208,6 +208,34 @@ SCALES = load_scales()
 VOICES = load_voices_config()
 INSTRUMENTS = load_all_instruments()
 
+def resolve_voices(voice_arg):
+    """
+    Parses a voice argument into a list of valid target voice IDs.
+    Supports:
+      - 'all' -> all configured voices in VOICES
+      - Comma-separated list: '01_jazz_bass_pair,03_modern_p_ceramic'
+      - Single voice ID: '03_modern_p_ceramic'
+      - Partial / prefix matching: '01', '03'
+    """
+    if not voice_arg or str(voice_arg).strip().lower() == "all":
+        return list(VOICES.keys())
+
+    tokens = [v.strip() for v in str(voice_arg).split(",") if v.strip()]
+    resolved = []
+    for token in tokens:
+        if token in VOICES:
+            if token not in resolved:
+                resolved.append(token)
+        else:
+            matches = [vid for vid in VOICES if vid.startswith(token) or token in vid]
+            if matches:
+                for m in matches:
+                    if m not in resolved:
+                        resolved.append(m)
+            else:
+                print(f"Warning: Unknown voice identifier '{token}'.")
+    return resolved if resolved else list(VOICES.keys())
+
 def polars_aperture(freq_expr, w_in, d_in, speeds):
     """Computes multi-string aperture sinc + dual-coil comb using Polars."""
     w_m = w_in * 0.0254

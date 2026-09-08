@@ -58,3 +58,23 @@ def test_scales_structure():
     # 30" wave speeds should be lower than 34" wave speeds
     for s30, s34 in zip(SCALES["30in"]["speeds"], SCALES["34in"]["speeds"]):
         assert s30 < s34
+
+def test_resolve_voices():
+    from scripts.model_physics import resolve_voices
+
+    # "all" should return all 11 voices
+    all_voices = resolve_voices("all")
+    assert len(all_voices) == 11
+    assert all_voices == list(VOICES.keys())
+
+    # Single voice
+    single = resolve_voices("03_modern_p_ceramic")
+    assert single == ["03_modern_p_ceramic"]
+
+    # Comma-separated voices
+    multi = resolve_voices("01_jazz_bass_pair, 07_stingray_mm_parallel")
+    assert multi == ["01_jazz_bass_pair", "07_stingray_mm_parallel"]
+
+    # Prefix shorthand matching
+    shorthand = resolve_voices("01, 04")
+    assert shorthand == ["01_jazz_bass_pair", "04_vintage_62_p_alnico"]

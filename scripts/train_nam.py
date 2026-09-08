@@ -18,7 +18,7 @@ SCRIPTS_DIR = REPO_ROOT / "scripts"
 if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
 
-from model_physics import VOICES, load_instrument, get_source_pickup, INSTRUMENTS
+from model_physics import VOICES, load_instrument, get_source_pickup, INSTRUMENTS, resolve_voices
 
 def find_sweep_input(candidate_path=None):
     if candidate_path and Path(candidate_path).exists():
@@ -47,8 +47,8 @@ def train_voice(
         import nam.train.metadata as train_meta
     except ImportError:
         print("Error: 'neural-amp-modeler' is not installed in the current environment.")
-        print("Please run with:")
-        print(f"  uv run --with neural-amp-modeler python main.py --stage train --instrument {instrument} --voice {voice}")
+        print("Please run `uv sync` or install project dependencies:")
+        print(f"  uv run python main.py --stage train --instrument {instrument} --voice {voice}")
         return False
 
     # 1. Load source instrument and resolve routing
@@ -198,7 +198,7 @@ def main():
         dest="instrument",
         help="Legacy alias for --instrument (e.g. 30in, 32in)"
     )
-    parser.add_argument("--voice", choices=VOICES.keys(), default="03_modern_p_ceramic", help="Target pickup voice")
+    parser.add_argument("--voice", default="03_modern_p_ceramic", help="Target pickup voice (ID, comma-separated list, or 'all')")
     parser.add_argument("--input", help="Path to dry training sweep WAV (default: auto-detect T3K-sweep-v3.wav)")
     parser.add_argument("--output", help="Path to simulated SPICE output WAV (default: circuits/out_<voice>.wav)")
     parser.add_argument("--models-dir", default=str(MODELS_DIR), help="Output models directory")
@@ -219,18 +219,31 @@ def main():
             print("Error: 'neural-amp-modeler' GUI could not be loaded.")
             return
 
-    train_voice(
-        instrument=args.instrument,
-        voice=args.voice,
-        input_wav=args.input,
-        output_wav=args.output,
-        models_dir=args.models_dir,
-        epochs=args.epochs,
-        batch_size=args.batch_size,
-        silent=not args.show_plot,
-        save_plot=args.save_plot,
-        fast_dev_run=args.fast_dev_run,
-    )
+    voices_to_run = resolve_voices(args.voice)
+    all_ok = True
+    for idx, voice in enumerate(voices_to_run, 1):
+        if len(voices_to_run) > 1:
+            print(f"\n==================================================")
+            print(f"  [{idx}/{len(voices_to_run)}] Training Voice: {voice}")
+            print(f"==================================================")
+        out_wav = args.output if len(voices_to_run) == 1 else None
+        ok = train_voice(
+            instrument=args.instrument,
+            voice=voice,
+            input_wav=args.input,
+            output_wav=out_wav,
+            models_dir=args.models_dir,
+            epochs=args.epochs,
+            batch_size=args.batch_size,
+            silent=not args.show_plot,
+            save_plot=args.save_plot,
+            fast_dev_run=args.fast_dev_run,
+        )
+        if not ok:
+            all_ok = False
+
+    if not all_ok:
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()
