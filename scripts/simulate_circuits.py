@@ -34,6 +34,7 @@ from model_physics import (
     write_wav_24bit,
     compute_voice_prefilter_firs,
     load_instrument,
+    get_instrument_string,
 )
 
 def parse_spice_val(val_str: str) -> float:
@@ -512,6 +513,13 @@ def simulate_voice(
         save_intermediate = Path(save_intermediate)
 
     model = parse_netlist(cir_path)
+
+    # Dynamic bridge compliance scaling based on source string pluck excursion
+    if voice_id == "12_upright_bridge_transducer":
+        src_string = get_instrument_string(inst_cfg)
+        excursion = float(src_string.get("pluck_excursion_factor", 1.0))
+        if excursion > 0:
+            model.vsat = round(model.vsat / excursion, 3)
 
     prefilter_firs = None
     if not prefiltered:

@@ -37,6 +37,9 @@ from model_physics import (
     numpy_pickup_macro_aperture,
     resolve_pickup_electrical_deconvolution,
     is_voice_matching_source,
+    get_instrument_string,
+    get_voice_string,
+    compute_differential_string_transfer,
 )
 from simulate_circuits import (
     CIRCUITS_DIR,
@@ -72,6 +75,9 @@ def build_voice_dataframe(voice_id, cfg, instrument="30in", src_scale=None):
     tgt_pos_eff = compute_effective_position(tgt_coils)
 
     freqs = np.asarray(log_freqs, dtype=np.float64)
+
+    src_string = get_instrument_string(inst)
+    tgt_string = get_voice_string(cfg)
 
     # 1. Target Composite Acoustic + Electrical Pickup Superposition
     pickups = resolve_voice_pickups(cfg)
@@ -123,13 +129,22 @@ def build_voice_dataframe(voice_id, cfg, instrument="30in", src_scale=None):
             b_src_acoustic = h_src_acoustic
 
         if sensor_type == "bridge_force":
-            # Upright acoustic bridge force transducer physics
+            # 1. Band-limited de-combing: active in 100 Hz - 1.8 kHz passband, smoothly tapering
+            # to 1.0 between 1.8 kHz and 3.2 kHz to eliminate high-frequency comb ripples
             eps = 0.08
-            h_decomb = b_src_acoustic / (b_src_acoustic ** 2 + eps)
+            h_decomb_raw = b_src_acoustic / (b_src_acoustic ** 2 + eps)
             mid_mask = (freqs >= 100.0) & (freqs <= 1000.0)
-            h_decomb = h_decomb / np.median(h_decomb[mid_mask])
+            h_decomb_raw = h_decomb_raw / np.median(h_decomb_raw[mid_mask])
 
-            f_damp = 4200.0
+            f_taper_start = 1800.0
+            f_taper_end = 3200.0
+            t = np.clip((freqs - f_taper_start) / (f_taper_end - f_taper_start), 0.0, 1.0)
+            w = 0.5 * (1.0 + np.cos(np.pi * t))
+            h_decomb = w * h_decomb_raw + (1.0 - w) * 1.0
+
+            # 2. Pure acoustic spruce wood damping (monotonically falling above 3.8-4.2 kHz)
+            is_flatwound = "flat" in src_string.get("type", "")
+            f_damp = 4200.0 if is_flatwound else 3600.0
             h_damp = 1.0 / np.sqrt((1.0 - (freqs / f_damp) ** 2) ** 2 + 2.0 * (freqs / f_damp) ** 2)
 
             # 3. Subsonic rumble cut (32 Hz with -16.5 dB DC shelf floor to prevent cepstral zero)
@@ -178,7 +193,8 @@ def build_voice_dataframe(voice_id, cfg, instrument="30in", src_scale=None):
         )
         h_tension = h_sub * h_clank
     elif tgt_scale == "upright":
-        g_bloom = 10.0 ** (2.0 / 20.0)
+        delta_bloom = float(tgt_string.get("bloom_db", 2.8)) - float(src_string.get("bloom_db", 0.0))
+        g_bloom = 10.0 ** (max(delta_bloom, 0.5) / 20.0)
         h_bloom = np.sqrt((g_bloom ** 2 + (freqs / 100.0) ** 2) / (1.0 + (freqs / 100.0) ** 2))
         h_tension = h_bloom
     elif tgt_scale == "34in" and src_scale_in != 34.0:
@@ -187,7 +203,13 @@ def build_voice_dataframe(voice_id, cfg, instrument="30in", src_scale=None):
     else:
         h_tension = np.ones_like(freqs)
 
-    mag_raw = h_tgt_total * h_elec_inv * h_tension
+    # Differential string transfer for specialized target voicing strings (e.g. vintage flats, multiscale)
+    if sensor_type != "bridge_force" and cfg.get("target_string") and cfg.get("target_string") != "roundwound_nickel_standard":
+        h_str_diff = compute_differential_string_transfer(freqs, src_string, tgt_string)
+    else:
+        h_str_diff = np.ones_like(freqs)
+
+    mag_raw = h_tgt_total * h_elec_inv * h_tension * h_str_diff
     if cfg.get("hpf") and cfg.get("hpf") >= 80.0:
         ref_idx = np.argmin(np.abs(freqs - 1000.0))
     elif cfg.get("sensor_type") == "bridge_force":

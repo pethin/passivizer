@@ -105,3 +105,46 @@ Group the pickup profiles into dedicated 3-button banks on the Anagram hardware:
 4. Drag and drop trained `models/*.nam` captures into your user model library.
 5. In your preset chain on the pedalboard, assign **Block 1** to your imported NAM capture.
 
+---
+
+## 5. Acoustic Upright Dual-Stage Architecture (Block 1 NAM + Block 3 3 Sigma IR)
+
+When targeting an authentic upright double bass tone from a fretless electric bass (such as the 32" Fretless strung with **La Bella Low Tension Flats**), Passivizer splits the acoustic transformation into two specialized stages:
+
+```
+[32" Fretless Bass w/ La Bella LTF]
+                 │
+                 ▼
+┌────────────────────────────────────────────────────────┐
+│ Block 1: Passivizer NAM (`12_upright_bridge_transducer`)│
+│   • Mathematical de-combing of EMG spatial aperture   │
+│   • Leaky velocity-to-force integration (+6 dB/oct tilt)│
+│   • Non-linear soft-knee bridge compliance (tanh)      │
+│   • Subsonic stage rumble filter (32 Hz)               │
+│   • Anti-double-damping deconvolution for flatwounds   │
+└────────────────────────────────────────────────────────┘
+                 │ (Pure simulated Realist/Underwood bridge force signal)
+                 ▼
+┌────────────────────────────────────────────────────────┐
+│ Block 2: Transparent Acoustic Preamp / Optical Comp    │
+│   • Subtle optical leveling (2:1 ratio)                │
+└────────────────────────────────────────────────────────┘
+                 │
+                 ▼
+┌────────────────────────────────────────────────────────┐
+│ Block 3: Cab IR Loader (3 Sigma Upright Bass IR)       │
+│   • Full 3/4 acoustic body & spruce soundboard cavity  │
+│   • Helmholtz air resonance (~60 Hz)                   │
+└────────────────────────────────────────────────────────┘
+                 │
+                 ▼
+[Stereo XLR Outputs to FOH / Audio Interface]
+```
+
+### Why Both Blocks Are Necessary:
+1. **An IR is Linear Time-Invariant (LTI):** It cannot deconvolve magnetic pickup comb notches, nor can it replicate the non-linear mechanical rocking of a double bass bridge under pizzicato attack. Feeding electric magnetic pickups straight into an acoustic IR sounds like an electric bass inside a hollow box.
+2. **Block 1 Converts Pickup Physics:** Passivizer's NAM model transforms the magnetic velocity-sensing signal into a mechanical bridge force sensor, complete with dynamic compliance compression.
+3. **Block 3 Radiates the Soundboard:** The 3 Sigma IR receives the exact force signal it was designed for, radiating it through a spruce top and resonant double-bass body.
+4. **Anti-Double-Damping:** Because the 32" fretless is strung with La Bella Low Tension Flats, Passivizer's differential string engine automatically adjusts its acoustic damping curve, preventing the dull, muffled tone that occurs when a static acoustic low-pass filter is applied to already-dark flatwound strings.
+
+

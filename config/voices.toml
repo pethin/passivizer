@@ -134,6 +134,7 @@ fr = 450.0
 Q = 0.9
 gain_db = -1.0
 scale = "34in"
+target_string = "flatwound_vintage_heavy"
 coils = [
     { strings = ["E", "A"], position_from_bridge_m = 0.1390, aperture_width_in = 1.00, weight = 1.0 },
     { strings = ["D", "G"], position_from_bridge_m = 0.1110, aperture_width_in = 1.00, weight = 1.0 }
@@ -296,6 +297,7 @@ fr = 3400.0
 Q = 1.5
 gain_db = 1.0
 scale = "multiscale"
+target_string = "roundwound_stainless_clank"
 coils = [
     { strings = ["all"], position_from_bridge_m = 0.0575, aperture_width_in = 0.75, weight = 0.5 }, # Neck coil
     { strings = ["all"], position_from_bridge_m = 0.0385, aperture_width_in = 0.75, weight = 0.5 }  # Bridge coil
@@ -318,6 +320,7 @@ fr = 4500.0
 Q = 0.7
 gain_db = 0.0
 scale = "upright"
+target_string = "double_bass_spirocore"
 hpf = 30.0
 coils = [
     { strings = ["all"], position_from_bridge_m = 0.0050, aperture_width_in = 0.25, weight = 1.0 }

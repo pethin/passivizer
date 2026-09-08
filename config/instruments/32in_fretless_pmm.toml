@@ -25,6 +25,21 @@ string_wave_speeds = [66.98, 89.41, 119.35, 159.31]
 default_pickup = "upright_blend"
 
 # ------------------------------------------------------------------------------
+# Physical Strings Configuration (Source Instrument Setup)
+# ------------------------------------------------------------------------------
+# Strung with La Bella Low Tension Flats (LTF-4A): smooth stainless flat ribbon
+# wound over flexible round core. Lower tension (~132 lbs) and early viscoelastic
+# damping deliver woody upright-like thump and fingerboard mwah.
+[strings]
+preset = "flatwound_low_tension"
+brand = "La Bella"
+model = "LTF-4A"
+gauge = "43-100"
+core = "round"
+wrap = "stainless_flat"
+tension_lbs = 132.0
+
+# ------------------------------------------------------------------------------
 # 1. REVERSE EMG PCSX SPLIT-COIL (Neck Solo)
 # ------------------------------------------------------------------------------
 # Reverse split layout with forward D/G coil half (154.4mm) and rearward E/A coil half (126.4mm).

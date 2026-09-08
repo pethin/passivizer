@@ -204,10 +204,68 @@ def get_source_pickup(instrument, voice_id):
     p["id"] = first_key
     return p
 
+STRINGS_FILE = CONFIG_DIR / "strings.toml"
+
+def load_strings_config(config_path=None):
+    """Loads physical string catalog from TOML."""
+    path = Path(config_path) if config_path else STRINGS_FILE
+    if not path.exists():
+        return {}
+    with open(path, "rb") as f:
+        data = tomllib.load(f)
+    return data.get("strings", {})
+
+def get_instrument_string(instrument):
+    """Resolves string configuration dictionary for a source instrument."""
+    inst = load_instrument(instrument) if not isinstance(instrument, dict) else instrument
+    s_block = inst.get("strings", {})
+    preset = s_block.get("preset", "roundwound_nickel_standard")
+    base = STRINGS.get(preset, STRINGS.get("roundwound_nickel_standard", {})).copy()
+    base.update(s_block)
+    return base
+
+def get_voice_string(voice_cfg):
+    """Resolves target string configuration dictionary for a target voice."""
+    preset = voice_cfg.get("target_string", "roundwound_nickel_standard")
+    return STRINGS.get(preset, STRINGS.get("roundwound_nickel_standard", {})).copy()
+
+def compute_differential_string_transfer(freqs, src_string, tgt_string):
+    """
+    Computes differential transfer function between source instrument strings
+    and target voicing goal strings using NumPy:
+      H_string_transfer(f) = H_damp_ratio(f) * H_bloom_diff(f)
+    Prevents double-damping when source bass already uses flatwounds, while
+    providing authentic acoustic upright/fanned-fret damping and bloom.
+    """
+    f = np.asarray(freqs, dtype=np.float64)
+
+    f_damp_src = float(src_string.get("damping_cutoff_hz", 8500.0))
+    n_src = float(src_string.get("damping_order", 1.0))
+
+    f_damp_tgt = float(tgt_string.get("damping_cutoff_hz", 8500.0))
+    n_tgt = float(tgt_string.get("damping_order", 1.0))
+
+    # Calculate magnitude damping curves
+    src_mag = 1.0 / np.sqrt(1.0 + (f / f_damp_src) ** (2.0 * n_src))
+    tgt_mag = 1.0 / np.sqrt(1.0 + (f / f_damp_tgt) ** (2.0 * n_tgt))
+
+    ratio = tgt_mag / np.maximum(src_mag, 0.05)
+    h_damp_ratio = np.clip(ratio, 0.15, 3.0)
+
+    bloom_src = float(src_string.get("bloom_db", 0.0))
+    bloom_tgt = float(tgt_string.get("bloom_db", 0.0))
+    delta_bloom_db = bloom_tgt - bloom_src
+
+    g_bloom = 10.0 ** (delta_bloom_db / 20.0)
+    h_bloom = np.sqrt((g_bloom ** 2 + (f / 90.0) ** 2) / (1.0 + (f / 90.0) ** 2))
+
+    return h_damp_ratio * h_bloom
+
 # Global registries initialized from modular configuration files
 SCALES = load_scales()
 VOICES = load_voices_config()
 INSTRUMENTS = load_all_instruments()
+STRINGS = load_strings_config()
 
 def resolve_voices(voice_arg):
     """
@@ -683,7 +741,10 @@ def compute_voice_prefilter_firs(voice_id, instrument="30in", src_scale=None, nu
 
     h_src_acoustic = numpy_pickup_acoustic_response(freqs, src_coils, src_speeds)
 
-    # Scale-Length Tension Filter
+    src_string = get_instrument_string(inst)
+    tgt_string = get_voice_string(cfg)
+
+    # Scale-Length Tension & Body Bloom Filter
     src_scale_in = inst.get("scale_length_in", 34.0)
     if target_scale_key == "multiscale":
         sub_gain = 10.0 ** (1.5 / 20.0)
@@ -697,7 +758,9 @@ def compute_voice_prefilter_firs(voice_id, instrument="30in", src_scale=None, nu
         h_tension = h_sub * h_clank
     elif target_scale_key == "upright":
         # Upright string physics & body bloom: deep fundamental, woody low-mids
-        g_bloom = 10.0 ** (2.0 / 20.0)
+        # Modulated by differential bloom between target double-bass strings and source instrument strings
+        delta_bloom = float(tgt_string.get("bloom_db", 2.8)) - float(src_string.get("bloom_db", 0.0))
+        g_bloom = 10.0 ** (max(delta_bloom, 0.5) / 20.0)
         h_bloom = np.sqrt((g_bloom ** 2 + (freqs / 100.0) ** 2) / (1.0 + (freqs / 100.0) ** 2))
         h_tension = h_bloom
     elif target_scale_key == "34in" and src_scale_in != 34.0:
@@ -733,14 +796,22 @@ def compute_voice_prefilter_firs(voice_id, instrument="30in", src_scale=None, nu
             b_src_acoustic = h_src_acoustic
 
         if sensor_type == "bridge_force":
-            # 1. De-combing regularized & band-limited without high-frequency flare
+            # 1. Band-limited de-combing: active in 100 Hz - 1.8 kHz passband, smoothly tapering
+            # to 1.0 between 1.8 kHz and 3.2 kHz to eliminate high-frequency comb ripples
             eps = 0.08
-            h_decomb = b_src_acoustic / (b_src_acoustic ** 2 + eps)
+            h_decomb_raw = b_src_acoustic / (b_src_acoustic ** 2 + eps)
             mid_mask = (freqs >= 100.0) & (freqs <= 1000.0)
-            h_decomb = h_decomb / np.median(h_decomb[mid_mask])
+            h_decomb_raw = h_decomb_raw / np.median(h_decomb_raw[mid_mask])
 
-            # 2. Acoustic bridge & soundboard mechanical damping (above 4.2 kHz)
-            f_damp = 4200.0
+            f_taper_start = 1800.0
+            f_taper_end = 3200.0
+            t = np.clip((freqs - f_taper_start) / (f_taper_end - f_taper_start), 0.0, 1.0)
+            w = 0.5 * (1.0 + np.cos(np.pi * t))
+            h_decomb = w * h_decomb_raw + (1.0 - w) * 1.0
+
+            # 2. Pure acoustic spruce wood damping (monotonically falling above 3.8-4.2 kHz)
+            is_flatwound = "flat" in src_string.get("type", "")
+            f_damp = 4200.0 if is_flatwound else 3600.0
             h_damp = 1.0 / np.sqrt((1.0 - (freqs / f_damp) ** 2) ** 2 + 2.0 * (freqs / f_damp) ** 2)
 
             # 3. Subsonic rumble cut (32 Hz with -16.5 dB DC shelf floor to prevent cepstral zero)
@@ -772,8 +843,14 @@ def compute_voice_prefilter_firs(voice_id, instrument="30in", src_scale=None, nu
         p_pol = p.get("polarity", 1.0)
         scale_fac = abs(p_weight * p_pol)
 
+        # Differential string transfer for specialized target voicing strings (e.g. vintage flats, multiscale)
+        if sensor_type != "bridge_force" and cfg.get("target_string") and cfg.get("target_string") != "roundwound_nickel_standard":
+            h_str_diff = compute_differential_string_transfer(freqs, src_string, tgt_string)
+        else:
+            h_str_diff = np.ones_like(freqs)
+
         h_scale_tension = np.ones_like(freqs) if is_identity else h_tension
-        prefilter_curve = scale_fac * h_acoustic_transfer * h_elec_inv * h_tilt * h_scale_tension
+        prefilter_curve = scale_fac * h_acoustic_transfer * h_elec_inv * h_tilt * h_scale_tension * h_str_diff
         fir_raw = synthesize_minimum_phase_fir(prefilter_curve, num_taps=num_taps, normalize=False)
         raw_firs.append(fir_raw)
 
@@ -817,17 +894,28 @@ def compute_aperture_prefilter_fir(voice_id, instrument="30in", src_scale=None, 
 
     h_src_acoustic = numpy_pickup_acoustic_response(freqs, src_coils, src_speeds)
 
+    src_string = get_instrument_string(inst)
+    tgt_string = get_voice_string(cfg)
+
     sensor_type = cfg.get("sensor_type", "magnetic")
     is_identity = (sensor_type != "bridge_force") and is_voice_matching_source(inst, voice_id, cfg)
     if sensor_type == "bridge_force":
-        # 1. De-combing regularized & band-limited without high-frequency flare
+        # 1. Band-limited de-combing: active in 100 Hz - 1.8 kHz passband, smoothly tapering
+        # to 1.0 between 1.8 kHz and 3.2 kHz to eliminate high-frequency comb ripples
         eps = 0.08
-        h_decomb = h_src_acoustic / (h_src_acoustic ** 2 + eps)
+        h_decomb_raw = h_src_acoustic / (h_src_acoustic ** 2 + eps)
         mid_mask = (freqs >= 100.0) & (freqs <= 1000.0)
-        h_decomb = h_decomb / np.median(h_decomb[mid_mask])
+        h_decomb_raw = h_decomb_raw / np.median(h_decomb_raw[mid_mask])
 
-        # 2. Acoustic bridge & soundboard mechanical damping (above 4.2 kHz)
-        f_damp = 4200.0
+        f_taper_start = 1800.0
+        f_taper_end = 3200.0
+        t = np.clip((freqs - f_taper_start) / (f_taper_end - f_taper_start), 0.0, 1.0)
+        w = 0.5 * (1.0 + np.cos(np.pi * t))
+        h_decomb = w * h_decomb_raw + (1.0 - w) * 1.0
+
+        # 2. Pure acoustic spruce wood damping (monotonically falling above 3.8-4.2 kHz)
+        is_flatwound = "flat" in src_string.get("type", "")
+        f_damp = 4200.0 if is_flatwound else 3600.0
         h_damp = 1.0 / np.sqrt((1.0 - (freqs / f_damp) ** 2) ** 2 + 2.0 * (freqs / f_damp) ** 2)
 
         # 3. Subsonic rumble cut (32 Hz with -16.5 dB DC shelf floor to prevent cepstral zero)
@@ -870,7 +958,8 @@ def compute_aperture_prefilter_fir(voice_id, instrument="30in", src_scale=None, 
         h_tension = h_sub * h_clank
     elif target_scale_key == "upright":
         # Upright string physics & body bloom: deep fundamental, woody low-mids
-        g_bloom = 10.0 ** (2.0 / 20.0)
+        delta_bloom = float(tgt_string.get("bloom_db", 2.8)) - float(src_string.get("bloom_db", 0.0))
+        g_bloom = 10.0 ** (max(delta_bloom, 0.5) / 20.0)
         h_bloom = np.sqrt((g_bloom ** 2 + (freqs / 100.0) ** 2) / (1.0 + (freqs / 100.0) ** 2))
         h_tension = h_bloom
     elif target_scale_key == "34in" and src_scale_in != 34.0:
@@ -879,9 +968,15 @@ def compute_aperture_prefilter_fir(voice_id, instrument="30in", src_scale=None, 
     else:
         h_tension = np.ones_like(freqs)
 
+    # Differential string transfer for specialized target voicing strings (e.g. vintage flats, multiscale)
+    if sensor_type != "bridge_force" and cfg.get("target_string") and cfg.get("target_string") != "roundwound_nickel_standard":
+        h_str_diff = compute_differential_string_transfer(freqs, src_string, tgt_string)
+    else:
+        h_str_diff = np.ones_like(freqs)
+
     h_elec_inv = np.ones_like(freqs) if is_identity else resolve_pickup_electrical_deconvolution_np(freqs, src_pickup, inst)
 
-    prefilter_curve = h_acoustic_transfer * h_elec_inv * h_tilt * h_tension
+    prefilter_curve = h_acoustic_transfer * h_elec_inv * h_tilt * h_tension * h_str_diff
     max_val = np.max(prefilter_curve)
     resp_norm = prefilter_curve / max_val if max_val > 0 else prefilter_curve
 

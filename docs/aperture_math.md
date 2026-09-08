@@ -181,5 +181,29 @@ Normalized by peak gain, this imparts a gentle $+6\text{ dB/octave}$ mechanical 
 
 ### E. Resonant Body Bloom ($41.5''$ 3/4 Double Bass)
 A 3/4 double bass features a $41.5''$ ($105.4\text{ cm}$) vibrating string length and a massive resonant air cavity. Passivizer synthesizes this acoustic body bloom with:
-$$H_{\text{bloom}}(f) = \frac{\sqrt{g_{\text{bloom}}^2 + \left(\frac{f}{100\text{ Hz}}\right)^2}}{\sqrt{1 + \left(\frac{f}{100\text{ Hz}}\right)^2}}, \quad g_{\text{bloom}} = 10^{2.0 / 20.0} \approx 1.259\ (+2.0\text{ dB})$$
-Delivering the deep, resonant low-end bloom characteristic of a full-size upright acoustic instrument.
+$$H_{\text{bloom}}(f) = \frac{\sqrt{g_{\text{bloom}}^2 + \left(\frac{f}{100\text{ Hz}}\right)^2}}{\sqrt{1 + \left(\frac{f}{100\text{ Hz}}\right)^2}}, \quad g_{\text{bloom}} = 10^{\Delta \text{bloom} / 20.0}$$
+where $\Delta \text{bloom} = \text{bloom}_{\text{target}} - \text{bloom}_{\text{source}}$, delivering the deep, resonant low-end bloom characteristic of a full-size upright acoustic instrument.
+
+---
+
+## 7. Dual-Sided String Physics & Differential Mechanical Transfer
+
+Passivizer models string behavior as a **differential transfer function** between the physical strings on the player's source instrument ($S_{\text{src}}$) and the authentic goal strings of the target voicing ($S_{\text{tgt}}$):
+
+$$H_{\text{string\_transfer}}(f) = \frac{H_{\text{string, target}}(f)}{H_{\text{string, source}}(f)}$$
+
+### A. Anti-Double-Damping Spectral Deconvolution
+When an electric bass is strung with flatwounds (such as **La Bella Low Tension Flats** on a 32" fretless), the physical strings already roll off high-frequency harmonics above $2.8\text{ kHz}$. If a static acoustic upright low-pass filter ($f_d \approx 3.8\text{--}4.2\text{ kHz}$) is applied directly, the tone suffers from double-damping:
+1. **Target String & Soundboard Damping:**
+   $$H_{\text{damp, tgt}}(f) = \frac{1}{\sqrt{\left(1 - \left(\frac{f}{f_{d,\text{tgt}}}\right)^2\right)^2 + 2\left(\frac{f}{f_{d,\text{tgt}}}\right)^2}}$$
+2. **Source String Viscoelastic Damping:**
+   $$H_{\text{damp, src}}(f) = \frac{1}{\sqrt{1 + \left(\frac{f}{f_{d,\text{src}}}\right)^{2 n_{\text{src}}}}}$$
+3. **Differential Anti-Double-Damping Filter:**
+   $$H_{\text{damp, eff}}(f) = \text{clip}\left(\frac{H_{\text{damp, tgt}}(f)}{\max(H_{\text{damp, src}}(f), \epsilon_{\text{floor}})}, 0.05, 1.80\right)$$
+
+This automatically preserves the natural woody clarity and fingerboard mwah of flatwounds on fretless basses, while still applying full acoustic damping when fed by clanky roundwound strings.
+
+### B. Dynamic Bridge Compliance & Excursion Scaling ($V_{\text{sat}}$)
+Low-tension strings (e.g. La Bella LTF $\sim 132\text{ lbs}$) exhibit larger physical displacement under pizzicato plucking than high-tension strings ($\sim 160\text{--}190\text{ lbs}$). Passivizer dynamically scales the soft-knee bridge compliance saturation threshold:
+$$V_{\text{sat, eff}} = \frac{V_{\text{sat, base}}}{\text{pluck\_excursion\_factor}_{\text{src}}}$$
+For the 32" Fretless ($1.25\times$ excursion), $V_{\text{sat}}$ scales from $0.42\text{ V}$ down to $0.336\text{ V}$, faithfully capturing the increased mechanical bridge rocking and natural acoustic compression.

@@ -1,0 +1,90 @@
+# ==============================================================================
+# PASSIVIZER PHYSICAL STRING CATALOG
+# ==============================================================================
+# Defines physical properties of string sets used across source instruments
+# and target voicings. These parameters govern high-frequency mechanical damping,
+# inharmonicity/tension class, dynamic bridge compliance, and low-frequency bloom.
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# 1. Electric Standard Nickel Roundwounds (Global Default Baseline)
+# ------------------------------------------------------------------------------
+# The worldwide industry baseline for electric bass (e.g. D'Addario EXL165/170,
+# Ernie Ball Slinky .045-.105). Balanced tension, bright harmonic extension.
+[strings.roundwound_nickel_standard]
+name = "Standard Nickel Roundwound (.045-.105)"
+type = "roundwound"
+wrap = "nickel"
+core = "hex"
+tension_lbs = 155.0
+damping_cutoff_hz = 8500.0
+damping_order = 1.0
+bloom_db = 0.0
+pluck_excursion_factor = 1.0
+
+# ------------------------------------------------------------------------------
+# 2. Electric Stainless Steel Roundwounds (Dingwall / Modern Clank)
+# ------------------------------------------------------------------------------
+# High-tension stainless steel strings (Dingwall Custom .045-.130) with extended
+# metallic clank and harmonic brilliance up to 12 kHz.
+[strings.roundwound_stainless_clank]
+name = "Stainless Steel Multi-Scale Roundwound (.045-.130)"
+type = "roundwound"
+wrap = "stainless"
+core = "hex"
+tension_lbs = 180.0
+damping_cutoff_hz = 12000.0
+damping_order = 1.0
+bloom_db = -1.0
+pluck_excursion_factor = 0.90
+
+# ------------------------------------------------------------------------------
+# 3. La Bella Low Tension Flats (Fretless / Smooth Thump)
+# ------------------------------------------------------------------------------
+# Flexible round core wrapped in smooth stainless steel ribbon (LTF-4A .043-.100).
+# Low tension (~132 lbs total) yields large string excursion, reduced fretless
+# fingerboard click, early viscoelastic damping, and warm fundamental bloom.
+[strings.flatwound_low_tension]
+name = "La Bella Low Tension Flats LTF-4A (.043-.100)"
+type = "flatwound"
+wrap = "stainless_flat"
+core = "round"
+tension_lbs = 132.0
+damping_cutoff_hz = 2800.0
+damping_order = 1.8
+bloom_db = 1.8
+pluck_excursion_factor = 1.25    # Lower tension causes ~25% larger string excursion under pluck
+
+# ------------------------------------------------------------------------------
+# 4. Vintage Deep Flatwounds (Motown / Jamerson 1954 Style)
+# ------------------------------------------------------------------------------
+# Heavy gauge classic flatwounds (La Bella 760M .052-.110). Massive string mass,
+# extremely high tension, rapid harmonic decay, deep pillowy sub fundamental.
+[strings.flatwound_vintage_heavy]
+name = "Heavy Vintage Flatwound (.052-.110)"
+type = "flatwound"
+wrap = "stainless_flat"
+core = "hex"
+tension_lbs = 195.0
+damping_cutoff_hz = 1800.0
+damping_order = 2.0
+bloom_db = 2.4
+pluck_excursion_factor = 0.85
+
+# ------------------------------------------------------------------------------
+# 5. Upright 3/4 Double Bass Strings (Spirocore / Helicore Orchestral/Pizz)
+# ------------------------------------------------------------------------------
+# 41.5" Scale spiral steel rope-core double bass strings (Thomastik-Infeld
+# Spirocore Medium / D'Addario Helicore Pizzicato). Massive tension, coupled spruce
+# soundboard damping, and cavernous 60-90 Hz body and air cavity bloom.
+[strings.double_bass_spirocore]
+name = "3/4 Double Bass Spiral Rope-Core (Spirocore / Helicore Pizzicato)"
+type = "double_bass"
+wrap = "chrome_steel"
+core = "spiral_rope"
+tension_lbs = 265.0              # Massive 41.5" acoustic string tension
+damping_cutoff_hz = 3800.0       # Coupled spruce soundboard acoustic damping
+damping_order = 2.0
+bloom_db = 2.8                   # Cavernous 60-100 Hz body & air cavity bloom
+pluck_excursion_factor = 1.0     # Standard acoustic baseline
+bridge_rocking_compliance = 0.42 # Reference acoustic bridge compliance threshold

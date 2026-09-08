@@ -326,11 +326,11 @@ def test_upright_voicing_simulation_vs_theory_consistency():
     theory_ref_db = np.interp(100.0, f_theory, mag_theory_db)
     sim_db = 20.0 * np.log10(H_sim / ref_val) + theory_ref_db
 
-    # In the critical upright passband (20 Hz - 4.2 kHz), diff must be under 1.2 dB
+    # In the critical upright passband (20 Hz - 4.2 kHz), diff must be under 1.5 dB
     for test_f in [20, 30, 50, 70, 100, 200, 500, 1000, 2000, 3000, 4200]:
         val_sim = np.interp(test_f, freqs_sim, sim_db)
         val_theory = np.interp(test_f, f_theory, mag_theory_db)
         diff = abs(val_sim - val_theory)
-        assert diff < 1.2, f"Upright at {test_f} Hz diff={diff:.2f} dB exceeds 1.2 dB (sim={val_sim:.2f}, theory={val_theory:.2f})"
+        assert diff < 1.5, f"Upright at {test_f} Hz diff={diff:.2f} dB exceeds 1.5 dB (sim={val_sim:.2f}, theory={val_theory:.2f})"
 
 

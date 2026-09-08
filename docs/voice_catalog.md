@@ -108,11 +108,14 @@ This catalog details the physical parameters, equivalent RLC circuit values, aco
 * **32" Bass Setting:** ABCX Blend **100% Bridge** (MMTWX in Dual-Coil Mode - Push/Pull Up).
 
 ### 12. `12_upright_bridge_transducer` (Upright Acoustic Bridge Transducer)
-* **Archetype:** Direct Bridge Piezo Transducer on 3/4 Double Bass (41.5" Scale)
-* **Sensor Model:** Direct bridge saddle force sensor ($x = 5.0\text{ mm}$) with velocity-to-force integration
-* **Electrical Parameters:** $f_r = 4.5\text{ kHz}, Q = 0.70$, high-pass filter @ $30\text{ Hz}$
+* **Archetype:** Direct Bridge Force Transducer on 3/4 Double Bass (41.5" Scale, Underwood / David Gage Realist style)
+* **Target String Archetype:** 3/4 Double Bass spiral rope-core strings (`double_bass_spirocore`, $265\text{ lbs}$ tension, coupled spruce soundboard damping)
+* **Sensor Model:** Direct bridge saddle force sensor ($x = 5.0\text{ mm}$) with velocity-to-force leaky integration ($+6\text{ dB/oct}$ from $70\text{ Hz}$ to $250\text{ Hz}$)
+* **Dynamic Compliance:** Soft-knee bridge rocking saturation ($V_{\text{sat}} \cdot \tanh(v / V_{\text{sat}})$), dynamically scaled for lower-tension strings ($V_{\text{sat}} = 0.336\text{ V}$ on 32" fretless with La Bella LTF vs $0.42\text{ V}$ baseline)
+* **Anti-Double-Damping:** Automatically matches source string damping ($f_{\text{damp, src}}$) to target double-bass damping ($f_{\text{damp, tgt}}$). When evaluated from flatwound instruments (La Bella LTF), the filter avoids double-muffling the high frequencies while preserving woody bridge bite.
+* **Electrical Parameters:** Pure capacitive piezo sensor ($C_{\text{piezo}} = 1.2\text{ nF}$), direct high-Z tailpiece wiring, subsonic rumble decoupling @ $32\text{ Hz}$
 * **Acoustic Character:** Eliminates magnetic pickup comb filtering; delivers smooth, woody double-bass pizzicato bloom with deep sub-bass body resonance.
-* **32" Fretless Setting:** ABCX Blend to **Upright Blend** (85% PCSX + 15% MMTWX Single - Push/Pull Down: J Mode).
+* **32" Fretless Setting:** ABCX Blend to **Upright Blend** (85% PCSX + 15% MMTWX Single - Push/Pull Down: J Mode). Pair with **3 Sigma Upright Bass IR** in Anagram Block 3.
 
 ---
 
