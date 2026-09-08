@@ -163,3 +163,57 @@ def test_simulate_circuit_audio_output():
             assert wf.getsampwidth() == 3  # 24-bit PCM
             assert wf.getnchannels() == 1
             assert wf.getnframes() > 0
+
+def test_simulate_voice_end_to_end():
+    """Verify unified end-to-end simulation from raw audio to final digital twin audio."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        input_wav = Path(tmpdir) / "raw_in.wav"
+        output_wav = Path(tmpdir) / "final_out.wav"
+        inter_wav = Path(tmpdir) / "intermediate_aperture.wav"
+
+        # Generate a test excitation track at 48 kHz
+        samples = [0.5 if i % 100 == 0 else 0.0 for i in range(4800)]
+        write_wav_24bit(str(input_wav), samples, sample_rate=48000)
+
+        # Single pickup voice (P-Bass Ceramic)
+        res = simulate_voice(
+            "03_modern_p_ceramic",
+            input_wav=input_wav,
+            output_wav=output_wav,
+            instrument="30in",
+            prefiltered=False,
+            save_intermediate=inter_wav,
+        )
+        assert res is True
+        assert output_wav.exists()
+        assert inter_wav.exists()
+
+        with wave.open(str(output_wav), "rb") as wf:
+            assert wf.getframerate() == 48000
+            assert wf.getsampwidth() == 3
+            assert wf.getnchannels() == 1
+            assert wf.getnframes() > 0
+
+        # Multi-pickup voice (Jazz Bass Pair in Parallel)
+        output_jazz = Path(tmpdir) / "jazz_out.wav"
+        inter_jazz = Path(tmpdir) / "jazz_aperture.wav"
+        res_jazz = simulate_voice(
+            "01_jazz_bass_pair",
+            input_wav=input_wav,
+            output_wav=output_jazz,
+            instrument="30in",
+            prefiltered=False,
+            save_intermediate=inter_jazz,
+        )
+        assert res_jazz is True
+        assert output_jazz.exists()
+        assert inter_jazz.exists()
+
+        with wave.open(str(output_jazz), "rb") as wf:
+            assert wf.getframerate() == 48000
+            assert wf.getsampwidth() == 3
+            assert wf.getnchannels() == 1
+            assert wf.getnframes() > 0
+
+        with wave.open(str(inter_jazz), "rb") as wf:
+            assert wf.getnchannels() == 2  # Multi-pickup aperture audio has 2 channels (stereo)

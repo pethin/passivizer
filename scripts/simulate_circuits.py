@@ -31,6 +31,8 @@ from model_physics import (
     NUM_TAPS,
     synthesize_minimum_phase_fir,
     write_wav_24bit,
+    compute_voice_prefilter_firs,
+    load_instrument,
 )
 
 def parse_spice_val(val_str: str) -> float:
@@ -287,11 +289,38 @@ def compute_circuit_transfer_functions(model: CircuitModel, freqs=FREQS):
 
     raise ValueError(f"Unknown circuit topology: {model.topology}")
 
-def simulate_circuit_audio(input_wav_path: Path, output_wav_path: Path, model: CircuitModel):
+def apply_prefilter_to_audio(audio: np.ndarray, sr: int, fir_samples) -> np.ndarray:
     """
-    Executes the complete native Virtual Analog circuit simulation on audio.
-    Applies soft-knee tanh compliance, convolves with exact circuit transfer function,
-    and writes canonical 24-bit 48 kHz mono audio.
+    Applies the aperture and scale tension FIR(s) to audio in memory using vectorized FFT convolution.
+    Returns an array of shape (n_channels, n_samples) scaled with 8 dB headroom (0.40 max).
+    """
+    is_multichannel = len(fir_samples) > 0 and isinstance(fir_samples[0], (list, tuple, np.ndarray))
+    channels_firs = fir_samples if is_multichannel else [fir_samples]
+
+    input_mono = audio[0] if audio.ndim > 1 and audio.shape[0] > 1 else (audio[0] if audio.ndim > 1 else audio)
+    n_sig = len(input_mono)
+
+    effected_channels = []
+    for ch_fir in channels_firs:
+        fir = np.asarray(ch_fir, dtype=np.float32)
+        n_ir = len(fir)
+        n_fft = 1 << (n_sig + n_ir - 1).bit_length()
+        eff = np.fft.irfft(
+            np.fft.rfft(input_mono, n_fft) * np.fft.rfft(fir, n_fft),
+            n_fft
+        )[:n_sig].astype(np.float32)
+        effected_channels.append(eff)
+
+    effected = np.array(effected_channels, dtype=np.float32)
+    max_val = np.max(np.abs(effected))
+    if max_val > 0:
+        effected = (effected / max_val) * 0.40
+    return effected
+
+def prefilter_audio(input_wav_path: Path, output_wav_path: Path, fir_samples):
+    """
+    Applies aperture and scale tension FIR(s) to audio and writes a 24-bit 48 kHz WAV.
+    Maintained for standalone export and backward compatibility.
     """
     from pedalboard.io import AudioFile
 
@@ -299,14 +328,73 @@ def simulate_circuit_audio(input_wav_path: Path, output_wav_path: Path, model: C
         audio = f.read(f.frames)
         sr = f.samplerate
 
+    effected = apply_prefilter_to_audio(audio, sr, fir_samples)
+
+    output_wav_path = Path(output_wav_path)
+    output_wav_path.parent.mkdir(parents=True, exist_ok=True)
+
+    with AudioFile(str(output_wav_path), "w", samplerate=sr, num_channels=effected.shape[0], bit_depth=24) as out:
+        out.write(effected)
+
+    # Ensure standard canonical WAV headers (no JUNK chunks)
+    with wave.open(str(output_wav_path), "rb") as wf:
+        params = wf.getparams()
+        frames = wf.readframes(wf.getnframes())
+    with wave.open(str(output_wav_path), "wb") as wf:
+        wf.setparams(params)
+        wf.writeframes(frames)
+
+def simulate_circuit_audio(
+    input_audio,
+    output_wav_path: Path,
+    model: CircuitModel,
+    prefilter_firs=None,
+    save_intermediate: Path = None,
+):
+    """
+    Executes native Virtual Analog circuit simulation on audio.
+    If prefilter_firs is provided, convolves input audio through acoustic aperture and
+    scale-tension FIRs in memory first.
+    Applies soft-knee tanh compliance, convolves with exact circuit transfer function,
+    and writes canonical 24-bit 48 kHz mono audio.
+    """
+    from pedalboard.io import AudioFile
+
+    if isinstance(input_audio, (str, Path)):
+        with AudioFile(str(input_audio)) as f:
+            audio = f.read(f.frames)
+            sr = f.samplerate
+    elif isinstance(input_audio, np.ndarray):
+        audio = input_audio
+        sr = 48000
+    else:
+        raise ValueError(f"Unsupported input_audio type: {type(input_audio)}")
+
+    if prefilter_firs is not None:
+        audio = apply_prefilter_to_audio(audio, sr, prefilter_firs)
+        if save_intermediate:
+            save_path = Path(save_intermediate)
+            save_path.parent.mkdir(parents=True, exist_ok=True)
+            with AudioFile(str(save_path), "w", samplerate=sr, num_channels=audio.shape[0], bit_depth=24) as out:
+                out.write(audio)
+            with wave.open(str(save_path), "rb") as wf:
+                params = wf.getparams()
+                frames = wf.readframes(wf.getnframes())
+            with wave.open(str(save_path), "wb") as wf:
+                wf.setparams(params)
+                wf.writeframes(frames)
+
     mag_curves = compute_circuit_transfer_functions(model, freqs=FREQS)
     n_ch = len(mag_curves)
 
     channel_outputs = []
-    n_samples = audio.shape[1]
+    n_samples = audio.shape[1] if audio.ndim > 1 else len(audio)
 
     for ch_idx, mag_curve in enumerate(mag_curves):
-        in_ch = audio[ch_idx] if audio.shape[0] > ch_idx else audio[0]
+        if audio.ndim > 1:
+            in_ch = audio[ch_idx] if audio.shape[0] > ch_idx else audio[0]
+        else:
+            in_ch = audio
 
         # Resolve soft-knee saturation threshold
         if model.topology in ["parallel", "series"]:
@@ -361,8 +449,28 @@ def simulate_circuit_audio(input_wav_path: Path, output_wav_path: Path, model: C
 
     return True
 
-def simulate_voice(voice_id: str, input_wav: Path = None, output_wav: Path = None, cir_path: Path = None):
-    """Simulates a target voice netlist using the native Virtual Analog engine."""
+def find_default_input_audio() -> Path:
+    """Finds raw calibration audio in the repository root."""
+    for candidate in ["v1_1_1.wav", "T3K-sweep-v3.wav", "v3_0_0.wav", "input.wav"]:
+        p = REPO_ROOT / candidate
+        if p.exists():
+            return p
+    return None
+
+def simulate_voice(
+    voice_id: str,
+    input_wav: Path = None,
+    output_wav: Path = None,
+    instrument: str = "30in",
+    prefiltered: bool = False,
+    cir_path: Path = None,
+    save_intermediate: Path = None,
+):
+    """
+    Simulates a target voice digital twin using the native Virtual Analog engine.
+    By default, applies acoustic aperture pre-filtering and circuit simulation
+    end-to-end in memory from raw calibration audio.
+    """
     vcfg = VOICES.get(voice_id, {})
     if not cir_path:
         cir_rel = vcfg.get("circuit", f"circuits/{voice_id}.cir")
@@ -374,31 +482,68 @@ def simulate_voice(voice_id: str, input_wav: Path = None, output_wav: Path = Non
         raise FileNotFoundError(f"Circuit netlist '{cir_path}' not found.")
 
     if not input_wav:
-        input_wav = CIRCUITS_DIR / "v1_1_1_aperture.wav"
+        found = find_default_input_audio()
+        if found:
+            input_wav = found
+        elif (CIRCUITS_DIR / "v1_1_1_aperture.wav").exists():
+            input_wav = CIRCUITS_DIR / "v1_1_1_aperture.wav"
+            prefiltered = True
+        else:
+            raise FileNotFoundError("Raw calibration audio (e.g. v1_1_1.wav) not found.")
+
+    if not Path(input_wav).exists():
+        raise FileNotFoundError(f"Input audio '{input_wav}' not found.")
+
     if not output_wav:
         output_wav = CIRCUITS_DIR / f"out_{voice_id}.wav"
 
-    if not Path(input_wav).exists():
-        raise FileNotFoundError(f"Input excitation audio '{input_wav}' not found.")
-
     model = parse_netlist(cir_path)
-    print(f"  -> Simulating Native VA Circuit: {cir_path.name} (Topology: {model.topology})...")
-    simulate_circuit_audio(input_wav, output_wav, model)
+
+    prefilter_firs = None
+    if not prefiltered:
+        prefilter_firs = compute_voice_prefilter_firs(voice_id, instrument=instrument)
+        stage_desc = "Acoustic Aperture + Circuit Simulation"
+    else:
+        stage_desc = "Circuit Simulation (Pre-filtered Input)"
+
+    print(f"  -> Simulating Native VA ({stage_desc}): {cir_path.name} (Topology: {model.topology}, Source: {instrument})...")
+    simulate_circuit_audio(
+        input_wav,
+        output_wav,
+        model,
+        prefilter_firs=prefilter_firs,
+        save_intermediate=save_intermediate,
+    )
     print(f"     Exported: {output_wav.name}")
     return True
 
 def main():
     parser = argparse.ArgumentParser(description="Passivizer Native Virtual Analog Circuit Simulator.")
     parser.add_argument("--voice", "-v", default="03_modern_p_ceramic", help="Target voice to simulate (or 'all')")
-    parser.add_argument("--input", help="Input aperture WAV path (default: circuits/v1_1_1_aperture.wav)")
+    parser.add_argument(
+        "--instrument", "-i",
+        default="30in",
+        help="Source instrument configuration (30in, 32in, or path to .toml)"
+    )
+    parser.add_argument("--input", help="Input WAV path (defaults to auto-detecting v1_1_1.wav)")
     parser.add_argument("--out", help="Output WAV path (default: circuits/out_<voice>.wav)")
+    parser.add_argument("--prefiltered", action="store_true", help="Input is already pre-filtered through acoustic aperture")
+    parser.add_argument("--save-intermediate", help="Optional path to export intermediate pre-filtered audio")
     args = parser.parse_args()
 
     voices = list(VOICES.keys()) if args.voice == "all" else [args.voice]
     for v in voices:
         in_path = Path(args.input) if args.input else None
         out_path = Path(args.out) if args.out else None
-        simulate_voice(v, input_wav=in_path, output_wav=out_path)
+        save_inter = Path(args.save_intermediate) if args.save_intermediate else None
+        simulate_voice(
+            v,
+            input_wav=in_path,
+            output_wav=out_path,
+            instrument=args.instrument,
+            prefiltered=args.prefiltered,
+            save_intermediate=save_inter,
+        )
 
 if __name__ == "__main__":
     main()

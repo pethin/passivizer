@@ -58,19 +58,20 @@ def run_prep_audio(input_wav="v1_1_1.wav", instrument="30in", voice="03_modern_p
     if res.returncode != 0:
         print(f"Notice: Pre-filtering returned code {res.returncode}")
 
-def run_circuit_simulation(voice, backend="native", ltspice_bin=DEFAULT_LTSPICE_BIN):
+def run_circuit_simulation(voice, instrument="30in", input_wav="v1_1_1.wav", backend="native", ltspice_bin=DEFAULT_LTSPICE_BIN):
     """Executes circuit simulation for a single target voice netlist."""
     if backend == "native":
         try:
-            return simulate_voice(voice)
+            return simulate_voice(voice, input_wav=input_wav, instrument=instrument, prefiltered=False)
         except Exception as e:
             print(f"Error during native circuit simulation: {e}")
             return False
 
-    # LTspice backend
+    # LTspice backend requires intermediate aperture audio on disk
+    run_prep_audio(input_wav=input_wav, instrument=instrument, voice=voice)
     if not os.path.exists(ltspice_bin):
         print(f"Notice: LTspice executable not found at '{ltspice_bin}'. Falling back to native VA backend.")
-        return simulate_voice(voice)
+        return simulate_voice(voice, input_wav=input_wav, instrument=instrument, prefiltered=False)
 
     vcfg = VOICES.get(voice, {})
     cir_rel = vcfg.get("circuit", f"circuits/{voice}.cir")
@@ -81,9 +82,9 @@ def run_circuit_simulation(voice, backend="native", ltspice_bin=DEFAULT_LTSPICE_
         print(f"Warning: Netlist '{cir_path.name}' not found.")
         return False
 
-    input_wav = CIRCUITS_DIR / "v1_1_1_aperture.wav"
-    if not input_wav.exists():
-        print(f"Notice: Audio source '{input_wav.name}' not found in circuits/.")
+    input_aperture = CIRCUITS_DIR / "v1_1_1_aperture.wav"
+    if not input_aperture.exists():
+        print(f"Notice: Audio source '{input_aperture.name}' not found in circuits/.")
         return False
 
     print(f"  -> Simulating SPICE (LTspice): {cir_path.name}...")
@@ -98,16 +99,16 @@ def run_circuit_simulation(voice, backend="native", ltspice_bin=DEFAULT_LTSPICE_
         print(f"     Warning: Simulation of {cir_path.name} timed out after 300s")
         return False
 
-def run_spice_voice(voice, ltspice_bin=DEFAULT_LTSPICE_BIN, backend="native"):
+def run_spice_voice(voice, instrument="30in", input_wav="v1_1_1.wav", ltspice_bin=DEFAULT_LTSPICE_BIN, backend="native"):
     """Legacy alias for run_circuit_simulation."""
-    return run_circuit_simulation(voice, backend=backend, ltspice_bin=ltspice_bin)
+    return run_circuit_simulation(voice, instrument=instrument, input_wav=input_wav, backend=backend, ltspice_bin=ltspice_bin)
 
-def run_spice_batch(voices=None, backend="native", ltspice_bin=DEFAULT_LTSPICE_BIN):
+def run_spice_batch(voices=None, instrument="30in", input_wav=None, backend="native", ltspice_bin=DEFAULT_LTSPICE_BIN):
     """Executes batch simulation of specified voice circuit models."""
     print(f"\n[Stage 3] Executing circuit simulations (Backend: {backend})...")
     target_voices = voices if voices else list(VOICES.keys())
     for voice in target_voices:
-        run_circuit_simulation(voice, backend=backend, ltspice_bin=ltspice_bin)
+        run_circuit_simulation(voice, instrument=instrument, input_wav=input_wav, backend=backend, ltspice_bin=ltspice_bin)
     print("Batch circuit simulation finished.")
 
 def run_training(instrument="30in", voice="03_modern_p_ceramic", input_wav=None, epochs=100, fast_dev_run=False):
@@ -248,8 +249,13 @@ def main():
     elif args.stage in ["spice", "sim", "simulate"]:
         for idx, voice in enumerate(voices_to_run, 1):
             print(f"\n[{idx}/{len(voices_to_run)}] Circuit simulation: {voice} (Backend: {args.backend})...")
-            run_prep_audio(input_wav=input_wav, instrument=args.instrument, voice=voice)
-            run_circuit_simulation(voice=voice, backend=args.backend, ltspice_bin=args.ltspice_path)
+            run_circuit_simulation(
+                voice=voice,
+                instrument=args.instrument,
+                input_wav=input_wav,
+                backend=args.backend,
+                ltspice_bin=args.ltspice_path,
+            )
 
     elif args.stage == "train":
         for idx, voice in enumerate(voices_to_run, 1):
@@ -267,8 +273,13 @@ def main():
             print(f"\n==================================================")
             print(f"  [{idx}/{len(voices_to_run)}] Full Cycle for Voice: {voice}")
             print(f"==================================================")
-            run_prep_audio(input_wav=input_wav, instrument=args.instrument, voice=voice)
-            run_circuit_simulation(voice=voice, backend=args.backend, ltspice_bin=args.ltspice_path)
+            run_circuit_simulation(
+                voice=voice,
+                instrument=args.instrument,
+                input_wav=input_wav,
+                backend=args.backend,
+                ltspice_bin=args.ltspice_path,
+            )
             run_training(
                 instrument=args.instrument,
                 voice=voice,

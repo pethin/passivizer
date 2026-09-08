@@ -94,29 +94,20 @@ uv run python scripts/analyze_voices.py --source-scale 32in
 ```
 *Outputs: Standalone interactive HTML visualizer at `docs/frequency_responses.html`.*
 
-### 2. Acoustic Pre-Filtering (`scripts/prep_nam_audio.py`)
-Applies aperture de-humbucking, spatial displacement ($\Delta x$), and string tension filtering to NAM calibration audio (`v1_1_1.wav`) using Spotify's `pedalboard` SIMD convolution engine in under 200 ms:
+### 2. Unified Virtual Analog Circuit Simulation (`scripts/simulate_circuits.py`)
+Directly streams raw NAM calibration audio (`v1_1_1.wav`) through the entire physical digital twin in a single in-memory pass:
+1. **Acoustic Aperture & Placement:** De-humbucking sinc aperture filtering, spatial standing-wave comb filtering, displacement tilt ($\Delta x$), and string tension filtering.
+2. **Dynamic Non-Linear Compliance:** Soft-knee saturation ($V_{\text{sat}} \cdot \tanh(v / V_{\text{sat}})$).
+3. **Passive Pickup Circuit Twin:** Exact closed-form nodal AC transfer functions, eddy-current damping, Dunlop 500k volume pot divider, hybrid treble bleed, cable capacitance ($750\text{ pF}$), and pedalboard load ($1\text{ M}\Omega \parallel 30\text{ pF}$).
+
+Passivizer's **native Apple Silicon (`arm64`) Virtual Analog engine** eliminates external SPICE dependencies and intermediate disk writes, executing in ~0.8s per voice (>1500x faster than traditional transient SPICE):
 
 ```bash
-# Pre-filter audio for Modern Ceramic P from a 30" source bass:
-uv run python scripts/prep_nam_audio.py --source-scale 30in --voice 03_modern_p_ceramic
-
-# Pre-filter audio for Dingwall Multi-Scale Bridge:
-uv run python scripts/prep_nam_audio.py --source-scale 30in --voice 11_dingwall_multiscale_bridge
-```
-*Outputs: `circuits/v1_1_1_aperture.wav` ready to drive SPICE transient simulation.*
-
-### 3. Circuit Twin Simulation (`scripts/simulate_circuits.py` or `circuits/*.cir`)
-Streams the acoustic pre-filtered audio through physical digital twins of passive pickup coils, eddy-current damping, Dunlop 500k volume pot, hybrid treble bleed, cable capacitance, and pedalboard input impedance.
-
-Passivizer includes a **native Apple Silicon (`arm64`) Virtual Analog engine** that solves the exact nodal RLC transfer functions analytically with vector soft-knee compliance ($V_{\text{sat}} \cdot \tanh(v / V_{\text{sat}})$). It executes in ~0.8s per voice (>1500x faster than traditional transient solvers) and requires zero external software installations:
-
-```bash
-# Run native simulation for a specific voice (~0.8s):
-uv run python scripts/simulate_circuits.py --voice 03_modern_p_ceramic
+# Run unified end-to-end simulation from raw audio for a specific voice (~0.8s):
+uv run python scripts/simulate_circuits.py --voice 03_modern_p_ceramic --instrument 30in
 
 # Simulate all 11 voices:
-uv run python scripts/simulate_circuits.py --voice all
+uv run python scripts/simulate_circuits.py --voice all --instrument 30in
 
 # Run via master pipeline (defaults to native backend):
 uv run python main.py --stage sim --voice 03_modern_p_ceramic
@@ -124,6 +115,8 @@ uv run python main.py --stage sim --voice 03_modern_p_ceramic
 # Optional legacy fallback: Headless LTspice (requires macOS LTspice installation):
 uv run python main.py --stage sim --backend ltspice --voice 03_modern_p_ceramic
 ```
+
+*(Note: `scripts/prep_nam_audio.py` is retained for users who wish to inspect or export intermediate standalone aperture audio `circuits/v1_1_1_aperture.wav`).*
 
 ### 4. NAM Neural Model Training (Architecture 2 / A2)
 Trains a high-efficiency **NAM Architecture 2 (A2)** neural model on the input/output audio pair. A2 replaces legacy A1 models (nano/feather/standard) with a "slimmable" neural architecture designed specifically for low-power hardware like the Darkglass Anagram:

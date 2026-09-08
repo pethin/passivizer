@@ -64,10 +64,10 @@ passivizer/
 ├── scripts/                  # Core Python pipelines
 │   ├── model_physics.py      # Aperture sinc, scale wave speeds, and FIR engine
 │   ├── analyze_voices.py     # Polars + Altair frequency curve visualizer
-│   ├── prep_nam_audio.py     # Spotify Pedalboard NAM audio pre-filter
-│   ├── simulate_circuits.py  # Native Apple Silicon Virtual Analog circuit engine
+│   ├── prep_nam_audio.py     # Standalone/legacy aperture pre-filter exporter
+│   ├── simulate_circuits.py  # Unified Virtual Analog engine (in-memory aperture + circuit sim)
 │   └── run_pipeline.py       # Master end-to-end automated runner
-└── tests/                    # Pytest test suite (43 tests)
+└── tests/                    # Pytest test suite (44 tests)
 ```
 
 ---
