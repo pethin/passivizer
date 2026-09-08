@@ -23,6 +23,7 @@ if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
 
 from model_physics import INSTRUMENTS, VOICES, resolve_voices, resolve_voice_coils, resolve_voice_pickups, compute_effective_position
+from simulate_circuits import simulate_voice
 
 DEFAULT_LTSPICE_BIN = "/Applications/LTspice.app/Contents/MacOS/LTspice"
 
@@ -57,11 +58,19 @@ def run_prep_audio(input_wav="v1_1_1.wav", instrument="30in", voice="03_modern_p
     if res.returncode != 0:
         print(f"Notice: Pre-filtering returned code {res.returncode}")
 
-def run_spice_voice(voice, ltspice_bin=DEFAULT_LTSPICE_BIN):
-    """Executes headless simulation for a single target voice netlist."""
+def run_circuit_simulation(voice, backend="native", ltspice_bin=DEFAULT_LTSPICE_BIN):
+    """Executes circuit simulation for a single target voice netlist."""
+    if backend == "native":
+        try:
+            return simulate_voice(voice)
+        except Exception as e:
+            print(f"Error during native circuit simulation: {e}")
+            return False
+
+    # LTspice backend
     if not os.path.exists(ltspice_bin):
-        print(f"Notice: LTspice executable not found at '{ltspice_bin}'.")
-        return False
+        print(f"Notice: LTspice executable not found at '{ltspice_bin}'. Falling back to native VA backend.")
+        return simulate_voice(voice)
 
     vcfg = VOICES.get(voice, {})
     cir_rel = vcfg.get("circuit", f"circuits/{voice}.cir")
@@ -77,7 +86,7 @@ def run_spice_voice(voice, ltspice_bin=DEFAULT_LTSPICE_BIN):
         print(f"Notice: Audio source '{input_wav.name}' not found in circuits/.")
         return False
 
-    print(f"  -> Simulating SPICE: {cir_path.name}...")
+    print(f"  -> Simulating SPICE (LTspice): {cir_path.name}...")
     cmd = [ltspice_bin, "-b", str(cir_path.resolve())]
     try:
         res = subprocess.run(cmd, cwd=str(CIRCUITS_DIR), timeout=300)
@@ -89,19 +98,17 @@ def run_spice_voice(voice, ltspice_bin=DEFAULT_LTSPICE_BIN):
         print(f"     Warning: Simulation of {cir_path.name} timed out after 300s")
         return False
 
-def run_spice_batch(voices=None, ltspice_bin=DEFAULT_LTSPICE_BIN):
-    """Executes headless batch simulation of specified SPICE netlists."""
-    print("\n[Stage 3] Executing headless SPICE simulations...")
-    if not os.path.exists(ltspice_bin):
-        print(f"Notice: LTspice executable not found at '{ltspice_bin}'.")
-        print("Skipping headless SPICE batch. To run, pass --ltspice-path /path/to/LTspice")
-        return
+def run_spice_voice(voice, ltspice_bin=DEFAULT_LTSPICE_BIN, backend="native"):
+    """Legacy alias for run_circuit_simulation."""
+    return run_circuit_simulation(voice, backend=backend, ltspice_bin=ltspice_bin)
 
+def run_spice_batch(voices=None, backend="native", ltspice_bin=DEFAULT_LTSPICE_BIN):
+    """Executes batch simulation of specified voice circuit models."""
+    print(f"\n[Stage 3] Executing circuit simulations (Backend: {backend})...")
     target_voices = voices if voices else list(VOICES.keys())
     for voice in target_voices:
-        run_spice_voice(voice, ltspice_bin=ltspice_bin)
-
-    print("Batch SPICE execution finished.")
+        run_circuit_simulation(voice, backend=backend, ltspice_bin=ltspice_bin)
+    print("Batch circuit simulation finished.")
 
 def run_training(instrument="30in", voice="03_modern_p_ceramic", input_wav=None, epochs=100, fast_dev_run=False):
     """Trains a Neural Amp Modeler (NAM) Architecture 2 model locally with MPS GPU acceleration."""
@@ -157,9 +164,15 @@ def main():
     )
     parser.add_argument(
         "--stage",
-        choices=["all", "viz", "prep", "spice", "train"],
+        choices=["all", "viz", "prep", "spice", "sim", "simulate", "train"],
         default="all",
-        help="Pipeline stage to execute (default: all)"
+        help="Pipeline stage to execute (default: all; 'sim' or 'simulate' aliases for circuit modeling)"
+    )
+    parser.add_argument(
+        "--backend",
+        choices=["native", "ltspice"],
+        default="native",
+        help="Circuit simulation engine: 'native' (Apple Silicon Virtual Analog) or 'ltspice' (legacy external app)"
     )
     parser.add_argument(
         "--voice",
@@ -185,7 +198,7 @@ def main():
     parser.add_argument(
         "--ltspice-path",
         default=DEFAULT_LTSPICE_BIN,
-        help="Path to LTspice binary for headless simulation"
+        help="Path to LTspice binary for headless simulation (when using --backend ltspice)"
     )
     parser.add_argument(
         "--list-instruments",
@@ -213,6 +226,7 @@ def main():
     print("  PASSIVIZER SPICE -> NAM PIPELINE")
     print(f"  Instrument: {args.instrument}")
     print(f"  Stage:      {args.stage}")
+    print(f"  Backend:    {args.backend}")
     print(f"  Voices ({len(voices_to_run)}): {', '.join(voices_to_run)}")
     print("========================================")
 
@@ -231,11 +245,11 @@ def main():
             print(f"\n[{idx}/{len(voices_to_run)}] Pre-filtering audio: {voice}...")
             run_prep_audio(input_wav=input_wav, instrument=args.instrument, voice=voice)
 
-    elif args.stage == "spice":
+    elif args.stage in ["spice", "sim", "simulate"]:
         for idx, voice in enumerate(voices_to_run, 1):
-            print(f"\n[{idx}/{len(voices_to_run)}] SPICE simulation: {voice}...")
+            print(f"\n[{idx}/{len(voices_to_run)}] Circuit simulation: {voice} (Backend: {args.backend})...")
             run_prep_audio(input_wav=input_wav, instrument=args.instrument, voice=voice)
-            run_spice_voice(voice=voice, ltspice_bin=args.ltspice_path)
+            run_circuit_simulation(voice=voice, backend=args.backend, ltspice_bin=args.ltspice_path)
 
     elif args.stage == "train":
         for idx, voice in enumerate(voices_to_run, 1):
@@ -254,7 +268,7 @@ def main():
             print(f"  [{idx}/{len(voices_to_run)}] Full Cycle for Voice: {voice}")
             print(f"==================================================")
             run_prep_audio(input_wav=input_wav, instrument=args.instrument, voice=voice)
-            run_spice_voice(voice=voice, ltspice_bin=args.ltspice_path)
+            run_circuit_simulation(voice=voice, backend=args.backend, ltspice_bin=args.ltspice_path)
             run_training(
                 instrument=args.instrument,
                 voice=voice,

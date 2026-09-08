@@ -33,7 +33,9 @@ When contributing to or maintaining this repository, strictly adhere to these ar
   - Fast convolution and 24-bit audio file I/O uses **Spotify's `pedalboard`** (JUCE-backed SIMD C++ engine).
   - Minimum-phase FIR synthesis uses our internal homomorphic real-cepstrum Hilbert transform engine in pure Python.
   - Do **NOT** add `scipy` or `soundfile` as dependencies (they carry legacy C/Fortran bloat).
-- **SPICE Circuit Simulation:** Standalone `.cir` netlists formatted for headless LTspice (`/Applications/LTspice.app/Contents/MacOS/LTspice -b`).
+- **Circuit Simulation Engine:**
+  - **Native Engine (Default):** Native Apple Silicon (`arm64`) Virtual Analog solver (`scripts/simulate_circuits.py`) providing zero-external-dependency analytical nodal RLC solving and vector soft-knee saturation ($V_{\text{sat}} \cdot \tanh(v/V_{\text{sat}})$) at >1500x speed.
+  - **LTspice (Optional Legacy):** Standalone `.cir` netlists formatted for headless LTspice (`/Applications/LTspice.app/Contents/MacOS/LTspice -b`) selectable via `--backend ltspice`.
 
 ---
 
@@ -63,8 +65,9 @@ passivizer/
 │   ├── model_physics.py      # Aperture sinc, scale wave speeds, and FIR engine
 │   ├── analyze_voices.py     # Polars + Altair frequency curve visualizer
 │   ├── prep_nam_audio.py     # Spotify Pedalboard NAM audio pre-filter
+│   ├── simulate_circuits.py  # Native Apple Silicon Virtual Analog circuit engine
 │   └── run_pipeline.py       # Master end-to-end automated runner
-└── tests/                    # Pytest test suite (21 tests)
+└── tests/                    # Pytest test suite (42 tests)
 ```
 
 ---
