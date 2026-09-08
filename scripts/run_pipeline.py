@@ -89,12 +89,13 @@ def run_spice_batch(ltspice_bin=DEFAULT_LTSPICE_BIN):
 
     print("Batch SPICE execution finished.")
 
-def run_training(voice="03_modern_p_ceramic", input_wav=None, epochs=100, fast_dev_run=False):
+def run_training(instrument="30in", voice="03_modern_p_ceramic", input_wav=None, epochs=100, fast_dev_run=False):
     """Trains a Neural Amp Modeler (NAM) Architecture 2 model locally with MPS GPU acceleration."""
-    print(f"\n[Stage 4] Training Neural Amp Modeler A2 model for {voice}...")
+    print(f"\n[Stage 4] Training Neural Amp Modeler A2 model for {voice} (Instrument: {instrument})...")
     script = SCRIPTS_DIR / "train_nam.py"
     cmd = [
         sys.executable, str(script),
+        "--instrument", instrument,
         "--voice", voice,
         "--epochs", str(epochs),
     ]
@@ -207,7 +208,7 @@ def main():
         run_spice_batch(ltspice_bin=args.ltspice_path)
 
     if args.stage in ["train"]:
-        run_training(voice=args.voice, input_wav=input_wav, epochs=args.epochs, fast_dev_run=args.fast_dev_run)
+        run_training(instrument=args.instrument, voice=args.voice, input_wav=input_wav, epochs=args.epochs, fast_dev_run=args.fast_dev_run)
 
     print("\n[Pipeline Complete]")
 

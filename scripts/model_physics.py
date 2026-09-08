@@ -186,15 +186,22 @@ def get_source_pickup(instrument, voice_id):
     # 1. Explicit voice mapping
     mapping = instrument.get("pickup_mapping", {})
     if voice_id in mapping and mapping[voice_id] in pickups:
-        return pickups[mapping[voice_id]]
+        p = pickups[mapping[voice_id]].copy()
+        p["id"] = mapping[voice_id]
+        return p
 
     # 2. Default pickup declared on instrument
     default_key = instrument.get("default_pickup")
     if default_key and default_key in pickups:
-        return pickups[default_key]
+        p = pickups[default_key].copy()
+        p["id"] = default_key
+        return p
 
     # 3. Fallback to first available pickup
-    return next(iter(pickups.values()))
+    first_key = next(iter(pickups.keys()))
+    p = pickups[first_key].copy()
+    p["id"] = first_key
+    return p
 
 # Global registries initialized from modular configuration files
 SCALES = load_scales()
