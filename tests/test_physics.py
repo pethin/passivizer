@@ -3,6 +3,7 @@ import os
 import tempfile
 import wave
 from pathlib import Path
+import numpy as np
 from scripts.model_physics import (
     VOICES,
     SCALES,
@@ -149,3 +150,53 @@ def test_identity_acoustic_transfer_preserves_flat_bass():
 
     # Non-matching voice should return False
     assert not is_voice_matching_source(inst_p, "01_jazz_bass_pair", VOICES["01_jazz_bass_pair"])
+
+def test_numpy_pickup_macro_aperture_properties():
+    """Verify that macro aperture computes a smooth, comb-free sensing envelope."""
+    from scripts.model_physics import numpy_pickup_macro_aperture, load_instrument
+
+    inst = load_instrument("30in_emg_mmtw")
+    src_pickup = inst["pickups"]["mmtw_dual"]
+    speeds = inst["string_wave_speeds"]
+
+    freqs = np.linspace(20.0, 10000.0, 500)
+    macro_env = numpy_pickup_macro_aperture(freqs, src_pickup["coils"], speeds)
+
+    # 1. DC / fundamental must be ~1.0 (within 0.1%)
+    assert math.isclose(macro_env[0], 1.0, rel_tol=1e-3)
+
+    # 2. Smooth aperture rolloff without comb nulls: > 0.70 at 2 kHz, > 0.05 at 10 kHz
+    f2k_idx = np.argmin(np.abs(freqs - 2000.0))
+    assert macro_env[f2k_idx] > 0.70
+    assert all(x > 0.05 for x in macro_env)
+
+def test_30in_mm_pj_subbass_retention():
+    """Verify that 30in MM dual-coil playing P/J hybrid retains full sub-bass without collapse."""
+    from scripts.analyze_voices import build_voice_dataframe
+    from scripts.model_physics import VOICES
+
+    df = build_voice_dataframe("06_pj_hybrid_parallel", VOICES["06_pj_hybrid_parallel"], instrument="30in_emg_mmtw")
+    f20 = df.filter(df["frequency"] == 20.0)["magnitude_db"][0]
+    f100 = df.filter((df["frequency"] >= 99.0) & (df["frequency"] <= 101.0))["magnitude_db"][0]
+    f_max = df["magnitude_db"].max()
+
+    # Sub-bass fundamental must be within 0.5 dB of gain_db (+0.80 dB)
+    assert math.isclose(f20, 0.80, abs_tol=0.5)
+    assert math.isclose(f100, 0.80, abs_tol=0.5)
+
+    # Resonant peak must extend cleanly above passband (between +3.0 dB and +6.0 dB)
+    assert 3.0 <= f_max <= 6.0
+
+def test_30in_mm_jazz_pair_subbass_retention():
+    """Verify that 30in MM dual-coil playing Jazz Bass pair retains full sub-bass without collapse."""
+    from scripts.analyze_voices import build_voice_dataframe
+    from scripts.model_physics import VOICES
+
+    df = build_voice_dataframe("01_jazz_bass_pair", VOICES["01_jazz_bass_pair"], instrument="30in_emg_mmtw")
+    f20 = df.filter(df["frequency"] == 20.0)["magnitude_db"][0]
+    f100 = df.filter((df["frequency"] >= 99.0) & (df["frequency"] <= 101.0))["magnitude_db"][0]
+
+    # Sub-bass fundamental must be within 0.5 dB of gain_db (-0.50 dB)
+    assert math.isclose(f20, -0.50, abs_tol=0.5)
+    assert math.isclose(f100, -0.63, abs_tol=0.5)
+

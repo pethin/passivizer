@@ -34,6 +34,7 @@ from model_physics import (
     resolve_voice_pickups,
     compute_effective_position,
     numpy_pickup_acoustic_response,
+    numpy_pickup_macro_aperture,
     resolve_pickup_electrical_deconvolution,
     is_voice_matching_source,
 )
@@ -142,8 +143,9 @@ def build_voice_dataframe(voice_id, cfg, instrument="30in", src_scale=None):
             h_tilt = np.ones_like(freqs)
         else:
             h_tgt_acoustic = numpy_pickup_acoustic_response(freqs, p_coils, tgt_speeds)
-            h_ratio = h_tgt_acoustic / np.maximum(b_src_acoustic, 0.08)
-            h_acoustic_transfer = np.clip(h_ratio, 0.25, 4.0)
+            h_src_macro = numpy_pickup_macro_aperture(freqs, b_src_coils, src_speeds)
+            h_ratio = h_tgt_acoustic / np.maximum(h_src_macro, 0.08)
+            h_acoustic_transfer = np.clip(h_ratio, 0.25, 2.5)
 
             delta_in = (tgt_pos_eff - b_src_pos_eff) / 0.0254
             tilt_db = delta_in * 1.5
@@ -185,9 +187,16 @@ def build_voice_dataframe(voice_id, cfg, instrument="30in", src_scale=None):
         h_tension = np.ones_like(freqs)
 
     mag_raw = h_tgt_total * h_elec_inv * h_tension
-    max_val = np.max(mag_raw)
-    mag_norm = mag_raw / max_val if max_val > 0 else mag_raw
-    mag_db = 20.0 * np.log10(np.clip(mag_norm, 1e-5, 1.0)) + cfg["gain_db"]
+    if cfg.get("hpf") and cfg.get("hpf") >= 80.0:
+        ref_idx = np.argmin(np.abs(freqs - 1000.0))
+    elif cfg.get("sensor_type") == "bridge_force":
+        ref_idx = np.argmin(np.abs(freqs - 100.0))
+    else:
+        ref_idx = 0
+
+    ref_val = mag_raw[ref_idx]
+    mag_norm = mag_raw / ref_val if ref_val > 0 else mag_raw
+    mag_db = 20.0 * np.log10(np.clip(mag_norm, 1e-5, 20.0)) + cfg.get("gain_db", 0.0)
 
     return pl.DataFrame({
         "frequency": log_freqs,

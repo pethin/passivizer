@@ -529,6 +529,20 @@ def numpy_pickup_acoustic_response(freqs, coils, string_speeds, string_names=Non
 
     return acc / len(string_speeds)
 
+def numpy_pickup_macro_aperture(freqs, coils, string_speeds):
+    """
+    Computes the macro sensing aperture response (sinc envelope of the individual coil aperture)
+    averaged across string wave speeds, without inter-coil phase cancellation nulls.
+    Used for safe, non-inverting deconvolution of multi-coil source pickups.
+    """
+    f = np.asarray(freqs, dtype=np.float64)
+    w_in = coils[0].get("aperture_width_in", 0.75) if coils else 0.75
+    w_m = w_in * 0.0254
+    acc = np.zeros_like(f, dtype=np.float64)
+    for v in string_speeds:
+        acc += np.abs(np.sinc(w_m * f / v))
+    return acc / len(string_speeds)
+
 def numpy_aperture(freqs, w_in, d_in, speeds):
     """Computes multi-string aperture sinc + dual-coil comb using NumPy."""
     f = np.asarray(freqs, dtype=np.float64)
@@ -739,8 +753,9 @@ def compute_voice_prefilter_firs(voice_id, instrument="30in", src_scale=None, nu
             h_tilt = np.ones_like(freqs)
         else:
             h_tgt_acoustic = numpy_pickup_acoustic_response(freqs, p_coils, tgt_speeds)
-            h_ratio = h_tgt_acoustic / np.maximum(b_src_acoustic, 0.08)
-            h_acoustic_transfer = np.clip(h_ratio, 0.25, 4.0)
+            h_src_macro = numpy_pickup_macro_aperture(freqs, b_src_coils, src_speeds)
+            h_ratio = h_tgt_acoustic / np.maximum(h_src_macro, 0.08)
+            h_acoustic_transfer = np.clip(h_ratio, 0.25, 2.5)
 
             delta_in = (tgt_pos_eff - b_src_pos_eff) / 0.0254
             tilt_db = delta_in * 1.5
@@ -825,8 +840,9 @@ def compute_aperture_prefilter_fir(voice_id, instrument="30in", src_scale=None, 
         h_tilt = np.ones_like(freqs)
     else:
         h_tgt_acoustic = numpy_pickup_acoustic_response(freqs, tgt_coils, tgt_speeds)
-        h_ratio = h_tgt_acoustic / np.maximum(h_src_acoustic, 0.08)
-        h_acoustic_transfer = np.clip(h_ratio, 0.25, 4.0)
+        h_src_macro = numpy_pickup_macro_aperture(freqs, src_coils, src_speeds)
+        h_ratio = h_tgt_acoustic / np.maximum(h_src_macro, 0.08)
+        h_acoustic_transfer = np.clip(h_ratio, 0.25, 2.5)
 
         delta_in = (tgt_pos_eff - src_pos_eff) / 0.0254
         tilt_db = delta_in * 1.5
