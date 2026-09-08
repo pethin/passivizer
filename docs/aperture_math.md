@@ -141,14 +141,14 @@ $$|H_{\text{elec}}(f)| = \frac{1}{\sqrt{\left(1 - \left(\frac{f}{f_r}\right)^2\r
 Because the EMG ABCX active blend potentiometer buffers each pickup input with dedicated op-amp stages prior to summing, there is zero passive mutual loading. The compound response is the exact linear weighted superposition:
 $$H_{\text{blend, elec}}(f) = \frac{\sum_i w_i \cdot H_{\text{elec}, i}(f)}{\sum_i w_i}$$
 
-### Regularized Wiener Deconvolution ($H_{\text{elec\_inv}}$)
-To prevent unnatural "double-resonance" peaks and an aggressive $-24\text{ dB/octave}$ cascaded low-pass rolloff when feeding into the downstream SPICE passive models, Passivizer inverts the source pickup's electrical response using regularized Wiener deconvolution ($\epsilon = 0.01$):
+### Biquad Anti-Resonance Equalizer ($H_{\text{anti}}$)
+To eliminate the internal active resonant peak without causing high-frequency noise explosion or distorting the low-end gain structure during FIR normalization, Passivizer uses a 2nd-order biquad anti-resonance notch filter ($Q_{\text{target}} = 1.00$):
 
-$$H_{\text{elec\_inv}}(f) = (1 + \epsilon) \cdot \frac{H_{\text{src, elec}}(f)}{H_{\text{src, elec}}(f)^2 + \epsilon}$$
+$$|H_{\text{anti}}(f)| = \frac{\sqrt{\left(1 - \left(\frac{f}{f_r}\right)^2\right)^2 + \left(\frac{f}{Q_{\text{src}} \cdot f_r}\right)^2}}{\sqrt{\left(1 - \left(\frac{f}{f_r}\right)^2\right)^2 + \left(\frac{f}{Q_{\text{target}} \cdot f_r}\right)^2}}$$
 
-* **At DC / Sub-Bass ($f \to 0$):** Exactly unity gain ($0.0\text{ dB}$).
-* **At Resonance ($f = f_r$):** Attenuates the internal $+2.5\text{--}3.0\text{ dB}$ peak by $\approx 1/Q$, flattening the curve.
-* **In the Upper Range ($f_r < f < 10\text{ kHz}$):** Restores high-frequency transient bite and pick air.
-* **At Ultrasonic / Nyquist ($f \to 24\text{ kHz}$):** Smoothly rolls off to zero, preventing high-frequency hiss or ultrasonic noise amplification.
+* **At DC / Sub-Bass ($f \to 0$):** Exactly $1.0$ ($0.0\text{ dB}$), keeping the fundamental low-end energy 100% unaltered.
+* **At Resonance ($f = f_r$):** The response evaluates to $Q_{\text{target}} / Q_{\text{src}} = 1.0 / Q_{\text{src}}$, attenuating the $+2.6\text{--}3.0\text{ dB}$ internal bump by exactly $-2.6\text{--}3.0\text{ dB}$ to achieve a critically flat $0.0\text{ dB}$ net response.
+* **At Upper Treble ($f \gg f_r$):** Both numerator and denominator scale as $(f/f_r)^2$, causing the ratio to smoothly and asymptotically return to $1.0$ ($0.0\text{ dB}$).
+* **Max Gain Bounded at $\le 1.0$ ($0.0\text{ dB}$):** Unlike blind Wiener inversion (which attempts to boost upper frequencies by $+14\text{ dB}$, squashing low-end headroom by $10\text{ dB}$ during normalization), the biquad anti-resonance filter is strictly a surgical cut filter. It prevents noise amplification and preserves exact bass gain balance throughout the SPICE and NAM pipeline.
 
 

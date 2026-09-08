@@ -477,10 +477,24 @@ def resolve_pickup_electrical_response(freq_expr, pickup_cfg, inst_cfg):
     q = pickup_cfg.get("q_factor", 1.35)
     return polars_pickup_electrical_response(freq_expr, fr, q)
 
-def resolve_pickup_electrical_deconvolution(freq_expr, pickup_cfg, inst_cfg, epsilon=0.01):
+def polars_pickup_anti_resonance(freq_expr, fr, q_src, q_target=1.0):
     """
-    Computes regularized Wiener deconvolution filter H_inv(f) for the source pickup's electrical response.
-    Returns 1.0 if no electrical resonance is configured.
+    Computes a 2nd-order biquad anti-resonance filter that neutralizes the internal active
+    pickup resonant peak at fr without causing high-frequency noise explosion.
+    |H_anti(f)| = sqrt((1 - (f/fr)^2)^2 + (f / (q_src * fr))^2) / sqrt((1 - (f/fr)^2)^2 + (f / (q_target * fr))^2)
+    """
+    if fr is None or fr <= 0.0 or q_src is None or q_src <= 0.0:
+        return pl.lit(1.0)
+    x = freq_expr / float(fr)
+    num = ((pl.lit(1.0) - x.pow(2)).pow(2) + (x / float(q_src)).pow(2)).sqrt()
+    den = ((pl.lit(1.0) - x.pow(2)).pow(2) + (x / float(q_target)).pow(2)).sqrt()
+    return num / den
+
+def resolve_pickup_electrical_deconvolution(freq_expr, pickup_cfg, inst_cfg, q_target=1.0):
+    """
+    Resolves the anti-resonance flattening filter for the source pickup or composite blend.
+    Neutralizes the resonant peak (1/Q attenuation) while keeping sub-bass and high-frequency
+    gain strictly bounded at <= 1.0 (0 dB).
     """
     p_type = pickup_cfg.get("type", "single_coil")
     if p_type == "composite":
@@ -491,15 +505,24 @@ def resolve_pickup_electrical_deconvolution(freq_expr, pickup_cfg, inst_cfg, eps
         )
         if not has_fr:
             return pl.lit(1.0)
-        h_elec = resolve_pickup_electrical_response(freq_expr, pickup_cfg, inst_cfg)
-        return (h_elec * (1.0 + epsilon)) / (h_elec.pow(2) + epsilon)
+        total_w = sum(c.get("weight", 1.0) for c in components)
+        if total_w <= 0.0:
+            return pl.lit(1.0)
+        acc = None
+        for comp in components:
+            sub_id = comp["pickup"]
+            sub_w = comp.get("weight", 1.0)
+            sub_p = inst_cfg["pickups"][sub_id]
+            sub_deconv = resolve_pickup_electrical_deconvolution(freq_expr, sub_p, inst_cfg, q_target=q_target)
+            term = sub_deconv * (sub_w / total_w)
+            acc = term if acc is None else (acc + term)
+        return acc
 
     fr = pickup_cfg.get("resonant_frequency_hz")
     if fr is None or fr <= 0.0:
         return pl.lit(1.0)
-    q = pickup_cfg.get("q_factor", 1.35)
-    h_elec = polars_pickup_electrical_response(freq_expr, fr, q)
-    return (h_elec * (1.0 + epsilon)) / (h_elec.pow(2) + epsilon)
+    q_src = pickup_cfg.get("q_factor", 1.35)
+    return polars_pickup_anti_resonance(freq_expr, fr, q_src, q_target=q_target)
 
 def compute_aperture_prefilter_fir(voice_id, instrument="30in", src_scale=None, num_taps=NUM_TAPS):
     """
