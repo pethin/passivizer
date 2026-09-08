@@ -1,52 +1,87 @@
+# ==============================================================================
+# PASSIVIZER SOURCE INSTRUMENT CONFIGURATION
 # 32" Medium Scale Custom Bass with Reverse EMG PX and EMG MMTWX (ABCX Active Blend)
+# ==============================================================================
+# Blueprint Reference: /Users/peter/Projects/pethin/medium-scale-bass/Pickup Placement - P_MM.md
+# Physical Datums:
+#   - Reverse EMG PX Split: 122.8mm centerline (D/G half @ 136.8mm, E/A half @ 108.8mm)
+#   - EMG MMTWX: 62.2mm centerline (Neck coil @ 73.7mm, Bridge coil @ 50.8mm)
+# Electronics:
+#   - Active 18V EMG ABCX active blend control (op-amp buffered parallel summing, center detent).
+#   - MMTWX push/pull toggles between dual-coil (MM mode) and single-coil (J mode @ 50.8mm).
+#   - Note: Active pickups cannot be wired in series. All blending is active parallel.
+
 id = "32in_custom_pmm"
 name = "32\" Medium Scale Custom (EMG PX + MMTWX)"
 scale_length_in = 32.0
 scale_length_m = 0.8128
+
+# String wave speeds: v = 2 * L * f0 (for E1=41.2Hz, A1=55.0Hz, D2=73.4Hz, G2=98.0Hz)
 string_wave_speeds = [66.98, 89.41, 119.35, 159.31]
+
 default_pickup = "mmtwx_dual"
 
+# ------------------------------------------------------------------------------
+# 1. REVERSE EMG PX SPLIT-COIL (Neck Solo)
+# ------------------------------------------------------------------------------
+# Reverse split layout: D/G coil half is mounted forward (towards neck) for fullness,
+# while E/A coil half is mounted backward (towards bridge) for tight low-end definition.
 [pickups.px]
 name = "Reverse EMG PX Split-Coil (Neck)"
-position_from_bridge_m = 0.1228
-aperture_width_in = 1.10
+position_from_bridge_m = 0.1228  # Effective centerline (122.8mm)
+aperture_width_in = 1.10         # 1.10" aperture per split half
 coil_spacing_in = 0.0
 type = "split_coil"
-resonant_frequency_hz = 3200.0
+resonant_frequency_hz = 3200.0   # Ceramic active X-series resonance (from EMG datasheet)
 q_factor = 1.40
 coils = [
+    # D/G strings see only the forward D/G coil half
     { strings = ["D", "G"], position_from_bridge_m = 0.1368, aperture_width_in = 1.10, weight = 1.0 },
+    # E/A strings see only the rearward E/A coil half
     { strings = ["E", "A"], position_from_bridge_m = 0.1088, aperture_width_in = 1.10, weight = 1.0 }
 ]
 
+# ------------------------------------------------------------------------------
+# 2. EMG MMTWX SINGLE-COIL (Bridge Solo - J Mode)
+# ------------------------------------------------------------------------------
+# Active single-coil mode using bridge-side stacked coils (L2+L3) at 50.8mm (2.0" from bridge).
 [pickups.mmtwx_single]
 name = "EMG MMTWX Single-Coil (Bridge)"
-position_from_bridge_m = 0.0508
-aperture_width_in = 0.75
+position_from_bridge_m = 0.0508  # 50.8mm from bridge (2.0")
+aperture_width_in = 0.75         # Narrow 0.75" Jazz bridge aperture
 coil_spacing_in = 0.0
 type = "single_coil"
-resonant_frequency_hz = 3500.0
+resonant_frequency_hz = 3500.0   # High single-coil active resonance
 q_factor = 1.40
 coils = [
     { strings = ["all"], position_from_bridge_m = 0.0508, aperture_width_in = 0.75, weight = 1.0 }
 ]
 
+# ------------------------------------------------------------------------------
+# 3. EMG MMTWX DUAL-COIL (Bridge Solo - MM Mode)
+# ------------------------------------------------------------------------------
+# Humbucking Music Man mode superimposing neck coil (73.7mm) and bridge coil (50.8mm).
 [pickups.mmtwx_dual]
 name = "EMG MMTWX Dual-Coil (Centerline)"
-position_from_bridge_m = 0.0622
-aperture_width_in = 1.50
-coil_spacing_in = 0.90
+position_from_bridge_m = 0.0622  # 62.2mm centerline (2.45")
+aperture_width_in = 1.50         # Dual-coil housing aperture
+coil_spacing_in = 0.90           # 0.90" (22.86mm) spacing between coil centers
 type = "dual_coil_parallel"
-resonant_frequency_hz = 2500.0
+resonant_frequency_hz = 2500.0   # Active dual-coil resonance
 q_factor = 1.35
 coils = [
-    { strings = ["all"], position_from_bridge_m = 0.0737, aperture_width_in = 0.75, weight = 0.5 },
-    { strings = ["all"], position_from_bridge_m = 0.0508, aperture_width_in = 0.75, weight = 0.5 }
+    { strings = ["all"], position_from_bridge_m = 0.0737, aperture_width_in = 0.75, weight = 0.5 }, # Neck coil
+    { strings = ["all"], position_from_bridge_m = 0.0508, aperture_width_in = 0.75, weight = 0.5 }  # Bridge coil
 ]
 
+# ------------------------------------------------------------------------------
+# 4. ACTIVE PARALLEL BLEND (EMG ABCX Center Detent)
+# ------------------------------------------------------------------------------
+# Op-amp buffered 50/50 parallel summation of Reverse PX and MMTWX dual-coil.
+# Results in a compound 3-coil array (Reverse P split + MM dual coils).
 [pickups.blend_parallel]
 name = "EMG PX + MMTWX Parallel (Center Detent)"
-position_from_bridge_m = 0.0868
+position_from_bridge_m = 0.0868  # Acoustic centroid
 aperture_width_in = 0.88
 coil_spacing_in = 0.0
 type = "composite"
@@ -55,15 +90,20 @@ components = [
     { pickup = "mmtwx_dual", weight = 0.5 }
 ]
 
+# ------------------------------------------------------------------------------
+# 5. SMART VOICE MAPPING
+# ------------------------------------------------------------------------------
+# Directs the trainer/prefilter which physical pickup state the player selects
+# when recording sweeps or playing through the target digital twin.
 [pickup_mapping]
-"01_jazz_bass_pair" = "blend_parallel"
-"02_jazz_bridge_70s" = "mmtwx_single"
-"03_modern_p_ceramic" = "px"
-"04_vintage_62_p_alnico" = "px"
-"05_p_bass_47nf_rolloff" = "px"
-"06_pj_hybrid_parallel" = "blend_parallel"
-"07_stingray_mm_parallel" = "mmtwx_dual"
-"08_rickenbacker_bridge_hpf" = "mmtwx_single"
-"09_pmm_hybrid_series" = "blend_parallel"
-"10_mudbucker_ultra_series" = "px"
+"01_jazz_bass_pair" = "blend_parallel"   # Center detent active blend (J-pair scoop)
+"02_jazz_bridge_70s" = "mmtwx_single"    # Solo bridge single-coil (70s J growl)
+"03_modern_p_ceramic" = "px"             # Solo neck PX split
+"04_vintage_62_p_alnico" = "px"          # Solo neck PX split
+"05_p_bass_47nf_rolloff" = "px"          # Solo neck PX split
+"06_pj_hybrid_parallel" = "blend_parallel" # Center detent active blend
+"07_stingray_mm_parallel" = "mmtwx_dual" # Solo bridge dual-coil (StingRay authority)
+"08_rickenbacker_bridge_hpf" = "mmtwx_single" # Solo bridge single-coil
+"09_pmm_hybrid_series" = "blend_parallel" # Center detent blend -> SPICE series digital twin
+"10_mudbucker_ultra_series" = "px"       # Solo neck pickup -> SPICE mudbucker digital twin
 "11_dingwall_multiscale_bridge" = "mmtwx_dual"

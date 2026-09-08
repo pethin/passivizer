@@ -1,24 +1,58 @@
-# Passivizer Standard Scale Lengths & Wave Speeds
-# Wave speed formula: v = 2 * L * f0 (for standard bass tuning: E=41.2Hz, A=55.0Hz, D=73.4Hz, G=98.0Hz)
+# ==============================================================================
+# PASSIVIZER PHYSICAL SCALE LENGTHS & STRING WAVE SPEEDS
+# ==============================================================================
+# Fundamental Wave Speed Equation:
+#   v = sqrt(T / mu) = 2 * L * f0
+# where:
+#   L  = vibrating string length (meters)
+#   f0 = open string fundamental frequency (Hz)
+#   Standard 4-String Bass Tuning (A=440Hz):
+#     E1 = 41.203 Hz, A1 = 55.000 Hz, D2 = 73.416 Hz, G2 = 97.999 Hz
+#   5-String Low B:
+#     B0 = 30.868 Hz
+#
+# These wave speeds determine the spatial wavelength on each string:
+#   lambda = v / f
+# and govern the exact frequencies of pickup aperture sinc nulls (v / w)
+# and humbucker comb-filter notches (v / 2d).
+# ==============================================================================
 
+# ------------------------------------------------------------------------------
+# 30" Short Scale (e.g. Gibson EB-0, Fender Mustang, Ibanez Mikro)
+# Character: Lower tension, tubby low-mid bloom (180-250 Hz), lower aperture nulls.
+# ------------------------------------------------------------------------------
 [scales.30in]
 name = "30\" Short Scale"
 scale_length_in = 30.0
 scale_length_m = 0.762
 string_wave_speeds = [62.79, 83.82, 111.89, 149.35]
 
+# ------------------------------------------------------------------------------
+# 32" Medium Scale (e.g. Alembic, Fender Stu Hamm Urge, Custom P/MM)
+# Character: Balanced tension, sweet spot between punch and low-register articulation.
+# ------------------------------------------------------------------------------
 [scales.32in]
 name = "32\" Medium Scale"
 scale_length_in = 32.0
 scale_length_m = 0.8128
 string_wave_speeds = [66.98, 89.41, 119.35, 159.31]
 
+# ------------------------------------------------------------------------------
+# 34" Standard Long Scale (Fender P/J, Music Man StingRay, Rickenbacker 4003)
+# Character: The global industry standard for electric bass snap, tightness, and growl.
+# ------------------------------------------------------------------------------
 [scales.34in]
 name = "34\" Standard Long Scale"
 scale_length_in = 34.0
 scale_length_m = 0.8636
 string_wave_speeds = [71.16, 95.00, 126.81, 169.27]
 
+# ------------------------------------------------------------------------------
+# 34"-37" Multi-Scale / Fanned Fret (e.g. Dingwall NG2/NG3, Combustion)
+# Character: 37" low B/E string produces massive tension, piano-like clarity,
+# and percussive metallic clank (3.2 kHz) with zero low-end mud.
+# Wave speeds evaluated at the angled bridge pickup line across strings.
+# ------------------------------------------------------------------------------
 [scales.multiscale]
 name = "34\"-37\" Multi-Scale (Fanned Fret)"
 scale_length_in = 37.0

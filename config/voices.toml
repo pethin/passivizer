@@ -1,5 +1,25 @@
-# Passivizer Master Voices Configuration
-# Links target SPICE circuit digital twins to acoustic geometry and visualizer parameters.
+# ==============================================================================
+# PASSIVIZER TARGET VOICES SPECIFICATION
+# ==============================================================================
+# Each table entry defines a target high-impedance passive pickup digital twin.
+# Parameters configure the SPICE circuit netlist, acoustic spatial filtering,
+# and interactive Altair frequency response visualizer.
+#
+# Field Definitions:
+#   name        : Human-readable display name (embedded in NAM metadata).
+#   circuit     : Path to the standalone SPICE netlist (.cir) for transient modeling.
+#   topology    : Circuit topology classification (Single, Split, Dual, Series, Parallel).
+#   description : Tonal character, reference pickup model, and hardware notes.
+#   pos_34      : Target pickup centerline distance from bridge saddle on 34" scale (meters).
+#   w           : Magnetic aperture width per coil in inches.
+#   d           : Distance between coil centers in inches (0.0 for single/split coils).
+#   fr          : Target electrical resonant peak frequency under load (Hz).
+#   Q           : Target electrical quality factor under pot and cable load.
+#   gain_db     : Output gain trim in dB for perceived loudness matching.
+#   scale       : Reference scale length key from scales.toml ("34in" or "multiscale").
+#   hpf         : (Optional) High-pass cutoff frequency in Hz (e.g. 105Hz for Rickenbacker).
+#   coils       : (Optional) Multi-coil definitions for staggered splits or dual arrays.
+# ==============================================================================
 
 [voices.01_jazz_bass_pair]
 name = "01. Jazz Bass Pair (Parallel)"

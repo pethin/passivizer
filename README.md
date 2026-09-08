@@ -168,6 +168,7 @@ uv run python main.py --stage prep --voice 07_stingray_mm_parallel
 passivizer/
 ├── README.md                              # Project vision, theory, architecture, and CLI guide
 ├── docs/                                  # In-depth technical guides
+│   ├── configuration_reference.md         # Complete schema & field reference for TOML configurations
 │   ├── voice_catalog.md                   # Complete passive pickup technical catalog & parameters
 │   ├── circuit_theory.md                  # RLC, eddy current, and cable impedance math
 │   ├── aperture_math.md                   # Magnetic aperture sinc, multi-string & scale physics
@@ -186,7 +187,7 @@ passivizer/
 │   └── 11_dingwall_multiscale_bridge.cir  # Multi-scale angled bridge position
 ├── config/                                # Modular TOML configuration files
 │   ├── instruments/                       # Source bass geometries, pickups & routing
-│   │   ├── 30in_emg_mm.toml               # 30" single EMG MM bass
+│   │   ├── 30in_emg_mmtw.toml             # 30" active EMG MMTW dual-mode bass
 │   │   ├── 32in_custom_pmm.toml           # 32" custom PX + MMTWX bass
 │   │   ├── 34in_standard_p.toml           # 34" standard P-bass template
 │   │   └── 34in_standard_jazz.toml        # 34" standard Jazz bass template
