@@ -88,8 +88,8 @@ Passivizer includes pre-configured physical and electrical parameters for **12 d
 
 | # | Profile ID | Pickup Type | Topology | $L_{\text{eq}}$ | $f_r$ (Peak) | Circuit & Acoustic Character |
 | :- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **01** | `01_jazz_bass_pair` | J-Bass Pair | Dual Parallel | $1.69\text{ H}$ | $3.9\text{ kHz}$ | Dual narrow single-coils in parallel; symmetrical wide-aperture $1\text{ kHz}$ hollow scoop with top sparkle. |
-| **02** | `02_jazz_bridge_70s` | J-Bass Bridge | Single Coil | $3.60\text{ H}$ | $3.2\text{ kHz}$ | 70s bridge single-coil ($40.6\text{ mm}$ datum); focused $1.2\text{ kHz}$ harmonic bite with tight low end. |
+| **01** | `01_jazz_bass_pair` | J-Bass Pair | Dual Parallel | $1.69\text{ H}$ | $3.9\text{ kHz}$ | Dual narrow single-coils in parallel; 60s/modern $92.1\text{ mm}$ ($3\frac{5}{8}''$) aperture scoop with top sparkle. |
+| **02** | `02_jazz_bridge_60s` | J-Bass Bridge | Single Coil | $3.60\text{ H}$ | $3.2\text{ kHz}$ | 60s bridge single-coil ($63.5\text{ mm}$ datum); focused $1.2\text{ kHz}$ harmonic bite with balanced low end. |
 | **03** | `03_modern_p_ceramic` | Split P-Bass | Single Split | $4.80\text{ H}$ | $2.2\text{ kHz}$ | Modern ceramic split-coil (Bartolini 8CBP style); high-inductance punch and fast pick transient attack. |
 | **04** | `04_vintage_62_p_alnico` | Split P-Bass | Single Split | $3.80\text{ H}$ | $2.8\text{ kHz}$ | Classic Alnico V split-coil; lower eddy-current damping, open and dynamic woody resonance. |
 | **05** | `05_p_bass_47nf_rolloff` | Split P-Bass | Split w/ 47nF | $4.80\text{ H}$ | $0.45\text{ kHz}$| Split-coil with passive tone rolled to 0; deep, fundamental-heavy pillowy sub-bass. |
@@ -209,7 +209,7 @@ passivizer/
 │   └── anagram_workflow.md                # Darkglass Anagram Block 1 routing & gain staging
 ├── circuits/                              # Standalone SPICE netlists (.cir)
 │   ├── 01_jazz_bass_pair.cir              # Dual single-coils in parallel
-│   ├── 02_jazz_bridge_70s.cir             # 70s bridge single-coil
+│   ├── 02_jazz_bridge_60s.cir              # 60s bridge single-coil
 │   ├── 03_modern_p_ceramic.cir            # Modern ceramic split-coil P
 │   ├── 04_vintage_62_p_alnico.cir         # Vintage '62 Alnico V split-coil P
 │   ├── 05_p_bass_47nf_rolloff.cir         # Split-coil P with 47nF tone shunt

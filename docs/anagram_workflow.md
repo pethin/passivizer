@@ -57,7 +57,7 @@ In your presets, use the Block 1 output level trim to normalize all voices to an
 | Profile ID | Pickup Configuration | Raw Offset | Recommended Block 1 Trim |
 | :--- | :--- | :--- | :--- |
 | **`01_jazz_bass_pair`** | Jazz Bass Pair (Parallel) | $-0.5\text{ dB}$ | $+0.5\text{ dB}$ |
-| **`02_jazz_bridge_70s`** | 70s Jazz Bridge Single-Coil | $-2.5\text{ dB}$ | $+2.5\text{ dB}$ (Compensates single-coil drop) |
+| **`02_jazz_bridge_60s`** | 60s Jazz Bridge Single-Coil | $-2.5\text{ dB}$ | $+2.5\text{ dB}$ (Compensates single-coil drop) |
 | **`03_modern_p_ceramic`** | Modern Split-Coil P (Ceramic) | $+1.5\text{ dB}$ | $0.0\text{ dB}$ (Reference Baseline) |
 | **`04_vintage_62_p_alnico`** | Vintage '62 Split-Coil P (Alnico V) | $+0.5\text{ dB}$ | $+1.0\text{ dB}$ |
 | **`05_p_bass_47nf_rolloff`** | Split-Coil P (47nF Tone Rolloff) | $-1.0\text{ dB}$ | $+1.0\text{ dB}$ |
@@ -78,7 +78,7 @@ Group the pickup profiles into dedicated 3-button banks on the Anagram hardware:
 ### Bank 1: Single-Coil & Split Foundations
 * **Footswitch A:** `01_jazz_bass_pair.nam` (Jazz Bass Pair)
 * **Footswitch B:** `03_modern_p_ceramic.nam` (Modern Split-Coil P)
-* **Footswitch C:** `02_jazz_bridge_70s.nam` (70s Jazz Bridge)
+* **Footswitch C:** `02_jazz_bridge_60s.nam` (60s Jazz Bridge)
 
 ### Bank 2: Dual-Coil & Series Topologies
 * **Footswitch A:** `07_stingray_mm_parallel.nam` (Music Man Parallel Humbucker)

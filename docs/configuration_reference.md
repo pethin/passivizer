@@ -165,7 +165,7 @@ The `[pickup_mapping]` table routes each of the 11 target passive profiles to th
 ```toml
 [pickup_mapping]
 "01_jazz_bass_pair" = "blend_parallel"   # Center detent active blend
-"02_jazz_bridge_70s" = "mmtwx_single"    # Solo bridge single-coil
+"02_jazz_bridge_60s" = "mmtwx_single"    # Solo bridge single-coil
 "03_modern_p_ceramic" = "px"             # Solo neck split-coil
 "04_vintage_62_p_alnico" = "px"          # Solo neck split-coil
 "05_p_bass_47nf_rolloff" = "px"          # Solo neck split-coil

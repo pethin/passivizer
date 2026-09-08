@@ -39,8 +39,8 @@ def test_30in_mmtw_routing():
     assert "mmtw_dual" in inst["pickups"]
     assert "mmtw_single" in inst["pickups"]
 
-    # 70s Jazz Bridge should route to single-coil mode
-    j_pickup = get_source_pickup(inst, "02_jazz_bridge_70s")
+    # 60s Jazz Bridge should route to single-coil mode
+    j_pickup = get_source_pickup(inst, "02_jazz_bridge_60s")
     assert j_pickup["name"] == "EMG MMTW Single-Coil (Bridge Coil)"
     assert math.isclose(j_pickup["position_from_bridge_m"], 0.06607, abs_tol=1e-4)
 
@@ -67,8 +67,8 @@ def test_32in_custom_pmm_routing():
     assert p_pickup["name"] == "Reverse EMG PX Split-Coil (Neck)"
     assert math.isclose(p_pickup["position_from_bridge_m"], 0.1228, abs_tol=1e-4)
 
-    # 70s Jazz Bridge routes to bridge single coil
-    j_pickup = get_source_pickup(inst, "02_jazz_bridge_70s")
+    # 60s Jazz Bridge routes to bridge single coil
+    j_pickup = get_source_pickup(inst, "02_jazz_bridge_60s")
     assert j_pickup["name"] == "EMG MMTWX Single-Coil (Bridge)"
     assert math.isclose(j_pickup["position_from_bridge_m"], 0.0508, abs_tol=1e-4)
 
@@ -191,8 +191,8 @@ def test_resolve_pickup_coils():
     inst_j = load_instrument("34in_standard_jazz")
     coils_j = resolve_pickup_coils(inst_j["pickups"]["pair_parallel"], inst_j)
     assert len(coils_j) == 2
-    assert math.isclose(coils_j[0]["position_from_bridge_m"], 0.1480, abs_tol=1e-4)
-    assert math.isclose(coils_j[1]["position_from_bridge_m"], 0.0406, abs_tol=1e-4)
+    assert math.isclose(coils_j[0]["position_from_bridge_m"], 0.1556, abs_tol=1e-4)
+    assert math.isclose(coils_j[1]["position_from_bridge_m"], 0.0635, abs_tol=1e-4)
     assert coils_j[0]["weight"] == 0.5
     assert coils_j[1]["weight"] == 0.5
 

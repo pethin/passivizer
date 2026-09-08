@@ -4,8 +4,9 @@
 # ==============================================================================
 # Physical Datums:
 #   - Scale Length: 34.0" (863.6mm total, 431.8mm 12th fret to bridge saddle)
-#   - Neck Single-Coil: 148.0mm from bridge saddle (283.8mm from 12th fret)
-#   - 70s Bridge Single-Coil: 40.6mm from bridge saddle (391.2mm from 12th fret)
+#   - 60s/Modern Neck Single-Coil: 155.6mm from bridge saddle (276.2mm from 12th fret, 10 7/8")
+#   - 60s/Modern Bridge Single-Coil: 63.5mm from bridge saddle (368.3mm from 12th fret, 14 1/2")
+#   - Pickup Spacing: 92.1mm (3 5/8" center-to-center)
 #   - Coil Aperture: 0.75" (19.05mm) narrow single-coil magnetic sensing envelope
 # Electronics:
 #   - Passive high-impedance circuit: Dual 250k volume pots (V/V/T), 250k master tone (47nF cap).
@@ -41,29 +42,29 @@ tension_lbs = 171.0
 # ------------------------------------------------------------------------------
 [pickups.neck]
 name = "Jazz Neck Single-Coil"
-position_from_bridge_m = 0.1480  # 148.0mm from bridge
+position_from_bridge_m = 0.1556  # 155.6mm from bridge (10 7/8" from 12th fret)
 aperture_width_in = 0.75         # 0.75" narrow single-coil aperture
 coil_spacing_in = 0.0
 type = "single_coil"
 resonant_frequency_hz = 3600.0   # Neck single-coil loaded resonance (3.6 kHz)
 q_factor = 1.50
 coils = [
-    { strings = ["all"], position_from_bridge_m = 0.1480, aperture_width_in = 0.75, weight = 1.0 }
+    { strings = ["all"], position_from_bridge_m = 0.1556, aperture_width_in = 0.75, weight = 1.0 }
 ]
 
 # ------------------------------------------------------------------------------
-# 2. 70s JAZZ BRIDGE SINGLE-COIL (Solo Bridge)
+# 2. 60s JAZZ BRIDGE SINGLE-COIL (Solo Bridge)
 # ------------------------------------------------------------------------------
 [pickups.bridge]
-name = "70s Jazz Bridge Single-Coil"
-position_from_bridge_m = 0.0406  # 40.6mm from bridge (70s datum)
+name = "60s Jazz Bridge Single-Coil"
+position_from_bridge_m = 0.0635  # 63.5mm from bridge (14 1/2" from 12th fret)
 aperture_width_in = 0.75         # 0.75" narrow single-coil aperture
 coil_spacing_in = 0.0
 type = "single_coil"
 resonant_frequency_hz = 3200.0   # Bridge single-coil loaded resonance (3.2 kHz)
 q_factor = 1.60
 coils = [
-    { strings = ["all"], position_from_bridge_m = 0.0406, aperture_width_in = 0.75, weight = 1.0 }
+    { strings = ["all"], position_from_bridge_m = 0.0635, aperture_width_in = 0.75, weight = 1.0 }
 ]
 
 # ------------------------------------------------------------------------------
@@ -71,7 +72,7 @@ coils = [
 # ------------------------------------------------------------------------------
 [pickups.pair_parallel]
 name = "Jazz Neck + Bridge Parallel"
-position_from_bridge_m = 0.0880  # Acoustic centroid
+position_from_bridge_m = 0.1095  # Acoustic centroid
 aperture_width_in = 0.75
 coil_spacing_in = 0.0
 type = "composite"
@@ -87,12 +88,12 @@ components = [
 # ------------------------------------------------------------------------------
 # Directs the player to select the closest physical pickup state on the Jazz Bass:
 #   - Neck Solo: P-Bass styles, Mudbucker, and Upright acoustic fullness
-#   - Bridge Solo: 70s Bridge growl, StingRay bite, and Rickenbacker clank
+#   - Bridge Solo: 60s Bridge growl, StingRay bite, and Rickenbacker clank
 #   - Both Parallel: Classic dual-single scooped slap and modern hybrid tones
 
 [pickup_mapping]
 "01_jazz_bass_pair" = "pair_parallel"          # Both pickups in parallel (identity)
-"02_jazz_bridge_70s" = "bridge"                 # Solo bridge single-coil (identity)
+"02_jazz_bridge_60s" = "bridge"                # Solo bridge single-coil (identity)
 "03_modern_p_ceramic" = "neck"                  # Solo neck single-coil (closest to P-bass position)
 "04_vintage_62_p_alnico" = "neck"               # Solo neck single-coil (closest to P-bass position)
 "05_p_bass_47nf_rolloff" = "neck"               # Solo neck single-coil

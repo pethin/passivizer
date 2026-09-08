@@ -73,7 +73,7 @@ coils = [
 # when recording sweeps or playing through the target digital twin.
 [pickup_mapping]
 "01_jazz_bass_pair" = "mmtw_dual"
-"02_jazz_bridge_70s" = "mmtw_single"      # Uses single-coil mode for authentic 70s J bridge bite
+"02_jazz_bridge_60s" = "mmtw_single"      # Uses single-coil mode for authentic 60s J bridge bite
 "03_modern_p_ceramic" = "mmtw_dual"
 "04_vintage_62_p_alnico" = "mmtw_dual"
 "05_p_bass_47nf_rolloff" = "mmtw_dual"

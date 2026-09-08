@@ -3,7 +3,7 @@ from scripts.model_physics import VOICES, SCALES
 
 EXPECTED_VOICES = [
     "01_jazz_bass_pair",
-    "02_jazz_bridge_70s",
+    "02_jazz_bridge_60s",
     "03_modern_p_ceramic",
     "04_vintage_62_p_alnico",
     "05_p_bass_47nf_rolloff",
@@ -92,8 +92,8 @@ def test_resolve_voice_coils():
     # 01 Jazz pair should have 2 coils, each with strings=["all"]
     c01 = resolve_voice_coils(VOICES["01_jazz_bass_pair"])
     assert len(c01) == 2
-    assert c01[0]["position_from_bridge_m"] == 0.1480
-    assert c01[1]["position_from_bridge_m"] == 0.0406
+    assert c01[0]["position_from_bridge_m"] == 0.1556
+    assert c01[1]["position_from_bridge_m"] == 0.0635
     assert c01[0]["strings"] == ["all"]
 
     # 03 Modern P ceramic should have 2 split coils with specific string bindings
@@ -121,7 +121,7 @@ def test_resolve_voice_coils():
 
     # Check effective positions are calculated correctly
     eff01 = compute_effective_position(c01)
-    assert 0.09 < eff01 < 0.10  # Average of 0.1480 and 0.0406 is 0.0943
+    assert 0.10 < eff01 < 0.12  # Average of 0.1556 and 0.0635 is 0.10955
 
     # Legacy backward compatibility test: dict with pos_34, w, d
     legacy_cfg = {"pos_34": 0.066, "w": 0.75, "d": 0.75}

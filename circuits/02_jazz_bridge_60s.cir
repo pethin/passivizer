@@ -1,5 +1,5 @@
-* Passivizer Netlist 02: 70s Jazz Bass Bridge Single-Coil
-* Target: Bridge Single Coil (1.6" from bridge, 3.2 kHz Peak)
+* Passivizer Netlist 02: 60s Jazz Bass Bridge Single-Coil
+* Target: Bridge Single Coil (2.5" / 63.5mm from bridge, 3.2 kHz Peak)
 .options plotwinsize=0 numdgt=7
 
 * 1. Audio Source (Pre-filtered NAM Training Track)
@@ -34,5 +34,5 @@ C_anagram node3 0 30p
 .tran 0 190 0 20.833333333333333u
 
 * 8. Output Audio Export for NAM Training
-.wave "out_02_jazz_bridge_70s.wav" 24 48000 V(node3)
+.wave "out_02_jazz_bridge_60s.wav" 24 48000 V(node3)
 .end

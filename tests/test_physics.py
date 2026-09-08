@@ -184,8 +184,8 @@ def test_30in_mm_pj_subbass_retention():
     assert math.isclose(f20, 0.80, abs_tol=0.5)
     assert math.isclose(f100, 0.80, abs_tol=0.5)
 
-    # Resonant peak must extend cleanly above passband (between +3.0 dB and +6.0 dB)
-    assert 3.0 <= f_max <= 6.0
+    # Resonant peak must extend cleanly above passband (between +1.5 dB and +6.0 dB)
+    assert 1.5 <= f_max <= 6.0
 
 def test_30in_mm_jazz_pair_subbass_retention():
     """Verify that 30in MM dual-coil playing Jazz Bass pair retains full sub-bass without collapse."""

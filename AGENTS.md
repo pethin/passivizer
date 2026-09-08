@@ -17,7 +17,7 @@ Welcome to **Passivizer**. This repository houses an analog digital twin and mod
    - Reference: `/Users/peter/Projects/pethin/medium-scale-bass/Pickup Placement - P_MM.md`.
 
 ### Target Instruments & Tonal Scalings
-- **Standard 34" Scale:** Standard Fender ($125.0\text{ mm}$ P, $40.6\text{ mm}$ 70s J bridge) and Music Man ($66.0\text{ mm}$ StingRay).
+- **Standard 34" Scale:** Standard Fender ($125.0\text{ mm}$ P, $155.6\text{ mm}$ 60s J neck, $63.5\text{ mm}$ 60s J bridge) and Music Man ($66.0\text{ mm}$ StingRay).
 - **34"-37" Multi-Scale (Dingwall Fanned Fret):** High-tension wave speeds, angled bridge sweet spot ($48.0\text{ mm}$), tightened sub-bass ($+1.5\text{ dB}$ @ $75\text{ Hz}$), trimmed low-mids ($-3.5\text{ dB}$ @ $220\text{ Hz}$), and metallic clank ($+3.5\text{ dB}$ @ $3.2\text{ kHz}$).
 
 ---

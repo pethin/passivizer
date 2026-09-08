@@ -8,8 +8,8 @@ This catalog details the physical parameters, equivalent RLC circuit values, aco
 
 | # | Profile ID | Pickup Architecture | Topology | $L_{\text{eq}}$ | $R_{\text{dc}}$ | $f_r$ (Peak) | $Q$ | Acoustic & Circuit Character |
 | :- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **01** | `01_jazz_bass_pair` | J-Bass Pair | Dual Parallel | $1.69\text{ H}$ | $3.69\text{ k}\Omega$ | $3.9\text{ kHz}$ | $1.3$ | Dual narrow single-coils in parallel; symmetrical 1 kHz aperture hollow scoop with extended treble. |
-| **02** | `02_jazz_bridge_70s` | 70s J-Bass Bridge | Single Coil | $3.60\text{ H}$ | $7.80\text{ k}\Omega$ | $3.2\text{ kHz}$ | $1.6$ | Narrow single-coil placed $40.6\text{ mm}$ from bridge; focused $1.2\text{ kHz}$ midrange bark with lean sub-bass. |
+| **01** | `01_jazz_bass_pair` | J-Bass Pair | Dual Parallel | $1.69\text{ H}$ | $3.69\text{ k}\Omega$ | $3.9\text{ kHz}$ | $1.3$ | Dual narrow single-coils in parallel; 60s/modern $92.1\text{ mm}$ ($3\frac{5}{8}''$) aperture scoop with extended treble. |
+| **02** | `02_jazz_bridge_60s` | 60s J-Bass Bridge | Single Coil | $3.60\text{ H}$ | $7.80\text{ k}\Omega$ | $3.2\text{ kHz}$ | $1.6$ | Narrow single-coil placed in 60s position ($63.5\text{ mm}$ from bridge); focused $1.2\text{ kHz}$ midrange bark with balanced low end. |
 | **03** | `03_modern_p_ceramic` | Modern Split P | Single Split | $4.80\text{ H}$ | $9.50\text{ k}\Omega$ | $2.2\text{ kHz}$ | $1.8$ | Ceramic split-coil; high-inductance mid punch, tight pick transient attack, compressed low-mids. |
 | **04** | `04_vintage_62_p_alnico`| Vintage '62 P | Single Split | $3.80\text{ H}$ | $10.50\text{ k}\Omega$ | $2.8\text{ kHz}$ | $1.4$ | Alnico V split-coil; lower eddy damping, open dynamic sensitivity, woody upper-mid bloom. |
 | **05** | `05_p_bass_47nf_rolloff`| Split P w/ 47nF | Split w/ Shunt | $4.80\text{ H}$ | $9.50\text{ k}\Omega$ | $0.45\text{ kHz}$| $0.9$ | Split-coil loaded by $47\text{ nF}$ direct shunt; rolled-off highs above 800 Hz, pillowy sub fundamental. |
@@ -28,16 +28,16 @@ This catalog details the physical parameters, equivalent RLC circuit values, aco
 ### 01. `01_jazz_bass_pair` (Dual Single-Coil Parallel)
 * **Archetype:** Standard Jazz Bass Dual Single-Coil Pair
 * **Pickup Architecture:** Dual parallel single coils (Neck: $3.20\text{ H}, f_r = 3.6\text{ kHz}$; Bridge: $3.60\text{ H}, f_r = 3.2\text{ kHz}$)
-* **Coil Model:** Two narrow single coils ($w = 0.75''$) in parallel spaced $107.4\text{ mm}$ apart ($148.0\text{ mm}$ neck, $40.6\text{ mm}$ bridge)
+* **Coil Model:** Two narrow single coils ($w = 0.75''$) in parallel spaced $92.1\text{ mm}$ ($3\frac{5}{8}''$) apart ($155.6\text{ mm}$ neck, $63.5\text{ mm}$ bridge)
 * **Electrical Parameters:** Dual parallel SPICE branches; combined $L_{\text{eq}} = 1.69\text{ H}$, $R_{\text{dc}} = 3.69\text{ k}\Omega$, $R_{\text{eddy}} = 65\text{ k}\Omega$, $C_{\text{coil}} = 145\text{ pF}$ (composite $f_r = 3.9\text{ kHz}, Q = 1.3$)
 * **Acoustic Character:** Symmetrical dual-aperture phase cancellation produces a hollow mid-scoop at $1\text{ kHz}$ with extended sparkle up to $5.5\text{ kHz}$. Individual neck ($3.6\text{ kHz}$) and bridge ($3.2\text{ kHz}$) resonances preserve transient snap on top and body below.
 * **32" Bass Setting:** ABCX Blend at **Center Detent (50/50)** (MMTWX in Single-Coil Mode - Push/Pull Down).
 
-### 02. `02_jazz_bridge_70s` (70s Jazz Bass Bridge Single-Coil)
-* **Archetype:** 1970s Fender Jazz Bass Bridge Single Coil
-* **Coil Model:** Single coil ($w = 0.75''$) positioned $1.6''$ ($40.6\text{ mm}$) from the bridge
+### 02. `02_jazz_bridge_60s` (60s Jazz Bass Bridge Single-Coil)
+* **Archetype:** 1960s / Modern Fender Jazz Bass Bridge Single Coil
+* **Coil Model:** Single coil ($w = 0.75''$) positioned $2.5''$ ($63.5\text{ mm}$) from the bridge
 * **Electrical Parameters:** $L = 3.60\text{ H}$, $R_{\text{dc}} = 7.80\text{ k}\Omega$, $R_{\text{eddy}} = 125\text{ k}\Omega$, $C_{\text{coil}} = 70\text{ pF}$
-* **Acoustic Character:** Tightly focused harmonic bite centered in the $800\text{ Hz}\text{--}1.6\text{ kHz}$ range with naturally rolled-off sub-bass. Accentuates staccato fingerstyle transient definition and chordal harmonics.
+* **Acoustic Character:** Focused harmonic bite centered in the $800\text{ Hz}\text{--}1.6\text{ kHz}$ range with solid, articulate low-end punch. Accentuates fingerstyle definition and chordal clarity.
 * **32" Bass Setting:** ABCX Blend **100% Bridge** (MMTWX in Single-Coil Mode - Push/Pull Down).
 
 ### 03. `03_modern_p_ceramic` (Modern Split-Coil Ceramic)
@@ -65,7 +65,7 @@ This catalog details the physical parameters, equivalent RLC circuit values, aco
 * **Archetype:** P/J Bass Configuration (Fender Precision Special / Yamaha BB)
 * **Pickup Architecture:** Dual parallel pickups:
   * **Precision Neck:** Split-coil Bartolini 8CBP ($L = 4.80\text{ H}, f_r = 2200\text{ Hz}, Q = 1.8$, E/A @ $139\text{ mm}$, D/G @ $111\text{ mm}$)
-  * **Jazz Bridge:** Single-coil Bartolini 9CBJS1 ($L = 3.60\text{ H}, f_r = 3200\text{ Hz}, Q = 1.6$, @ $40.6\text{ mm}$)
+  * **Jazz Bridge:** Single-coil Bartolini 9CBJS1 ($L = 3.60\text{ H}, f_r = 3200\text{ Hz}, Q = 1.6$, @ $63.5\text{ mm}$)
 * **Electrical Parameters:** Dual parallel SPICE branches; composite $L_{\text{eq}} = 2.06\text{ H}$, $R_{\text{dc}} = 4.28\text{ k}\Omega$, $R_{\text{eddy}} = 60\text{ k}\Omega$, $C_{\text{coil}} = 150\text{ pF}$ (composite $f_r = 3.6\text{ kHz}, Q = 1.4$)
 * **Acoustic Character:** Simultaneous presentation of the deep $2.2\text{ kHz}$ P-neck fundamental punch and the bright $3.2\text{ kHz}$ J-bridge bite, modulated by $85\text{ mm}$ spatial phase cancellation in the lower midrange.
 * **32" Bass Setting:** ABCX Blend at **Center Detent (50/50)** (MMTWX in Single-Coil Mode - Push/Pull Down).
@@ -142,7 +142,7 @@ When running Passivizer from a **30" short-scale bass with a single 18V EMG MM p
 | Profile ID | Target Location | Target $x$ | Displacement $\Delta x$ | Acoustic Compensation |
 | :--- | :--- | :--- | :--- | :--- |
 | **`01_jazz_bass_pair`** | J-Pair Virtual Center | $86.8\text{ mm}$ | $+9.3\text{ mm}\ (+0.37'')$ | De-humbuck aperture, mild forward tilt |
-| **`02_jazz_bridge_70s`** | MMTWX Bridge Coil (JB) | $50.8\text{ mm}$ | $-26.7\text{ mm}\ (-1.05'')$ | De-humbuck aperture, tighter bridge bite tilt |
+| **`02_jazz_bridge_60s`** | MMTWX Bridge Coil (JB) | $50.8\text{ mm}$ | $-26.7\text{ mm}\ (-1.05'')$ | De-humbuck aperture, tighter bridge bite tilt |
 | **`03_modern_p_ceramic`** | Reverse PX Split Center | $122.8\text{ mm}$ | $+45.3\text{ mm}\ (+1.78'')$ | $+2.7\text{ dB}$ low boost, tames bridge bite |
 | **`04_vintage_62_p_alnico`**| Reverse PX Split Center | $122.8\text{ mm}$ | $+45.3\text{ mm}\ (+1.78'')$ | $+2.7\text{ dB}$ low boost, smooth woody rolloff |
 | **`05_p_bass_47nf_rolloff`** | Reverse PX Split Center | $122.8\text{ mm}$ | $+45.3\text{ mm}\ (+1.78'')$ | Full $47\text{ nF}$ rolloff; deep sub-thump |

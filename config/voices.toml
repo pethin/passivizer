@@ -27,8 +27,8 @@
 # ------------------------------------------------------------------------------
 # 01. JAZZ BASS PAIR (PARALLEL)
 # ------------------------------------------------------------------------------
-# Two narrow single-coils in parallel spaced 107.4mm apart, creating the
-# signature scooped mid comb filtering of a dual-pickup Jazz Bass.
+# Two narrow single-coils in parallel spaced 92.1mm (3 5/8") apart (60s/modern spacing),
+# creating the signature scooped mid comb filtering of a dual-pickup Jazz Bass.
 [voices.01_jazz_bass_pair]
 name = "01. Jazz Bass Pair (Parallel)"
 circuit = "circuits/01_jazz_bass_pair.cir"
@@ -40,8 +40,8 @@ Q = 1.3      # Composite equivalent quality factor
 gain_db = -0.5
 scale = "34in"
 coils = [
-    { strings = ["all"], position_from_bridge_m = 0.1480, aperture_width_in = 0.75, weight = 0.5 }, # Neck Single-Coil
-    { strings = ["all"], position_from_bridge_m = 0.0406, aperture_width_in = 0.75, weight = 0.5 }  # 70s Bridge Single-Coil
+    { strings = ["all"], position_from_bridge_m = 0.1556, aperture_width_in = 0.75, weight = 0.5 }, # 60s Neck Single-Coil (10 7/8" from 12th fret)
+    { strings = ["all"], position_from_bridge_m = 0.0635, aperture_width_in = 0.75, weight = 0.5 }  # 60s Bridge Single-Coil (14 1/2" from 12th fret)
 ]
 
 [[voices.01_jazz_bass_pair.pickups]]
@@ -51,35 +51,35 @@ fr = 3600.0
 Q = 1.5
 weight = 0.5
 coils = [
-    { strings = ["all"], position_from_bridge_m = 0.1480, aperture_width_in = 0.75, weight = 1.0 }
+    { strings = ["all"], position_from_bridge_m = 0.1556, aperture_width_in = 0.75, weight = 1.0 }
 ]
 
 [[voices.01_jazz_bass_pair.pickups]]
-name = "70s Jazz Single-Coil (Bridge)"
+name = "60s Jazz Single-Coil (Bridge)"
 type = "single_coil"
 fr = 3200.0
 Q = 1.6
 weight = 0.5
 coils = [
-    { strings = ["all"], position_from_bridge_m = 0.0406, aperture_width_in = 0.75, weight = 1.0 }
+    { strings = ["all"], position_from_bridge_m = 0.0635, aperture_width_in = 0.75, weight = 1.0 }
 ]
 
 # ------------------------------------------------------------------------------
-# 02. 70s JAZZ BRIDGE SINGLE-COIL
+# 02. 60s JAZZ BRIDGE SINGLE-COIL
 # ------------------------------------------------------------------------------
-# Narrow single-coil placed close to bridge (1.60" / 40.6mm datum) for maximum
-# transient bite, Jaco growl, and articulate upper-mid harmonics.
-[voices.02_jazz_bridge_70s]
-name = "02. 70s Jazz Bridge Single-Coil"
-circuit = "circuits/02_jazz_bridge_70s.cir"
+# Narrow single-coil placed in 60s position (2.50" / 63.5mm datum from bridge,
+# 14 1/2" from 12th fret) for articulate bite and balanced midrange punch.
+[voices.02_jazz_bridge_60s]
+name = "02. 60s Jazz Bridge Single-Coil"
+circuit = "circuits/02_jazz_bridge_60s.cir"
 topology = "Single-Coil Bridge"
-description = "Narrow single-coil placed close to bridge (1.6\" / 40.6mm datum)"
+description = "Narrow single-coil placed in 60s position (2.5\" / 63.5mm datum)"
 fr = 3200.0
 Q = 1.6
 gain_db = -2.5
 scale = "34in"
 coils = [
-    { strings = ["all"], position_from_bridge_m = 0.0406, aperture_width_in = 0.75, weight = 1.0 }
+    { strings = ["all"], position_from_bridge_m = 0.0635, aperture_width_in = 0.75, weight = 1.0 }
 ]
 
 # ------------------------------------------------------------------------------
@@ -144,7 +144,7 @@ coils = [
 # 06. P/J HYBRID (PARALLEL)
 # ------------------------------------------------------------------------------
 # Compound 3-coil array: Split P-Bass (E/A @ 139.0mm, D/G @ 111.0mm) combined
-# with a single-coil Jazz bridge pickup (40.6mm) in parallel.
+# with a single-coil Jazz bridge pickup (63.5mm) in parallel.
 [voices.06_pj_hybrid_parallel]
 name = "06. P/J Hybrid (Parallel)"
 circuit = "circuits/06_pj_hybrid_parallel.cir"
@@ -158,7 +158,7 @@ scale = "34in"
 coils = [
     { strings = ["E", "A"], position_from_bridge_m = 0.1390, aperture_width_in = 1.00, weight = 0.5 },
     { strings = ["D", "G"], position_from_bridge_m = 0.1110, aperture_width_in = 1.00, weight = 0.5 },
-    { strings = ["all"],    position_from_bridge_m = 0.0406, aperture_width_in = 0.75, weight = 0.5 }
+    { strings = ["all"],    position_from_bridge_m = 0.0635, aperture_width_in = 0.75, weight = 0.5 }
 ]
 
 [[voices.06_pj_hybrid_parallel.pickups]]
@@ -173,13 +173,13 @@ coils = [
 ]
 
 [[voices.06_pj_hybrid_parallel.pickups]]
-name = "70s Jazz Single-Coil (Bridge)"
+name = "60s Jazz Single-Coil (Bridge)"
 type = "single_coil"
 fr = 3200.0
 Q = 1.6
 weight = 0.5
 coils = [
-    { strings = ["all"], position_from_bridge_m = 0.0406, aperture_width_in = 0.75, weight = 1.0 }
+    { strings = ["all"], position_from_bridge_m = 0.0635, aperture_width_in = 0.75, weight = 1.0 }
 ]
 
 # ------------------------------------------------------------------------------

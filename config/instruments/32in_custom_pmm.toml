@@ -132,7 +132,7 @@ components = [
 # when recording sweeps or playing through the target digital twin.
 [pickup_mapping]
 "01_jazz_bass_pair" = "pj_blend_parallel"   # Dual single-sensing line blend (J-pair scoop)
-"02_jazz_bridge_70s" = "mmtwx_single"       # Solo bridge single-coil (70s J growl)
+"02_jazz_bridge_60s" = "mmtwx_single"       # Solo bridge single-coil (60s J bite)
 "03_modern_p_ceramic" = "px"                # Solo neck PX split
 "04_vintage_62_p_alnico" = "px"             # Solo neck PX split
 "05_p_bass_47nf_rolloff" = "px"             # Solo neck PX split
