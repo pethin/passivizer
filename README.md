@@ -183,12 +183,20 @@ passivizer/
 │   ├── 09_pmm_hybrid_series.cir           # P/MM hybrid in series
 │   ├── 10_mudbucker_ultra_series.cir      # Overwound series humbucker
 │   └── 11_dingwall_multiscale_bridge.cir  # Multi-scale angled bridge position
+├── config/                                # Modular TOML configuration files
+│   ├── instruments/                       # Source bass geometries, pickups & routing
+│   │   ├── 30in_emg_mm.toml               # 30" single EMG MM bass
+│   │   ├── 32in_custom_pmm.toml           # 32" custom PX + MMTWX bass
+│   │   ├── 34in_standard_p.toml           # 34" standard P-bass template
+│   │   └── 34in_standard_jazz.toml        # 34" standard Jazz bass template
+│   ├── scales.toml                        # Scale lengths & baseline string wave speeds
+│   └── voices.toml                        # Voice metadata linking to SPICE netlists
 ├── scripts/                               # Generation utilities (Python / uv)
 │   ├── model_physics.py                   # Aperture sinc, scale wave speeds, and FIR engine
 │   ├── analyze_voices.py                  # Polars + Altair frequency curve visualizer
 │   ├── prep_nam_audio.py                  # Aperture & scale tension pre-filtering for NAM
 │   └── run_pipeline.py                    # Master end-to-end automated runner
-├── tests/                                 # Pytest test suite (16 tests)
+├── tests/                                 # Pytest test suite (21 tests)
 └── models/                                # Exported .nam neural models
 ```
 

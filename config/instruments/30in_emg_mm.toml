@@ -1,0 +1,14 @@
+# 30" Short Scale Bass with single 18V EMG MM humbucker
+id = "30in_emg_mm"
+name = "30\" Short Scale MM (EMG MM)"
+scale_length_in = 30.0
+scale_length_m = 0.762
+string_wave_speeds = [62.79, 83.82, 111.89, 149.35]
+default_pickup = "mm"
+
+[pickups.mm]
+name = "EMG MM Dual Coil"
+position_from_bridge_m = 0.0775
+aperture_width_in = 1.50
+coil_spacing_in = 0.75
+type = "dual_coil_parallel"

@@ -1,0 +1,146 @@
+# Passivizer Master Voices Configuration
+# Links target SPICE circuit digital twins to acoustic geometry and visualizer parameters.
+
+[voices.01_jazz_bass_pair]
+name = "01. Jazz Bass Pair (Parallel)"
+circuit = "circuits/01_jazz_bass_pair.cir"
+topology = "Dual Single-Coil Parallel"
+description = "Dual narrow single-coils in parallel with wide-aperture phase cancellation"
+pos_34 = 0.0880
+w = 0.75
+d = 0.0
+fr = 3900.0
+Q = 1.3
+gain_db = -0.5
+scale = "34in"
+
+[voices.02_jazz_bridge_70s]
+name = "02. 70s Jazz Bridge Single-Coil"
+circuit = "circuits/02_jazz_bridge_70s.cir"
+topology = "Single-Coil Bridge"
+description = "Narrow single-coil placed close to bridge (1.6\" / 40.6mm datum)"
+pos_34 = 0.0406
+w = 0.75
+d = 0.0
+fr = 3200.0
+Q = 1.6
+gain_db = -2.5
+scale = "34in"
+
+[voices.03_modern_p_ceramic]
+name = "03. Modern Split-Coil P (Ceramic)"
+circuit = "circuits/03_modern_p_ceramic.cir"
+topology = "Split-Coil Ceramic"
+description = "High-inductance ceramic split-coil pickup (Bartolini 8CBP style)"
+pos_34 = 0.1250
+w = 1.00
+d = 0.0
+fr = 2200.0
+Q = 1.8
+gain_db = 1.5
+scale = "34in"
+
+[voices.04_vintage_62_p_alnico]
+name = "04. Vintage '62 Split-Coil P (Alnico V)"
+circuit = "circuits/04_vintage_62_p_alnico.cir"
+topology = "Split-Coil Alnico V"
+description = "Classic Alnico V split-coil pickup with lower eddy-current damping"
+pos_34 = 0.1250
+w = 1.00
+d = 0.0
+fr = 2800.0
+Q = 1.4
+gain_db = 0.5
+scale = "34in"
+
+[voices.05_p_bass_47nf_rolloff]
+name = "05. Split-Coil P (47nF Tone Rolloff)"
+circuit = "circuits/05_p_bass_47nf_rolloff.cir"
+topology = "Split-Coil w/ 47nF Shunt"
+description = "P-Bass circuit with passive tone pot rolled to 0 (47nF capacitor loading)"
+pos_34 = 0.1250
+w = 1.00
+d = 0.0
+fr = 450.0
+Q = 0.9
+gain_db = -1.0
+scale = "34in"
+
+[voices.06_pj_hybrid_parallel]
+name = "06. P/J Hybrid (Parallel)"
+circuit = "circuits/06_pj_hybrid_parallel.cir"
+topology = "P/J Parallel Sum"
+description = "Split P-neck and single-coil J-bridge summed in parallel"
+pos_34 = 0.0880
+w = 0.88
+d = 0.0
+fr = 3600.0
+Q = 1.4
+gain_db = 0.8
+scale = "34in"
+
+[voices.07_stingray_mm_parallel]
+name = "07. Music Man MM (Parallel Humbucker)"
+circuit = "circuits/07_stingray_mm_parallel.cir"
+topology = "Dual-Coil Parallel"
+description = "Dual-coil humbucker in parallel with 0.75\" coil spacing comb filter"
+pos_34 = 0.0660
+w = 1.50
+d = 0.75
+fr = 3500.0
+Q = 1.5
+gain_db = 0.0
+scale = "34in"
+
+[voices.08_rickenbacker_bridge_hpf]
+name = "08. Rickenbacker 4003 Bridge (4.7nF HPF)"
+circuit = "circuits/08_rickenbacker_bridge_hpf.cir"
+topology = "Single-Coil w/ 4.7nF Series HPF"
+description = "High-output bridge coil loaded with vintage 4.7nF series high-pass capacitor"
+pos_34 = 0.0406
+w = 1.10
+d = 0.0
+fr = 2200.0
+Q = 2.2
+gain_db = -1.5
+hpf = 150.0
+scale = "34in"
+
+[voices.09_pmm_hybrid_series]
+name = "09. P/MM Hybrid (Series Sum)"
+circuit = "circuits/09_pmm_hybrid_series.cir"
+topology = "P/MM Series Sum"
+description = "Split P and MM humbucker wired in series (7.2H high inductive load)"
+pos_34 = 0.0950
+w = 1.25
+d = 0.75
+fr = 2000.0
+Q = 2.2
+gain_db = 5.8
+scale = "34in"
+
+[voices.10_mudbucker_ultra_series]
+name = "10. Mudbucker Ultra Series"
+circuit = "circuits/10_mudbucker_ultra_series.cir"
+topology = "Ultra-High Inductance Series"
+description = "Overwound dual-coil series humbucker (14.4H, dark low-resonant peak)"
+pos_34 = 0.0950
+w = 1.50
+d = 0.75
+fr = 1200.0
+Q = 1.6
+gain_db = 6.2
+scale = "34in"
+
+[voices.11_dingwall_multiscale_bridge]
+name = "11. Dingwall Fanned-Fret Bridge (Multi-Scale)"
+circuit = "circuits/11_dingwall_multiscale_bridge.cir"
+topology = "Multi-Scale Angled Dual-Coil"
+description = "34\"-37\" fanned fret bridge sweet spot with high wave-speed tension filter"
+pos_34 = 0.0480
+w = 1.25
+d = 0.75
+fr = 3400.0
+Q = 1.7
+gain_db = 1.0
+scale = "multiscale"

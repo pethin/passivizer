@@ -1,0 +1,55 @@
+# 32" Medium Scale Custom Bass with Reverse EMG PX and EMG MMTWX (ABCX Active Blend)
+id = "32in_custom_pmm"
+name = "32\" Medium Scale Custom (EMG PX + MMTWX)"
+scale_length_in = 32.0
+scale_length_m = 0.8128
+string_wave_speeds = [66.98, 89.41, 119.35, 159.31]
+default_pickup = "mmtwx_dual"
+
+[pickups.px]
+name = "Reverse EMG PX Split-Coil (Neck)"
+position_from_bridge_m = 0.1228
+aperture_width_in = 1.00
+coil_spacing_in = 0.0
+type = "split_coil"
+
+[pickups.mmtwx_single]
+name = "EMG MMTWX Single-Coil (Bridge)"
+position_from_bridge_m = 0.0508
+aperture_width_in = 0.75
+coil_spacing_in = 0.0
+type = "single_coil"
+
+[pickups.mmtwx_dual]
+name = "EMG MMTWX Dual-Coil (Centerline)"
+position_from_bridge_m = 0.0622
+aperture_width_in = 1.50
+coil_spacing_in = 0.75
+type = "dual_coil_parallel"
+
+[pickups.blend_parallel]
+name = "EMG PX + MMTWX Parallel (Center Detent)"
+position_from_bridge_m = 0.0868
+aperture_width_in = 0.88
+coil_spacing_in = 0.0
+type = "parallel_pair"
+
+[pickups.blend_series]
+name = "EMG PX + MMTWX Series Sum"
+position_from_bridge_m = 0.0925
+aperture_width_in = 1.25
+coil_spacing_in = 0.75
+type = "series_pair"
+
+[pickup_mapping]
+"01_jazz_bass_pair" = "blend_parallel"
+"02_jazz_bridge_70s" = "mmtwx_single"
+"03_modern_p_ceramic" = "px"
+"04_vintage_62_p_alnico" = "px"
+"05_p_bass_47nf_rolloff" = "px"
+"06_pj_hybrid_parallel" = "blend_parallel"
+"07_stingray_mm_parallel" = "mmtwx_dual"
+"08_rickenbacker_bridge_hpf" = "mmtwx_single"
+"09_pmm_hybrid_series" = "blend_series"
+"10_mudbucker_ultra_series" = "blend_series"
+"11_dingwall_multiscale_bridge" = "mmtwx_dual"

@@ -48,6 +48,10 @@ passivizer/
 ├── circuits/                 # Standalone SPICE circuit netlists (.cir)
 │   ├── 01_jazz_bass_pair.cir
 │   └── ... (01 through 11)
+├── config/                   # Modular TOML configuration files
+│   ├── instruments/          # Source bass definitions (scale, pickups, routing)
+│   ├── scales.toml           # Standard scale wave speeds
+│   └── voices.toml           # Voice metadata linking to SPICE netlists
 ├── docs/                     # Technical documentation & interactive charts
 │   ├── voice_catalog.md      # Passive pickup models, RLC parameters, character
 │   ├── circuit_theory.md     # Differential equations, Dunlop pot, treble bleed
@@ -60,7 +64,7 @@ passivizer/
 │   ├── analyze_voices.py     # Polars + Altair frequency curve visualizer
 │   ├── prep_nam_audio.py     # Spotify Pedalboard NAM audio pre-filter
 │   └── run_pipeline.py       # Master end-to-end automated runner
-└── tests/                    # Pytest test suite (16 tests)
+└── tests/                    # Pytest test suite (21 tests)
 ```
 
 ---

@@ -16,7 +16,14 @@ SCRIPTS_DIR = Path(__file__).resolve().parent
 if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
 
-from model_physics import VOICES, SCALES, polars_aperture, polars_position
+from model_physics import (
+    VOICES,
+    SCALES,
+    load_instrument,
+    get_source_pickup,
+    polars_aperture,
+    polars_position
+)
 
 NUM_POINTS = 600
 F_MIN = 20.0
@@ -24,33 +31,36 @@ F_MAX = 20000.0
 
 log_freqs = [F_MIN * (F_MAX / F_MIN) ** (i / (NUM_POINTS - 1)) for i in range(NUM_POINTS)]
 
-def build_voice_dataframe(voice_id, cfg, src_scale="30in"):
+def build_voice_dataframe(voice_id, cfg, instrument="30in", src_scale=None):
     """Calculates magnitude frequency response in dB for a voice using Polars."""
-    src = SCALES[src_scale]
+    inst_selector = src_scale if src_scale is not None else instrument
+    inst = load_instrument(inst_selector) if not isinstance(inst_selector, dict) else inst_selector
+
     tgt_scale = cfg.get("scale", "34in")
     tgt = SCALES[tgt_scale]
+    tgt_speeds = tgt["speeds"]
+
+    src_speeds = inst.get("string_wave_speeds")
+    if not src_speeds:
+        l_m = inst.get("scale_length_m", inst.get("scale_length_in", 34.0) * 0.0254)
+        src_speeds = [2.0 * l_m * f0 for f0 in [41.203, 55.0, 73.416, 97.999]]
+
+    src_pickup = get_source_pickup(inst, voice_id)
+    src_w = src_pickup["aperture_width_in"]
+    src_d = src_pickup["coil_spacing_in"]
+    src_pos_m = src_pickup["position_from_bridge_m"]
 
     df = pl.DataFrame({"frequency": log_freqs})
     f_col = pl.col("frequency")
 
-    # Determine physical source pickup geometry
-    if src_scale == "32in" and "src_32" in cfg:
-        src_w = cfg["src_32"]["w"]
-        src_d = cfg["src_32"]["d"]
-        src_pos_m = cfg["src_32"]["pos"]
-    else:
-        src_w = src.get("w_in", 1.50)
-        src_d = src.get("d_in", 0.75)
-        src_pos_m = src.get("pickup_from_bridge_m", 0.0775)
-
     # 1. Aperture Transfer via Polars
-    h_src_ap = polars_aperture(f_col, src_w, src_d, src["speeds"])
-    h_tgt_ap = polars_aperture(f_col, cfg["w"], cfg["d"], tgt["speeds"])
+    h_src_ap = polars_aperture(f_col, src_w, src_d, src_speeds)
+    h_tgt_ap = polars_aperture(f_col, cfg["w"], cfg["d"], tgt_speeds)
     h_ap_transfer = (h_tgt_ap * h_src_ap) / (h_src_ap.pow(2) + 0.001)
 
     # 2. Position Transfer via Polars
-    h_src_pos = polars_position(f_col, src_pos_m, src["speeds"])
-    h_tgt_pos = polars_position(f_col, cfg["pos_34"], tgt["speeds"])
+    h_src_pos = polars_position(f_col, src_pos_m, src_speeds)
+    h_tgt_pos = polars_position(f_col, cfg["pos_34"], tgt_speeds)
     h_pos_transfer = (h_tgt_pos * h_src_pos) / (h_src_pos.pow(2) + 0.002)
 
     # 3. Macro Position Displacement Tilt (1.5 dB/inch)
@@ -62,6 +72,7 @@ def build_voice_dataframe(voice_id, cfg, src_scale="30in"):
     h_hi_tilt = ((1.0 + g_hi ** 2 * (f_col / 2200.0).pow(2)) / (1.0 + (f_col / 2200.0).pow(2))).sqrt()
 
     # 4. Scale Tension Filter
+    src_scale_in = inst.get("scale_length_in", 34.0)
     if tgt_scale == "multiscale":
         sub_gain = 10.0 ** (1.5 / 20.0)
         h_sub = ((sub_gain ** 2 + (f_col / 75.0).pow(2)) / (1.0 + (f_col / 75.0).pow(2))).sqrt()
@@ -70,7 +81,7 @@ def build_voice_dataframe(voice_id, cfg, src_scale="30in"):
         h_clank = (((1.0 - x_clank.pow(2)).pow(2) + (a_clank * x_clank / 1.5).pow(2)) /
                    ((1.0 - x_clank.pow(2)).pow(2) + (x_clank / (a_clank * 1.5)).pow(2))).sqrt()
         h_tension = h_sub * h_clank
-    elif tgt_scale == "34in" and src_scale != "34in":
+    elif tgt_scale == "34in" and src_scale_in != 34.0:
         g_snap = 10.0 ** (1.8 / 20.0)
         h_tension = ((1.0 + g_snap ** 2 * (f_col / 2800.0).pow(2)) / (1.0 + (f_col / 2800.0).pow(2))).sqrt()
     else:
@@ -101,15 +112,18 @@ def build_voice_dataframe(voice_id, cfg, src_scale="30in"):
 
     return df
 
-def generate_interactive_chart(source_scale="30in", out_html="docs/frequency_responses.html"):
-    print(f"Computing voice frequency responses using Polars (Source: {source_scale})...")
-    dfs = [build_voice_dataframe(vid, cfg, src_scale=source_scale) for vid, cfg in VOICES.items()]
+def generate_interactive_chart(instrument="30in", out_html="docs/frequency_responses.html", source_scale=None):
+    inst_selector = source_scale if source_scale is not None else instrument
+    inst = load_instrument(inst_selector) if not isinstance(inst_selector, dict) else inst_selector
+    inst_name = inst.get("name", inst.get("id", "Custom Bass"))
+
+    print(f"Computing voice frequency responses using Polars (Source Instrument: {inst_name})...")
+    dfs = [build_voice_dataframe(vid, cfg, instrument=inst) for vid, cfg in VOICES.items()]
     master_df = pl.concat(dfs)
 
     print("Rendering interactive chart using Altair...")
     selection = alt.selection_point(fields=["voice_name"], bind="legend")
 
-    scale_title = "30\" EMG MM (77.5 mm bridge)" if source_scale == "30in" else "32\" P/MM (Reverse PX + MMTWX)"
     chart = (
         alt.Chart(master_df)
         .mark_line(strokeWidth=2.2)
@@ -150,7 +164,7 @@ def generate_interactive_chart(source_scale="30in", out_html="docs/frequency_res
         .properties(
             title=alt.TitleParams(
                 text="Passivizer Master Voices: Acoustic & Electrical Response Curves",
-                subtitle=f"Source: {scale_title} -> Target: 34\" Standard & 37\" Multi-Scale Datums",
+                subtitle=f"Source: {inst_name} -> Target: 34\" Standard & 37\" Multi-Scale Datums",
                 fontSize=16,
                 subtitleFontSize=12,
                 anchor="start"
@@ -168,12 +182,22 @@ def generate_interactive_chart(source_scale="30in", out_html="docs/frequency_res
 
 def main():
     parser = argparse.ArgumentParser(description="Generate interactive Altair visualization of Passivizer voices.")
-    parser.add_argument("--source-scale", choices=["30in", "32in"], default="30in", help="Physical source scale")
+    parser.add_argument(
+        "--instrument", "-i",
+        default="30in",
+        help="Source instrument configuration (ID, path to .toml, or alias like 30in, 32in)"
+    )
+    parser.add_argument(
+        "--source-scale",
+        dest="instrument",
+        help="Legacy alias for --instrument (e.g. 30in, 32in)"
+    )
     parser.add_argument("--out", default="docs/frequency_responses.html", help="Output HTML file path")
     args = parser.parse_args()
 
-    generate_interactive_chart(source_scale=args.source_scale, out_html=args.out)
+    generate_interactive_chart(instrument=args.instrument, out_html=args.out)
 
 if __name__ == "__main__":
     main()
+
 

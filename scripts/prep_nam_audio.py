@@ -59,7 +59,16 @@ def prefilter_audio(input_wav_path, output_wav_path, fir_samples):
 def main():
     parser = argparse.ArgumentParser(description="Pre-filter NAM audio for SPICE simulation.")
     parser.add_argument("--input", default="v1_1_1.wav", help="Input NAM calibration audio (e.g. v1_1_1.wav)")
-    parser.add_argument("--source-scale", choices=["30in", "32in"], default="30in", help="Physical source bass scale")
+    parser.add_argument(
+        "--instrument", "-i",
+        default="30in",
+        help="Source instrument configuration (ID, path to .toml, or alias like 30in, 32in)"
+    )
+    parser.add_argument(
+        "--source-scale",
+        dest="instrument",
+        help="Legacy alias for --instrument (e.g. 30in, 32in)"
+    )
     parser.add_argument("--voice", choices=VOICES.keys(), default="03_modern_p_ceramic", help="Target pickup voice")
     parser.add_argument("--out", help="Output WAV path (default: circuits/v1_1_1_aperture.wav)")
     args = parser.parse_args()
@@ -72,8 +81,8 @@ def main():
     out_path = Path(args.out) if args.out else CIRCUITS_DIR / "v1_1_1_aperture.wav"
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
-    print(f"Synthesizing aperture & scale pre-filter for {args.voice} (Source: {args.source_scale})...")
-    fir_samples = compute_aperture_prefilter_fir(args.voice, src_scale=args.source_scale)
+    print(f"Synthesizing aperture & scale pre-filter for {args.voice} (Source: {args.instrument})...")
+    fir_samples = compute_aperture_prefilter_fir(args.voice, instrument=args.instrument)
     prefilter_audio(input_path, out_path, fir_samples)
 
 if __name__ == "__main__":

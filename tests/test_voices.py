@@ -1,3 +1,4 @@
+from pathlib import Path
 from scripts.model_physics import VOICES, SCALES
 
 EXPECTED_VOICES = [
@@ -31,13 +32,17 @@ def test_voice_parameter_validity():
         assert cfg["d"] >= 0, f"{vid} invalid spacing d: {cfg['d']}"
         assert isinstance(cfg["gain_db"], (int, float)), f"{vid} gain_db not float"
 
-def test_32in_source_geometry_presence():
+def test_voice_netlist_existence():
     for vid, cfg in VOICES.items():
-        assert "src_32" in cfg, f"{vid} missing src_32 physical geometry specification"
-        src_32 = cfg["src_32"]
-        assert src_32["pos"] > 0, f"{vid} invalid src_32 pos: {src_32['pos']}"
-        assert src_32["w"] > 0, f"{vid} invalid src_32 w: {src_32['w']}"
-        assert src_32["d"] >= 0, f"{vid} invalid src_32 d: {src_32['d']}"
+        assert "circuit" in cfg, f"{vid} missing circuit netlist attribute"
+        circuit_file = Path(cfg["circuit"])
+        assert circuit_file.exists(), f"Circuit file {circuit_file} for {vid} not found on disk"
+
+def test_voices_have_no_hardcoded_source_datums():
+    # Target voices should be purely decoupled from source instrument geometries
+    for vid, cfg in VOICES.items():
+        assert "src_32" not in cfg, f"{vid} contains deprecated hardcoded 'src_32' datum"
+        assert "src_30" not in cfg, f"{vid} contains deprecated hardcoded 'src_30' datum"
 
 def test_scales_structure():
     assert "30in" in SCALES

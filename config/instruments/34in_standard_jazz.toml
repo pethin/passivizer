@@ -1,0 +1,33 @@
+# 34" Standard Scale Jazz Bass (Neck + Bridge Single Coils)
+id = "34in_standard_jazz"
+name = "34\" Standard Jazz Bass"
+scale_length_in = 34.0
+scale_length_m = 0.8636
+string_wave_speeds = [71.16, 95.00, 126.81, 169.27]
+default_pickup = "pair_parallel"
+
+[pickups.neck]
+name = "Jazz Neck Single-Coil"
+position_from_bridge_m = 0.1480
+aperture_width_in = 0.75
+coil_spacing_in = 0.0
+type = "single_coil"
+
+[pickups.bridge]
+name = "70s Jazz Bridge Single-Coil"
+position_from_bridge_m = 0.0406
+aperture_width_in = 0.75
+coil_spacing_in = 0.0
+type = "single_coil"
+
+[pickups.pair_parallel]
+name = "Jazz Neck + Bridge Parallel"
+position_from_bridge_m = 0.0880
+aperture_width_in = 0.75
+coil_spacing_in = 0.0
+type = "parallel_pair"
+
+[pickup_mapping]
+"01_jazz_bass_pair" = "pair_parallel"
+"02_jazz_bridge_70s" = "bridge"
+"06_pj_hybrid_parallel" = "pair_parallel"

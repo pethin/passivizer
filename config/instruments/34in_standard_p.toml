@@ -1,0 +1,14 @@
+# 34" Standard Scale Precision Bass (Single Split-Coil P)
+id = "34in_standard_p"
+name = "34\" Standard P-Bass"
+scale_length_in = 34.0
+scale_length_m = 0.8636
+string_wave_speeds = [71.16, 95.00, 126.81, 169.27]
+default_pickup = "split_p"
+
+[pickups.split_p]
+name = "Standard Split-Coil P"
+position_from_bridge_m = 0.1250
+aperture_width_in = 1.00
+coil_spacing_in = 0.0
+type = "split_coil"

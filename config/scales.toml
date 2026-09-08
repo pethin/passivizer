@@ -1,0 +1,26 @@
+# Passivizer Standard Scale Lengths & Wave Speeds
+# Wave speed formula: v = 2 * L * f0 (for standard bass tuning: E=41.2Hz, A=55.0Hz, D=73.4Hz, G=98.0Hz)
+
+[scales.30in]
+name = "30\" Short Scale"
+scale_length_in = 30.0
+scale_length_m = 0.762
+string_wave_speeds = [62.79, 83.82, 111.89, 149.35]
+
+[scales.32in]
+name = "32\" Medium Scale"
+scale_length_in = 32.0
+scale_length_m = 0.8128
+string_wave_speeds = [66.98, 89.41, 119.35, 159.31]
+
+[scales.34in]
+name = "34\" Standard Long Scale"
+scale_length_in = 34.0
+scale_length_m = 0.8636
+string_wave_speeds = [71.16, 95.00, 126.81, 169.27]
+
+[scales.multiscale]
+name = "34\"-37\" Multi-Scale (Fanned Fret)"
+scale_length_in = 37.0
+scale_length_m = 0.9398
+string_wave_speeds = [77.44, 98.50, 131.00, 169.27]
