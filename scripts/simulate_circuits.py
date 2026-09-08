@@ -488,7 +488,7 @@ def simulate_voice(
     inst_audio_dir = AUDIO_DIR / inst_id
     inst_audio_dir.mkdir(parents=True, exist_ok=True)
 
-    if not input_wav:
+    if not input_wav or not Path(input_wav).exists():
         found = find_default_input_audio()
         if found:
             input_wav = found
@@ -499,10 +499,7 @@ def simulate_voice(
             input_wav = CIRCUITS_DIR / "v1_1_1_aperture.wav"
             prefiltered = True
         else:
-            raise FileNotFoundError("Raw calibration audio (e.g. v1_1_1.wav) not found.")
-
-    if not Path(input_wav).exists():
-        raise FileNotFoundError(f"Input audio '{input_wav}' not found.")
+            raise FileNotFoundError(f"Input audio '{input_wav}' not found, and no standard calibration audio (T3K-sweep-v3.wav, v1_1_1.wav) was detected.")
 
     if not output_wav:
         output_wav = inst_audio_dir / f"out_{voice_id}.wav"

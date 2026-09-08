@@ -41,10 +41,10 @@ def run_visualization(instrument="30in"):
         print(f"Interactive charts generated in {resp_dir}/")
         print(f"Master interactive portal updated at {DOCS_DIR / 'frequency_responses.html'}")
 
-def run_prep_audio(input_wav="v1_1_1.wav", instrument="30in", voice="03_modern_p_ceramic"):
+def run_prep_audio(input_wav=None, instrument="30in", voice="03_modern_p_ceramic"):
     """Pre-filters NAM calibration audio through acoustic and spatial transfer functions."""
-    if not (REPO_ROOT / input_wav).exists():
-        for candidate in ["T3K-sweep-v3.wav", "v3_0_0.wav", "input.wav"]:
+    if not input_wav or not (REPO_ROOT / input_wav).exists():
+        for candidate in ["T3K-sweep-v3.wav", "v3_0_0.wav", "v1_1_1.wav", "input.wav"]:
             if (REPO_ROOT / candidate).exists():
                 input_wav = candidate
                 break
@@ -61,7 +61,7 @@ def run_prep_audio(input_wav="v1_1_1.wav", instrument="30in", voice="03_modern_p
     if res.returncode != 0:
         print(f"Notice: Pre-filtering returned code {res.returncode}")
 
-def run_circuit_simulation(voice, instrument="30in", input_wav="v1_1_1.wav", backend="native", ltspice_bin=DEFAULT_LTSPICE_BIN):
+def run_circuit_simulation(voice, instrument="30in", input_wav=None, backend="native", ltspice_bin=DEFAULT_LTSPICE_BIN):
     """Executes circuit simulation for a single target voice netlist."""
     if backend == "native":
         try:
@@ -102,7 +102,7 @@ def run_circuit_simulation(voice, instrument="30in", input_wav="v1_1_1.wav", bac
         print(f"     Warning: Simulation of {cir_path.name} timed out after 300s")
         return False
 
-def run_spice_voice(voice, instrument="30in", input_wav="v1_1_1.wav", ltspice_bin=DEFAULT_LTSPICE_BIN, backend="native"):
+def run_spice_voice(voice, instrument="30in", input_wav=None, ltspice_bin=DEFAULT_LTSPICE_BIN, backend="native"):
     """Legacy alias for run_circuit_simulation."""
     return run_circuit_simulation(voice, instrument=instrument, input_wav=input_wav, backend=backend, ltspice_bin=ltspice_bin)
 
@@ -185,8 +185,8 @@ def main():
     )
     parser.add_argument(
         "--input-wav",
-        default="v1_1_1.wav",
-        help="Path to NAM calibration audio file"
+        default=None,
+        help="Path to NAM calibration audio file (default: auto-detects T3K-sweep-v3.wav or v1_1_1.wav)"
     )
     parser.add_argument(
         "--epochs",

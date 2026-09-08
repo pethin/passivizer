@@ -230,3 +230,65 @@ def test_default_output_directories():
     # Verify circuits/ directory contains only netlists (.cir) and no .wav files
     wav_files_in_circuits = list(CIRCUITS_DIR.glob("*.wav"))
     assert len(wav_files_in_circuits) == 0, f"Found .wav files in circuits/: {wav_files_in_circuits}"
+
+def test_sweep_audio_auto_detection():
+    """Verify that simulate_voice automatically finds T3K-sweep-v3.wav even if given None or missing v1_1_1.wav."""
+    from scripts.simulate_circuits import find_default_input_audio
+    sweep = find_default_input_audio()
+    assert sweep is not None
+    assert sweep.exists()
+    assert sweep.name == "T3K-sweep-v3.wav"
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        out_wav = Path(tmpdir) / "auto_sweep_out.wav"
+        # Test with input_wav=None
+        res = simulate_voice("03_modern_p_ceramic", input_wav=None, output_wav=out_wav, instrument="30in")
+        assert res is True
+        assert out_wav.exists()
+
+        # Test with input_wav pointing to missing v1_1_1.wav (fallback behavior)
+        out_wav_fallback = Path(tmpdir) / "fallback_sweep_out.wav"
+        res_fallback = simulate_voice("03_modern_p_ceramic", input_wav="v1_1_1.wav", output_wav=out_wav_fallback, instrument="30in")
+        assert res_fallback is True
+        assert out_wav_fallback.exists()
+
+def test_circuit_simulation_vs_theory_consistency():
+    """Verify that simulated impulse FFT matches analytical theory curve within 1.5 dB across 50-8000 Hz."""
+    from scripts.analyze_voices import build_voice_dataframe
+    from scripts.simulate_circuits import compute_voice_prefilter_firs
+    import pedalboard.io
+
+    inst_id = "30in_emg_mmtw"
+    sr = 48000
+    n_samples = 48000 * 2
+    impulse = np.zeros(n_samples, dtype=np.float32)
+    impulse[10] = 0.05  # Linear small-signal excitation
+
+    for voice_id in ["03_modern_p_ceramic", "01_jazz_bass_pair", "06_pj_hybrid_parallel"]:
+        cfg = VOICES[voice_id]
+        cir_path = CIRCUITS_DIR / f"{voice_id}.cir"
+        model = parse_netlist(cir_path)
+        prefilter_firs = compute_voice_prefilter_firs(voice_id, instrument=inst_id)
+
+        with tempfile.NamedTemporaryFile(suffix=".wav") as tmp_out:
+            simulate_circuit_audio(impulse, Path(tmp_out.name), model, prefilter_firs=prefilter_firs)
+            with pedalboard.io.AudioFile(tmp_out.name) as f:
+                out_audio = f.read(f.frames)[0]
+
+        H_sim = np.abs(np.fft.rfft(out_audio))
+        freqs_sim = np.fft.rfftfreq(len(out_audio), 1.0 / sr)
+
+        df = build_voice_dataframe(voice_id, cfg, instrument=inst_id)
+        f_theory = df["frequency"].to_numpy()
+        mag_theory_db = df["magnitude_db"].to_numpy()
+
+        ref_val = np.interp(100.0, freqs_sim, H_sim)
+        theory_ref_db = np.interp(100.0, f_theory, mag_theory_db)
+        sim_db = 20.0 * np.log10(H_sim / ref_val) + theory_ref_db
+
+        for test_f in [50, 100, 200, 500, 1000, 2000, 3000, 4000, 6000, 8000]:
+            val_sim = np.interp(test_f, freqs_sim, sim_db)
+            val_theory = np.interp(test_f, f_theory, mag_theory_db)
+            diff = abs(val_sim - val_theory)
+            assert diff < 1.5, f"{voice_id} at {test_f} Hz diff={diff:.2f} dB exceeds 1.5 dB (sim={val_sim:.2f}, theory={val_theory:.2f})"
+
