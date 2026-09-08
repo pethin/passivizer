@@ -149,3 +149,4 @@ When running Passivizer from a **30" short-scale bass with a single 18V EMG MM p
 | **`09_pmm_hybrid_series`**| Dual Series Center | $92.5\text{ mm}$ | $+15.0\text{ mm}\ (+0.59'')$ | Series inductance boost, thick low-mids |
 | **`10_mudbucker_ultra_series`**| Deep Series Center | $92.5\text{ mm}$ | $+15.0\text{ mm}\ (+0.59'')$ | Extreme $14.4\text{ H}$ low-frequency foundation |
 | **`11_dingwall_multiscale_bridge`**| Angled Sweet Spot | $48.0\text{ mm}$ | $-29.5\text{ mm}\ (-1.16'')$ | High string wave speed, metallic clank |
+| **`12_upright_bridge_transducer`**| Bridge Transducer Datum | $5.0\text{ mm}$ | $-72.5\text{ mm}\ (-2.85'')$ | Bridge force integration, de-comb, body bloom |

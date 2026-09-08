@@ -112,3 +112,30 @@ Under pot and core loading, this lands right at $\approx 2.2\text{ kHz}$, provid
 The Darkglass Anagram input stage presents a load of:
 $$R_{\text{load}} = 1.0\text{ M}\Omega, \quad C_{\text{load}} \approx 30\text{ pF}$$
 This load is included in the Passivizer SPICE netlists to guarantee zero impedance mismatch when loaded onto hardware.
+
+---
+
+## 4. Acoustic Bridge Force Transducers (Piezoelectric Load)
+
+Unlike magnetic pickups whose output is induced via Faraday's Law across an inductive coil ($V \propto d\Phi/dt$), an acoustic bridge transducer (e.g. Underwood, David Gage Realist, Fishman Full Circle) operates through the **piezoelectric effect**, generating electrical charge from mechanical shear stress and compression within the maple bridge wings:
+
+```
+[V_piezo] ───[ R_dc: 50Ω ]──┬───[ C_rick: 15nF ]───┬─── [Direct Tailpiece Out]
+                            │                      │
+                        [ C_sensor: 1.2nF ]     [ Cable: 750pF || Anagram: 1Meg ]
+                            │                      │
+                           GND                    GND
+```
+
+### Key Parameters & Differences from Magnetic Circuits:
+1. **Zero Inductive Peaking ($L \approx 1\ \mu\text{H}$):**
+   * Piezoelectric ceramics exhibit negligible inductance. The transducer has no passive electrical $RLC$ resonant peak; its electrical response is purely capacitive ($C_{\text{sensor}} \approx 1.2\text{ nF}$).
+2. **Direct Tailpiece Wiring (Volume Pot Bypass):**
+   * Upright bridge transducers connect directly to high-impedance buffers without passing through typical $500\text{ k}\Omega$ volume pots or treble bleed networks. The circuit load resistance is set to $100\text{ M}\Omega$ internal, dominated solely by the receiver ($1.0\text{ M}\Omega$ Anagram input).
+3. **Subsonic Decoupling ($C_{\text{rick}} = 15\text{ nF}$):**
+   * A series decoupling capacitor decouples DC and subsonic stage rumble ($f_c \approx 10.6\text{ Hz}$ into $1\text{ M}\Omega$), preventing handling thumps from overloading downstream compressors and impulse engines.
+4. **Dynamic Bridge Rocking Compliance ($B_{\text{comp}}$):**
+   * Under heavy pizzicato finger plucks, physical maple wood flex and soundpost compliance introduce gentle mechanical soft-knee saturation modeled in SPICE via:
+     $$V_{\text{dyn}}(t) = 0.42 \cdot \tanh\left(\frac{V(t)}{0.42}\right)$$
+   * Captures the warm, compressed "bloom" and physical tactile pushback of a double-bass bridge.
+

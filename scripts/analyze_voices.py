@@ -132,7 +132,8 @@ def build_voice_dataframe(voice_id, cfg, instrument="30in", src_scale=None):
             f_damp = 4200.0
             h_damp = 1.0 / np.sqrt((1.0 - (freqs / f_damp) ** 2) ** 2 + 2.0 * (freqs / f_damp) ** 2)
 
-            h_sub = freqs / np.sqrt(freqs ** 2 + 32.0 ** 2)
+            # 3. Subsonic rumble cut (32 Hz with -16.5 dB DC shelf floor to prevent cepstral zero)
+            h_sub = np.maximum(freqs / np.sqrt(freqs ** 2 + 32.0 ** 2), 0.15)
             h_acoustic_transfer = h_decomb * h_damp * h_sub
 
             # Leaky velocity-to-force integrator

@@ -58,9 +58,9 @@ Passivizer converts the lower tension and warm low-mid "bloom" of **30" short-sc
 
 ---
 
-## Target Voice Catalog (10 Master Passive Pickup Configurations + Multi-Scale)
+## Target Voice Catalog (12 Master Passive Configurations & Acoustic Transducers)
 
-Passivizer includes pre-configured physical and electrical parameters for **10 distinct pickup topologies and combinations** plus a fanned-fret multi-scale configuration (see [`docs/voice_catalog.md`](file:///Users/peter/Projects/pethin/passivizer/docs/voice_catalog.md) for full engineering specifications):
+Passivizer includes pre-configured physical and electrical parameters for **12 distinct pickup topologies and transducers** including fanned-fret multi-scale and upright double bass (see [`docs/voice_catalog.md`](file:///Users/peter/Projects/pethin/passivizer/docs/voice_catalog.md) for full engineering specifications):
 
 | # | Profile ID | Pickup Type | Topology | $L_{\text{eq}}$ | $f_r$ (Peak) | Circuit & Acoustic Character |
 | :- | :--- | :--- | :--- | :--- | :--- | :--- |
@@ -75,6 +75,7 @@ Passivizer includes pre-configured physical and electrical parameters for **10 d
 | **09** | `09_pmm_hybrid_series` | P + MM Hybrid | Series Sum | $7.20\text{ H}$ | $2.0\text{ kHz}$ | Split P and MM humbucker wired in series; massive $+5.8\text{ dB}$ inductive boost with $2.0\text{ kHz}$ focus. |
 | **10** | `10_mudbucker_ultra_series` | Heavy Series MM | Ultra Series | $14.40\text{ H}$| $1.2\text{ kHz}$ | Overwound dual-coil series humbucker; subterranean low end with natural high-frequency rolloff. |
 | **11** | `11_dingwall_multiscale_bridge` | Multi-Scale MM | Angled Parallel | $2.30\text{ H}$| $3.4\text{ kHz}$ | 34"-37" fanned-fret angled bridge sweet spot ($48.0\text{ mm}$) with high-tension wave-speed clank filter. |
+| **12** | `12_upright_bridge_transducer` | Upright Transducer | Bridge Force | $1\ \mu\text{H}$ / Piezo | $4.5\text{ kHz}$ | Direct bridge force sensor (Underwood / Realist style); leaky integration, 32 Hz rumble cut, and soft-knee bridge compliance. |
 
 ---
 

@@ -151,4 +151,35 @@ $$|H_{\text{anti}}(f)| = \frac{\sqrt{\left(1 - \left(\frac{f}{f_r}\right)^2\righ
 * **At Upper Treble ($f \gg f_r$):** Both numerator and denominator scale as $(f/f_r)^2$, causing the ratio to smoothly and asymptotically return to $1.0$ ($0.0\text{ dB}$).
 * **Max Gain Bounded at $\le 1.0$ ($0.0\text{ dB}$):** Unlike blind Wiener inversion (which attempts to boost upper frequencies by $+14\text{ dB}$, squashing low-end headroom by $10\text{ dB}$ during normalization), the biquad anti-resonance filter is strictly a surgical cut filter. It prevents noise amplification and preserves exact bass gain balance throughout the SPICE and NAM pipeline.
 
+---
 
+## 6. Upright Acoustic Bridge Force Transducer Physics (`sensor_type = "bridge_force"`)
+
+Unlike magnetic pickups that sense string velocity across a spatial aperture ($H(x, w)$), an upright acoustic bridge transducer (e.g., Fishman Full Circle, David Gage Realist, Underwood piezo) senses mechanical downforce and shear rocking torque transmitted directly through the wooden bridge foot into the soundboard:
+
+### A. Regularized Spatial De-Combing ($H_{\text{decomb}}$)
+Magnetic pickups impart spatial comb-filtering nulls $H_{\text{comb}}(f) = \left|\sin\left(\frac{2\pi f x}{v}\right)\right|$ governed by distance $x$ from the bridge. In contrast, an acoustic bridge pickup sits directly at the bridge termination point ($x \approx 0\text{ mm}$), where no spatial comb cancellations occur within the audible audio band.
+
+To deconvolve the magnetic comb filter of the source instrument without introducing infinite gain at the null points or upper-frequency noise flare, Passivizer applies regularized spatial inversion:
+$$H_{\text{decomb}}(f) = \frac{H_{\text{src, acoustic}}(f)}{H_{\text{src, acoustic}}^2(f) + \epsilon_{\text{reg}}}, \quad \epsilon_{\text{reg}} = 0.08$$
+The decombed response is normalized relative to its median value across the $100\text{--}1,000\text{ Hz}$ core passband, restoring smooth low-register string dynamics.
+
+### B. Soundboard & Bridge Wood Damping ($H_{\text{damp}}$)
+Carved spruce and maple double bass tops absorb string vibration rapidly above the mid-treble register. Passivizer models acoustic wood dissipation with a 2nd-order critically damped low-pass filter ($Q = 0.707$):
+$$|H_{\text{damp}}(f)| = \frac{1}{\sqrt{\left(1 - \left(\frac{f}{f_d}\right)^2\right)^2 + 2\left(\frac{f}{f_d}\right)^2}}, \quad f_d = 4,200\text{ Hz}$$
+This smoothly attenuates electric fret click, metallic string whistle, and upper electromagnetic hash, imparting a warm, woody acoustic decay.
+
+### C. Subsonic Stage Rumble Cut with Cepstral Regularization ($H_{\text{sub}}$)
+Stage handling, bow scrapes, and floor vibrations produce strong sub-audible excursions. Passivizer applies a high-pass filter at $32\text{ Hz}$ with a bounded $-16.5\text{ dB}$ floor:
+$$H_{\text{sub}}(f) = \max\left(\frac{f}{\sqrt{f^2 + f_{\text{sub}}^2}}, 0.15\right), \quad f_{\text{sub}} = 32\text{ Hz}$$
+The $0.15$ lower bound ensures that the discrete log-magnitude spectrum $\ln |H(f)|$ does not plunge to $-\infty$ at DC ($f=0$). This eliminates unphysical cepstral Gibbs ringing that would otherwise notch the $30\text{--}40\text{ Hz}$ low B fundamental during minimum-phase FIR synthesis.
+
+### D. Leaky Velocity-to-Force Tilt Integrator ($H_{\text{tilt}}$)
+Piezoelectric crystals generate voltage proportional to applied stress/strain (the integral of string displacement/velocity). Due to finite mechanical bridge compliance and transducer charge leakage, pure $1/f$ integration transitions into flat velocity transfer at very low frequencies:
+$$H_{\text{tilt}}(f) = \frac{\sqrt{1 + \left(\frac{f}{250\text{ Hz}}\right)^2}}{\sqrt{1 + \left(\frac{f}{70\text{ Hz}}\right)^2}}$$
+Normalized by peak gain, this imparts a gentle $+6\text{ dB/octave}$ mechanical force transition between $70\text{ Hz}$ and $250\text{ Hz}$, delivering the signature percussive "thump" of a plucked acoustic bass.
+
+### E. Resonant Body Bloom ($41.5''$ 3/4 Double Bass)
+A 3/4 double bass features a $41.5''$ ($105.4\text{ cm}$) vibrating string length and a massive resonant air cavity. Passivizer synthesizes this acoustic body bloom with:
+$$H_{\text{bloom}}(f) = \frac{\sqrt{g_{\text{bloom}}^2 + \left(\frac{f}{100\text{ Hz}}\right)^2}}{\sqrt{1 + \left(\frac{f}{100\text{ Hz}}\right)^2}}, \quad g_{\text{bloom}} = 10^{2.0 / 20.0} \approx 1.259\ (+2.0\text{ dB})$$
+Delivering the deep, resonant low-end bloom characteristic of a full-size upright acoustic instrument.

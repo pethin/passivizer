@@ -292,3 +292,45 @@ def test_circuit_simulation_vs_theory_consistency():
             diff = abs(val_sim - val_theory)
             assert diff < 1.5, f"{voice_id} at {test_f} Hz diff={diff:.2f} dB exceeds 1.5 dB (sim={val_sim:.2f}, theory={val_theory:.2f})"
 
+def test_upright_voicing_simulation_vs_theory_consistency():
+    """Verify that 32in fretless upright acoustic transducer simulation matches theory across 20-5000 Hz."""
+    from scripts.analyze_voices import build_voice_dataframe
+    from scripts.simulate_circuits import compute_voice_prefilter_firs
+    import pedalboard.io
+
+    inst_id = "32in_fretless_pmm"
+    voice_id = "12_upright_bridge_transducer"
+    sr = 48000
+    n_samples = 48000 * 2
+    impulse = np.zeros(n_samples, dtype=np.float32)
+    impulse[10] = 0.05
+
+    cfg = VOICES[voice_id]
+    cir_path = CIRCUITS_DIR / f"{voice_id}.cir"
+    model = parse_netlist(cir_path)
+    prefilter_firs = compute_voice_prefilter_firs(voice_id, instrument=inst_id)
+
+    with tempfile.NamedTemporaryFile(suffix=".wav") as tmp_out:
+        simulate_circuit_audio(impulse, Path(tmp_out.name), model, prefilter_firs=prefilter_firs)
+        with pedalboard.io.AudioFile(tmp_out.name) as f:
+            out_audio = f.read(f.frames)[0]
+
+    H_sim = np.abs(np.fft.rfft(out_audio))
+    freqs_sim = np.fft.rfftfreq(len(out_audio), 1.0 / sr)
+
+    df = build_voice_dataframe(voice_id, cfg, instrument=inst_id)
+    f_theory = df["frequency"].to_numpy()
+    mag_theory_db = df["magnitude_db"].to_numpy()
+
+    ref_val = np.interp(100.0, freqs_sim, H_sim)
+    theory_ref_db = np.interp(100.0, f_theory, mag_theory_db)
+    sim_db = 20.0 * np.log10(H_sim / ref_val) + theory_ref_db
+
+    # In the critical upright passband (20 Hz - 4.2 kHz), diff must be under 1.2 dB
+    for test_f in [20, 30, 50, 70, 100, 200, 500, 1000, 2000, 3000, 4200]:
+        val_sim = np.interp(test_f, freqs_sim, sim_db)
+        val_theory = np.interp(test_f, f_theory, mag_theory_db)
+        diff = abs(val_sim - val_theory)
+        assert diff < 1.2, f"Upright at {test_f} Hz diff={diff:.2f} dB exceeds 1.2 dB (sim={val_sim:.2f}, theory={val_theory:.2f})"
+
+

@@ -67,6 +67,7 @@ In your presets, use the Block 1 output level trim to normalize all voices to an
 | **`09_pmm_hybrid_series`** | P/MM Hybrid (Series Sum) | $+5.8\text{ dB}$ | $-4.0\text{ dB}$ (Prevents clipping downstream drives)|
 | **`10_mudbucker_ultra_series`**| Mudbucker Ultra Series | $+6.2\text{ dB}$ | $-4.5\text{ dB}$ (Controls high-inductance surge) |
 | **`11_dingwall_multiscale_bridge`**| Dingwall Multi-Scale Bridge | $+1.0\text{ dB}$ | $+0.5\text{ dB}$ |
+| **`12_upright_bridge_transducer`**| Upright Acoustic Bridge Transducer | $0.0\text{ dB}$ | $0.0\text{ dB}$ (Transparent unity acoustic baseline) |
 
 ---
 
@@ -88,6 +89,11 @@ Group the pickup profiles into dedicated 3-button banks on the Anagram hardware:
 * **Footswitch A:** `06_pj_hybrid_parallel.nam` (P/J Hybrid Parallel)
 * **Footswitch B:** `04_vintage_62_p_alnico.nam` (Vintage '62 P Alnico V)
 * **Footswitch C:** `08_rickenbacker_bridge_hpf.nam` (Rickenbacker 4.7nF HPF)
+
+### Bank 4: Modern & Acoustic Special Topologies
+* **Footswitch A:** `11_dingwall_multiscale_bridge.nam` (Dingwall Multi-Scale Bridge)
+* **Footswitch B:** `12_upright_bridge_transducer.nam` (Upright Acoustic Bridge Transducer)
+* **Footswitch C:** `05_p_bass_47nf_rolloff.nam` (P-Bass 47nF Tone Rolloff / Motown Dub)
 
 ---
 
