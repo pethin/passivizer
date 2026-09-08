@@ -5,10 +5,13 @@
 * 1. Audio Source (Pre-filtered NAM Training Track)
 V_in in 0 wavefile="v1_1_1_aperture.wav"
 
-* 2. Pickup Coils (Vintage Alnico V Split-P, Lower Eddy Damping)
-L_coil in node1 3.8
+* 2. Dynamic Magnetic Core & String Excursion Saturation (Soft-Knee Compliance)
+B_comp in_dyn 0 V=0.45 * tanh(V(in) / 0.45)
+
+* 3. Pickup Coils (Vintage Alnico V Split-P, Lower Eddy Damping)
+L_coil in_dyn node1 3.8
 R_dc node1 node2 10.5k
-R_eddy in node2 180k
+R_eddy in_dyn node2 180k
 C_coil node2 0 60p
 
 * 3. Dunlop 500k Super Pot (Volume @ 100%)

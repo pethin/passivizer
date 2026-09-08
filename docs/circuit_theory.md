@@ -44,6 +44,13 @@ Where:
    * Modeled as a parallel resistance ($R_{\text{eddy}} \approx 80\text{ k}\Omega\text{ to }180\text{ k}\Omega$) across the coil.
    * This creates frequency-dependent damping: upper harmonics roll off more smoothly than an ideal 2nd-order filter, eliminating harsh, synthetic high-end resonance.
 
+5. **Dynamic Core Compliance & String Excursion Saturation ($B_{\text{comp}}$):**
+   * High-amplitude pick and slap transients push magnetic string coupling into non-linear excursion ($d\Phi/dx$).
+   * Modeled in SPICE via an arbitrary behavioral voltage source:
+     $$V_{\text{dyn}}(t) = V_{\text{sat}} \cdot \tanh\left(\frac{V(t)}{V_{\text{sat}}}\right)$$
+   * For light to medium playing ($< 0.2\text{V}$), the response is $98\text{--}100\%$ linear.
+   * On heavy pluck spikes ($> 0.4\text{V}$), the smooth $\tanh$ function provides $1.5\text{--}2.5\text{ dB}$ of analog soft-knee saturation, capturing authentic passive pickup compression and touch-sensitive dynamic give.
+
 ---
 
 ## 2. Onboard Guitar Controls & Loading
