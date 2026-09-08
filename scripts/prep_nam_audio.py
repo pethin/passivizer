@@ -20,8 +20,8 @@ CIRCUITS_DIR = REPO_ROOT / "circuits"
 if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
 
-from model_physics import VOICES, compute_voice_prefilter_firs, compute_aperture_prefilter_fir, write_wav_24bit
-from simulate_circuits import prefilter_audio
+from model_physics import VOICES, compute_voice_prefilter_firs, compute_aperture_prefilter_fir, write_wav_24bit, load_instrument
+from simulate_circuits import prefilter_audio, AUDIO_DIR
 
 def main():
     parser = argparse.ArgumentParser(description="Pre-filter NAM audio for SPICE simulation.")
@@ -37,7 +37,7 @@ def main():
         help="Legacy alias for --instrument (e.g. 30in, 32in)"
     )
     parser.add_argument("--voice", choices=VOICES.keys(), default="03_modern_p_ceramic", help="Target pickup voice")
-    parser.add_argument("--out", help="Output WAV path (default: circuits/v1_1_1_aperture.wav)")
+    parser.add_argument("--out", help="Output WAV path (default: audio/<instrument>/aperture_<voice>.wav)")
     args = parser.parse_args()
 
     input_path = Path(args.input)
@@ -51,12 +51,17 @@ def main():
         print(f"Notice: Neither '{args.input}' nor any standard sweep file (T3K-sweep-v3.wav, v1_1_1.wav) was found.")
         return
 
-    out_path = Path(args.out) if args.out else CIRCUITS_DIR / "v1_1_1_aperture.wav"
+    inst_cfg = load_instrument(args.instrument) if not isinstance(args.instrument, dict) else args.instrument
+    inst_id = inst_cfg.get("id", "30in_emg_mmtw")
+    inst_audio_dir = AUDIO_DIR / inst_id
+    inst_audio_dir.mkdir(parents=True, exist_ok=True)
+
+    out_path = Path(args.out) if args.out else inst_audio_dir / f"aperture_{args.voice}.wav"
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
     firs = compute_voice_prefilter_firs(args.voice, instrument=args.instrument)
     ch_desc = f"{len(firs)} channels" if len(firs) > 1 else "1 channel"
-    print(f"Synthesizing aperture & scale pre-filter ({ch_desc}) for {args.voice} (Source: {args.instrument})...")
+    print(f"Synthesizing aperture & scale pre-filter ({ch_desc}) for {args.voice} (Source: {inst_id})...")
     prefilter_audio(input_path, out_path, firs)
 
 if __name__ == "__main__":

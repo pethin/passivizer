@@ -217,3 +217,16 @@ def test_simulate_voice_end_to_end():
 
         with wave.open(str(inter_jazz), "rb") as wf:
             assert wf.getnchannels() == 2  # Multi-pickup aperture audio has 2 channels (stereo)
+
+def test_default_output_directories():
+    """Verify that default outputs are stored in audio/<inst_id>/ and circuits/ remains clean."""
+    from scripts.simulate_circuits import AUDIO_DIR, CIRCUITS_DIR
+    from scripts.model_physics import load_instrument
+
+    inst_cfg = load_instrument("30in")
+    inst_id = inst_cfg["id"]
+    assert inst_id == "30in_emg_mmtw"
+
+    # Verify circuits/ directory contains only netlists (.cir) and no .wav files
+    wav_files_in_circuits = list(CIRCUITS_DIR.glob("*.wav"))
+    assert len(wav_files_in_circuits) == 0, f"Found .wav files in circuits/: {wav_files_in_circuits}"

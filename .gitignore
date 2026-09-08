@@ -23,5 +23,6 @@ circuits/*.op.raw
 # Large NAM calibration files, sweeps & trained model checkpoints
 *.wav
 circuits/*.wav
+audio/
 models/**/.train_*
 .train_*

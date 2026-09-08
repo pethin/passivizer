@@ -17,6 +17,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 CIRCUITS_DIR = REPO_ROOT / "circuits"
 DOCS_DIR = REPO_ROOT / "docs"
 MODELS_DIR = REPO_ROOT / "models"
+AUDIO_DIR = REPO_ROOT / "audio"
 SCRIPTS_DIR = REPO_ROOT / "scripts"
 
 if str(SCRIPTS_DIR) not in sys.path:

@@ -21,6 +21,7 @@ import numpy as np
 SCRIPTS_DIR = Path(__file__).resolve().parent
 REPO_ROOT = SCRIPTS_DIR.parent
 CIRCUITS_DIR = REPO_ROOT / "circuits"
+AUDIO_DIR = REPO_ROOT / "audio"
 
 if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
@@ -464,12 +465,13 @@ def simulate_voice(
     instrument: str = "30in",
     prefiltered: bool = False,
     cir_path: Path = None,
-    save_intermediate: Path = None,
+    save_intermediate = None,
 ):
     """
     Simulates a target voice digital twin using the native Virtual Analog engine.
     By default, applies acoustic aperture pre-filtering and circuit simulation
     end-to-end in memory from raw calibration audio.
+    Outputs are saved by default to audio/{instrument_id}/out_{voice_id}.wav.
     """
     vcfg = VOICES.get(voice_id, {})
     if not cir_path:
@@ -481,10 +483,18 @@ def simulate_voice(
     if not cir_path.exists():
         raise FileNotFoundError(f"Circuit netlist '{cir_path}' not found.")
 
+    inst_cfg = load_instrument(instrument) if not isinstance(instrument, dict) else instrument
+    inst_id = inst_cfg.get("id", "30in_emg_mmtw")
+    inst_audio_dir = AUDIO_DIR / inst_id
+    inst_audio_dir.mkdir(parents=True, exist_ok=True)
+
     if not input_wav:
         found = find_default_input_audio()
         if found:
             input_wav = found
+        elif (inst_audio_dir / f"aperture_{voice_id}.wav").exists():
+            input_wav = inst_audio_dir / f"aperture_{voice_id}.wav"
+            prefiltered = True
         elif (CIRCUITS_DIR / "v1_1_1_aperture.wav").exists():
             input_wav = CIRCUITS_DIR / "v1_1_1_aperture.wav"
             prefiltered = True
@@ -495,7 +505,14 @@ def simulate_voice(
         raise FileNotFoundError(f"Input audio '{input_wav}' not found.")
 
     if not output_wav:
-        output_wav = CIRCUITS_DIR / f"out_{voice_id}.wav"
+        output_wav = inst_audio_dir / f"out_{voice_id}.wav"
+    else:
+        output_wav = Path(output_wav)
+
+    if save_intermediate is True:
+        save_intermediate = inst_audio_dir / f"aperture_{voice_id}.wav"
+    elif save_intermediate:
+        save_intermediate = Path(save_intermediate)
 
     model = parse_netlist(cir_path)
 
@@ -506,7 +523,7 @@ def simulate_voice(
     else:
         stage_desc = "Circuit Simulation (Pre-filtered Input)"
 
-    print(f"  -> Simulating Native VA ({stage_desc}): {cir_path.name} (Topology: {model.topology}, Source: {instrument})...")
+    print(f"  -> Simulating Native VA ({stage_desc}): {cir_path.name} (Topology: {model.topology}, Source: {inst_id})...")
     simulate_circuit_audio(
         input_wav,
         output_wav,
@@ -514,7 +531,7 @@ def simulate_voice(
         prefilter_firs=prefilter_firs,
         save_intermediate=save_intermediate,
     )
-    print(f"     Exported: {output_wav.name}")
+    print(f"     Exported: {output_wav}")
     return True
 
 def main():
@@ -526,23 +543,22 @@ def main():
         help="Source instrument configuration (30in, 32in, or path to .toml)"
     )
     parser.add_argument("--input", help="Input WAV path (defaults to auto-detecting v1_1_1.wav)")
-    parser.add_argument("--out", help="Output WAV path (default: circuits/out_<voice>.wav)")
+    parser.add_argument("--out", help="Output WAV path (default: audio/<instrument>/out_<voice>.wav)")
     parser.add_argument("--prefiltered", action="store_true", help="Input is already pre-filtered through acoustic aperture")
-    parser.add_argument("--save-intermediate", help="Optional path to export intermediate pre-filtered audio")
+    parser.add_argument("--save-intermediate", action="store_true", help="Export intermediate pre-filtered audio to audio/<instrument>/aperture_<voice>.wav")
     args = parser.parse_args()
 
     voices = list(VOICES.keys()) if args.voice == "all" else [args.voice]
     for v in voices:
         in_path = Path(args.input) if args.input else None
         out_path = Path(args.out) if args.out else None
-        save_inter = Path(args.save_intermediate) if args.save_intermediate else None
         simulate_voice(
             v,
             input_wav=in_path,
             output_wav=out_path,
             instrument=args.instrument,
             prefiltered=args.prefiltered,
-            save_intermediate=save_inter,
+            save_intermediate=args.save_intermediate,
         )
 
 if __name__ == "__main__":

@@ -47,6 +47,7 @@ passivizer/
 ├── pyproject.toml            # Project metadata (polars, altair, pedalboard)
 ├── README.md                 # Comprehensive architecture, CLI usage, roadmap
 ├── main.py                   # Main CLI entrypoint delegation
+├── audio/                    # Generated 24-bit audio digital twins (audio/<instrument>/)
 ├── circuits/                 # Standalone SPICE circuit netlists (.cir)
 │   ├── 01_jazz_bass_pair.cir
 │   └── ... (01 through 11)
@@ -60,14 +61,14 @@ passivizer/
 │   ├── aperture_math.md      # Aperture sinc, wave speeds, multi-scale filters
 │   ├── anagram_workflow.md   # Darkglass Anagram Block 1 routing & banks
 │   └── frequency_responses.html # Interactive Altair visualization
-├── models/                   # Trained Neural Amp Modeler (.nam) models
+├── models/                   # Trained Neural Amp Modeler (.nam) models (models/<instrument>/)
 ├── scripts/                  # Core Python pipelines
 │   ├── model_physics.py      # Aperture sinc, scale wave speeds, and FIR engine
 │   ├── analyze_voices.py     # Polars + Altair frequency curve visualizer
 │   ├── prep_nam_audio.py     # Standalone/legacy aperture pre-filter exporter
 │   ├── simulate_circuits.py  # Unified Virtual Analog engine (in-memory aperture + circuit sim)
 │   └── run_pipeline.py       # Master end-to-end automated runner
-└── tests/                    # Pytest test suite (44 tests)
+└── tests/                    # Pytest test suite (45 tests)
 ```
 
 ---

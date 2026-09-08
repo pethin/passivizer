@@ -116,7 +116,7 @@ uv run python main.py --stage sim --voice 03_modern_p_ceramic
 uv run python main.py --stage sim --backend ltspice --voice 03_modern_p_ceramic
 ```
 
-*(Note: `scripts/prep_nam_audio.py` is retained for users who wish to inspect or export intermediate standalone aperture audio `circuits/v1_1_1_aperture.wav`).*
+*(Note: `scripts/prep_nam_audio.py` is retained for users who wish to inspect or export intermediate standalone aperture audio `audio/<instrument>/aperture_<voice>.wav`).*
 
 ### 4. NAM Neural Model Training (Architecture 2 / A2)
 Trains a high-efficiency **NAM Architecture 2 (A2)** neural model on the input/output audio pair. A2 replaces legacy A1 models (nano/feather/standard) with a "slimmable" neural architecture designed specifically for low-power hardware like the Darkglass Anagram:
@@ -124,12 +124,12 @@ Trains a high-efficiency **NAM Architecture 2 (A2)** neural model on the input/o
 ```bash
 # Train NAM Architecture 2 (A2) model for Darkglass Anagram Block 1:
 # The input is the raw bass calibration sweep (v1_1_1.wav) and the target is the simulated output:
-nam train v1_1_1.wav circuits/out_03_modern_p_ceramic.wav ./models/03_modern_p_ceramic --architecture "A2"
+nam train v1_1_1.wav audio/30in_emg_mmtw/out_03_modern_p_ceramic.wav ./models/30in_emg_mmtw/03_modern_p_ceramic.nam --architecture "A2"
 
 # Alternatively, run via the automated Passivizer trainer:
 uv run python main.py --stage train --instrument 30in --voice 03_modern_p_ceramic
 ```
-*(In modern versions of `neural-amp-modeler` and the official Google Colab trainer, `--architecture A2` is the default. Note: `circuits/v1_1_1_aperture.wav` is the intermediate acoustic pre-filtered track used internally to drive circuit simulation, whereas NAM is trained end-to-end from the raw input `v1_1_1.wav` to capture the entire acoustic aperture, string tension, and electrical RLC behavior in a single unified model).*
+*(In modern versions of `neural-amp-modeler` and the official Google Colab trainer, `--architecture A2` is the default. Note: NAM is trained end-to-end from the raw input `v1_1_1.wav` to capture the entire acoustic aperture, string tension, and electrical RLC behavior in a single unified model).*
 
 ### 5. Master Automation Runner (`scripts/run_pipeline.py` & `main.py`)
 Execute the entire pipeline or specific stages with a single command:

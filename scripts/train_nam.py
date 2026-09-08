@@ -13,6 +13,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parent.parent
 CIRCUITS_DIR = REPO_ROOT / "circuits"
 MODELS_DIR = REPO_ROOT / "models"
+AUDIO_DIR = REPO_ROOT / "audio"
 SCRIPTS_DIR = REPO_ROOT / "scripts"
 
 if str(SCRIPTS_DIR) not in sys.path:
@@ -79,15 +80,20 @@ def train_voice(
         return False
 
     if not output_wav:
-        output_path = CIRCUITS_DIR / f"out_{voice}.wav"
+        candidate = AUDIO_DIR / inst_id / f"out_{voice}.wav"
+        if candidate.exists():
+            output_path = candidate
+        elif (CIRCUITS_DIR / inst_id / f"out_{voice}.wav").exists():
+            output_path = CIRCUITS_DIR / inst_id / f"out_{voice}.wav"
+        else:
+            output_path = CIRCUITS_DIR / f"out_{voice}.wav"
     else:
         output_path = Path(output_wav)
 
     if not output_path.exists():
         print(f"Error: Target output audio '{output_path}' does not exist.")
-        print(f"Please run the SPICE simulation stage first:")
-        print(f"  uv run python main.py --stage prep --instrument {inst_id} --voice {voice}")
-        print(f"  uv run python main.py --stage spice")
+        print(f"Please run the simulation stage first:")
+        print(f"  uv run python main.py --stage sim --instrument {inst_id} --voice {voice}")
         return False
 
     models_dir = Path(models_dir)
