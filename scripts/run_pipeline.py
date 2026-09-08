@@ -39,7 +39,13 @@ def run_visualization(instrument="30in"):
 
 def run_prep_audio(input_wav="v1_1_1.wav", instrument="30in", voice="03_modern_p_ceramic"):
     """Pre-filters NAM calibration audio through acoustic and spatial transfer functions."""
-    print(f"\n[Stage 2] Pre-filtering audio for {voice} (Instrument: {instrument})...")
+    if not (REPO_ROOT / input_wav).exists():
+        for candidate in ["T3K-sweep-v3.wav", "v3_0_0.wav", "input.wav"]:
+            if (REPO_ROOT / candidate).exists():
+                input_wav = candidate
+                break
+
+    print(f"\n[Stage 2] Pre-filtering audio for {voice} (Instrument: {instrument}, Input: {input_wav})...")
     script = SCRIPTS_DIR / "prep_nam_audio.py"
     cmd = [
         sys.executable, str(script),
@@ -73,7 +79,7 @@ def run_spice_batch(ltspice_bin=DEFAULT_LTSPICE_BIN):
 
     for cir in cir_files:
         print(f"  -> Simulating: {cir.name}...")
-        cmd = [ltspice_bin, "-b", str(cir)]
+        cmd = [ltspice_bin, "-b", str(cir.resolve())]
         try:
             res = subprocess.run(cmd, cwd=str(CIRCUITS_DIR), timeout=300)
             if res.returncode != 0:
@@ -82,6 +88,23 @@ def run_spice_batch(ltspice_bin=DEFAULT_LTSPICE_BIN):
             print(f"     Warning: Simulation of {cir.name} timed out after 300s")
 
     print("Batch SPICE execution finished.")
+
+def run_training(voice="03_modern_p_ceramic", input_wav=None, epochs=100, fast_dev_run=False):
+    """Trains a Neural Amp Modeler (NAM) Architecture 2 model locally with MPS GPU acceleration."""
+    print(f"\n[Stage 4] Training Neural Amp Modeler A2 model for {voice}...")
+    script = SCRIPTS_DIR / "train_nam.py"
+    cmd = [
+        sys.executable, str(script),
+        "--voice", voice,
+        "--epochs", str(epochs),
+    ]
+    if input_wav:
+        cmd.extend(["--input", input_wav])
+    if fast_dev_run:
+        cmd.append("--fast-dev-run")
+    res = subprocess.run(cmd, cwd=str(REPO_ROOT))
+    if res.returncode != 0:
+        print(f"Notice: Model training exited with code {res.returncode}")
 
 def list_instruments():
     print("Available Passivizer Source Instruments:")
@@ -111,19 +134,30 @@ def main():
     )
     parser.add_argument(
         "--stage",
-        choices=["all", "viz", "prep", "spice"],
+        choices=["all", "viz", "prep", "spice", "train"],
         default="all",
         help="Pipeline stage to execute (default: all)"
     )
     parser.add_argument(
         "--voice",
         default="03_modern_p_ceramic",
-        help="Target pickup voice for audio pre-filtering"
+        help="Target pickup voice for audio pre-filtering and training"
     )
     parser.add_argument(
         "--input-wav",
         default="v1_1_1.wav",
         help="Path to NAM calibration audio file"
+    )
+    parser.add_argument(
+        "--epochs",
+        type=int,
+        default=100,
+        help="Number of training epochs for NAM model (default: 100)"
+    )
+    parser.add_argument(
+        "--fast-dev-run",
+        action="store_true",
+        help="Run 1-batch dry run for smoke testing NAM training"
     )
     parser.add_argument(
         "--ltspice-path",
@@ -156,14 +190,24 @@ def main():
     print(f"  Stage:      {args.stage}")
     print("========================================")
 
+    input_wav = args.input_wav
+    if not (REPO_ROOT / input_wav).exists():
+        for candidate in ["T3K-sweep-v3.wav", "v3_0_0.wav", "input.wav"]:
+            if (REPO_ROOT / candidate).exists():
+                input_wav = candidate
+                break
+
     if args.stage in ["all", "viz"]:
         run_visualization(instrument=args.instrument)
 
     if args.stage in ["all", "prep"]:
-        run_prep_audio(input_wav=args.input_wav, instrument=args.instrument, voice=args.voice)
+        run_prep_audio(input_wav=input_wav, instrument=args.instrument, voice=args.voice)
 
     if args.stage in ["all", "spice"]:
         run_spice_batch(ltspice_bin=args.ltspice_path)
+
+    if args.stage in ["train"]:
+        run_training(voice=args.voice, input_wav=input_wav, epochs=args.epochs, fast_dev_run=args.fast_dev_run)
 
     print("\n[Pipeline Complete]")
 

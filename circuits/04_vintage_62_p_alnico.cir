@@ -28,7 +28,7 @@ R_anagram node3 0 1Meg
 C_anagram node3 0 30p
 
 * 7. Transient Execution (48 kHz sample interval)
-.tran 0 180 0 20.8333u
+.tran 0 190 0 20.833333333333333u
 
 * 8. Output Audio Export for NAM Training
 .wave "out_04_vintage_62_p_alnico.wav" 24 48000 V(node3)

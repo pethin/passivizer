@@ -49,10 +49,20 @@ def prefilter_audio(input_wav_path, output_wav_path, fir_samples):
 
         max_val = np.max(np.abs(effected))
         if max_val > 0:
-            effected = (effected / max_val) * 0.99
+            # Leave 8 dB headroom (scale to 0.40) so SPICE RLC resonant peaks (+6 to +8 dB) do not clip 1.0V
+            effected = (effected / max_val) * 0.40
 
         with AudioFile(str(output_wav_path), "w", samplerate=sr, num_channels=effected.shape[0], bit_depth=24) as out:
             out.write(effected)
+
+        # Re-save with standard wave module to ensure canonical RIFF/WAVE header (no JUNK chunk) for LTspice
+        import wave
+        with wave.open(str(output_wav_path), "rb") as wf:
+            params = wf.getparams()
+            frames = wf.readframes(wf.getnframes())
+        with wave.open(str(output_wav_path), "wb") as wf:
+            wf.setparams(params)
+            wf.writeframes(frames)
 
     print(f"Pre-filtered audio written to: {output_wav_path}")
 
@@ -75,7 +85,13 @@ def main():
 
     input_path = Path(args.input)
     if not input_path.exists():
-        print(f"Notice: '{args.input}' not found. Place the official 3-minute NAM calibration file here to render.")
+        for candidate in ["T3K-sweep-v3.wav", "v1_1_1.wav", "v3_0_0.wav", "input.wav"]:
+            if (REPO_ROOT / candidate).exists():
+                input_path = REPO_ROOT / candidate
+                break
+
+    if not input_path.exists():
+        print(f"Notice: Neither '{args.input}' nor any standard sweep file (T3K-sweep-v3.wav, v1_1_1.wav) was found.")
         return
 
     out_path = Path(args.out) if args.out else CIRCUITS_DIR / "v1_1_1_aperture.wav"
