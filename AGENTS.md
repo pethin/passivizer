@@ -27,11 +27,11 @@ Welcome to **Passivizer**. This repository houses an analog digital twin and mod
 When contributing to or maintaining this repository, strictly adhere to these architectural standards:
 
 - **Package & Environment Manager:** Always use **`uv`** (`uv run`, `uv add`).
-- **Tabular Data & Math:** Strictly use **`polars`** expressions (`pl.col`, `pl.when().then()`) and Python standard library `math`. Do **NOT** use `pandas` or introduce `numpy` in user-facing scripts.
-- **Visualizations:** Strictly use **`altair`** (Vega-Lite declarative charts compiling to standalone HTML in `docs/`). Do **NOT** use `matplotlib`.
+- **Tabular Data & Visualizations:** Strictly use **`polars`** for dataframes and tabular structures (`pl.DataFrame`, `pl.concat`), and **`altair`** (Vega-Lite declarative charts compiling to standalone HTML in `docs/`). Do **NOT** use `pandas` or `matplotlib`.
+- **Numerical Math & DSP:** Strictly use **`numpy`** for 1D frequency responses, acoustic/electrical vector math, and FFTs (`np.fft`).
 - **Audio DSP & I/O:**
-  - Fast convolution and 24-bit audio file I/O uses **Spotify's `pedalboard`** (JUCE-backed SIMD C++ engine).
-  - Minimum-phase FIR synthesis uses our internal homomorphic real-cepstrum Hilbert transform engine in pure Python.
+  - 24-bit audio file I/O uses **Spotify's `pedalboard`** (JUCE-backed SIMD C++ engine).
+  - Minimum-phase FIR synthesis uses our internal homomorphic real-cepstrum Hilbert transform engine vectorized with NumPy.
   - Do **NOT** add `scipy` or `soundfile` as dependencies (they carry legacy C/Fortran bloat).
 - **Circuit Simulation Engine:**
   - **Native Engine (Default):** Native Apple Silicon (`arm64`) Virtual Analog solver (`scripts/simulate_circuits.py`) providing zero-external-dependency analytical nodal RLC solving and vector soft-knee saturation ($V_{\text{sat}} \cdot \tanh(v/V_{\text{sat}})$) at >1500x speed.
@@ -67,7 +67,7 @@ passivizer/
 │   ├── prep_nam_audio.py     # Spotify Pedalboard NAM audio pre-filter
 │   ├── simulate_circuits.py  # Native Apple Silicon Virtual Analog circuit engine
 │   └── run_pipeline.py       # Master end-to-end automated runner
-└── tests/                    # Pytest test suite (42 tests)
+└── tests/                    # Pytest test suite (43 tests)
 ```
 
 ---

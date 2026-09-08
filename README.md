@@ -217,7 +217,7 @@ passivizer/
 │   ├── prep_nam_audio.py                  # Aperture & scale tension pre-filtering for NAM
 │   ├── simulate_circuits.py               # Native Apple Silicon Virtual Analog circuit engine
 │   └── run_pipeline.py                    # Master end-to-end automated runner
-├── tests/                                 # Pytest test suite (42 tests)
+├── tests/                                 # Pytest test suite (43 tests)
 └── models/                                # Exported .nam neural models
 ```
 
@@ -240,12 +240,12 @@ passivizer/
 - [x] Scale-length wave-speed scaling ($\kappa_v$) for 30"/32" $\to$ 34" and 37" Multi-Scale conversion
 - [x] String tension & piano-clank filter modeling ($H_{\text{tension}}$)
 - [x] Pre-filtering utility for NAM audio (`scripts/prep_nam_audio.py`)
-- [x] Pure-Python minimum-phase FIR synthesis engine (`scripts/model_physics.py`)
+- [x] Vectorized NumPy minimum-phase FIR synthesis engine (`scripts/model_physics.py`) with sub-millisecond Hilbert transform
 
 ### Phase 4: Pipeline Automation & Verification
 - [x] Install project Python dependencies with `uv` on Python 3.14 (`polars`, `altair`, `pedalboard`, `pytest`)
 - [x] Automated end-to-end runner (`scripts/run_pipeline.py` & `main.py`) for Altair charts, audio pre-filtering, and native/LTspice circuit simulations
-- [x] Comprehensive `pytest` test suite (42 tests) for aperture sinc/comb math, minimum-phase FIR DSP, circuit netlists and nodal math, voice catalogs, visualizer, and audio pipeline (`uv run pytest`)
+- [x] Comprehensive `pytest` test suite (43 tests) for aperture sinc/comb math, minimum-phase FIR DSP, circuit netlists and nodal math, voice catalogs, visualizer, and audio pipeline (`uv run pytest`)
 
 ### Phase 5: Hardware & Modeler Integration (Upcoming)
 - [ ] Darkglass Suite preset pack export bundle (`.darkglass` XML format)

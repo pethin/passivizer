@@ -9,6 +9,7 @@ import math
 import os
 import sys
 from pathlib import Path
+import numpy as np
 import polars as pl
 import altair as alt
 
@@ -25,7 +26,7 @@ from model_physics import (
     resolve_voice_coils,
     resolve_voice_pickups,
     compute_effective_position,
-    polars_pickup_acoustic_response
+    numpy_pickup_acoustic_response,
 )
 
 NUM_POINTS = 600
@@ -35,7 +36,7 @@ F_MAX = 20000.0
 log_freqs = [F_MIN * (F_MAX / F_MIN) ** (i / (NUM_POINTS - 1)) for i in range(NUM_POINTS)]
 
 def build_voice_dataframe(voice_id, cfg, instrument="30in", src_scale=None):
-    """Calculates magnitude frequency response in dB for a voice using Polars."""
+    """Calculates magnitude frequency response in dB for a voice using NumPy vector math and Polars."""
     inst_selector = src_scale if src_scale is not None else instrument
     inst = load_instrument(inst_selector) if not isinstance(inst_selector, dict) else inst_selector
 
@@ -55,17 +56,15 @@ def build_voice_dataframe(voice_id, cfg, instrument="30in", src_scale=None):
     src_pos_eff = compute_effective_position(src_coils)
     tgt_pos_eff = compute_effective_position(tgt_coils)
 
-    df = pl.DataFrame({"frequency": log_freqs})
-    f_col = pl.col("frequency")
+    freqs = np.asarray(log_freqs, dtype=np.float64)
 
     # 1. Source Pickup Acoustic Response
-    h_src_acoustic = polars_pickup_acoustic_response(f_col, src_coils, src_speeds)
+    h_src_acoustic = numpy_pickup_acoustic_response(freqs, src_coils, src_speeds)
 
     # 2. Target Composite Acoustic + Electrical Pickup Superposition
-    # Each pickup senses string standing waves at its own location(s) and filters through its OWN electrical resonance
     pickups = resolve_voice_pickups(cfg)
     fc_hpf = cfg.get("hpf")
-    h_tgt_total = None
+    h_tgt_total = np.zeros_like(freqs)
 
     for p in pickups:
         p_coils = p["coils"]
@@ -75,61 +74,60 @@ def build_voice_dataframe(voice_id, cfg, instrument="30in", src_scale=None):
         Q_p = p["Q"]
 
         # Pickup-specific acoustic sensing across all strings
-        h_ac = polars_pickup_acoustic_response(f_col, p_coils, tgt_speeds)
+        h_ac = numpy_pickup_acoustic_response(freqs, p_coils, tgt_speeds)
 
         # Pickup-specific electrical RLC resonance
-        h_el = 1.0 / (((1.0 - (f_col / fr_p).pow(2)).pow(2) + (1.0 / Q_p ** 2) * (f_col / fr_p).pow(2))).sqrt()
+        h_el = 1.0 / np.sqrt((1.0 - (freqs / fr_p) ** 2) ** 2 + (1.0 / Q_p ** 2) * (freqs / fr_p) ** 2)
 
         p_resp = h_ac * h_el * (p_weight * p_pol)
-        h_tgt_total = p_resp if h_tgt_total is None else (h_tgt_total + p_resp)
+        h_tgt_total += p_resp
 
     # Apply optional high-pass filter (e.g. Rickenbacker 4.7nF)
     if fc_hpf:
-        h_tgt_total = h_tgt_total * (f_col / (f_col.pow(2) + fc_hpf ** 2).sqrt())
+        h_tgt_total = h_tgt_total * (freqs / np.sqrt(freqs ** 2 + fc_hpf ** 2))
 
     # 3. Acoustic/Electrical Transfer from Source to Target
-    h_transfer = (h_tgt_total * h_src_acoustic) / (h_src_acoustic.pow(2) + 0.001)
+    h_transfer = (h_tgt_total * h_src_acoustic) / (h_src_acoustic ** 2 + 0.001)
 
     # 4. Macro Position Displacement Tilt (1.5 dB/inch)
     delta_in = (tgt_pos_eff - src_pos_eff) / 0.0254
     tilt_db = delta_in * 1.5
     g_low = 10.0 ** (tilt_db / 20.0)
     g_hi = 10.0 ** (-tilt_db / 20.0)
-    h_low_tilt = ((g_low ** 2 + (f_col / 250.0).pow(2)) / (1.0 + (f_col / 250.0).pow(2))).sqrt()
-    h_hi_tilt = ((1.0 + g_hi ** 2 * (f_col / 2200.0).pow(2)) / (1.0 + (f_col / 2200.0).pow(2))).sqrt()
+    h_low_tilt = np.sqrt((g_low ** 2 + (freqs / 250.0) ** 2) / (1.0 + (freqs / 250.0) ** 2))
+    h_hi_tilt = np.sqrt((1.0 + g_hi ** 2 * (freqs / 2200.0) ** 2) / (1.0 + (freqs / 2200.0) ** 2))
 
     # 5. Scale Tension Filter
     src_scale_in = inst.get("scale_length_in", 34.0)
     if tgt_scale == "multiscale":
         sub_gain = 10.0 ** (1.5 / 20.0)
-        h_sub = ((sub_gain ** 2 + (f_col / 75.0).pow(2)) / (1.0 + (f_col / 75.0).pow(2))).sqrt()
+        h_sub = np.sqrt((sub_gain ** 2 + (freqs / 75.0) ** 2) / (1.0 + (freqs / 75.0) ** 2))
         a_clank = 10.0 ** (3.5 / 40.0)
-        x_clank = f_col / 3200.0
-        h_clank = (((1.0 - x_clank.pow(2)).pow(2) + (a_clank * x_clank / 1.5).pow(2)) /
-                   ((1.0 - x_clank.pow(2)).pow(2) + (x_clank / (a_clank * 1.5)).pow(2))).sqrt()
+        x_clank = freqs / 3200.0
+        h_clank = np.sqrt(
+            ((1.0 - x_clank ** 2) ** 2 + (a_clank * x_clank / 1.5) ** 2) /
+            ((1.0 - x_clank ** 2) ** 2 + (x_clank / (a_clank * 1.5)) ** 2)
+        )
         h_tension = h_sub * h_clank
     elif tgt_scale == "34in" and src_scale_in != 34.0:
         g_snap = 10.0 ** (1.8 / 20.0)
-        h_tension = ((1.0 + g_snap ** 2 * (f_col / 2800.0).pow(2)) / (1.0 + (f_col / 2800.0).pow(2))).sqrt()
+        h_tension = np.sqrt((1.0 + g_snap ** 2 * (freqs / 2800.0) ** 2) / (1.0 + (freqs / 2800.0) ** 2))
     else:
-        h_tension = pl.lit(1.0)
+        h_tension = np.ones_like(freqs)
 
-    df = df.with_columns(
-        (h_transfer * (h_low_tilt * h_hi_tilt) * h_tension).alias("mag_raw")
-    )
+    mag_raw = h_transfer * (h_low_tilt * h_hi_tilt) * h_tension
+    max_val = np.max(mag_raw)
+    mag_norm = mag_raw / max_val if max_val > 0 else mag_raw
+    mag_db = 20.0 * np.log10(np.clip(mag_norm, 1e-5, 1.0)) + cfg["gain_db"]
 
-    max_val = df["mag_raw"].max()
-    df = df.with_columns(
-        (df["mag_raw"] / max_val).alias("mag_norm")
-    ).with_columns(
-        (20.0 * (pl.col("mag_norm").clip(1e-5, 1.0)).log10() + cfg["gain_db"]).alias("magnitude_db"),
-        pl.lit(voice_id).alias("voice_id"),
-        pl.lit(cfg.get("name", voice_id)).alias("voice_name"),
-        pl.lit(cfg.get("topology", "Passive Pickup")).alias("topology"),
-        pl.lit(cfg.get("description", "")).alias("description")
-    ).select(["frequency", "magnitude_db", "voice_id", "voice_name", "topology", "description"])
-
-    return df
+    return pl.DataFrame({
+        "frequency": log_freqs,
+        "magnitude_db": mag_db.tolist(),
+        "voice_id": voice_id,
+        "voice_name": cfg.get("name", voice_id),
+        "topology": cfg.get("topology", "Passive Pickup"),
+        "description": cfg.get("description", ""),
+    })
 
 def generate_interactive_chart(instrument="30in", out_html="docs/frequency_responses.html", source_scale=None):
     inst_selector = source_scale if source_scale is not None else instrument
