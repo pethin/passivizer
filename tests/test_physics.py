@@ -7,6 +7,7 @@ from scripts.model_physics import (
     VOICES,
     SCALES,
     compute_aperture_prefilter_fir,
+    compute_voice_prefilter_firs,
     write_wav_24bit,
     NUM_TAPS
 )
@@ -98,3 +99,44 @@ def test_electrical_resonance_and_deconvolution():
     assert math.isclose(res_dual[2] * res_inv[2], 1.0, abs_tol=1e-3)  # Flattens peak to exactly 1.0
     assert math.isclose(res_inv[4], 1.0, rel_tol=0.05)  # Reverts to 1.0 at high frequencies (no noise explosion)
     assert all(x <= 1.0001 for x in res_inv)  # Gain never exceeds 0 dB (pure notch/attenuation)
+
+def test_compute_voice_prefilter_firs_single_and_multi():
+    # Single-pickup voice -> exactly 1 channel
+    firs_single = compute_voice_prefilter_firs("03_modern_p_ceramic", src_scale="30in", num_taps=512)
+    assert len(firs_single) == 1
+    assert len(firs_single[0]) == 512
+    max_peak_single = max(abs(x) for x in firs_single[0])
+    assert math.isclose(max_peak_single, 0.99, rel_tol=1e-3)
+
+    # Multi-pickup voice (Jazz pair) -> exactly 2 channels (Neck and Bridge)
+    firs_multi = compute_voice_prefilter_firs("01_jazz_bass_pair", src_scale="30in", num_taps=512)
+    assert len(firs_multi) == 2
+    assert len(firs_multi[0]) == 512
+    assert len(firs_multi[1]) == 512
+    global_max = max(max(abs(x) for x in f) for f in firs_multi)
+    assert math.isclose(global_max, 0.99, rel_tol=1e-3)
+
+    # Multi-pickup voice (P/MM series) -> exactly 2 channels
+    firs_pmm = compute_voice_prefilter_firs("09_pmm_hybrid_series", src_scale="32in", num_taps=512)
+    assert len(firs_pmm) == 2
+
+def test_multi_pickup_prefilter_audio_stereo_export():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        input_wav = Path(tmpdir) / "test_in.wav"
+        output_wav = Path(tmpdir) / "test_stereo_out.wav"
+
+        # Generate a short 0.05s test audio impulse sequence (2400 samples at 48 kHz)
+        test_samples = [0.5 if i % 100 == 0 else 0.0 for i in range(2400)]
+        write_wav_24bit(str(input_wav), test_samples, sample_rate=48000)
+
+        firs = compute_voice_prefilter_firs("01_jazz_bass_pair", src_scale="30in", num_taps=512)
+        assert len(firs) == 2
+        prefilter_audio(input_wav, output_wav, firs)
+
+        assert output_wav.exists()
+        with wave.open(str(output_wav), "rb") as wf:
+            assert wf.getframerate() == 48000
+            assert wf.getsampwidth() == 3  # 24-bit PCM
+            assert wf.getnchannels() == 2  # Stereo (Channel 0 = Neck, Channel 1 = Bridge)
+            assert wf.getnframes() > 0
+

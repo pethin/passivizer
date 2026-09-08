@@ -34,7 +34,7 @@ def _ifft(x):
     transformed = _fft(x_conj)
     return [val.conjugate() / n for val in transformed]
 
-def synthesize_minimum_phase_fir(magnitude_curve, num_taps=NUM_TAPS):
+def synthesize_minimum_phase_fir(magnitude_curve, num_taps=NUM_TAPS, normalize=True):
     """
     Synthesizes a causal, minimum-phase FIR filter from a desired magnitude
     curve using the homomorphic real-cepstrum Hilbert transform.
@@ -82,6 +82,9 @@ def synthesize_minimum_phase_fir(magnitude_curve, num_taps=NUM_TAPS):
     for i in range(taper_len):
         w = 0.5 * (1.0 + math.cos(math.pi * i / taper_len))
         fir[start_taper + i] *= w
+
+    if not normalize:
+        return fir
 
     # Peak normalization to -0.1 dBFS (0.99)
     max_peak = max(abs(x) for x in fir)
@@ -608,18 +611,105 @@ def resolve_pickup_electrical_deconvolution(freq_expr, pickup_cfg, inst_cfg, q_t
     q_src = pickup_cfg.get("q_factor", 1.35)
     return polars_pickup_anti_resonance(freq_expr, fr, q_src, q_target=q_target)
 
-def compute_aperture_prefilter_fir(voice_id, instrument="30in", src_scale=None, num_taps=NUM_TAPS):
+def compute_voice_prefilter_firs(voice_id, instrument="30in", src_scale=None, num_taps=NUM_TAPS):
     """
-    Computes the acoustic pre-filter FIR (multi-coil aperture de-convolution, displacement delta,
-    and scale tension) to pre-filter audio before feeding SPICE circuit digital twins.
-    Instrument can be an instrument ID ('30in_emg_mm'), a path to a TOML file, or an alias ('30in', '32in').
+    Computes acoustic pre-filter FIRs for each pickup in a target voice configuration.
+    For single-pickup voices, returns a list with 1 FIR: [fir].
+    For multi-pickup voices (e.g. Jazz pair, P/J, P/MM), returns a list of FIRs:
+    [fir_pickup_0, fir_pickup_1, ...], enabling independent channel excitation in SPICE.
     """
     cfg = VOICES[voice_id]
     target_scale_key = cfg.get("scale", "34in")
     tgt = SCALES[target_scale_key]
     tgt_speeds = tgt["speeds"]
 
-    # Support legacy src_scale keyword argument if passed
+    inst_selector = src_scale if src_scale is not None else instrument
+    inst = load_instrument(inst_selector) if not isinstance(inst_selector, dict) else inst_selector
+
+    src_speeds = inst.get("string_wave_speeds")
+    if not src_speeds:
+        l_m = inst.get("scale_length_m", inst.get("scale_length_in", 34.0) * 0.0254)
+        src_speeds = [2.0 * l_m * f0 for f0 in [41.203, 55.0, 73.416, 97.999]]
+
+    src_pickup = get_source_pickup(inst, voice_id)
+    src_coils = resolve_pickup_coils(src_pickup, inst)
+    src_pos_eff = compute_effective_position(src_coils)
+
+    df = pl.DataFrame({"freq": FREQS})
+    f = pl.col("freq")
+
+    h_src_acoustic = polars_pickup_acoustic_response(f, src_coils, src_speeds)
+
+    # Scale-Length Tension Filter
+    src_scale_in = inst.get("scale_length_in", 34.0)
+    if target_scale_key == "multiscale":
+        sub_gain = 10.0 ** (1.5 / 20.0)
+        h_sub = ((sub_gain ** 2 + (f / 75.0).pow(2)) / (1.0 + (f / 75.0).pow(2))).sqrt()
+        a_clank = 10.0 ** (3.5 / 40.0)
+        x_clank = f / 3200.0
+        h_clank = (((1.0 - x_clank.pow(2)).pow(2) + (a_clank * x_clank / 1.5).pow(2)) /
+                   ((1.0 - x_clank.pow(2)).pow(2) + (x_clank / (a_clank * 1.5)).pow(2))).sqrt()
+        h_tension = h_sub * h_clank
+    elif target_scale_key == "34in" and src_scale_in != 34.0:
+        g_snap = 10.0 ** (1.8 / 20.0)
+        h_tension = ((1.0 + g_snap ** 2 * (f / 2800.0).pow(2)) / (1.0 + (f / 2800.0).pow(2))).sqrt()
+    else:
+        h_tension = pl.lit(1.0)
+
+    # Active Pickup Electrical Resonance Deconvolution (Wiener Inversion)
+    h_elec_inv = resolve_pickup_electrical_deconvolution(f, src_pickup, inst)
+
+    pickups = resolve_voice_pickups(cfg)
+    raw_firs = []
+    for p in pickups:
+        p_coils = p["coils"]
+        tgt_pos_eff = compute_effective_position(p_coils)
+
+        h_tgt_acoustic = polars_pickup_acoustic_response(f, p_coils, tgt_speeds)
+        h_acoustic_transfer = (h_tgt_acoustic * h_src_acoustic) / (h_src_acoustic.pow(2) + 0.001)
+
+        delta_in = (tgt_pos_eff - src_pos_eff) / 0.0254
+        tilt_db = delta_in * 1.5
+        g_low = 10.0 ** (tilt_db / 20.0)
+        g_hi = 10.0 ** (-tilt_db / 20.0)
+        h_low_tilt = ((g_low ** 2 + (f / 250.0).pow(2)) / (1.0 + (f / 250.0).pow(2))).sqrt()
+        h_hi_tilt = ((1.0 + g_hi ** 2 * (f / 2200.0).pow(2)) / (1.0 + (f / 2200.0).pow(2))).sqrt()
+
+        p_weight = p.get("weight", 1.0)
+        p_pol = p.get("polarity", 1.0)
+        scale_fac = pl.lit(abs(p_weight * p_pol))
+
+        df_p = df.with_columns(
+            (scale_fac * h_acoustic_transfer * h_elec_inv * (h_low_tilt * h_hi_tilt) * h_tension).alias("prefilter_curve")
+        )
+        resp_series = df_p["prefilter_curve"]
+        resp_list = resp_series.to_list()
+        fir_raw = synthesize_minimum_phase_fir(resp_list, num_taps=num_taps, normalize=False)
+        raw_firs.append(fir_raw)
+
+    global_peak = max(max(abs(x) for x in fir) for fir in raw_firs)
+    if global_peak > 0:
+        return [[(x / global_peak) * 0.99 for x in fir] for fir in raw_firs]
+    return raw_firs
+
+def compute_aperture_prefilter_fir(voice_id, instrument="30in", src_scale=None, num_taps=NUM_TAPS):
+    """
+    Computes a single composite acoustic pre-filter FIR.
+    Retained for backward compatibility. For multi-pickup independent channels,
+    use compute_voice_prefilter_firs().
+    """
+    cfg = VOICES[voice_id]
+    pickups = resolve_voice_pickups(cfg)
+    if len(pickups) == 1:
+        firs = compute_voice_prefilter_firs(voice_id, instrument=instrument, src_scale=src_scale, num_taps=num_taps)
+        return firs[0]
+
+    # For multi-pickup voices when a single flattened FIR is requested,
+    # evaluate the composite acoustic response across all coils:
+    target_scale_key = cfg.get("scale", "34in")
+    tgt = SCALES[target_scale_key]
+    tgt_speeds = tgt["speeds"]
+
     inst_selector = src_scale if src_scale is not None else instrument
     inst = load_instrument(inst_selector) if not isinstance(inst_selector, dict) else inst_selector
 
@@ -638,12 +728,10 @@ def compute_aperture_prefilter_fir(voice_id, instrument="30in", src_scale=None, 
     df = pl.DataFrame({"freq": FREQS})
     f = pl.col("freq")
 
-    # 1. Unified Multi-Coil Acoustic Transfer via Polars
     h_src_acoustic = polars_pickup_acoustic_response(f, src_coils, src_speeds)
     h_tgt_acoustic = polars_pickup_acoustic_response(f, tgt_coils, tgt_speeds)
     h_acoustic_transfer = (h_tgt_acoustic * h_src_acoustic) / (h_src_acoustic.pow(2) + 0.001)
 
-    # 2. Macro Position Displacement Tilt (1.5 dB per inch)
     delta_in = (tgt_pos_eff - src_pos_eff) / 0.0254
     tilt_db = delta_in * 1.5
     g_low = 10.0 ** (tilt_db / 20.0)
@@ -651,7 +739,6 @@ def compute_aperture_prefilter_fir(voice_id, instrument="30in", src_scale=None, 
     h_low_tilt = ((g_low ** 2 + (f / 250.0).pow(2)) / (1.0 + (f / 250.0).pow(2))).sqrt()
     h_hi_tilt = ((1.0 + g_hi ** 2 * (f / 2200.0).pow(2)) / (1.0 + (f / 2200.0).pow(2))).sqrt()
 
-    # 3. Scale-Length Tension Filter
     src_scale_in = inst.get("scale_length_in", 34.0)
     if target_scale_key == "multiscale":
         sub_gain = 10.0 ** (1.5 / 20.0)
@@ -667,10 +754,8 @@ def compute_aperture_prefilter_fir(voice_id, instrument="30in", src_scale=None, 
     else:
         h_tension = pl.lit(1.0)
 
-    # 4. Active Pickup Electrical Resonance Deconvolution (Wiener Inversion)
     h_elec_inv = resolve_pickup_electrical_deconvolution(f, src_pickup, inst)
 
-    # Total acoustic/spatial and electrical pre-filter response (RLC electronics handled in SPICE)
     df = df.with_columns(
         (h_acoustic_transfer * h_elec_inv * (h_low_tilt * h_hi_tilt) * h_tension).alias("prefilter_curve")
     )

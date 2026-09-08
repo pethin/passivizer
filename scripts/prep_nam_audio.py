@@ -20,12 +20,14 @@ CIRCUITS_DIR = REPO_ROOT / "circuits"
 if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
 
-from model_physics import VOICES, compute_aperture_prefilter_fir, write_wav_24bit
+from model_physics import VOICES, compute_voice_prefilter_firs, compute_aperture_prefilter_fir, write_wav_24bit
 
 def prefilter_audio(input_wav_path, output_wav_path, fir_samples):
     """
-    Applies the aperture and scale tension FIR to NAM calibration audio
+    Applies the aperture and scale tension FIR(s) to NAM calibration audio
     using Spotify's Pedalboard SIMD convolution engine in under 200ms.
+    Supports single mono FIR (1D list of floats) or multi-channel FIRs
+    (list of lists of floats, e.g. stereo for dual-pickup voices).
     """
     try:
         from pedalboard import Pedalboard, Convolution
@@ -36,16 +38,26 @@ def prefilter_audio(input_wav_path, output_wav_path, fir_samples):
         print("Install it with: uv add pedalboard")
         sys.exit(1)
 
-    with tempfile.TemporaryDirectory() as tmpdir:
-        tmp_fir_path = os.path.join(tmpdir, "fir.wav")
-        write_wav_24bit(tmp_fir_path, fir_samples, sample_rate=48000)
+    is_multichannel = len(fir_samples) > 0 and isinstance(fir_samples[0], (list, tuple))
+    channels_firs = fir_samples if is_multichannel else [fir_samples]
 
+    with tempfile.TemporaryDirectory() as tmpdir:
         with AudioFile(str(input_wav_path)) as f:
             audio = f.read(f.frames)
             sr = f.samplerate
 
-        board = Pedalboard([Convolution(tmp_fir_path)])
-        effected = board(audio, sr)
+        # If audio has multiple channels, take first channel as excitation
+        input_mono = audio[0:1, :] if audio.shape[0] > 1 else audio
+
+        effected_channels = []
+        for idx, ch_fir in enumerate(channels_firs):
+            tmp_fir_path = os.path.join(tmpdir, f"fir_ch{idx}.wav")
+            write_wav_24bit(tmp_fir_path, ch_fir, sample_rate=48000)
+            board = Pedalboard([Convolution(tmp_fir_path)])
+            eff = board(input_mono, sr)
+            effected_channels.append(eff[0])
+
+        effected = np.array(effected_channels, dtype=np.float32)
 
         max_val = np.max(np.abs(effected))
         if max_val > 0:
@@ -64,7 +76,9 @@ def prefilter_audio(input_wav_path, output_wav_path, fir_samples):
             wf.setparams(params)
             wf.writeframes(frames)
 
-    print(f"Pre-filtered audio written to: {output_wav_path}")
+    num_ch = len(channels_firs)
+    ch_label = f"{num_ch}-channel stereo" if num_ch == 2 else f"{num_ch}-channel mono"
+    print(f"Pre-filtered {ch_label} audio written to: {output_wav_path}")
 
 def main():
     parser = argparse.ArgumentParser(description="Pre-filter NAM audio for SPICE simulation.")
@@ -97,9 +111,10 @@ def main():
     out_path = Path(args.out) if args.out else CIRCUITS_DIR / "v1_1_1_aperture.wav"
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
-    print(f"Synthesizing aperture & scale pre-filter for {args.voice} (Source: {args.instrument})...")
-    fir_samples = compute_aperture_prefilter_fir(args.voice, instrument=args.instrument)
-    prefilter_audio(input_path, out_path, fir_samples)
+    firs = compute_voice_prefilter_firs(args.voice, instrument=args.instrument)
+    ch_desc = f"{len(firs)} channels" if len(firs) > 1 else "1 channel"
+    print(f"Synthesizing aperture & scale pre-filter ({ch_desc}) for {args.voice} (Source: {args.instrument})...")
+    prefilter_audio(input_path, out_path, firs)
 
 if __name__ == "__main__":
     main()

@@ -119,9 +119,13 @@ Trains a high-efficiency **NAM Architecture 2 (A2)** neural model on the input/o
 
 ```bash
 # Train NAM Architecture 2 (A2) model for Darkglass Anagram Block 1:
-nam train circuits/v1_1_1_aperture.wav circuits/out_03_modern_p_ceramic.wav ./models/03_modern_p_ceramic --architecture "A2"
+# The input is the raw bass calibration sweep (v1_1_1.wav) and the target is the SPICE simulated output:
+nam train v1_1_1.wav circuits/out_03_modern_p_ceramic.wav ./models/03_modern_p_ceramic --architecture "A2"
+
+# Alternatively, run via the automated Passivizer trainer:
+uv run python main.py --stage train --instrument 30in --voice 03_modern_p_ceramic
 ```
-*(In modern versions of `neural-amp-modeler` and the official Google Colab trainer, `--architecture A2` is the default).*
+*(In modern versions of `neural-amp-modeler` and the official Google Colab trainer, `--architecture A2` is the default. Note: `circuits/v1_1_1_aperture.wav` is the intermediate acoustic pre-filtered track used internally to drive SPICE, whereas NAM is trained end-to-end from the raw input `v1_1_1.wav` to capture the entire acoustic aperture, string tension, and electrical RLC behavior in a single unified model).*
 
 ### 5. Master Automation Runner (`scripts/run_pipeline.py` & `main.py`)
 Execute the entire pipeline or specific stages with a single command:
