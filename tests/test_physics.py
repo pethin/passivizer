@@ -70,3 +70,30 @@ def test_prefilter_audio_pipeline():
             assert wf.getsampwidth() == 3  # 24-bit PCM
             assert wf.getnchannels() == 1
             assert wf.getnframes() > 0
+
+def test_electrical_resonance_and_deconvolution():
+    import polars as pl
+    from scripts.model_physics import (
+        load_instrument,
+        polars_pickup_electrical_response,
+        resolve_pickup_electrical_deconvolution,
+    )
+
+    df = pl.DataFrame({"freq": [0.0, 1000.0, 2500.0, 3500.0, 10000.0]})
+    f = pl.col("freq")
+
+    # Test MMTW Dual: fr=2500, Q=1.35
+    h_dual = polars_pickup_electrical_response(f, fr=2500.0, q=1.35)
+    res_dual = df.select(h_dual.alias("h"))["h"].to_list()
+    assert math.isclose(res_dual[0], 1.0, abs_tol=1e-4)  # DC = 1.0
+    assert math.isclose(res_dual[2], 1.35, abs_tol=1e-3)  # Resonance peak = Q
+    assert res_dual[4] < 0.1  # High-frequency rolloff
+
+    # Test Wiener deconvolution filter
+    inst_30 = load_instrument("30in_emg_mmtw")
+    h_inv = resolve_pickup_electrical_deconvolution(f, inst_30["pickups"]["mmtw_dual"], inst_30)
+    res_inv = df.select(h_inv.alias("h_inv"))["h_inv"].to_list()
+    assert math.isclose(res_inv[0], 1.0, abs_tol=1e-4)  # DC normalized = 1.0
+    # At resonance, should attenuate peak by ~1/Q
+    assert res_inv[2] < 1.0
+    assert math.isclose(res_dual[2] * res_inv[2], 1.0, rel_tol=0.05)  # Product should be ~1.0

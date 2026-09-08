@@ -12,6 +12,8 @@ position_from_bridge_m = 0.0775
 aperture_width_in = 1.50
 coil_spacing_in = 0.90
 type = "dual_coil_parallel"
+resonant_frequency_hz = 2500.0
+q_factor = 1.35
 coils = [
     { strings = ["all"], position_from_bridge_m = 0.08893, aperture_width_in = 0.75, weight = 0.5 },
     { strings = ["all"], position_from_bridge_m = 0.06607, aperture_width_in = 0.75, weight = 0.5 }

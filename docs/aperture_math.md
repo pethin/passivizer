@@ -119,3 +119,36 @@ Passivizer models this acoustic transformation with a multi-band tension transfe
 ### C. Angled Multi-Scale Pickup Geometry
 On fanned-fret instruments like the Dingwall NG2/NG3, pickups are mounted parallel to the fanned bridge saddles. This ensures that the sensing point relative to the scale line ($x / L$) remains uniform across all strings, eliminating the flubby low-end of straight pickups on low B and E strings while maintaining smooth treble on the G string. Passivizer compensates for this geometric alignment across string channels.
 
+---
+
+## 5. Active Pickup Electrical Resonance & Wiener Deconvolution
+
+Active EMG pickups incorporate internal low-impedance coils loaded directly into an onboard differential op-amp buffer. Unlike passive pickups whose resonance is dictated by external guitar cables and amplifier inputs, an active pickup's electrical resonance is determined internally:
+
+$$|H_{\text{elec}}(f)| = \frac{1}{\sqrt{\left(1 - \left(\frac{f}{f_r}\right)^2\right)^2 + \left(\frac{f}{Q f_r}\right)^2}}$$
+
+### Official EMG Hardware Datums
+
+| Pickup Model | Mode | Magnet Type | Resonant Frequency ($f_r$) | Typical $Q$ | Output Level (String / Peak) |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **EMG MMTW / MMTWX** | Dual-Coil | Ceramic / Steel | **$2,500\text{ Hz}$** ($2.50\text{ kHz}$) | $1.35$ | $2.0\text{V} / 4.5\text{V}$ |
+| **EMG MMTW / MMTWX** | Single-Coil (L2+L3) | Ceramic / Steel | **$3,500\text{ Hz}$** ($3.50\text{ kHz}$) | $1.40$ | $1.0\text{V} / 3.0\text{V}$ |
+| **EMG P-X** | Split-Coil | Ceramic | **$3,200\text{ Hz}$** ($3.20\text{ kHz}$) | $1.40$ | $2.0\text{V} / 8.5\text{V}$ |
+| **EMG PA-X** | Split-Coil | Alnico V | **$2,610\text{ Hz}$** ($2.61\text{ kHz}$) | $1.35$ | $2.0\text{V} / 8.5\text{V}$ |
+| **EMG P-CS-X** | Split-Coil | Ceramic / Steel | **$2,610\text{ Hz}$** ($2.61\text{ kHz}$) | $1.35$ | $2.0\text{V} / 8.5\text{V}$ |
+
+### Active Buffered Blends (EMG ABCX)
+Because the EMG ABCX active blend potentiometer buffers each pickup input with dedicated op-amp stages prior to summing, there is zero passive mutual loading. The compound response is the exact linear weighted superposition:
+$$H_{\text{blend, elec}}(f) = \frac{\sum_i w_i \cdot H_{\text{elec}, i}(f)}{\sum_i w_i}$$
+
+### Regularized Wiener Deconvolution ($H_{\text{elec\_inv}}$)
+To prevent unnatural "double-resonance" peaks and an aggressive $-24\text{ dB/octave}$ cascaded low-pass rolloff when feeding into the downstream SPICE passive models, Passivizer inverts the source pickup's electrical response using regularized Wiener deconvolution ($\epsilon = 0.01$):
+
+$$H_{\text{elec\_inv}}(f) = (1 + \epsilon) \cdot \frac{H_{\text{src, elec}}(f)}{H_{\text{src, elec}}(f)^2 + \epsilon}$$
+
+* **At DC / Sub-Bass ($f \to 0$):** Exactly unity gain ($0.0\text{ dB}$).
+* **At Resonance ($f = f_r$):** Attenuates the internal $+2.5\text{--}3.0\text{ dB}$ peak by $\approx 1/Q$, flattening the curve.
+* **In the Upper Range ($f_r < f < 10\text{ kHz}$):** Restores high-frequency transient bite and pick air.
+* **At Ultrasonic / Nyquist ($f \to 24\text{ kHz}$):** Smoothly rolls off to zero, preventing high-frequency hiss or ultrasonic noise amplification.
+
+

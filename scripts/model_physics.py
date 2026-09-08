@@ -439,6 +439,68 @@ def polars_position(freq_expr, pos_m, speeds):
         acc = acc + (arg_p.sin().abs() + 0.15)
     return acc / len(speeds)
 
+def polars_pickup_electrical_response(freq_expr, fr, q):
+    """
+    Computes the 2nd-order electrical low-pass magnitude response of an active pickup.
+    |H_elec(f)| = 1 / sqrt((1 - (f/fr)^2)^2 + (f / (q * fr))^2)
+    """
+    if fr is None or fr <= 0.0 or q is None or q <= 0.0:
+        return pl.lit(1.0)
+    x = freq_expr / float(fr)
+    denom = ((pl.lit(1.0) - x.pow(2)).pow(2) + (x / float(q)).pow(2)).sqrt()
+    return pl.lit(1.0) / denom
+
+def resolve_pickup_electrical_response(freq_expr, pickup_cfg, inst_cfg):
+    """
+    Resolves the electrical frequency response for a source pickup or composite blend.
+    For composite pickups (e.g. EMG ABCX active blend), performs weighted linear summation.
+    """
+    p_type = pickup_cfg.get("type", "single_coil")
+    if p_type == "composite":
+        components = pickup_cfg.get("components", [])
+        if not components:
+            return pl.lit(1.0)
+        total_w = sum(c.get("weight", 1.0) for c in components)
+        if total_w <= 0.0:
+            return pl.lit(1.0)
+        acc = None
+        for comp in components:
+            sub_id = comp["pickup"]
+            sub_w = comp.get("weight", 1.0)
+            sub_p = inst_cfg["pickups"][sub_id]
+            sub_elec = resolve_pickup_electrical_response(freq_expr, sub_p, inst_cfg)
+            term = sub_elec * (sub_w / total_w)
+            acc = term if acc is None else (acc + term)
+        return acc
+
+    fr = pickup_cfg.get("resonant_frequency_hz")
+    q = pickup_cfg.get("q_factor", 1.35)
+    return polars_pickup_electrical_response(freq_expr, fr, q)
+
+def resolve_pickup_electrical_deconvolution(freq_expr, pickup_cfg, inst_cfg, epsilon=0.01):
+    """
+    Computes regularized Wiener deconvolution filter H_inv(f) for the source pickup's electrical response.
+    Returns 1.0 if no electrical resonance is configured.
+    """
+    p_type = pickup_cfg.get("type", "single_coil")
+    if p_type == "composite":
+        components = pickup_cfg.get("components", [])
+        has_fr = any(
+            inst_cfg.get("pickups", {}).get(c.get("pickup", ""), {}).get("resonant_frequency_hz")
+            for c in components
+        )
+        if not has_fr:
+            return pl.lit(1.0)
+        h_elec = resolve_pickup_electrical_response(freq_expr, pickup_cfg, inst_cfg)
+        return (h_elec * (1.0 + epsilon)) / (h_elec.pow(2) + epsilon)
+
+    fr = pickup_cfg.get("resonant_frequency_hz")
+    if fr is None or fr <= 0.0:
+        return pl.lit(1.0)
+    q = pickup_cfg.get("q_factor", 1.35)
+    h_elec = polars_pickup_electrical_response(freq_expr, fr, q)
+    return (h_elec * (1.0 + epsilon)) / (h_elec.pow(2) + epsilon)
+
 def compute_aperture_prefilter_fir(voice_id, instrument="30in", src_scale=None, num_taps=NUM_TAPS):
     """
     Computes the acoustic pre-filter FIR (multi-coil aperture de-convolution, displacement delta,
@@ -498,9 +560,12 @@ def compute_aperture_prefilter_fir(voice_id, instrument="30in", src_scale=None, 
     else:
         h_tension = pl.lit(1.0)
 
-    # Total acoustic/spatial pre-filter response (RLC electronics handled in SPICE)
+    # 4. Active Pickup Electrical Resonance Deconvolution (Wiener Inversion)
+    h_elec_inv = resolve_pickup_electrical_deconvolution(f, src_pickup, inst)
+
+    # Total acoustic/spatial and electrical pre-filter response (RLC electronics handled in SPICE)
     df = df.with_columns(
-        (h_acoustic_transfer * (h_low_tilt * h_hi_tilt) * h_tension).alias("prefilter_curve")
+        (h_acoustic_transfer * h_elec_inv * (h_low_tilt * h_hi_tilt) * h_tension).alias("prefilter_curve")
     )
 
     resp_series = df["prefilter_curve"]
