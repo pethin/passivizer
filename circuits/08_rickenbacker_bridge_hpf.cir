@@ -18,11 +18,11 @@ C_coil node2 0 90p
 * 3. Rickenbacker Vintage High-Pass Series Capacitor (Cuts sub-mud below 150Hz)
 C_rick node2 node_hpf 4.7n
 
-* 4. Dunlop 500k Super Pot (Volume @ 100%)
+* 4. 500k Volume Pot (Volume @ 100%)
 R_pot_top node_hpf node3 10
 R_pot_bot node3 0 500k
 
-* 5. Dunlop Hybrid Treble Bleed (Lug 3 to Lug 2)
+* 5. Hybrid Treble Bleed (Lug 3 to Lug 2)
 C_tb node_hpf tb_mid 1.0n
 R_tb_par node_hpf tb_mid 150k
 R_tb_ser tb_mid node3 20k

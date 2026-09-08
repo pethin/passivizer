@@ -69,13 +69,13 @@ Once the signal leaves the coils, it encounters the potentiometer network and to
                  Lug 1 (Ground) ──► GND
 ```
 
-### A. The 500k Dunlop Super Pot
+### A. The 500k Volume Pot
 * Unlike a $250\text{ k}\Omega$ pot which damps the resonant peak, a $500\text{ k}\Omega$ pot maintains higher $Q$ (cleaner articulation and more pronounced transient bite).
 * In SPICE, the pot is modeled as two variable resistors:
   $$R_{\text{top}} = R_{\text{pot}} \cdot (1 - \alpha), \quad R_{\text{bot}} = R_{\text{pot}} \cdot \alpha$$
   where $\alpha \in [0, 1]$ represents the mechanical taper.
 
-### B. Dunlop Hybrid Treble-Bleed Network
+### B. Hybrid Treble-Bleed Network
 The blueprint specifies:
 * **Capacitor ($C_{\text{tb}}$):** $1,000\text{ pF}$ ($1.0\text{ nF}$)
 * **Parallel Resistor ($R_{\text{par}}$):** $150\text{ k}\Omega$ (1/4W, 1%)

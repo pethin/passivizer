@@ -17,11 +17,11 @@ C_coil node2 0 80p
 * 3. Tone Pot Rolled Off (0 Ohm resistance, direct 47nF shunted to ground)
 C_tone node2 0 47n
 
-* 4. Dunlop 500k Super Pot (Volume @ 100%)
+* 4. 500k Volume Pot (Volume @ 100%)
 R_pot_top node2 node3 10
 R_pot_bot node3 0 500k
 
-* 5. Dunlop Hybrid Treble Bleed (Lug 3 to Lug 2)
+* 5. Hybrid Treble Bleed (Lug 3 to Lug 2)
 C_tb node2 tb_mid 1.0n
 R_tb_par node2 tb_mid 150k
 R_tb_ser tb_mid node3 20k

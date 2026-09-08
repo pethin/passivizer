@@ -40,7 +40,7 @@ Passivizer models the complete electro-acoustic path in four distinct layers:
         │
         ▼
 3. On-Instrument Control Circuit
-   ├── Master Volume Potentiometer (500k Dunlop audio taper)
+   ├── Master Volume Potentiometer (500k audio taper)
    ├── Hybrid Treble-Bleed Network (1.0 nF || 150 kΩ + 20 kΩ)
    └── Optional Capacitive C-Switch Bank
         │
@@ -98,7 +98,7 @@ uv run python scripts/analyze_voices.py --source-scale 32in
 Directly streams raw NAM calibration audio (`v1_1_1.wav`) through the entire physical digital twin in a single in-memory pass:
 1. **Acoustic Aperture & Placement:** De-humbucking sinc aperture filtering, spatial standing-wave comb filtering, displacement tilt ($\Delta x$), and string tension filtering.
 2. **Dynamic Non-Linear Compliance:** Soft-knee saturation ($V_{\text{sat}} \cdot \tanh(v / V_{\text{sat}})$).
-3. **Passive Pickup Circuit Twin:** Exact closed-form nodal AC transfer functions, eddy-current damping, Dunlop 500k volume pot divider, hybrid treble bleed, cable capacitance ($750\text{ pF}$), and pedalboard load ($1\text{ M}\Omega \parallel 30\text{ pF}$).
+3. **Passive Pickup Circuit Twin:** Exact closed-form nodal AC transfer functions, eddy-current damping, 500k volume pot divider, hybrid treble bleed, cable capacitance ($750\text{ pF}$), and pedalboard load ($1\text{ M}\Omega \parallel 30\text{ pF}$).
 
 Passivizer's **native Apple Silicon (`arm64`) Virtual Analog engine** eliminates external SPICE dependencies and intermediate disk writes, executing in ~0.8s per voice (>1500x faster than traditional transient SPICE):
 
@@ -224,7 +224,7 @@ passivizer/
 - [x] Master passive pickup catalog covering single-coil, split-coil, dual-coil, series/parallel hybrids, and fanned multi-scale
 
 ### Phase 2: SPICE & Virtual Analog Circuit Digital Twins
-- [x] 11 Parameterized SPICE netlists with Dunlop pot, hybrid treble bleed, and cable loading (`circuits/*.cir`)
+- [x] 11 Parameterized SPICE netlists with 500k volume pot, hybrid treble bleed, and cable loading (`circuits/*.cir`)
 - [x] Specialty circuit digital twins: Rickenbacker $4.7\text{ nF}$ series HPF, Motown $47\text{ nF}$ tone shunt, and Dingwall multi-scale bridge
 - [x] Native Apple Silicon (`arm64`) Virtual Analog circuit simulation engine (`scripts/simulate_circuits.py`) with exact nodal RLC solutions and vector soft-knee compliance (>1500x speedup)
 

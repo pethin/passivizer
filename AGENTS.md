@@ -57,7 +57,7 @@ passivizer/
 │   └── voices.toml           # Voice metadata linking to SPICE netlists
 ├── docs/                     # Technical documentation & interactive charts
 │   ├── voice_catalog.md      # Passive pickup models, RLC parameters, character
-│   ├── circuit_theory.md     # Differential equations, Dunlop pot, treble bleed
+│   ├── circuit_theory.md     # Differential equations, 500k volume pot, treble bleed
 │   ├── aperture_math.md      # Aperture sinc, wave speeds, multi-scale filters
 │   ├── anagram_workflow.md   # Darkglass Anagram Block 1 routing & banks
 │   └── frequency_responses.html # Interactive Altair visualization
