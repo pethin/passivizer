@@ -202,7 +202,7 @@ $$v_s = 2 \cdot L \cdot f_{0,s}$$
 
 ## 4. Target Voice Definitions (`config/voices.toml`)
 
-`config/voices.toml` links each of the 11 digital twin voices to its LTspice netlist and acoustic parameters. Voices use the same flexible multi-coil schema as source instruments, supporting arbitrary coil counts (>2 coils) and per-string coil bindings:
+`config/voices.toml` links each of the 12 digital twin voices to its WAV SPICE netlist (`circuits/*.cir`) and acoustic parameters. Passivizer's built-in WAV SPICE simulator directly parses and evaluates these netlists on audio streams:
 
 | Field | Type | Units | Description |
 | :--- | :--- | :--- | :--- |

@@ -34,8 +34,7 @@ When contributing to or maintaining this repository, strictly adhere to these ar
   - Minimum-phase FIR synthesis uses our internal homomorphic real-cepstrum Hilbert transform engine vectorized with NumPy.
   - Do **NOT** add `scipy` or `soundfile` as dependencies (they carry legacy C/Fortran bloat).
 - **Circuit Simulation Engine:**
-  - **Native Engine (Default):** Native Apple Silicon (`arm64`) Virtual Analog solver (`scripts/simulate_circuits.py`) providing zero-external-dependency analytical nodal RLC solving and vector soft-knee saturation ($V_{\text{sat}} \cdot \tanh(v/V_{\text{sat}})$) at >1500x speed.
-  - **LTspice (Optional Legacy):** Standalone `.cir` netlists formatted for headless LTspice (`/Applications/LTspice.app/Contents/MacOS/LTspice -b`) selectable via `--backend ltspice`.
+  - **Native WAV SPICE Engine:** Built-in Apple Silicon (`arm64`) WAV SPICE circuit simulation engine (`scripts/simulate_circuits.py`) providing zero-external-dependency SPICE netlist parsing, analytical nodal RLC solving, and vector soft-knee saturation ($V_{\text{sat}} \cdot \tanh(v/V_{\text{sat}})$) directly on audio waveforms at >1500x speed.
 
 ---
 
@@ -50,7 +49,7 @@ passivizer/
 ├── audio/                    # Generated 24-bit audio digital twins (audio/<instrument>/)
 ├── circuits/                 # Standalone SPICE circuit netlists (.cir)
 │   ├── 01_jazz_bass_pair.cir
-│   └── ... (01 through 11)
+│   └── ... (01 through 12)
 ├── config/                   # Modular TOML configuration files
 │   ├── instruments/          # Source bass definitions (scale, pickups, routing)
 │   ├── scales.toml           # Standard scale wave speeds
@@ -67,7 +66,7 @@ passivizer/
 │   ├── model_physics.py      # Aperture sinc, scale wave speeds, and FIR engine
 │   ├── analyze_voices.py     # Polars + Altair frequency curve visualizer & portal generator
 │   ├── prep_nam_audio.py     # Standalone/legacy aperture pre-filter exporter
-│   ├── simulate_circuits.py  # Unified Virtual Analog engine (in-memory aperture + circuit sim)
+│   ├── simulate_circuits.py  # Native WAV SPICE simulator (in-memory aperture + circuit sim)
 │   └── run_pipeline.py       # Master end-to-end automated runner
 └── tests/                    # Pytest test suite (47 tests)
 ```

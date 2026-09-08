@@ -1,10 +1,10 @@
 # Passivizer
 
-**Passivizer** is an analog modeling and digital twin pipeline that transforms active, wideband, low-impedance bass pickup signals—specifically **EMG X-Series (18V)**—into authentic emulations of high-impedance **passive pickup circuits**.
+**Passivizer** is an analog modeling and digital twin pipeline that transforms active, wideband, low-impedance bass pickup signals—specifically **EMG X-Series (18V)**—into accurate emulations of high-impedance **passive pickup circuits**.
 
 Designed specifically to feed modelers like the **Darkglass Anagram**, Helix, Quad Cortex, and DAW plugin hosts, Passivizer produces both:
 1. **Minimum-Phase Impulse Responses (IRs):** High-precision 48 kHz / 24-bit FIR filters for fast, zero-latency pickup re-voicing.
-2. **Neural Amp Modeler (NAM) Profiles:** Nano/Feather neural models trained on SPICE circuit simulations to capture dynamic magnetic saturation, eddy-current damping, volume pot loading, and treble-bleed interactions.
+2. **Neural Amp Modeler (NAM) Profiles:** Nano/Feather/A2 neural captures trained on native WAV SPICE circuit simulations to capture dynamic magnetic saturation, eddy-current damping, volume pot loading, and treble-bleed interactions.
 
 ---
 
@@ -17,6 +17,30 @@ In modern bass signal chains, trying to convert a passive bass to sound active w
 * **Target (Passive Circuit):** Fundamentally subtractive, resonant, and capacitive. 
 
 Because the active source delivers an unclipped, full-bandwidth signal, Passivizer can carve out the exact physical and electrical transfer function of any passive pickup without boosting background hiss or running into phase smearing.
+
+---
+
+## Why Not Just an Impulse Response (IR)?
+
+While an Impulse Response (IR) or FIR filter can reproduce a static frequency curve, physical passive guitar and bass pickups are fundamentally **non-linear, dynamic, reactive electro-mechanical transducers**. Relying solely on a linear IR misses the core physical behavior and tactile response of a real instrument:
+
+1. **Linear Time-Invariance (LTI) vs. Analog Dynamic "Give":**
+   * An IR is strictly linear and time-invariant: plucking pianissimo ($pp$) or digging in with aggressive slap or heavy pick strokes ($ff$) produces the identical transfer function.
+   * Real passive magnetic pickups exhibit dynamic core excursion non-linearities and flux compression when strings swing close to the pole pieces. Passivizer models this dynamic non-linearity via vector soft-knee saturation ($V_{\text{sat}} \cdot \tanh(v / V_{\text{sat}})$), reproducing the $1.5\text{--}2.5\text{ dB}$ of tactile compression, bloom, and dynamic "give" experienced when digging into real copper coils.
+
+2. **Pre-Conditioning Downstream Distortion Stages:**
+   * In a digital modeler like the **Darkglass Anagram**, Passivizer sits in **Block 1**, directly feeding high-gain preamps and overdrives (Microtubes B7K, Vintage Ultra, Alpha·Omega).
+   * A linear IR passes high-headroom active transients through uncompressed, causing subsequent overdrive stages to clip on artificial, brittle spikes. A Passivizer neural model pre-conditions the signal with true passive saturation and impedance damping, ensuring downstream distortion blocks saturate smoothly and musically.
+
+3. **Eddy Currents & Time-Domain Energy Storage:**
+   * Metal components (pole pieces, baseplates, covers) generate circulating eddy currents that produce frequency-dependent damping ($R_{\text{eddy}}$) and subtle phase lag during rapid string transients.
+   * An IR treats this as a stationary frequency cut. A **Neural Amp Modeler (NAM)** neural network captures the dynamic time-domain energy storage and release of the complete reactive RLC network.
+
+4. **Multi-Coil Spatial Phase Summing:**
+   * Instruments with multiple coils or pickups (Jazz Bass pairs, P/J, StingRay dual coils) feature complex spatial cancellation patterns that vary with string amplitude and string displacement. NAM neural models capture compound phase interactions and harmonic cancellation across the full frequency spectrum without comb-filtering artifacts or phase smearing.
+
+> [!NOTE]
+> Passivizer *can* synthesize zero-latency minimum-phase FIR impulse responses for ultra-lightweight linear filtering. However, its flagship pipeline trains lightweight **NAM neural models** (Architecture 2 / Nano/Feather) to preserve the full dynamic touch sensitivity, bloom, and analog feel of physical passive circuits.
 
 ---
 
@@ -81,7 +105,7 @@ Passivizer includes pre-configured physical and electrical parameters for **12 d
 
 ## SPICE $\to$ NAM Pipeline & CLI Usage
 
-Passivizer models the acoustic aperture and scale tension in Python, feeds the pre-filtered signal into LTspice circuit digital twins, and trains lightweight NAM (`.nam`) neural captures for Block 1 of the Darkglass Anagram:
+Passivizer models acoustic aperture and scale tension in Python, executes the passive circuit digital twin directly using its native WAV SPICE simulator, and trains lightweight NAM (`.nam`) neural captures for Block 1 of the Darkglass Anagram:
 
 ### 1. Interactive Acoustic & Electrical Visualizer (`scripts/analyze_voices.py`)
 Renders interactive frequency response curves in Altair (Vega-Lite), comparing all 12 target configurations against any source instrument. Outputs are organized into per-instrument standalone charts and a unified interactive portal:
@@ -96,31 +120,28 @@ uv run python scripts/analyze_voices.py --instrument 30in
 ```
 *Outputs: Master interactive portal at `docs/frequency_responses.html` (and `docs/frequency_responses/index.html`) with embedded tabbed navigation and spec breakdown, and per-instrument standalone visualizations in `docs/frequency_responses/<instrument_id>.html`.*
 
-### 2. Unified Virtual Analog Circuit Simulation (`scripts/simulate_circuits.py`)
+### 2. Native WAV SPICE Circuit Simulation (`scripts/simulate_circuits.py`)
 Directly streams raw NAM calibration audio (`v1_1_1.wav`) through the entire physical digital twin in a single in-memory pass:
 1. **Acoustic Aperture & Placement:** De-humbucking sinc aperture filtering, spatial standing-wave comb filtering, displacement tilt ($\Delta x$), and string tension filtering.
 2. **Dynamic Non-Linear Compliance:** Soft-knee saturation ($V_{\text{sat}} \cdot \tanh(v / V_{\text{sat}})$).
 3. **Passive Pickup Circuit Twin:** Exact closed-form nodal AC transfer functions, eddy-current damping, 500k volume pot divider, hybrid treble bleed, cable capacitance ($750\text{ pF}$), and pedalboard load ($1\text{ M}\Omega \parallel 30\text{ pF}$).
 
-Passivizer's **native Apple Silicon (`arm64`) Virtual Analog engine** eliminates external SPICE dependencies and intermediate disk writes, executing in ~0.8s per voice (>1500x faster than traditional transient SPICE):
+Passivizer features a built-in **WAV SPICE simulator** running natively on Apple Silicon (`arm64`). By evaluating exact analytical nodal equations and vector non-linearities directly in memory on the audio waveform, it eliminates external SPICE dependencies (such as LTspice or ngspice) and intermediate disk writes, executing in ~0.8s per voice (>1500x faster than traditional transient SPICE engines):
 
 ```bash
-# Run unified end-to-end simulation from raw audio for a specific voice (~0.8s):
+# Run unified WAV SPICE simulation from raw audio for a specific voice (~0.8s):
 uv run python scripts/simulate_circuits.py --voice 03_modern_p_ceramic --instrument 30in
 
-# Simulate all 11 voices:
+# Simulate all 12 voices:
 uv run python scripts/simulate_circuits.py --voice all --instrument 30in
 
-# Run via master pipeline (defaults to native backend):
+# Run via master pipeline:
 uv run python main.py --stage sim --voice 03_modern_p_ceramic
-
-# Optional legacy fallback: Headless LTspice (requires macOS LTspice installation):
-uv run python main.py --stage sim --backend ltspice --voice 03_modern_p_ceramic
 ```
 
 *(Note: `scripts/prep_nam_audio.py` is retained for users who wish to inspect or export intermediate standalone aperture audio `audio/<instrument>/aperture_<voice>.wav`).*
 
-### 4. NAM Neural Model Training (Architecture 2 / A2)
+### 3. NAM Neural Model Training (Architecture 2 / A2)
 Trains a high-efficiency **NAM Architecture 2 (A2)** neural model on the input/output audio pair. A2 replaces legacy A1 models (nano/feather/standard) with a "slimmable" neural architecture designed specifically for low-power hardware like the Darkglass Anagram:
 
 ```bash
@@ -133,7 +154,7 @@ uv run python main.py --stage train --instrument 30in --voice 03_modern_p_cerami
 ```
 *(In modern versions of `neural-amp-modeler` and the official Google Colab trainer, `--architecture A2` is the default. Note: NAM is trained end-to-end from the raw input `v1_1_1.wav` to capture the entire acoustic aperture, string tension, and electrical RLC behavior in a single unified model).*
 
-### 5. Master Automation Runner (`scripts/run_pipeline.py` & `main.py`)
+### 4. Master Automation Runner (`scripts/run_pipeline.py` & `main.py`)
 Execute the entire pipeline or specific stages with a single command:
 
 ```bash
@@ -210,9 +231,9 @@ passivizer/
 │   ├── model_physics.py                   # Aperture sinc, scale wave speeds, and FIR engine
 │   ├── analyze_voices.py                  # Polars + Altair frequency curve visualizer
 │   ├── prep_nam_audio.py                  # Aperture & scale tension pre-filtering for NAM
-│   ├── simulate_circuits.py               # Native Apple Silicon Virtual Analog circuit engine
+│   ├── simulate_circuits.py               # Native Apple Silicon WAV SPICE circuit engine
 │   └── run_pipeline.py                    # Master end-to-end automated runner
-├── tests/                                 # Pytest test suite (43 tests)
+├── tests/                                 # Pytest test suite (47 tests)
 └── models/                                # Exported .nam neural models
 ```
 
@@ -226,9 +247,9 @@ passivizer/
 - [x] Master passive pickup catalog covering single-coil, split-coil, dual-coil, series/parallel hybrids, and fanned multi-scale
 
 ### Phase 2: SPICE & Virtual Analog Circuit Digital Twins
-- [x] 11 Parameterized SPICE netlists with 500k volume pot, hybrid treble bleed, and cable loading (`circuits/*.cir`)
+- [x] 12 Parameterized SPICE netlists with 500k volume pot, hybrid treble bleed, and cable loading (`circuits/*.cir`)
 - [x] Specialty circuit digital twins: Rickenbacker $4.7\text{ nF}$ series HPF, Motown $47\text{ nF}$ tone shunt, and Dingwall multi-scale bridge
-- [x] Native Apple Silicon (`arm64`) Virtual Analog circuit simulation engine (`scripts/simulate_circuits.py`) with exact nodal RLC solutions and vector soft-knee compliance (>1500x speedup)
+- [x] Built-in Apple Silicon (`arm64`) WAV SPICE circuit simulation engine (`scripts/simulate_circuits.py`) with exact nodal RLC solutions and vector soft-knee compliance (>1500x speedup over traditional transient SPICE)
 
 ### Phase 3: Spatial Placement & Scale-Length Engine
 - [x] Integration of 30" EMG MM datum ($77.5\text{ mm}$ from bridge) and 32" P/MM datums
@@ -239,8 +260,8 @@ passivizer/
 
 ### Phase 4: Pipeline Automation & Verification
 - [x] Install project Python dependencies with `uv` on Python 3.14 (`polars`, `altair`, `pedalboard`, `pytest`)
-- [x] Automated end-to-end runner (`scripts/run_pipeline.py` & `main.py`) for Altair charts, audio pre-filtering, and native/LTspice circuit simulations
-- [x] Comprehensive `pytest` test suite (43 tests) for aperture sinc/comb math, minimum-phase FIR DSP, circuit netlists and nodal math, voice catalogs, visualizer, and audio pipeline (`uv run pytest`)
+- [x] Automated end-to-end runner (`scripts/run_pipeline.py` & `main.py`) for Altair charts, audio pre-filtering, and native WAV SPICE circuit simulations
+- [x] Comprehensive `pytest` test suite (47 tests) for aperture sinc/comb math, minimum-phase FIR DSP, circuit netlists and nodal math, voice catalogs, visualizer, and audio pipeline (`uv run pytest`)
 
 ### Phase 5: Hardware & Modeler Integration (Upcoming)
 - [ ] Darkglass Suite preset pack export bundle (`.darkglass` XML format)

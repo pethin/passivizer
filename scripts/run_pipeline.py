@@ -3,7 +3,7 @@ Passivizer - Master Automation Pipeline Runner (SPICE -> NAM)
 Coordinates:
 1. Interactive Frequency Visualization (Polars + Altair -> docs/frequency_responses.html)
 2. Acoustic Pre-Filtering (prep_nam_audio.py: aperture, placement, and scale tension)
-3. Headless SPICE Circuit Twin Simulation (LTspice batch mode)
+3. Native WAV SPICE Circuit Twin Simulation (scripts/simulate_circuits.py)
 """
 
 import argparse
@@ -176,7 +176,7 @@ def main():
         "--backend",
         choices=["native", "ltspice"],
         default="native",
-        help="Circuit simulation engine: 'native' (Apple Silicon Virtual Analog) or 'ltspice' (legacy external app)"
+        help="Circuit simulation engine: 'native' (built-in Apple Silicon WAV SPICE simulator) or 'ltspice' (legacy external app)"
     )
     parser.add_argument(
         "--voice",
