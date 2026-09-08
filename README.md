@@ -114,13 +114,14 @@ Streams the acoustic pre-filtered audio through physical digital twins of passiv
 /Applications/LTspice.app/Contents/MacOS/LTspice -b circuits/03_modern_p_ceramic.cir
 ```
 
-### 4. NAM Neural Model Training
-Trains a lightweight `nano` or `feather` architecture model on the input/output audio pair for zero-latency, non-linear hardware execution:
+### 4. NAM Neural Model Training (Architecture 2 / A2)
+Trains a high-efficiency **NAM Architecture 2 (A2)** neural model on the input/output audio pair. A2 replaces legacy A1 models (nano/feather/standard) with a "slimmable" neural architecture designed specifically for low-power hardware like the Darkglass Anagram:
 
 ```bash
-# Train lightweight nano model for Darkglass Anagram Block 1:
-nam train circuits/v1_1_1_aperture.wav circuits/03_modern_p_ceramic.wav ./models/03_modern_p_ceramic --architecture "nano"
+# Train NAM Architecture 2 (A2) model for Darkglass Anagram Block 1:
+nam train circuits/v1_1_1_aperture.wav circuits/out_03_modern_p_ceramic.wav ./models/03_modern_p_ceramic --architecture "A2"
 ```
+*(In modern versions of `neural-amp-modeler` and the official Google Colab trainer, `--architecture A2` is the default).*
 
 ### 5. Master Automation Runner (`scripts/run_pipeline.py` & `main.py`)
 Execute the entire pipeline or specific stages with a single command:
