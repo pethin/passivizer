@@ -210,48 +210,38 @@ $$v_s = 2 \cdot L \cdot f_{0,s}$$
 | `circuit` | `string` | Path | Relative path to standalone SPICE netlist (`circuits/03_modern_p_ceramic.cir`). |
 | `topology` | `string` | — | Circuit topology classification (e.g. `"Split-Coil Ceramic"`). |
 | `description` | `string` | — | Tonal character, reference pickup model, and hardware notes. |
-| `fr` | `float` | Hz | Target electrical resonant peak frequency under load. |
-| `Q` | `float` | — | Target electrical quality factor under pot and cable load. |
+| `fr` | `float` | Hz | Target electrical resonant peak frequency under load (composite/single pickup). |
+| `Q` | `float` | — | Target electrical quality factor under pot and cable load (composite/single pickup). |
 | `gain_db` | `float` | dB | Output gain trim for volume normalization. |
 | `scale` | `string` | Key | Target scale key in `scales.toml` (`"34in"` or `"multiscale"`). |
 | `hpf` | `float` | Hz | *(Optional)* High-pass filter cutoff frequency (e.g. $150.0\text{ Hz}$ for Rickenbacker). |
-| `coils` | `array[table]` | — | **Primary Coil Array:** List of physical sensing coils with string bindings and positions. |
+| `coils` | `array[table]` | — | **Flattened Coil Array:** Physical sensing coils with string bindings and positions. |
+| `pickups` | `array-of-tables` | — | *(Optional)* **Multi-Pickup Array:** Independent pickups with individual resonant frequencies and quality factors. |
 
-### Coil Table Attributes (`coils = [...]`)
+### Multi-Pickup Definitions (`[[voices.<id>.pickups]]`)
+
+For instruments combining multiple pickups (such as P/J, Jazz Bass pairs, and P/MM), each pickup is modeled with its own independent electrical RLC resonant peak ($f_r$, $Q$), blend weight, and physical coils:
 
 | Key | Type | Default | Description |
 | :--- | :--- | :--- | :--- |
-| `strings` | `list[str]` | `["all"]` | Strings sensed by this coil: `["all"]`, `["E", "A"]`, `["D", "G"]`, etc. |
-| `position_from_bridge_m` | `float` | **Required** | Physical distance from bridge saddle in meters. |
-| `aperture_width_in` | `float` | `0.75` | Magnetic window aperture width in inches. |
-| `weight` | `float` | `1.0` | Relative electrical/spatial weighting (e.g. `0.5` for parallel/series humbucker coils). |
+| `name` | `string` | `"Pickup"` | Display name for the pickup (e.g. `"Precision Split-Coil (Neck)"`). |
+| `type` | `string` | `"single_coil"` | Classification (`"split_coil"`, `"single_coil"`, `"dual_coil_parallel"`). |
+| `fr` | `float` | **Required** | Standalone electrical resonant frequency in Hz under load. |
+| `Q` | `float` | `1.5` | Quality factor under pot and cable load. |
+| `weight` | `float` | `1.0` | Relative blend/sum weight (e.g. `0.5` for 50/50 parallel blend). |
 | `polarity` | `float` | `1.0` | Phase polarity (`+1.0` in-phase, `-1.0` reverse). |
+| `coils` | `array[table]` | **Required** | Sensing coils belonging to this specific pickup. |
 
-### Target Voice Multi-Coil Examples
+### Target Voice Multi-Pickup Examples
 
-#### 1. Split-Coil Precision Bass (String-Bound Geometry)
-```toml
-[voices.03_modern_p_ceramic]
-name = "03. Modern Split-Coil P (Ceramic)"
-circuit = "circuits/03_modern_p_ceramic.cir"
-topology = "Split-Coil Ceramic"
-fr = 2200.0
-Q = 1.8
-gain_db = 1.5
-scale = "34in"
-coils = [
-    { strings = ["E", "A"], position_from_bridge_m = 0.1390, aperture_width_in = 1.00, weight = 1.0 },
-    { strings = ["D", "G"], position_from_bridge_m = 0.1110, aperture_width_in = 1.00, weight = 1.0 }
-]
-```
-
-#### 2. Compound 3-Coil P/J Hybrid (Split P + Jazz Bridge)
+#### 1. Compound 3-Coil P/J Hybrid (Dual Resonances)
 ```toml
 [voices.06_pj_hybrid_parallel]
 name = "06. P/J Hybrid (Parallel)"
 circuit = "circuits/06_pj_hybrid_parallel.cir"
 topology = "P/J Parallel Sum"
-fr = 3600.0
+blend_mode = "parallel"
+fr = 3600.0  # Composite equivalent resonant peak
 Q = 1.4
 gain_db = 0.8
 scale = "34in"
@@ -260,27 +250,67 @@ coils = [
     { strings = ["D", "G"], position_from_bridge_m = 0.1110, aperture_width_in = 1.00, weight = 0.5 },
     { strings = ["all"],    position_from_bridge_m = 0.0406, aperture_width_in = 0.75, weight = 0.5 }
 ]
-```
 
-#### 3. Compound 4-Coil P/MM Hybrid (Split P + Music Man Humbucker)
-```toml
-[voices.09_pmm_hybrid_series]
-name = "09. P/MM Hybrid (Series Sum)"
-circuit = "circuits/09_pmm_hybrid_series.cir"
-topology = "P/MM Series Sum"
-fr = 2000.0
-Q = 2.2
-gain_db = 5.8
-scale = "34in"
+[[voices.06_pj_hybrid_parallel.pickups]]
+name = "Precision Split-Coil (Neck)"
+type = "split_coil"
+fr = 2200.0
+Q = 1.8
+weight = 0.5
 coils = [
-    { strings = ["E", "A"], position_from_bridge_m = 0.1390, aperture_width_in = 1.00, weight = 0.5 },
-    { strings = ["D", "G"], position_from_bridge_m = 0.1110, aperture_width_in = 1.00, weight = 0.5 },
-    { strings = ["all"],    position_from_bridge_m = 0.0755, aperture_width_in = 0.75, weight = 0.5 },
-    { strings = ["all"],    position_from_bridge_m = 0.0565, aperture_width_in = 0.75, weight = 0.5 }
+    { strings = ["E", "A"], position_from_bridge_m = 0.1390, aperture_width_in = 1.00, weight = 1.0 },
+    { strings = ["D", "G"], position_from_bridge_m = 0.1110, aperture_width_in = 1.00, weight = 1.0 }
+]
+
+[[voices.06_pj_hybrid_parallel.pickups]]
+name = "70s Jazz Single-Coil (Bridge)"
+type = "single_coil"
+fr = 3200.0
+Q = 1.6
+weight = 0.5
+coils = [
+    { strings = ["all"], position_from_bridge_m = 0.0406, aperture_width_in = 0.75, weight = 1.0 }
 ]
 ```
 
-*(Note: Legacy configurations specifying `pos_34`, `w`, and optional `d` continue to be supported through automatic fallback resolution in `resolve_voice_coils()`.)*
+#### 2. Dual Single-Coil Jazz Bass Pair
+```toml
+[voices.01_jazz_bass_pair]
+name = "01. Jazz Bass Pair (Parallel)"
+circuit = "circuits/01_jazz_bass_pair.cir"
+topology = "Dual Single-Coil Parallel"
+blend_mode = "parallel"
+fr = 3900.0
+Q = 1.3
+gain_db = -0.5
+scale = "34in"
+coils = [
+    { strings = ["all"], position_from_bridge_m = 0.1480, aperture_width_in = 0.75, weight = 0.5 },
+    { strings = ["all"], position_from_bridge_m = 0.0406, aperture_width_in = 0.75, weight = 0.5 }
+]
+
+[[voices.01_jazz_bass_pair.pickups]]
+name = "Jazz Single-Coil (Neck)"
+type = "single_coil"
+fr = 3600.0
+Q = 1.5
+weight = 0.5
+coils = [
+    { strings = ["all"], position_from_bridge_m = 0.1480, aperture_width_in = 0.75, weight = 1.0 }
+]
+
+[[voices.01_jazz_bass_pair.pickups]]
+name = "70s Jazz Single-Coil (Bridge)"
+type = "single_coil"
+fr = 3200.0
+Q = 1.6
+weight = 0.5
+coils = [
+    { strings = ["all"], position_from_bridge_m = 0.0406, aperture_width_in = 0.75, weight = 1.0 }
+]
+```
+
+*(Note: Single-pickup configurations specifying top-level `fr`, `Q`, and `coils` are automatically resolved into a canonical single-pickup structure by `resolve_voice_pickups()`.)*
 
 ---
 

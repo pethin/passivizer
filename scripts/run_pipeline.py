@@ -22,7 +22,7 @@ SCRIPTS_DIR = REPO_ROOT / "scripts"
 if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
 
-from model_physics import INSTRUMENTS, VOICES, resolve_voices, resolve_voice_coils, compute_effective_position
+from model_physics import INSTRUMENTS, VOICES, resolve_voices, resolve_voice_coils, resolve_voice_pickups, compute_effective_position
 
 DEFAULT_LTSPICE_BIN = "/Applications/LTspice.app/Contents/MacOS/LTspice"
 
@@ -134,8 +134,14 @@ def list_voices():
     for vid, cfg in VOICES.items():
         print(f"  - {vid}: {cfg.get('name', vid)} ({cfg.get('topology', '')})")
         coils = resolve_voice_coils(cfg)
+        pickups = resolve_voice_pickups(cfg)
         eff_pos = compute_effective_position(coils)
-        print(f"      Circuit: {cfg.get('circuit', '')} | Coils={len(coils)} (Eff pos={eff_pos*1000:.1f}mm) | fr={cfg.get('fr', 0)}Hz (Q={cfg.get('Q', 0)})")
+        if len(pickups) > 1:
+            print(f"      Circuit: {cfg.get('circuit', '')} | Pickups={len(pickups)}, Coils={len(coils)} (Eff pos={eff_pos*1000:.1f}mm) | Composite fr={cfg.get('fr', 0)}Hz (Q={cfg.get('Q', 0)})")
+            for p in pickups:
+                print(f"        * [{p['name']}]: fr={p['fr']:.0f}Hz (Q={p['Q']:.1f}), weight={p['weight']:.2f}, coils={len(p['coils'])}")
+        else:
+            print(f"      Circuit: {cfg.get('circuit', '')} | Coils={len(coils)} (Eff pos={eff_pos*1000:.1f}mm) | fr={cfg.get('fr', 0)}Hz (Q={cfg.get('Q', 0)})")
 
 def main():
     parser = argparse.ArgumentParser(description="Passivizer SPICE -> NAM Automation Pipeline")

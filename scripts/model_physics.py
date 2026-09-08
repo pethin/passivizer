@@ -329,8 +329,82 @@ def resolve_pickup_coils(pickup_dict, instrument=None):
         }
     ]
 
-def resolve_voice_coils(voice_cfg):
+def resolve_voice_pickups(voice_cfg):
+    """
+    Resolves a target voice configuration into a canonical list of pickup dicts.
+    Handles:
+      - Multi-pickup voices with explicit 'pickups = [...]' array
+      - Single-pickup voices with top-level 'fr', 'Q', 'coils'
+      - Legacy voices with 'pos_34', 'w', 'd'
+    Returns a list of dicts:
+      [
+        {
+          "name": str,
+          "type": str,
+          "fr": float,
+          "Q": float,
+          "weight": float,
+          "polarity": float,
+          "coils": list[dict]
+        },
+        ...
+      ]
+    """
+    if "pickups" in voice_cfg and voice_cfg["pickups"]:
+        resolved = []
+        for p in voice_cfg["pickups"]:
+            p_coils = []
+            for c in p.get("coils", []):
+                p_coils.append({
+                    "position_from_bridge_m": float(c["position_from_bridge_m"]),
+                    "aperture_width_in": float(c.get("aperture_width_in", 0.75)),
+                    "weight": float(c.get("weight", 1.0)),
+                    "polarity": float(c.get("polarity", 1.0)),
+                    "strings": list(c.get("strings", ["all"])),
+                })
+            resolved.append({
+                "name": str(p.get("name", "Pickup")),
+                "type": str(p.get("type", "single_coil")),
+                "fr": float(p.get("fr", voice_cfg.get("fr", 3000.0))),
+                "Q": float(p.get("Q", voice_cfg.get("Q", 1.5))),
+                "weight": float(p.get("weight", 1.0)),
+                "polarity": float(p.get("polarity", 1.0)),
+                "coils": p_coils,
+            })
+        if resolved:
+            return resolved
+
+    # Fallback for single-pickup voices: wrap top-level voice coils/fr/Q
+    return [
+        {
+            "name": str(voice_cfg.get("name", "Target Pickup")),
+            "type": str(voice_cfg.get("topology", "single")),
+            "fr": float(voice_cfg.get("fr", 3000.0)),
+            "Q": float(voice_cfg.get("Q", 1.5)),
+            "weight": 1.0,
+            "polarity": 1.0,
+            "coils": resolve_voice_coils(voice_cfg, _from_pickups=False),
+        }
+    ]
+
+def resolve_voice_coils(voice_cfg, _from_pickups=True):
     """Resolves target voice configuration into a canonical list of coil dicts."""
+    if _from_pickups and "pickups" in voice_cfg and voice_cfg["pickups"]:
+        all_coils = []
+        for p in voice_cfg["pickups"]:
+            p_weight = float(p.get("weight", 1.0))
+            p_pol = float(p.get("polarity", 1.0))
+            for c in p.get("coils", []):
+                all_coils.append({
+                    "position_from_bridge_m": float(c["position_from_bridge_m"]),
+                    "aperture_width_in": float(c.get("aperture_width_in", 0.75)),
+                    "weight": float(c.get("weight", 1.0)) * p_weight,
+                    "polarity": float(c.get("polarity", 1.0)) * p_pol,
+                    "strings": list(c.get("strings", ["all"])),
+                })
+        if all_coils:
+            return all_coils
+
     if "coils" in voice_cfg:
         normalized = []
         for c in voice_cfg["coils"]:

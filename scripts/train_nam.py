@@ -25,6 +25,7 @@ from model_physics import (
     INSTRUMENTS,
     resolve_voices,
     resolve_voice_coils,
+    resolve_voice_pickups,
     compute_effective_position,
 )
 
@@ -165,6 +166,7 @@ def train_voice(
             "q_factor": vcfg.get("Q", 0.0),
             "target_position_34_m": compute_effective_position(resolve_voice_coils(vcfg)),
             "effective_position_m": compute_effective_position(resolve_voice_coils(vcfg)),
+            "pickups": resolve_voice_pickups(vcfg),
             "coils": resolve_voice_coils(vcfg),
             "circuit": vcfg.get("circuit", ""),
         },

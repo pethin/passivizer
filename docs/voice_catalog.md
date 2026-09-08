@@ -26,9 +26,10 @@ This catalog details the physical parameters, equivalent RLC circuit values, aco
 
 ### 01. `01_jazz_bass_pair` (Dual Single-Coil Parallel)
 * **Archetype:** Standard Jazz Bass Dual Single-Coil Pair
-* **Coil Model:** Two narrow single coils ($w = 0.75''$) in parallel spaced $\sim 3.6''$ apart
-* **Electrical Parameters:** $L = 1.69\text{ H}$, $R_{\text{dc}} = 3.69\text{ k}\Omega$, $R_{\text{eddy}} = 65\text{ k}\Omega$, $C_{\text{coil}} = 145\text{ pF}$
-* **Acoustic Character:** Symmetrical dual-aperture phase cancellation produces a hollow mid-scoop at $1\text{ kHz}$ with extended sparkle up to $5.5\text{ kHz}$. Provides percussive slap articulation and wide harmonic clarity.
+* **Pickup Architecture:** Dual parallel single coils (Neck: $3.20\text{ H}, f_r = 3.6\text{ kHz}$; Bridge: $3.60\text{ H}, f_r = 3.2\text{ kHz}$)
+* **Coil Model:** Two narrow single coils ($w = 0.75''$) in parallel spaced $107.4\text{ mm}$ apart ($148.0\text{ mm}$ neck, $40.6\text{ mm}$ bridge)
+* **Electrical Parameters:** Dual parallel SPICE branches; combined $L_{\text{eq}} = 1.69\text{ H}$, $R_{\text{dc}} = 3.69\text{ k}\Omega$, $R_{\text{eddy}} = 65\text{ k}\Omega$, $C_{\text{coil}} = 145\text{ pF}$ (composite $f_r = 3.9\text{ kHz}, Q = 1.3$)
+* **Acoustic Character:** Symmetrical dual-aperture phase cancellation produces a hollow mid-scoop at $1\text{ kHz}$ with extended sparkle up to $5.5\text{ kHz}$. Individual neck ($3.6\text{ kHz}$) and bridge ($3.2\text{ kHz}$) resonances preserve transient snap on top and body below.
 * **32" Bass Setting:** ABCX Blend at **Center Detent (50/50)**.
 
 ### 02. `02_jazz_bridge_70s` (70s Jazz Bass Bridge Single-Coil)
@@ -61,9 +62,11 @@ This catalog details the physical parameters, equivalent RLC circuit values, aco
 
 ### 06. `06_pj_hybrid_parallel` (P/J Hybrid Parallel Sum)
 * **Archetype:** P/J Bass Configuration (Fender Precision Special / Yamaha BB)
-* **Coil Model:** Split P ($1.0''$) $+$ Bridge Single ($0.75''$) in parallel
-* **Electrical Parameters:** $L = 2.06\text{ H}$, $R_{\text{dc}} = 4.28\text{ k}\Omega$, $R_{\text{eddy}} = 60\text{ k}\Omega$, $C_{\text{coil}} = 150\text{ pF}$
-* **Acoustic Character:** Blends $80\%$ of a P-bass's low-frequency weight with $20\%$ added bridge pickup definition. Balanced and versatile studio foundation.
+* **Pickup Architecture:** Dual parallel pickups:
+  * **Precision Neck:** Split-coil Bartolini 8CBP ($L = 4.80\text{ H}, f_r = 2200\text{ Hz}, Q = 1.8$, E/A @ $139\text{ mm}$, D/G @ $111\text{ mm}$)
+  * **Jazz Bridge:** Single-coil Bartolini 9CBJS1 ($L = 3.60\text{ H}, f_r = 3200\text{ Hz}, Q = 1.6$, @ $40.6\text{ mm}$)
+* **Electrical Parameters:** Dual parallel SPICE branches; composite $L_{\text{eq}} = 2.06\text{ H}$, $R_{\text{dc}} = 4.28\text{ k}\Omega$, $R_{\text{eddy}} = 60\text{ k}\Omega$, $C_{\text{coil}} = 150\text{ pF}$ (composite $f_r = 3.6\text{ kHz}, Q = 1.4$)
+* **Acoustic Character:** Simultaneous presentation of the deep $2.2\text{ kHz}$ P-neck fundamental punch and the bright $3.2\text{ kHz}$ J-bridge bite, modulated by $85\text{ mm}$ spatial phase cancellation in the lower midrange.
 * **32" Bass Setting:** ABCX Blend at **Center Detent (50/50)** (MMTWX in Single-Coil Mode).
 
 ### 07. `07_stingray_mm_parallel` (Music Man Dual-Coil Parallel)
@@ -82,8 +85,10 @@ This catalog details the physical parameters, equivalent RLC circuit values, aco
 
 ### 09. `09_pmm_hybrid_series` (P/MM Hybrid Series Sum)
 * **Archetype:** Custom P/MM Hybrid in Series
-* **Coil Model:** Split P ($4.8\text{ H}$) $+$ MM Humbucker ($2.4\text{ H}$) in series
-* **Electrical Parameters:** $L = 7.20\text{ H}$, $R_{\text{dc}} = 14.10\text{ k}\Omega$, $R_{\text{eddy}} = 250\text{ k}\Omega$, $C_{\text{coil}} = 50\text{ pF}$
+* **Pickup Architecture:** Dual series pickups:
+  * **Precision Neck:** Split-coil Bartolini 8CBP ($L = 4.80\text{ H}, f_r = 2200\text{ Hz}, Q = 1.8$)
+  * **Music Man Bridge:** Dual-coil humbucker MM4CBC ($L = 2.40\text{ H}, f_r = 3500\text{ Hz}, Q = 1.5$)
+* **Electrical Parameters:** Series-connected SPICE stages; total series $L_{\text{ser}} = 7.20\text{ H}$, $R_{\text{dc}} = 14.10\text{ k}\Omega$, $R_{\text{eddy}} = 250\text{ k}\Omega$, $C_{\text{coil}} = 50\text{ pF}$ (composite $f_r = 2.0\text{ kHz}, Q = 2.2$)
 * **Acoustic Character:** Series inductance addition yields a large $+5.8\text{ dB}$ signal boost and a dense, forward $2.0\text{ kHz}$ resonant center. Fills out sparse instrument arrangements with commanding low-mids.
 * **32" Bass Setting:** ABCX Blend at **Center Detent (50/50)** (MMTWX in Dual-Coil Mode).
 

@@ -23,6 +23,7 @@ from model_physics import (
     get_source_pickup,
     resolve_pickup_coils,
     resolve_voice_coils,
+    resolve_voice_pickups,
     compute_effective_position,
     polars_pickup_acoustic_response
 )
@@ -57,12 +58,39 @@ def build_voice_dataframe(voice_id, cfg, instrument="30in", src_scale=None):
     df = pl.DataFrame({"frequency": log_freqs})
     f_col = pl.col("frequency")
 
-    # 1. Unified Multi-Coil Acoustic Transfer via Polars
+    # 1. Source Pickup Acoustic Response
     h_src_acoustic = polars_pickup_acoustic_response(f_col, src_coils, src_speeds)
-    h_tgt_acoustic = polars_pickup_acoustic_response(f_col, tgt_coils, tgt_speeds)
-    h_acoustic_transfer = (h_tgt_acoustic * h_src_acoustic) / (h_src_acoustic.pow(2) + 0.001)
 
-    # 2. Macro Position Displacement Tilt (1.5 dB/inch)
+    # 2. Target Composite Acoustic + Electrical Pickup Superposition
+    # Each pickup senses string standing waves at its own location(s) and filters through its OWN electrical resonance
+    pickups = resolve_voice_pickups(cfg)
+    fc_hpf = cfg.get("hpf")
+    h_tgt_total = None
+
+    for p in pickups:
+        p_coils = p["coils"]
+        p_weight = p.get("weight", 1.0)
+        p_pol = p.get("polarity", 1.0)
+        fr_p = p["fr"]
+        Q_p = p["Q"]
+
+        # Pickup-specific acoustic sensing across all strings
+        h_ac = polars_pickup_acoustic_response(f_col, p_coils, tgt_speeds)
+
+        # Pickup-specific electrical RLC resonance
+        h_el = 1.0 / (((1.0 - (f_col / fr_p).pow(2)).pow(2) + (1.0 / Q_p ** 2) * (f_col / fr_p).pow(2))).sqrt()
+
+        p_resp = h_ac * h_el * (p_weight * p_pol)
+        h_tgt_total = p_resp if h_tgt_total is None else (h_tgt_total + p_resp)
+
+    # Apply optional high-pass filter (e.g. Rickenbacker 4.7nF)
+    if fc_hpf:
+        h_tgt_total = h_tgt_total * (f_col / (f_col.pow(2) + fc_hpf ** 2).sqrt())
+
+    # 3. Acoustic/Electrical Transfer from Source to Target
+    h_transfer = (h_tgt_total * h_src_acoustic) / (h_src_acoustic.pow(2) + 0.001)
+
+    # 4. Macro Position Displacement Tilt (1.5 dB/inch)
     delta_in = (tgt_pos_eff - src_pos_eff) / 0.0254
     tilt_db = delta_in * 1.5
     g_low = 10.0 ** (tilt_db / 20.0)
@@ -70,7 +98,7 @@ def build_voice_dataframe(voice_id, cfg, instrument="30in", src_scale=None):
     h_low_tilt = ((g_low ** 2 + (f_col / 250.0).pow(2)) / (1.0 + (f_col / 250.0).pow(2))).sqrt()
     h_hi_tilt = ((1.0 + g_hi ** 2 * (f_col / 2200.0).pow(2)) / (1.0 + (f_col / 2200.0).pow(2))).sqrt()
 
-    # 3. Scale Tension Filter
+    # 5. Scale Tension Filter
     src_scale_in = inst.get("scale_length_in", 34.0)
     if tgt_scale == "multiscale":
         sub_gain = 10.0 ** (1.5 / 20.0)
@@ -86,16 +114,8 @@ def build_voice_dataframe(voice_id, cfg, instrument="30in", src_scale=None):
     else:
         h_tension = pl.lit(1.0)
 
-    # 4. Electrical RLC Resonance
-    fr, Q = cfg["fr"], cfg["Q"]
-    h_elec = 1.0 / (((1.0 - (f_col / fr).pow(2)).pow(2) + (1.0 / Q ** 2) * (f_col / fr).pow(2))).sqrt()
-
-    if "hpf" in cfg:
-        fc_hpf = cfg["hpf"]
-        h_elec = h_elec * (f_col / (f_col.pow(2) + fc_hpf ** 2).sqrt())
-
     df = df.with_columns(
-        (h_acoustic_transfer * (h_low_tilt * h_hi_tilt) * h_tension * h_elec).alias("mag_raw")
+        (h_transfer * (h_low_tilt * h_hi_tilt) * h_tension).alias("mag_raw")
     )
 
     max_val = df["mag_raw"].max()

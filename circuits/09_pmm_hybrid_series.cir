@@ -8,11 +8,18 @@ V_in in 0 wavefile="v1_1_1_aperture.wav"
 * 2. Dynamic Magnetic Core & String Excursion Saturation (Soft-Knee Compliance)
 B_comp in_dyn 0 V=0.40 * tanh(V(in) / 0.40)
 
-* 3. Pickup Coils (8CBP P-Neck & MM4CBC Bridge in Series)
-L_coil in_dyn node1 7.20
-R_dc node1 node2 14.1k
-R_eddy in_dyn node2 250k
-C_coil node2 0 50p
+* 3. Pickup Coils: P/MM in Series Sum (Precision Neck + Music Man Bridge)
+* --- Stage 1: Bartolini 8CBP Precision Neck (4.8H, 9.5k, 80pF, 110k eddy) ---
+L_neck in_dyn node1_n 4.80
+R_dc_n node1_n node_mid 9.50k
+R_eddy_n in_dyn node_mid 110k
+C_coil_n node_mid 0 80p
+
+* --- Stage 2: Bartolini MM4CBC Music Man Bridge (2.4H, 4.6k, 90pF, 85k eddy) ---
+L_bridge node_mid node1_b 2.40
+R_dc_b node1_b node2 4.60k
+R_eddy_b node_mid node2 85k
+C_coil_b node2 0 90p
 
 * 3. Dunlop 500k Super Pot (Volume @ 100%)
 R_pot_top node2 node3 10

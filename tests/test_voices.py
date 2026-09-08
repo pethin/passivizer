@@ -38,6 +38,53 @@ def test_voice_parameter_validity():
             assert "strings" in c, f"{vid} coil {i} missing strings binding"
             assert isinstance(c["strings"], list) and len(c["strings"]) >= 1
 
+        if "pickups" in cfg:
+            assert len(cfg["pickups"]) >= 2, f"{vid} pickups list has fewer than 2 pickups"
+            for j, p in enumerate(cfg["pickups"]):
+                assert "name" in p, f"{vid} pickup {j} missing name"
+                assert p.get("fr", 0) > 0, f"{vid} pickup {j} invalid fr: {p.get('fr')}"
+                assert p.get("Q", 0) > 0, f"{vid} pickup {j} invalid Q: {p.get('Q')}"
+                assert p.get("weight", 0) > 0, f"{vid} pickup {j} invalid weight"
+                assert "coils" in p and len(p["coils"]) >= 1, f"{vid} pickup {j} missing coils"
+
+def test_resolve_voice_pickups():
+    from scripts.model_physics import resolve_voice_pickups
+
+    # 1. Multi-pickup: 06_pj_hybrid_parallel
+    p_pj = resolve_voice_pickups(VOICES["06_pj_hybrid_parallel"])
+    assert len(p_pj) == 2
+    assert p_pj[0]["fr"] == 2200.0
+    assert p_pj[0]["Q"] == 1.8
+    assert p_pj[0]["weight"] == 0.5
+    assert len(p_pj[0]["coils"]) == 2  # P-split E/A + D/G
+
+    assert p_pj[1]["fr"] == 3200.0
+    assert p_pj[1]["Q"] == 1.6
+    assert p_pj[1]["weight"] == 0.5
+    assert len(p_pj[1]["coils"]) == 1  # J-bridge
+
+    # 2. Multi-pickup: 01_jazz_bass_pair
+    p_jazz = resolve_voice_pickups(VOICES["01_jazz_bass_pair"])
+    assert len(p_jazz) == 2
+    assert p_jazz[0]["fr"] == 3600.0
+    assert p_jazz[0]["Q"] == 1.5
+    assert p_jazz[1]["fr"] == 3200.0
+    assert p_jazz[1]["Q"] == 1.6
+
+    # 3. Multi-pickup: 09_pmm_hybrid_series
+    p_pmm = resolve_voice_pickups(VOICES["09_pmm_hybrid_series"])
+    assert len(p_pmm) == 2
+    assert p_pmm[0]["fr"] == 2200.0
+    assert p_pmm[1]["fr"] == 3500.0
+
+    # 4. Single-pickup voice auto-wrapping: 03_modern_p_ceramic
+    p_p = resolve_voice_pickups(VOICES["03_modern_p_ceramic"])
+    assert len(p_p) == 1
+    assert p_p[0]["fr"] == 2200.0
+    assert p_p[0]["Q"] == 1.8
+    assert p_p[0]["weight"] == 1.0
+    assert len(p_p[0]["coils"]) == 2
+
 def test_resolve_voice_coils():
     from scripts.model_physics import resolve_voice_coils, compute_effective_position
 

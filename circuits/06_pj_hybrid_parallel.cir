@@ -8,11 +8,18 @@ V_in in 0 wavefile="v1_1_1_aperture.wav"
 * 2. Dynamic Magnetic Core & String Excursion Saturation (Soft-Knee Compliance)
 B_comp in_dyn 0 V=0.50 * tanh(V(in) / 0.50)
 
-* 3. Pickup Coils (8CBP P-Neck & 9CBJS1 J-Bridge in Parallel)
-L_coil in_dyn node1 2.06
-R_dc node1 node2 4.28k
-R_eddy in_dyn node2 60k
-C_coil node2 0 150p
+* 3. Pickup Coils: Dual Parallel Pickup Branches (P-Neck || J-Bridge)
+* --- Branch 1: Bartolini 8CBP Precision Neck (4.8H, 9.5k, 80pF, 110k eddy) ---
+L_neck in_dyn node1_n 4.80
+R_dc_n node1_n node2 9.50k
+R_eddy_n in_dyn node2 110k
+C_coil_n node2 0 80p
+
+* --- Branch 2: Bartolini 9CBJS1 Jazz Bridge (3.6H, 7.8k, 70pF, 125k eddy) ---
+L_bridge in_dyn node1_b 3.60
+R_dc_b node1_b node2 7.80k
+R_eddy_b in_dyn node2 125k
+C_coil_b node2 0 70p
 
 * 3. Dunlop 500k Super Pot (Volume @ 100%)
 R_pot_top node2 node3 10
