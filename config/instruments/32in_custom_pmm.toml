@@ -55,17 +55,6 @@ components = [
     { pickup = "mmtwx_dual", weight = 0.5 }
 ]
 
-[pickups.blend_series]
-name = "EMG PX + MMTWX Series Sum"
-position_from_bridge_m = 0.0925
-aperture_width_in = 1.25
-coil_spacing_in = 0.75
-type = "composite"
-components = [
-    { pickup = "px", weight = 1.0 },
-    { pickup = "mmtwx_dual", weight = 1.0 }
-]
-
 [pickup_mapping]
 "01_jazz_bass_pair" = "blend_parallel"
 "02_jazz_bridge_70s" = "mmtwx_single"
@@ -75,6 +64,6 @@ components = [
 "06_pj_hybrid_parallel" = "blend_parallel"
 "07_stingray_mm_parallel" = "mmtwx_dual"
 "08_rickenbacker_bridge_hpf" = "mmtwx_single"
-"09_pmm_hybrid_series" = "blend_series"
-"10_mudbucker_ultra_series" = "blend_series"
+"09_pmm_hybrid_series" = "blend_parallel"
+"10_mudbucker_ultra_series" = "px"
 "11_dingwall_multiscale_bridge" = "mmtwx_dual"

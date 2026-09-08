@@ -14,7 +14,7 @@ from scripts.model_physics import (
 
 def test_load_all_default_instruments():
     instruments = load_all_instruments()
-    expected_ids = ["30in_emg_mm", "30in_emg_mmtw", "32in_custom_pmm", "34in_standard_p", "34in_standard_jazz"]
+    expected_ids = ["30in_emg_mmtw", "32in_custom_pmm", "34in_standard_p", "34in_standard_jazz"]
     for iid in expected_ids:
         assert iid in instruments, f"Default instrument '{iid}' not found"
 
@@ -52,9 +52,9 @@ def test_30in_mmtw_routing():
 
 def test_30in_mm_legacy_routing():
     inst = load_instrument("30in_emg_mm")
-    assert inst["id"] == "30in_emg_mm"
+    assert inst["id"] == "30in_emg_mmtw"
     pickup = get_source_pickup(inst, "07_stingray_mm_parallel")
-    assert pickup["name"] == "EMG MM Dual Coil"
+    assert pickup["name"] == "EMG MMTW Dual-Coil (Centerline)"
     assert math.isclose(pickup["position_from_bridge_m"], 0.0775, abs_tol=1e-4)
     assert math.isclose(pickup["coil_spacing_in"], 0.90, abs_tol=1e-4)
 
@@ -82,10 +82,15 @@ def test_32in_custom_pmm_routing():
     assert pj_pickup["name"] == "EMG PX + MMTWX Parallel (Center Detent)"
     assert math.isclose(pj_pickup["position_from_bridge_m"], 0.0868, abs_tol=1e-4)
 
-    # P/MM series routes to series pair
+    # P/MM series voice routes to physical parallel center detent blend
     pmm_pickup = get_source_pickup(inst, "09_pmm_hybrid_series")
-    assert pmm_pickup["name"] == "EMG PX + MMTWX Series Sum"
-    assert math.isclose(pmm_pickup["position_from_bridge_m"], 0.0925, abs_tol=1e-4)
+    assert pmm_pickup["name"] == "EMG PX + MMTWX Parallel (Center Detent)"
+    assert math.isclose(pmm_pickup["position_from_bridge_m"], 0.0868, abs_tol=1e-4)
+
+    # Mudbucker routes to neck PX
+    mud_pickup = get_source_pickup(inst, "10_mudbucker_ultra_series")
+    assert mud_pickup["name"] == "Reverse EMG PX Split-Coil (Neck)"
+    assert math.isclose(mud_pickup["position_from_bridge_m"], 0.1228, abs_tol=1e-4)
 
 def test_load_custom_user_bass_toml():
     """Verify that any future bass or external user bass can be loaded from an arbitrary TOML file."""
@@ -133,19 +138,15 @@ coil_spacing_in = 0.65
 def test_resolve_pickup_coils():
     from scripts.model_physics import load_instrument, resolve_pickup_coils
 
-    # 1. 30" MM (dual coil)
-    inst_30 = load_instrument("30in_emg_mm")
-    coils_30 = resolve_pickup_coils(inst_30["pickups"]["mm"], inst_30)
-    assert len(coils_30) == 2
-    assert all("all" in c["strings"] for c in coils_30)
+    # 1. 30" MMTW (dual and single coil)
+    inst_30 = load_instrument("30in")
+    coils_30_dual = resolve_pickup_coils(inst_30["pickups"]["mmtw_dual"], inst_30)
+    assert len(coils_30_dual) == 2
+    assert all("all" in c["strings"] for c in coils_30_dual)
 
-    # 1b. 30" MMTW (dual and single coil)
-    inst_30_tw = load_instrument("30in_emg_mmtw")
-    coils_tw_dual = resolve_pickup_coils(inst_30_tw["pickups"]["mmtw_dual"], inst_30_tw)
-    assert len(coils_tw_dual) == 2
-    coils_tw_single = resolve_pickup_coils(inst_30_tw["pickups"]["mmtw_single"], inst_30_tw)
-    assert len(coils_tw_single) == 1
-    assert math.isclose(coils_tw_single[0]["position_from_bridge_m"], 0.06607, abs_tol=1e-4)
+    coils_30_single = resolve_pickup_coils(inst_30["pickups"]["mmtw_single"], inst_30)
+    assert len(coils_30_single) == 1
+    assert math.isclose(coils_30_single[0]["position_from_bridge_m"], 0.06607, abs_tol=1e-4)
 
     # 2. 34" P (split coils with E/A and D/G binding)
     inst_p = load_instrument("34in_standard_p")
