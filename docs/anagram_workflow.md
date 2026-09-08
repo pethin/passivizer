@@ -147,4 +147,13 @@ When targeting an authentic upright double bass tone from a fretless electric ba
 3. **Block 3 Radiates the Soundboard:** The 3 Sigma IR receives the exact force signal it was designed for, radiating it through a spruce top and resonant double-bass body.
 4. **Anti-Double-Damping:** Because the 32" fretless is strung with La Bella Low Tension Flats, Passivizer's differential string engine automatically adjusts its acoustic damping curve, preventing the dull, muffled tone that occurs when a static acoustic low-pass filter is applied to already-dark flatwound strings.
 
+---
+
+## 6. Future Milestone: Native Anagram Marketplace Block
+
+While Passivizer currently deploys via the Anagram's stock Neural Amp Loader block, an upcoming roadmap goal is releasing an official **Anagram Marketplace Custom Block** (`marketplace.anagram.shop`):
+* **All-in-One Voice Selector:** Instant rotary switching across all 12 passive pickup topologies and acoustic transducers directly within a single block.
+* **Integrated Gain Normalization:** Automatically balances the $+5.8\text{ dB}$ series boost and $-2.5\text{ dB}$ single-coil level drop under the hood to ensure unity gain into Block 2.
+* **Dynamic Control Emulation:** Real-time on-screen controls for volume pot loading ($500\text{ k}\Omega$ vs. $250\text{ k}\Omega$), treble bleed networks, and cable capacitance ($750\text{ pF}$) loading.
+
 

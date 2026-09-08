@@ -2,8 +2,8 @@
 
 **Passivizer** is an analog modeling and digital twin pipeline that transforms active, wideband, low-impedance bass pickup signals—specifically **EMG X-Series (18V)**—into accurate emulations of high-impedance **passive pickup circuits**.
 
-Designed specifically to feed modelers like the **Darkglass Anagram**, Helix, Quad Cortex, and DAW plugin hosts, Passivizer produces both:
-1. **Minimum-Phase Impulse Responses (IRs):** High-precision 48 kHz / 24-bit FIR filters for fast, zero-latency pickup re-voicing.
+Designed specifically for NAM-capable pedalboards like the **Darkglass Anagram**, HeadRush, hardware IR loaders, and DAW plugin hosts, Passivizer produces both:
+1. **Minimum-Phase Impulse Responses (IRs):** High-precision 48 kHz / 24-bit FIR filters for fast, zero-latency pickup re-voicing on standard IR loaders.
 2. **Neural Amp Modeler (NAM) Profiles:** Nano/Feather/A2 neural captures trained on native WAV SPICE circuit simulations to capture dynamic magnetic saturation, eddy-current damping, volume pot loading, and treble-bleed interactions.
 
 ---
@@ -241,28 +241,15 @@ passivizer/
 
 ## Roadmap
 
-### Phase 1: Architecture & Modeling Definition
-- [x] Project initialization with `uv`
-- [x] Technical documentation suite (`docs/voice_catalog.md`, `circuit_theory.md`, `aperture_math.md`, `anagram_workflow.md`)
-- [x] Master passive pickup catalog covering single-coil, split-coil, dual-coil, series/parallel hybrids, and fanned multi-scale
+### Completed Milestones
+- [x] **Electro-Acoustic Physical Modeling:** Magnetic aperture sinc filtering, spatial comb nulls, scale-length wave-speed scaling ($30''/32'' \to 34''/37''$), and differential string tension modeling.
+- [x] **Native WAV SPICE Simulator:** High-performance Apple Silicon engine (`scripts/simulate_circuits.py`) solving analytical nodal RLC equations and $\tanh$ soft-knee saturation directly on audio at >1500x speed.
+- [x] **12 Passive Voice Profiles & Transducers:** Single-coil, split-coil, series/parallel dual-coils, fanned multi-scale, and double-bass bridge piezo force transducers.
+- [x] **Interactive Visualization Portal:** Polars + Altair frequency response portal with spec sheets and per-instrument interactive charts (`docs/frequency_responses.html`).
+- [x] **Automated NAM Training Pipeline:** End-to-end Architecture 2 (A2) neural model training targeting Darkglass Anagram Block 1.
+- [x] **Automated Test Suite:** Comprehensive 47-test pytest verification covering physical filters, nodal transfer functions, FIR DSP, and audio simulation.
 
-### Phase 2: SPICE & Virtual Analog Circuit Digital Twins
-- [x] 12 Parameterized SPICE netlists with 500k volume pot, hybrid treble bleed, and cable loading (`circuits/*.cir`)
-- [x] Specialty circuit digital twins: Rickenbacker $4.7\text{ nF}$ series HPF, Motown $47\text{ nF}$ tone shunt, and Dingwall multi-scale bridge
-- [x] Built-in Apple Silicon (`arm64`) WAV SPICE circuit simulation engine (`scripts/simulate_circuits.py`) with exact nodal RLC solutions and vector soft-knee compliance (>1500x speedup over traditional transient SPICE)
-
-### Phase 3: Spatial Placement & Scale-Length Engine
-- [x] Integration of 30" EMG MM datum ($77.5\text{ mm}$ from bridge) and 32" P/MM datums
-- [x] Scale-length wave-speed scaling ($\kappa_v$) for 30"/32" $\to$ 34" and 37" Multi-Scale conversion
-- [x] String tension & piano-clank filter modeling ($H_{\text{tension}}$)
-- [x] Pre-filtering utility for NAM audio (`scripts/prep_nam_audio.py`)
-- [x] Vectorized NumPy minimum-phase FIR synthesis engine (`scripts/model_physics.py`) with sub-millisecond Hilbert transform
-
-### Phase 4: Pipeline Automation & Verification
-- [x] Install project Python dependencies with `uv` on Python 3.14 (`polars`, `altair`, `pedalboard`, `pytest`)
-- [x] Automated end-to-end runner (`scripts/run_pipeline.py` & `main.py`) for Altair charts, audio pre-filtering, and native WAV SPICE circuit simulations
-- [x] Comprehensive `pytest` test suite (47 tests) for aperture sinc/comb math, minimum-phase FIR DSP, circuit netlists and nodal math, voice catalogs, visualizer, and audio pipeline (`uv run pytest`)
-
-### Phase 5: Hardware & Modeler Integration (Upcoming)
-- [ ] Darkglass Suite preset pack export bundle (`.darkglass` XML format)
-- [ ] A/B verification and dry-DI calibration against reference recordings
+### Upcoming Objectives
+- [ ] **Hardware Reference Calibration:** Dry-DI spectral matching and A/B verification against physical vintage instruments (1962 P-Bass, 1975 Jazz Bass, 1979 StingRay).
+- [ ] **In-Browser Audio Player:** Interactive audio preview player embedded directly into the Altair documentation portal.
+- [ ] **Anagram Marketplace Native Block:** Develop a dedicated, all-in-one "Passivizer" custom block for the Darkglass Anagram Marketplace (`marketplace.anagram.shop`), featuring rotary voice switching across all 12 pickup configurations, automatic gain normalization, and interactive volume/cable load controls in a single native Block 1 module.
