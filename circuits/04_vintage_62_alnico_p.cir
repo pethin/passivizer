@@ -1,0 +1,35 @@
+* Passivizer Netlist 04: Vintage '62 Alnico P-Bass (Organic Woody Dynamic Air)
+* Target: 1962 Fender Precision with Alnico V Magnets
+.options plotwinsize=0 numdgt=7
+
+* 1. Audio Source (Pre-filtered NAM Training Track)
+V_in in 0 wavefile="v1_1_1_aperture.wav"
+
+* 2. Pickup Coils (Vintage Alnico V Split-P, Lower Eddy Damping)
+L_coil in node1 3.8
+R_dc node1 node2 10.5k
+R_eddy in node2 180k
+C_coil node2 0 60p
+
+* 3. Dunlop 500k Super Pot (Volume @ 100%)
+R_pot_top node2 node3 10
+R_pot_bot node3 0 500k
+
+* 4. Dunlop Hybrid Treble Bleed (Lug 3 to Lug 2)
+C_tb node2 tb_mid 1.0n
+R_tb_par node2 tb_mid 150k
+R_tb_ser tb_mid node3 20k
+
+* 5. Instrument Cable Load (15-ft cable ~750pF)
+C_cable node3 0 750p
+
+* 6. Darkglass Anagram Input Stage (1 M-Ohm || 30pF)
+R_anagram node3 0 1Meg
+C_anagram node3 0 30p
+
+* 7. Transient Execution (48 kHz sample interval)
+.tran 0 180 0 20.8333u
+
+* 8. Output Audio Export for NAM Training
+.wave "out_04_vintage_62_alnico_p.wav" 24 48000 V(node3)
+.end

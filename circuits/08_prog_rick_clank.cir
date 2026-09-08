@@ -1,0 +1,39 @@
+* Passivizer Netlist 08: Prog Rock Rickenbacker 4003 Clank (High-Pass Series Cap)
+* Target: Rickenbacker Bridge Pickup with vintage 4.7nF series capacitor
+* Models Chris Squire / Geddy Lee / Tool pick aggression
+.options plotwinsize=0 numdgt=7
+
+* 1. Audio Source (Pre-filtered NAM Training Track)
+V_in in 0 wavefile="v1_1_1_aperture.wav"
+
+* 2. Pickup Coils (Rickenbacker High-Output Bridge Coil)
+L_coil in node1 3.8
+R_dc node1 node2 8.4k
+R_eddy in node2 140k
+C_coil node2 0 90p
+
+* 3. Rickenbacker Vintage High-Pass Series Capacitor (Cuts sub-mud below 150Hz)
+C_rick node2 node_hpf 4.7n
+
+* 4. Dunlop 500k Super Pot (Volume @ 100%)
+R_pot_top node_hpf node3 10
+R_pot_bot node3 0 500k
+
+* 5. Dunlop Hybrid Treble Bleed (Lug 3 to Lug 2)
+C_tb node_hpf tb_mid 1.0n
+R_tb_par node_hpf tb_mid 150k
+R_tb_ser tb_mid node3 20k
+
+* 6. Instrument Cable Load (15-ft cable ~750pF)
+C_cable node3 0 750p
+
+* 7. Darkglass Anagram Input Stage (1 M-Ohm || 30pF)
+R_anagram node3 0 1Meg
+C_anagram node3 0 30p
+
+* 8. Transient Execution (48 kHz sample interval)
+.tran 0 180 0 20.8333u
+
+* 9. Output Audio Export for NAM Training
+.wave "out_08_prog_rick_clank.wav" 24 48000 V(node3)
+.end

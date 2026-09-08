@@ -1,0 +1,25 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv/
+
+# IDE and OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
+
+# SPICE transient simulation outputs & logs
+circuits/*.raw
+circuits/*.log
+circuits/*.op.raw
+
+# Large NAM calibration files & trained model checkpoints
+v1_1_1*.wav
+models/
