@@ -14,6 +14,7 @@ import polars as pl
 import altair as alt
 
 SCRIPTS_DIR = Path(__file__).resolve().parent
+REPO_ROOT = SCRIPTS_DIR.parent
 if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
 
@@ -27,6 +28,12 @@ from model_physics import (
     resolve_voice_pickups,
     compute_effective_position,
     numpy_pickup_acoustic_response,
+    resolve_pickup_electrical_deconvolution,
+)
+from simulate_circuits import (
+    CIRCUITS_DIR,
+    parse_netlist,
+    compute_circuit_transfer_functions,
 )
 
 NUM_POINTS = 600
@@ -63,31 +70,52 @@ def build_voice_dataframe(voice_id, cfg, instrument="30in", src_scale=None):
 
     # 2. Target Composite Acoustic + Electrical Pickup Superposition
     pickups = resolve_voice_pickups(cfg)
-    fc_hpf = cfg.get("hpf")
-    h_tgt_total = np.zeros_like(freqs)
+    cir_rel = cfg.get("circuit", f"circuits/{voice_id}.cir")
+    cir_path = REPO_ROOT / cir_rel
+    if not cir_path.exists():
+        cir_path = CIRCUITS_DIR / f"{voice_id}.cir"
 
-    for p in pickups:
-        p_coils = p["coils"]
-        p_weight = p.get("weight", 1.0)
-        p_pol = p.get("polarity", 1.0)
-        fr_p = p["fr"]
-        Q_p = p["Q"]
-
-        # Pickup-specific acoustic sensing across all strings
-        h_ac = numpy_pickup_acoustic_response(freqs, p_coils, tgt_speeds)
-
-        # Pickup-specific electrical RLC resonance
-        h_el = 1.0 / np.sqrt((1.0 - (freqs / fr_p) ** 2) ** 2 + (1.0 / Q_p ** 2) * (freqs / fr_p) ** 2)
-
-        p_resp = h_ac * h_el * (p_weight * p_pol)
-        h_tgt_total += p_resp
-
-    # Apply optional high-pass filter (e.g. Rickenbacker 4.7nF)
-    if fc_hpf:
-        h_tgt_total = h_tgt_total * (freqs / np.sqrt(freqs ** 2 + fc_hpf ** 2))
+    if cir_path.exists():
+        model = parse_netlist(cir_path)
+        circuit_curves = compute_circuit_transfer_functions(model, freqs)
+        if len(circuit_curves) == 1:
+            h_circuit = np.asarray(circuit_curves[0], dtype=np.float64)
+            h_tgt_total = np.zeros_like(freqs)
+            for p in pickups:
+                p_coils = p["coils"]
+                p_weight = p.get("weight", 1.0)
+                p_pol = p.get("polarity", 1.0)
+                h_ac = numpy_pickup_acoustic_response(freqs, p_coils, tgt_speeds)
+                h_tgt_total += h_ac * h_circuit * (p_weight * p_pol)
+        else:
+            # Multi-branch circuit (e.g. parallel or series dual pickups)
+            # The nodal circuit solution already incorporates branch current/voltage distribution
+            h_tgt_total = np.zeros_like(freqs)
+            for p, c_curve in zip(pickups, circuit_curves):
+                p_coils = p["coils"]
+                p_pol = p.get("polarity", 1.0)
+                h_ac = numpy_pickup_acoustic_response(freqs, p_coils, tgt_speeds)
+                h_c = np.asarray(c_curve, dtype=np.float64)
+                h_tgt_total += h_ac * h_c * p_pol
+    else:
+        # Fallback to idealized 2nd-order biquad approximation
+        fc_hpf = cfg.get("hpf")
+        h_tgt_total = np.zeros_like(freqs)
+        for p in pickups:
+            p_coils = p["coils"]
+            p_weight = p.get("weight", 1.0)
+            p_pol = p.get("polarity", 1.0)
+            fr_p = p.get("fr", cfg.get("fr", 3000.0))
+            Q_p = p.get("Q", cfg.get("Q", 1.5))
+            h_ac = numpy_pickup_acoustic_response(freqs, p_coils, tgt_speeds)
+            h_el = 1.0 / np.sqrt((1.0 - (freqs / fr_p) ** 2) ** 2 + (1.0 / Q_p ** 2) * (freqs / fr_p) ** 2)
+            h_tgt_total += h_ac * h_el * (p_weight * p_pol)
+        if fc_hpf:
+            h_tgt_total = h_tgt_total * (freqs / np.sqrt(freqs ** 2 + fc_hpf ** 2))
 
     # 3. Acoustic/Electrical Transfer from Source to Target
-    h_transfer = (h_tgt_total * h_src_acoustic) / (h_src_acoustic ** 2 + 0.001)
+    h_elec_inv = resolve_pickup_electrical_deconvolution(freqs, src_pickup, inst)
+    h_transfer = ((h_tgt_total * h_src_acoustic) / (h_src_acoustic ** 2 + 0.001)) * h_elec_inv
 
     # 4. Macro Position Displacement Tilt (1.5 dB/inch)
     delta_in = (tgt_pos_eff - src_pos_eff) / 0.0254
