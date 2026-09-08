@@ -119,7 +119,7 @@ def train_voice(
     model_title = f"{voice_name} [{inst_name}]"
     user_metadata = UserMetadata(
         name=model_title,
-        modeled_by="Passivizer",
+        modeled_by="Passivizer (Peter Nguyen <peter@phn.dev>)",
         gear_make=inst_name,
         gear_model=f"{src_pickup_name} -> {voice_name}",
         gear_type="preamp",
@@ -148,6 +148,9 @@ def train_voice(
     print("\nExporting Architecture 2 (.nam) model container with full instrument metadata...")
     other_metadata = {
         train_meta.TRAINING_KEY: train_output.metadata.model_dump(),
+        "license": "PolyForm Noncommercial License 1.0.0 (https://polyformproject.org/licenses/noncommercial/1.0.0)",
+        "copyright": "Copyright 2026 Peter Nguyen <peter@phn.dev>. All commercial rights reserved.",
+        "author": "Peter Nguyen <peter@phn.dev>",
         "source_instrument": {
             "id": inst_id,
             "name": inst_name,

@@ -19,6 +19,19 @@ string_wave_speeds = [62.79, 83.82, 111.89, 149.35]
 default_pickup = "mmtw_dual"
 
 # ------------------------------------------------------------------------------
+# Physical Strings Configuration (Source Instrument Setup)
+# ------------------------------------------------------------------------------
+# Strung with short-scale nickel roundwounds (D'Addario EXL160S .050-.105).
+[strings]
+preset = "roundwound_nickel_standard"
+brand = "D'Addario"
+model = "EXL160S"
+gauge = "50-105"
+core = "hex"
+wrap = "nickel_round"
+tension_lbs = 145.0
+
+# ------------------------------------------------------------------------------
 # 1. DUAL-COIL MODE (Push/Pull Down: Humbucking Music Man Sound)
 # ------------------------------------------------------------------------------
 [pickups.mmtw_dual]
@@ -70,3 +83,4 @@ coils = [
 "09_pmm_hybrid_series" = "mmtw_dual"
 "10_mudbucker_ultra_series" = "mmtw_dual"
 "11_dingwall_multiscale_bridge" = "mmtw_dual"
+"12_upright_bridge_transducer" = "mmtw_dual"

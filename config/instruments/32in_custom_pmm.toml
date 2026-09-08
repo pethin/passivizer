@@ -19,7 +19,20 @@ scale_length_m = 0.8128
 # String wave speeds: v = 2 * L * f0 (for E1=41.2Hz, A1=55.0Hz, D2=73.4Hz, G2=98.0Hz)
 string_wave_speeds = [66.98, 89.41, 119.35, 159.31]
 
-default_pickup = "mmtwx_dual"
+default_pickup = "px"
+
+# ------------------------------------------------------------------------------
+# Physical Strings Configuration (Source Instrument Setup)
+# ------------------------------------------------------------------------------
+# Strung with medium-scale nickel roundwounds (D'Addario EXL165M .045-.105).
+[strings]
+preset = "roundwound_nickel_standard"
+brand = "D'Addario"
+model = "EXL165M"
+gauge = "45-105"
+core = "hex"
+wrap = "nickel_round"
+tension_lbs = 160.0
 
 # ------------------------------------------------------------------------------
 # 1. REVERSE EMG PX SPLIT-COIL (Neck Solo)
@@ -129,3 +142,4 @@ components = [
 "09_pmm_hybrid_series" = "blend_parallel"   # Center detent blend -> SPICE series digital twin
 "10_mudbucker_ultra_series" = "px"          # Solo neck pickup -> SPICE mudbucker digital twin
 "11_dingwall_multiscale_bridge" = "mmtwx_dual"
+"12_upright_bridge_transducer" = "px"

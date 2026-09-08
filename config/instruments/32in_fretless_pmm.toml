@@ -22,7 +22,7 @@ scale_length_m = 0.8128
 # String wave speeds: v = 2 * L * f0 (for E1=41.2Hz, A1=55.0Hz, D2=73.4Hz, G2=98.0Hz)
 string_wave_speeds = [66.98, 89.41, 119.35, 159.31]
 
-default_pickup = "upright_blend"
+default_pickup = "pcsx"
 
 # ------------------------------------------------------------------------------
 # Physical Strings Configuration (Source Instrument Setup)
@@ -159,4 +159,4 @@ components = [
 "09_pmm_hybrid_series" = "blend_parallel"
 "10_mudbucker_ultra_series" = "pcsx"
 "11_dingwall_multiscale_bridge" = "mmtwx_dual"
-"12_upright_bridge_transducer" = "upright_blend"
+"12_upright_bridge_transducer" = "pcsx"

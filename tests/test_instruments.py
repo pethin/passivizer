@@ -100,7 +100,7 @@ def test_32in_fretless_pmm_routing():
     inst = load_instrument("32in_fretless")
     assert inst["id"] == "32in_fretless_pmm"
     assert inst["scale_length_in"] == 32.0
-    assert inst["default_pickup"] == "upright_blend"
+    assert inst["default_pickup"] == "pcsx"
 
     # Alias check
     inst_alias = load_instrument("fretless")
@@ -117,15 +117,10 @@ def test_32in_fretless_pmm_routing():
     assert pcsx["coils"][1]["strings"] == ["E", "A"]
     assert math.isclose(pcsx["coils"][1]["position_from_bridge_m"], 0.1264, abs_tol=1e-4)
 
-    # Upright voice routes to upright_blend
+    # Upright voice routes to solo pcsx
     up_pickup = get_source_pickup(inst, "12_upright_bridge_transducer")
-    assert up_pickup["name"] == "Fretless Upright Blend (85% PCSX + 15% MMTWX Single)"
-    assert up_pickup["type"] == "composite"
-    assert len(up_pickup["components"]) == 2
-    assert up_pickup["components"][0]["pickup"] == "pcsx"
-    assert up_pickup["components"][0]["weight"] == 0.85
-    assert up_pickup["components"][1]["pickup"] == "mmtwx_single"
-    assert up_pickup["components"][1]["weight"] == 0.15
+    assert up_pickup["name"] == "Reverse EMG PCSX Split-Coil (Neck)"
+    assert up_pickup["type"] == "split_coil"
 
 def test_load_custom_user_bass_toml():
     """Verify that any future bass or external user bass can be loaded from an arbitrary TOML file."""
