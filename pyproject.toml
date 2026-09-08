@@ -3,6 +3,7 @@ name = "passivizer"
 version = "0.1.0"
 description = "Digital twin & analog modeling pipeline for EMG bass pickups"
 readme = "README.md"
+license = { text = "PolyForm-Noncommercial-1.0.0" }
 requires-python = ">=3.14"
 dependencies = [
     "polars>=1.20.0",
