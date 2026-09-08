@@ -83,16 +83,17 @@ Passivizer includes pre-configured physical and electrical parameters for **10 d
 Passivizer models the acoustic aperture and scale tension in Python, feeds the pre-filtered signal into LTspice circuit digital twins, and trains lightweight NAM (`.nam`) neural captures for Block 1 of the Darkglass Anagram:
 
 ### 1. Interactive Acoustic & Electrical Visualizer (`scripts/analyze_voices.py`)
-Renders interactive frequency response curves in Altair (Vega-Lite), comparing all 11 passive configurations against the source instrument:
+Renders interactive frequency response curves in Altair (Vega-Lite), comparing all 12 target configurations against any source instrument. Outputs are organized into per-instrument standalone charts and a unified interactive portal:
 
 ```bash
-# Generate interactive chart for 30" short-scale source bass:
-uv run python scripts/analyze_voices.py --source-scale 30in
+# Generate interactive charts for all configured source instruments and refresh master portal:
+uv run python scripts/analyze_voices.py
 
-# Generate interactive chart for 32" medium-scale source bass:
-uv run python scripts/analyze_voices.py --source-scale 32in
+# Generate or refresh for a specific instrument (preserves all other instrument charts):
+uv run python scripts/analyze_voices.py --instrument 32in_fretless
+uv run python scripts/analyze_voices.py --instrument 30in
 ```
-*Outputs: Standalone interactive HTML visualizer at `docs/frequency_responses.html`.*
+*Outputs: Master interactive portal at `docs/frequency_responses.html` (and `docs/frequency_responses/index.html`) with embedded tabbed navigation and spec breakdown, and per-instrument standalone visualizations in `docs/frequency_responses/<instrument_id>.html`.*
 
 ### 2. Unified Virtual Analog Circuit Simulation (`scripts/simulate_circuits.py`)
 Directly streams raw NAM calibration audio (`v1_1_1.wav`) through the entire physical digital twin in a single in-memory pass:

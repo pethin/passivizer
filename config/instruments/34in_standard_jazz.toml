@@ -12,6 +12,8 @@ position_from_bridge_m = 0.1480
 aperture_width_in = 0.75
 coil_spacing_in = 0.0
 type = "single_coil"
+resonant_frequency_hz = 3600.0   # Neck single-coil loaded resonance (3.6 kHz)
+q_factor = 1.50
 
 [pickups.bridge]
 name = "70s Jazz Bridge Single-Coil"
@@ -19,6 +21,8 @@ position_from_bridge_m = 0.0406
 aperture_width_in = 0.75
 coil_spacing_in = 0.0
 type = "single_coil"
+resonant_frequency_hz = 3200.0   # Bridge single-coil loaded resonance (3.2 kHz)
+q_factor = 1.60
 
 [pickups.pair_parallel]
 name = "Jazz Neck + Bridge Parallel"
@@ -26,12 +30,23 @@ position_from_bridge_m = 0.0880
 aperture_width_in = 0.75
 coil_spacing_in = 0.0
 type = "composite"
+resonant_frequency_hz = 3900.0   # Combined parallel equivalent resonance (3.9 kHz)
+q_factor = 1.30
 components = [
     { pickup = "neck", weight = 0.5 },
     { pickup = "bridge", weight = 0.5 }
 ]
 
 [pickup_mapping]
-"01_jazz_bass_pair" = "pair_parallel"
-"02_jazz_bridge_70s" = "bridge"
-"06_pj_hybrid_parallel" = "pair_parallel"
+"01_jazz_bass_pair" = "pair_parallel"          # Both pickups in parallel (identity)
+"02_jazz_bridge_70s" = "bridge"                 # Solo bridge single-coil (identity)
+"03_modern_p_ceramic" = "neck"                  # Solo neck single-coil (closest to P-bass position)
+"04_vintage_62_p_alnico" = "neck"               # Solo neck single-coil (closest to P-bass position)
+"05_p_bass_47nf_rolloff" = "neck"               # Solo neck single-coil
+"06_pj_hybrid_parallel" = "pair_parallel"       # Dual pickups in parallel
+"07_stingray_mm_parallel" = "bridge"            # Solo bridge pickup
+"08_rickenbacker_bridge_hpf" = "bridge"         # Solo bridge pickup
+"09_pmm_hybrid_series" = "pair_parallel"        # Dual pickups in parallel
+"10_mudbucker_ultra_series" = "neck"            # Solo neck pickup
+"11_dingwall_multiscale_bridge" = "bridge"      # Solo bridge pickup
+"12_upright_bridge_transducer" = "neck"         # Solo neck pickup for acoustic fullness

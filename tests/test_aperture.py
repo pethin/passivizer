@@ -43,9 +43,9 @@ def test_pickup_acoustic_response_single_coil():
     freqs = np.array([0.0, 500.0, 2000.0])
     res = pickup_acoustic_response(freqs, coils, speeds)
 
-    # At 0 Hz, standing wave sin(0) = 0, so result is floor (0.05)
-    assert math.isclose(res[0], 0.05, abs_tol=1e-4)
-    # At 500 and 2000 Hz, response is positive and above floor
+    # At 0 Hz, spatial phase is 0 and sinc(0) = 1, so response is 1.0 (fundamental preserved)
+    assert math.isclose(res[0], 1.0, abs_tol=1e-3)
+    # At 500 and 2000 Hz, response is positive
     assert res[1] > 0.05
     assert res[2] > 0.05
 
@@ -70,7 +70,7 @@ def test_split_coil_string_differentiation():
 def test_3coil_pmm_compound_response():
     """Verify that 3-coil P/MM blend evaluates 3 distinct physical coil positions."""
     inst = load_instrument("32in_custom_pmm")
-    blend = get_source_pickup(inst, "01_jazz_bass_pair") # routes to blend_parallel
+    blend = get_source_pickup(inst, "09_pmm_hybrid_series") # routes to blend_parallel
     coils = resolve_pickup_coils(blend, inst)
 
     # Should have 4 coil records (PX D/G, PX E/A, MMTWX neck, MMTWX bridge)

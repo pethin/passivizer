@@ -1,0 +1,44 @@
+* Passivizer Netlist 12: Upright Acoustic Bridge Transducer
+* Target: Direct bridge force sensor (Underwood / David Gage Realist style)
+* Captures dynamic bridge rocking compliance, piezo source capacitance, and subsonic decoupling
+.options plotwinsize=0 numdgt=7
+
+* 1. Audio Source (Pre-filtered NAM Training Track)
+V_in in 0 wavefile="v1_1_1_aperture.wav"
+
+* 2. Dynamic Bridge Rocking Compliance & Wood Compression (Soft-Knee Saturation)
+* Models bridge flex over bass bar and soundpost under firm pizzicato attack
+B_comp in_dyn 0 V=0.42 * tanh(V(in) / 0.42)
+
+* 3. Bridge Transducer Impedance & Piezo Crystal Load
+* Pure capacitive piezo sensor (1.2nF) with zero inductive resonance
+L_coil in_dyn node1 1u
+R_dc node1 node2 50
+R_eddy in_dyn node2 1Meg
+C_coil node2 0 1.2n
+
+* 4. Subsonic Decoupling High-Pass Capacitor (32 Hz Cutoff)
+* Prevents physical handling thump and low-frequency stage rumble
+C_rick node2 node_hpf 15n
+
+* 5. Direct Tailpiece Wiring (Bypasses Electric Volume Pot & Treble Bleed)
+* Acoustic upright bridge transducers connect directly to high-impedance buffers
+R_pot_top node_hpf node3 10
+R_pot_bot node3 0 100Meg
+C_tb node_hpf tb_mid 0p
+R_tb_par node_hpf tb_mid 100Meg
+R_tb_ser tb_mid node3 100Meg
+
+* 7. Instrument Cable Load (15-ft cable ~750pF)
+C_cable node3 0 750p
+
+* 8. Darkglass Anagram Input Stage (1 M-Ohm || 30pF)
+R_anagram node3 0 1Meg
+C_anagram node3 0 30p
+
+* 9. Transient Execution (48 kHz sample interval)
+.tran 0 190 0 20.833333333333333u
+
+* 10. Output Audio Export for NAM Training
+.wave "out_12_upright_bridge_transducer.wav" 24 48000 V(node3)
+.end

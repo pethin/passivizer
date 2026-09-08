@@ -134,6 +134,8 @@ def load_instrument(identifier_or_path):
         "30in_emg_mm": "30in_emg_mmtw",
         "30in_emg_mmtw": "30in_emg_mmtw",
         "32in": "32in_custom_pmm",
+        "32in_fretless": "32in_fretless_pmm",
+        "fretless": "32in_fretless_pmm",
         "34in": "34in_standard_p"
     }
     raw = str(identifier_or_path).strip()
@@ -448,11 +450,45 @@ def compute_effective_position(coils):
         return coils[0]["position_from_bridge_m"]
     return sum(c["position_from_bridge_m"] * c.get("weight", 1.0) for c in coils) / total_w
 
+def is_voice_matching_source(instrument, voice_id, voice_cfg=None):
+    """
+    Checks if a target voice physically matches the source instrument's pickup and scale,
+    meaning zero spatial or acoustic transfer is required (identity transformation).
+    """
+    inst = load_instrument(instrument) if not isinstance(instrument, dict) else instrument
+    vcfg = voice_cfg or VOICES.get(voice_id, {})
+
+    src_speeds = inst.get("string_wave_speeds", [])
+    tgt_scale = vcfg.get("scale", "34in")
+    tgt_speeds = SCALES.get(tgt_scale, {}).get("speeds", [])
+
+    if len(src_speeds) != len(tgt_speeds) or not np.allclose(src_speeds, tgt_speeds, rtol=0.02):
+        return False
+
+    src_p = get_source_pickup(inst, voice_id)
+    src_coils = resolve_pickup_coils(src_p, inst)
+    tgt_coils = resolve_voice_coils(vcfg)
+
+    if len(src_coils) != len(tgt_coils):
+        return False
+
+    s_sort = sorted(src_coils, key=lambda c: c["position_from_bridge_m"])
+    t_sort = sorted(tgt_coils, key=lambda c: c["position_from_bridge_m"])
+
+    for sc, tc in zip(s_sort, t_sort):
+        if abs(sc["position_from_bridge_m"] - tc["position_from_bridge_m"]) > 0.005:
+            return False
+        if abs(sc.get("aperture_width_in", 0.75) - tc.get("aperture_width_in", 0.75)) > 0.15:
+            return False
+
+    return True
+
 def numpy_pickup_acoustic_response(freqs, coils, string_speeds, string_names=None):
     """
-    Computes compound spatial standing-wave and aperture response for an arbitrary
+    Computes compound spatial aperture and multi-coil response for an arbitrary
     array of N physical coils across multi-string wave speeds using NumPy vector math.
     Respects per-string coil bindings (e.g. P-Bass split E/A vs D/G coils).
+    Preserves 0 dB low-frequency fundamental without artificial standing-wave comb nulls.
     """
     f = np.asarray(freqs, dtype=np.float64)
     if string_names is None:
@@ -472,20 +508,24 @@ def numpy_pickup_acoustic_response(freqs, coils, string_speeds, string_names=Non
         if not active:
             active = coils
 
-        coil_sum = np.zeros_like(f, dtype=np.float64)
+        total_w = sum(abs(c.get("weight", 1.0)) for c in active) or 1.0
+        center_pos = sum(c["position_from_bridge_m"] * abs(c.get("weight", 1.0)) for c in active) / total_w
+
+        # Complex phasor sum relative to active coil centroid
+        coil_sum = np.zeros_like(f, dtype=np.complex128)
         for c in active:
             pos_m = c["position_from_bridge_m"]
-            w_m = c["aperture_width_in"] * 0.0254
+            w_m = c.get("aperture_width_in", 0.75) * 0.0254
             weight = c.get("weight", 1.0)
             polarity = c.get("polarity", 1.0)
 
-            arg_p = f * (2.0 * math.pi * pos_m / v)
-            standing_wave = np.sin(arg_p)
+            delta_x = pos_m - center_pos
+            phase = 2.0 * math.pi * f * delta_x / v
             sinc_w = np.sinc(w_m * f / v)
 
-            coil_sum += weight * polarity * standing_wave * sinc_w
+            coil_sum += weight * polarity * sinc_w * np.exp(-1j * phase)
 
-        acc += np.abs(coil_sum) + 0.05
+        acc += np.abs(coil_sum)
 
     return acc / len(string_speeds)
 
@@ -638,36 +678,84 @@ def compute_voice_prefilter_firs(voice_id, instrument="30in", src_scale=None, nu
             ((1.0 - x_clank ** 2) ** 2 + (x_clank / (a_clank * 1.5)) ** 2)
         )
         h_tension = h_sub * h_clank
+    elif target_scale_key == "upright":
+        # Upright string physics & body bloom: deep fundamental, woody low-mids
+        g_bloom = 10.0 ** (2.0 / 20.0)
+        h_bloom = np.sqrt((g_bloom ** 2 + (freqs / 100.0) ** 2) / (1.0 + (freqs / 100.0) ** 2))
+        h_tension = h_bloom
     elif target_scale_key == "34in" and src_scale_in != 34.0:
         g_snap = 10.0 ** (1.8 / 20.0)
         h_tension = np.sqrt((1.0 + g_snap ** 2 * (freqs / 2800.0) ** 2) / (1.0 + (freqs / 2800.0) ** 2))
     else:
         h_tension = np.ones_like(freqs)
 
-    # Active Pickup Electrical Resonance Deconvolution (Wiener Inversion)
-    h_elec_inv = resolve_pickup_electrical_deconvolution_np(freqs, src_pickup, inst)
-
+    sensor_type = cfg.get("sensor_type", "magnetic")
     pickups = resolve_voice_pickups(cfg)
+    is_identity = (sensor_type != "bridge_force") and is_voice_matching_source(inst, voice_id, cfg)
+
+    # Resolve branch-matched source coils if source is a composite blend matching target branch count
+    src_components = src_pickup.get("components", []) if src_pickup.get("type") == "composite" else []
+    use_branch_matching = (len(src_components) == len(pickups) and len(pickups) > 1)
+
+    # Active Pickup Electrical Resonance Deconvolution (Wiener Inversion)
+    h_elec_inv = np.ones_like(freqs) if is_identity else resolve_pickup_electrical_deconvolution_np(freqs, src_pickup, inst)
     raw_firs = []
-    for p in pickups:
+    for i, p in enumerate(pickups):
         p_coils = p["coils"]
         tgt_pos_eff = compute_effective_position(p_coils)
 
-        h_tgt_acoustic = numpy_pickup_acoustic_response(freqs, p_coils, tgt_speeds)
-        h_acoustic_transfer = (h_tgt_acoustic * h_src_acoustic) / (h_src_acoustic ** 2 + 0.001)
+        if use_branch_matching:
+            comp_sub_id = src_components[i]["pickup"]
+            comp_sub_p = inst["pickups"][comp_sub_id]
+            b_src_coils = resolve_pickup_coils(comp_sub_p, inst)
+            b_src_pos_eff = compute_effective_position(b_src_coils)
+            b_src_acoustic = numpy_pickup_acoustic_response(freqs, b_src_coils, src_speeds)
+        else:
+            b_src_coils = src_coils
+            b_src_pos_eff = src_pos_eff
+            b_src_acoustic = h_src_acoustic
 
-        delta_in = (tgt_pos_eff - src_pos_eff) / 0.0254
-        tilt_db = delta_in * 1.5
-        g_low = 10.0 ** (tilt_db / 20.0)
-        g_hi = 10.0 ** (-tilt_db / 20.0)
-        h_low_tilt = np.sqrt((g_low ** 2 + (freqs / 250.0) ** 2) / (1.0 + (freqs / 250.0) ** 2))
-        h_hi_tilt = np.sqrt((1.0 + g_hi ** 2 * (freqs / 2200.0) ** 2) / (1.0 + (freqs / 2200.0) ** 2))
+        if sensor_type == "bridge_force":
+            # 1. De-combing regularized & band-limited without high-frequency flare
+            eps = 0.08
+            h_decomb = b_src_acoustic / (b_src_acoustic ** 2 + eps)
+            mid_mask = (freqs >= 100.0) & (freqs <= 1000.0)
+            h_decomb = h_decomb / np.median(h_decomb[mid_mask])
+
+            # 2. Acoustic bridge & soundboard mechanical damping (above 4.2 kHz)
+            f_damp = 4200.0
+            h_damp = 1.0 / np.sqrt((1.0 - (freqs / f_damp) ** 2) ** 2 + 2.0 * (freqs / f_damp) ** 2)
+
+            # 3. Subsonic rumble cut (32 Hz)
+            h_sub = freqs / np.sqrt(freqs ** 2 + 32.0 ** 2)
+
+            h_acoustic_transfer = h_decomb * h_damp * h_sub
+
+            # 4. Leaky velocity-to-force integrator (+6 dB/oct from 70 Hz to 250 Hz)
+            h_tilt = np.sqrt((1.0 + (freqs / 250.0) ** 2) / (1.0 + (freqs / 70.0) ** 2))
+            h_tilt = h_tilt / np.max(h_tilt)
+        elif is_identity:
+            h_acoustic_transfer = np.ones_like(freqs)
+            h_tilt = np.ones_like(freqs)
+        else:
+            h_tgt_acoustic = numpy_pickup_acoustic_response(freqs, p_coils, tgt_speeds)
+            h_ratio = h_tgt_acoustic / np.maximum(b_src_acoustic, 0.08)
+            h_acoustic_transfer = np.clip(h_ratio, 0.25, 4.0)
+
+            delta_in = (tgt_pos_eff - b_src_pos_eff) / 0.0254
+            tilt_db = delta_in * 1.5
+            g_low = 10.0 ** (tilt_db / 20.0)
+            g_hi = 10.0 ** (-tilt_db / 20.0)
+            h_low_tilt = np.sqrt((g_low ** 2 + (freqs / 250.0) ** 2) / (1.0 + (freqs / 250.0) ** 2))
+            h_hi_tilt = np.sqrt((1.0 + g_hi ** 2 * (freqs / 2200.0) ** 2) / (1.0 + (freqs / 2200.0) ** 2))
+            h_tilt = h_low_tilt * h_hi_tilt
 
         p_weight = p.get("weight", 1.0)
         p_pol = p.get("polarity", 1.0)
         scale_fac = abs(p_weight * p_pol)
 
-        prefilter_curve = scale_fac * h_acoustic_transfer * h_elec_inv * (h_low_tilt * h_hi_tilt) * h_tension
+        h_scale_tension = np.ones_like(freqs) if is_identity else h_tension
+        prefilter_curve = scale_fac * h_acoustic_transfer * h_elec_inv * h_tilt * h_scale_tension
         fir_raw = synthesize_minimum_phase_fir(prefilter_curve, num_taps=num_taps, normalize=False)
         raw_firs.append(fir_raw)
 
@@ -710,18 +798,48 @@ def compute_aperture_prefilter_fir(voice_id, instrument="30in", src_scale=None, 
     freqs = np.asarray(FREQS, dtype=np.float64)
 
     h_src_acoustic = numpy_pickup_acoustic_response(freqs, src_coils, src_speeds)
-    h_tgt_acoustic = numpy_pickup_acoustic_response(freqs, tgt_coils, tgt_speeds)
-    h_acoustic_transfer = (h_tgt_acoustic * h_src_acoustic) / (h_src_acoustic ** 2 + 0.001)
 
-    delta_in = (tgt_pos_eff - src_pos_eff) / 0.0254
-    tilt_db = delta_in * 1.5
-    g_low = 10.0 ** (tilt_db / 20.0)
-    g_hi = 10.0 ** (-tilt_db / 20.0)
-    h_low_tilt = np.sqrt((g_low ** 2 + (freqs / 250.0) ** 2) / (1.0 + (freqs / 250.0) ** 2))
-    h_hi_tilt = np.sqrt((1.0 + g_hi ** 2 * (freqs / 2200.0) ** 2) / (1.0 + (freqs / 2200.0) ** 2))
+    sensor_type = cfg.get("sensor_type", "magnetic")
+    is_identity = (sensor_type != "bridge_force") and is_voice_matching_source(inst, voice_id, cfg)
+    if sensor_type == "bridge_force":
+        # 1. De-combing regularized & band-limited without high-frequency flare
+        eps = 0.08
+        h_decomb = h_src_acoustic / (h_src_acoustic ** 2 + eps)
+        mid_mask = (freqs >= 100.0) & (freqs <= 1000.0)
+        h_decomb = h_decomb / np.median(h_decomb[mid_mask])
+
+        # 2. Acoustic bridge & soundboard mechanical damping (above 4.2 kHz)
+        f_damp = 4200.0
+        h_damp = 1.0 / np.sqrt((1.0 - (freqs / f_damp) ** 2) ** 2 + 2.0 * (freqs / f_damp) ** 2)
+
+        # 3. Subsonic rumble cut (32 Hz)
+        h_sub = freqs / np.sqrt(freqs ** 2 + 32.0 ** 2)
+
+        h_acoustic_transfer = h_decomb * h_damp * h_sub
+
+        # 4. Leaky velocity-to-force integrator (+6 dB/oct from 70 Hz to 250 Hz)
+        h_tilt = np.sqrt((1.0 + (freqs / 250.0) ** 2) / (1.0 + (freqs / 70.0) ** 2))
+        h_tilt = h_tilt / np.max(h_tilt)
+    elif is_identity:
+        h_acoustic_transfer = np.ones_like(freqs)
+        h_tilt = np.ones_like(freqs)
+    else:
+        h_tgt_acoustic = numpy_pickup_acoustic_response(freqs, tgt_coils, tgt_speeds)
+        h_ratio = h_tgt_acoustic / np.maximum(h_src_acoustic, 0.08)
+        h_acoustic_transfer = np.clip(h_ratio, 0.25, 4.0)
+
+        delta_in = (tgt_pos_eff - src_pos_eff) / 0.0254
+        tilt_db = delta_in * 1.5
+        g_low = 10.0 ** (tilt_db / 20.0)
+        g_hi = 10.0 ** (-tilt_db / 20.0)
+        h_low_tilt = np.sqrt((g_low ** 2 + (freqs / 250.0) ** 2) / (1.0 + (freqs / 250.0) ** 2))
+        h_hi_tilt = np.sqrt((1.0 + g_hi ** 2 * (freqs / 2200.0) ** 2) / (1.0 + (freqs / 2200.0) ** 2))
+        h_tilt = h_low_tilt * h_hi_tilt
 
     src_scale_in = inst.get("scale_length_in", 34.0)
-    if target_scale_key == "multiscale":
+    if is_identity:
+        h_tension = np.ones_like(freqs)
+    elif target_scale_key == "multiscale":
         sub_gain = 10.0 ** (1.5 / 20.0)
         h_sub = np.sqrt((sub_gain ** 2 + (freqs / 75.0) ** 2) / (1.0 + (freqs / 75.0) ** 2))
         a_clank = 10.0 ** (3.5 / 40.0)
@@ -731,15 +849,20 @@ def compute_aperture_prefilter_fir(voice_id, instrument="30in", src_scale=None, 
             ((1.0 - x_clank ** 2) ** 2 + (x_clank / (a_clank * 1.5)) ** 2)
         )
         h_tension = h_sub * h_clank
+    elif target_scale_key == "upright":
+        # Upright string physics & body bloom: deep fundamental, woody low-mids
+        g_bloom = 10.0 ** (2.0 / 20.0)
+        h_bloom = np.sqrt((g_bloom ** 2 + (freqs / 100.0) ** 2) / (1.0 + (freqs / 100.0) ** 2))
+        h_tension = h_bloom
     elif target_scale_key == "34in" and src_scale_in != 34.0:
         g_snap = 10.0 ** (1.8 / 20.0)
         h_tension = np.sqrt((1.0 + g_snap ** 2 * (freqs / 2800.0) ** 2) / (1.0 + (freqs / 2800.0) ** 2))
     else:
         h_tension = np.ones_like(freqs)
 
-    h_elec_inv = resolve_pickup_electrical_deconvolution_np(freqs, src_pickup, inst)
+    h_elec_inv = np.ones_like(freqs) if is_identity else resolve_pickup_electrical_deconvolution_np(freqs, src_pickup, inst)
 
-    prefilter_curve = h_acoustic_transfer * h_elec_inv * (h_low_tilt * h_hi_tilt) * h_tension
+    prefilter_curve = h_acoustic_transfer * h_elec_inv * h_tilt * h_tension
     max_val = np.max(prefilter_curve)
     resp_norm = prefilter_curve / max_val if max_val > 0 else prefilter_curve
 

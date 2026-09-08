@@ -29,7 +29,7 @@ from simulate_circuits import simulate_voice
 DEFAULT_LTSPICE_BIN = "/Applications/LTspice.app/Contents/MacOS/LTspice"
 
 def run_visualization(instrument="30in"):
-    """Generates the interactive Altair visualization chart."""
+    """Generates the interactive Altair visualization charts and master portal."""
     print(f"\n[Stage 1] Generating interactive Altair visualization (Instrument: {instrument})...")
     script = SCRIPTS_DIR / "analyze_voices.py"
     cmd = [sys.executable, str(script), "--instrument", instrument]
@@ -37,7 +37,9 @@ def run_visualization(instrument="30in"):
     if res.returncode != 0:
         print(f"Warning: Visualization generation returned non-zero code {res.returncode}")
     else:
-        print(f"Interactive chart generated at {DOCS_DIR / 'frequency_responses.html'}")
+        resp_dir = DOCS_DIR / "frequency_responses"
+        print(f"Interactive charts generated in {resp_dir}/")
+        print(f"Master interactive portal updated at {DOCS_DIR / 'frequency_responses.html'}")
 
 def run_prep_audio(input_wav="v1_1_1.wav", instrument="30in", voice="03_modern_p_ceramic"):
     """Pre-filters NAM calibration audio through acoustic and spatial transfer functions."""

@@ -12,7 +12,8 @@ EXPECTED_VOICES = [
     "08_rickenbacker_bridge_hpf",
     "09_pmm_hybrid_series",
     "10_mudbucker_ultra_series",
-    "11_dingwall_multiscale_bridge"
+    "11_dingwall_multiscale_bridge",
+    "12_upright_bridge_transducer"
 ]
 
 def test_all_expected_voices_exist():
@@ -145,27 +146,33 @@ def test_scales_structure():
     assert "32in" in SCALES
     assert "34in" in SCALES
     assert "multiscale" in SCALES
+    assert "upright" in SCALES
 
     assert len(SCALES["30in"]["speeds"]) == 4
     assert len(SCALES["32in"]["speeds"]) == 4
     assert len(SCALES["34in"]["speeds"]) == 4
     assert len(SCALES["multiscale"]["speeds"]) == 4
+    assert len(SCALES["upright"]["speeds"]) == 4
 
-    # 30" wave speeds should be lower than 34" wave speeds
-    for s30, s34 in zip(SCALES["30in"]["speeds"], SCALES["34in"]["speeds"]):
-        assert s30 < s34
+    # 30" wave speeds should be lower than 34" wave speeds, and 34" lower than upright
+    for s30, s34, sup in zip(SCALES["30in"]["speeds"], SCALES["34in"]["speeds"], SCALES["upright"]["speeds"]):
+        assert s30 < s34 < sup
 
 def test_resolve_voices():
     from scripts.model_physics import resolve_voices
 
-    # "all" should return all 11 voices
+    # "all" should return all 12 voices
     all_voices = resolve_voices("all")
-    assert len(all_voices) == 11
+    assert len(all_voices) == 12
     assert all_voices == list(VOICES.keys())
 
     # Single voice
     single = resolve_voices("03_modern_p_ceramic")
     assert single == ["03_modern_p_ceramic"]
+
+    # Upright voice
+    upright = resolve_voices("12")
+    assert upright == ["12_upright_bridge_transducer"]
 
     # Comma-separated voices
     multi = resolve_voices("01_jazz_bass_pair, 07_stingray_mm_parallel")

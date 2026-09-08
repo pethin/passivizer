@@ -51,9 +51,35 @@ def test_circuit_simulation_integration():
     # Series cap introduces strong low-end shelf
     assert mag_rick_low < mag_rick_mid - 10.0
 
-    # 3. Verify all 11 voices produce finite, non-null values across all frequencies
+    # 3. Verify all voices produce finite, non-null values across all frequencies
     for vid, cfg in VOICES.items():
         vdf = build_voice_dataframe(vid, cfg, src_scale="30in")
         assert not vdf["magnitude_db"].is_nan().any()
         assert not vdf["magnitude_db"].is_null().any()
+
+def test_generate_all_charts():
+    from scripts.analyze_voices import generate_all_charts, load_all_instruments
+    with tempfile.TemporaryDirectory() as tmpdir:
+        out_dir = Path(tmpdir)
+        generated = generate_all_charts(output_dir=out_dir)
+
+        all_insts = load_all_instruments()
+        for inst_id in all_insts.keys():
+            assert inst_id in generated
+            chart_path = out_dir / f"{inst_id}.html"
+            assert chart_path.exists()
+            content = chart_path.read_text(encoding="utf-8")
+            assert "vega" in content.lower()
+
+        # Check index portal in output directory
+        index_path = out_dir / "index.html"
+        assert index_path.exists()
+        portal_content = index_path.read_text(encoding="utf-8")
+        assert "Passivizer Frequency Response Suite" in portal_content
+        assert "tab-btn" in portal_content
+        assert "iframe" in portal_content
+        for inst_id, inst_cfg in all_insts.items():
+            assert inst_id in portal_content
+            assert inst_cfg.get("name", inst_id) in portal_content
+
 

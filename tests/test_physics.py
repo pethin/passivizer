@@ -137,3 +137,15 @@ def test_multi_pickup_prefilter_audio_stereo_export():
             assert wf.getnchannels() == 2  # Stereo (Channel 0 = Neck, Channel 1 = Bridge)
             assert wf.getnframes() > 0
 
+def test_identity_acoustic_transfer_preserves_flat_bass():
+    """Verify that modeling a source instrument against its matching voice bypasses acoustic deconvolution."""
+    from scripts.model_physics import is_voice_matching_source, load_instrument, VOICES
+
+    inst_p = load_instrument("34in_standard_p")
+    assert is_voice_matching_source(inst_p, "04_vintage_62_p_alnico", VOICES["04_vintage_62_p_alnico"])
+
+    inst_jazz = load_instrument("34in_standard_jazz")
+    assert is_voice_matching_source(inst_jazz, "01_jazz_bass_pair", VOICES["01_jazz_bass_pair"])
+
+    # Non-matching voice should return False
+    assert not is_voice_matching_source(inst_p, "01_jazz_bass_pair", VOICES["01_jazz_bass_pair"])

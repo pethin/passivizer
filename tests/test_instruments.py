@@ -14,7 +14,7 @@ from scripts.model_physics import (
 
 def test_load_all_default_instruments():
     instruments = load_all_instruments()
-    expected_ids = ["30in_emg_mmtw", "32in_custom_pmm", "34in_standard_p", "34in_standard_jazz"]
+    expected_ids = ["30in_emg_mmtw", "32in_custom_pmm", "32in_fretless_pmm", "34in_standard_p", "34in_standard_jazz"]
     for iid in expected_ids:
         assert iid in instruments, f"Default instrument '{iid}' not found"
 
@@ -77,9 +77,13 @@ def test_32in_custom_pmm_routing():
     assert mm_pickup["name"] == "EMG MMTWX Dual-Coil (Centerline)"
     assert math.isclose(mm_pickup["position_from_bridge_m"], 0.0622, abs_tol=1e-4)
 
-    # P/J hybrid routes to parallel pair
+    # P/J hybrid routes to parallel P/J pair (Reverse PX + MMTWX single-coil)
     pj_pickup = get_source_pickup(inst, "06_pj_hybrid_parallel")
-    assert pj_pickup["name"] == "EMG PX + MMTWX Parallel (Center Detent)"
+    assert pj_pickup["name"] == "EMG PX + MMTWX Single Parallel (P/J Mode)"
+    assert pj_pickup["type"] == "composite"
+    assert len(pj_pickup["components"]) == 2
+    assert pj_pickup["components"][0]["pickup"] == "px"
+    assert pj_pickup["components"][1]["pickup"] == "mmtwx_single"
     assert math.isclose(pj_pickup["position_from_bridge_m"], 0.0868, abs_tol=1e-4)
 
     # P/MM series voice routes to physical parallel center detent blend
@@ -91,6 +95,37 @@ def test_32in_custom_pmm_routing():
     mud_pickup = get_source_pickup(inst, "10_mudbucker_ultra_series")
     assert mud_pickup["name"] == "Reverse EMG PX Split-Coil (Neck)"
     assert math.isclose(mud_pickup["position_from_bridge_m"], 0.1228, abs_tol=1e-4)
+
+def test_32in_fretless_pmm_routing():
+    inst = load_instrument("32in_fretless")
+    assert inst["id"] == "32in_fretless_pmm"
+    assert inst["scale_length_in"] == 32.0
+    assert inst["default_pickup"] == "upright_blend"
+
+    # Alias check
+    inst_alias = load_instrument("fretless")
+    assert inst_alias["id"] == "32in_fretless_pmm"
+
+    # PCSX reverse split placement: 266mm from 12th fret = 140.4mm from bridge
+    pcsx = inst["pickups"]["pcsx"]
+    assert math.isclose(pcsx["position_from_bridge_m"], 0.1404, abs_tol=1e-4)
+    assert pcsx["resonant_frequency_hz"] == 2610.0
+    assert pcsx["q_factor"] == 1.35
+    assert len(pcsx["coils"]) == 2
+    assert pcsx["coils"][0]["strings"] == ["D", "G"]
+    assert math.isclose(pcsx["coils"][0]["position_from_bridge_m"], 0.1544, abs_tol=1e-4)
+    assert pcsx["coils"][1]["strings"] == ["E", "A"]
+    assert math.isclose(pcsx["coils"][1]["position_from_bridge_m"], 0.1264, abs_tol=1e-4)
+
+    # Upright voice routes to upright_blend
+    up_pickup = get_source_pickup(inst, "12_upright_bridge_transducer")
+    assert up_pickup["name"] == "Fretless Upright Blend (85% PCSX + 15% MMTWX Single)"
+    assert up_pickup["type"] == "composite"
+    assert len(up_pickup["components"]) == 2
+    assert up_pickup["components"][0]["pickup"] == "pcsx"
+    assert up_pickup["components"][0]["weight"] == 0.85
+    assert up_pickup["components"][1]["pickup"] == "mmtwx_single"
+    assert up_pickup["components"][1]["weight"] == 0.15
 
 def test_load_custom_user_bass_toml():
     """Verify that any future bass or external user bass can be loaded from an arbitrary TOML file."""
@@ -165,4 +200,39 @@ def test_resolve_pickup_coils():
     assert math.isclose(coils_j[1]["position_from_bridge_m"], 0.0406, abs_tol=1e-4)
     assert coils_j[0]["weight"] == 0.5
     assert coils_j[1]["weight"] == 0.5
+
+def test_standard_instruments_electrical_parameters():
+    """Verify that standard instrument pickups specify resonant_frequency_hz and q_factor."""
+    inst_p = load_instrument("34in_standard_p")
+    p_pickup = inst_p["pickups"]["split_p"]
+    assert p_pickup["resonant_frequency_hz"] == 2800.0
+    assert p_pickup["q_factor"] == 1.40
+
+    inst_j = load_instrument("34in_standard_jazz")
+    j_neck = inst_j["pickups"]["neck"]
+    assert j_neck["resonant_frequency_hz"] == 3600.0
+    assert j_neck["q_factor"] == 1.50
+
+    j_bridge = inst_j["pickups"]["bridge"]
+    assert j_bridge["resonant_frequency_hz"] == 3200.0
+    assert j_bridge["q_factor"] == 1.60
+
+    j_pair = inst_j["pickups"]["pair_parallel"]
+    assert j_pair["resonant_frequency_hz"] == 3900.0
+    assert j_pair["q_factor"] == 1.30
+
+def test_32in_pj_blend_parallel_definition():
+    """Verify that both 32in P+TWX instruments define the parallel P/J mode (single-coil TWX)."""
+    for iid in ["32in_custom_pmm", "32in_fretless_pmm"]:
+        inst = load_instrument(iid)
+        assert "pj_blend_parallel" in inst["pickups"]
+        pj = inst["pickups"]["pj_blend_parallel"]
+        assert pj["type"] == "composite"
+        assert len(pj["components"]) == 2
+        assert pj["components"][1]["pickup"] == "mmtwx_single"
+        assert pj["resonant_frequency_hz"] > 0
+        assert pj["q_factor"] > 0
+        assert inst["pickup_mapping"]["06_pj_hybrid_parallel"] == "pj_blend_parallel"
+
+
 

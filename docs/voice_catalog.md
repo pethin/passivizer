@@ -1,4 +1,4 @@
-# Passivizer Master Voice Catalog (10 Passive Pickup Configurations + Multi-Scale)
+# Passivizer Master Voice Catalog (12 Passive Pickup Configurations & Transducers)
 
 This catalog details the physical parameters, equivalent RLC circuit values, acoustic apertures, and electrical characteristics for the **Passivizer Passive Digital Twin Profiles**.
 
@@ -19,6 +19,7 @@ This catalog details the physical parameters, equivalent RLC circuit values, aco
 | **09** | `09_pmm_hybrid_series` | P + MM Hybrid | Series Sum | $7.20\text{ H}$ | $14.10\text{ k}\Omega$ | $2.0\text{ kHz}$ | $2.2$ | Split P and MM humbucker in series; $+5.8\text{ dB}$ inductive voltage boost with forward $2.0\text{ kHz}$ authority. |
 | **10** | `10_mudbucker_ultra_series`| Overwound Series| Ultra Series | $14.40\text{ H}$| $27.90\text{ k}\Omega$ | $1.2\text{ kHz}$ | $1.6$ | Extreme dual-coil series network; subterranean low-end focus, steep natural top-end rolloff. |
 | **11** | `11_dingwall_multiscale_bridge`| Multi-Scale MM | Angled Parallel | $2.30\text{ H}$| $4.40\text{ k}\Omega$ | $3.4\text{ kHz}$ | $1.7$ | 34"-37" fanned-fret bridge position ($48.0\text{ mm}$) with high string tension and piano-like clank filter. |
+| **12** | `12_upright_bridge_transducer`| Upright Transducer | Bridge Force | — | — | $4.5\text{ kHz}$ | $0.7$ | Direct bridge force sensor with velocity-to-force leaky integration; woody double-bass bloom. |
 
 ---
 
@@ -30,35 +31,35 @@ This catalog details the physical parameters, equivalent RLC circuit values, aco
 * **Coil Model:** Two narrow single coils ($w = 0.75''$) in parallel spaced $107.4\text{ mm}$ apart ($148.0\text{ mm}$ neck, $40.6\text{ mm}$ bridge)
 * **Electrical Parameters:** Dual parallel SPICE branches; combined $L_{\text{eq}} = 1.69\text{ H}$, $R_{\text{dc}} = 3.69\text{ k}\Omega$, $R_{\text{eddy}} = 65\text{ k}\Omega$, $C_{\text{coil}} = 145\text{ pF}$ (composite $f_r = 3.9\text{ kHz}, Q = 1.3$)
 * **Acoustic Character:** Symmetrical dual-aperture phase cancellation produces a hollow mid-scoop at $1\text{ kHz}$ with extended sparkle up to $5.5\text{ kHz}$. Individual neck ($3.6\text{ kHz}$) and bridge ($3.2\text{ kHz}$) resonances preserve transient snap on top and body below.
-* **32" Bass Setting:** ABCX Blend at **Center Detent (50/50)**.
+* **32" Bass Setting:** ABCX Blend at **Center Detent (50/50)** (MMTWX in Single-Coil Mode - Push/Pull Down).
 
 ### 02. `02_jazz_bridge_70s` (70s Jazz Bass Bridge Single-Coil)
 * **Archetype:** 1970s Fender Jazz Bass Bridge Single Coil
 * **Coil Model:** Single coil ($w = 0.75''$) positioned $1.6''$ ($40.6\text{ mm}$) from the bridge
 * **Electrical Parameters:** $L = 3.60\text{ H}$, $R_{\text{dc}} = 7.80\text{ k}\Omega$, $R_{\text{eddy}} = 125\text{ k}\Omega$, $C_{\text{coil}} = 70\text{ pF}$
 * **Acoustic Character:** Tightly focused harmonic bite centered in the $800\text{ Hz}\text{--}1.6\text{ kHz}$ range with naturally rolled-off sub-bass. Accentuates staccato fingerstyle transient definition and chordal harmonics.
-* **32" Bass Setting:** ABCX Blend **100% Bridge** (MMTWX in Single-Coil Mode).
+* **32" Bass Setting:** ABCX Blend **100% Bridge** (MMTWX in Single-Coil Mode - Push/Pull Down).
 
 ### 03. `03_modern_p_ceramic` (Modern Split-Coil Ceramic)
 * **Archetype:** Ceramic High-Inductance Split-Coil P (Bartolini 8CBP style)
 * **Coil Model:** Ceramic split-coil ($w = 1.00''$)
 * **Electrical Parameters:** $L = 4.80\text{ H}$, $R_{\text{dc}} = 9.50\text{ k}\Omega$, $R_{\text{eddy}} = 110\text{ k}\Omega$, $C_{\text{coil}} = 80\text{ pF}$
 * **Acoustic Character:** Immediate pick attack with solid, compressed low-mids ($300\text{--}800\text{ Hz}$) and rolled-off clatter above $4\text{ kHz}$. Anchors dense rhythm sections with clear note boundaries.
-* **32" Bass Setting:** ABCX Blend **100% Neck (PX)**.
+* **32" Bass Setting:** ABCX Blend **100% Neck (PX/PCSX)**.
 
 ### 04. `04_vintage_62_p_alnico` (Vintage '62 Split-Coil Alnico V)
 * **Archetype:** 1962 Fender Precision with Alnico V Pole Pieces
 * **Coil Model:** Alnico V split-coil ($w = 1.00''$)
 * **Electrical Parameters:** $L = 3.80\text{ H}$, $R_{\text{dc}} = 10.50\text{ k}\Omega$, $R_{\text{eddy}} = 180\text{ k}\Omega$, $C_{\text{coil}} = 60\text{ pF}$
 * **Acoustic Character:** Lower core eddy-current damping yields an open, touch-sensitive, uncompressed response with a higher resonant peak ($2.8\text{ kHz}$). Dynamic and woody with natural acoustic breath.
-* **32" Bass Setting:** ABCX Blend **100% Neck (PX)**.
+* **32" Bass Setting:** ABCX Blend **100% Neck (PX/PCSX)**.
 
 ### 05. `05_p_bass_47nf_rolloff` (Split-Coil P with 47nF Tone Shunt)
 * **Archetype:** Vintage P-Bass with Tone Rolled to 0 (Jamerson / Palladino style)
 * **Coil Model:** P-Bass split-coil loaded by direct $47\text{ nF}$ capacitor shunt
 * **Electrical Parameters:** $L = 4.80\text{ H}$, $R_{\text{dc}} = 9.50\text{ k}\Omega$, $C_{\text{tone}} = 47\text{ nF}$
 * **Acoustic Character:** Removes string clack and finger transients above $800\text{ Hz}$, concentrating energy purely in the fundamental $40\text{--}200\text{ Hz}$ register. Delivers warm, pillowy low-end thump.
-* **32" Bass Setting:** ABCX Blend **100% Neck (PX)**.
+* **32" Bass Setting:** ABCX Blend **100% Neck (PX/PCSX)**.
 
 ### 06. `06_pj_hybrid_parallel` (P/J Hybrid Parallel Sum)
 * **Archetype:** P/J Bass Configuration (Fender Precision Special / Yamaha BB)
@@ -67,21 +68,21 @@ This catalog details the physical parameters, equivalent RLC circuit values, aco
   * **Jazz Bridge:** Single-coil Bartolini 9CBJS1 ($L = 3.60\text{ H}, f_r = 3200\text{ Hz}, Q = 1.6$, @ $40.6\text{ mm}$)
 * **Electrical Parameters:** Dual parallel SPICE branches; composite $L_{\text{eq}} = 2.06\text{ H}$, $R_{\text{dc}} = 4.28\text{ k}\Omega$, $R_{\text{eddy}} = 60\text{ k}\Omega$, $C_{\text{coil}} = 150\text{ pF}$ (composite $f_r = 3.6\text{ kHz}, Q = 1.4$)
 * **Acoustic Character:** Simultaneous presentation of the deep $2.2\text{ kHz}$ P-neck fundamental punch and the bright $3.2\text{ kHz}$ J-bridge bite, modulated by $85\text{ mm}$ spatial phase cancellation in the lower midrange.
-* **32" Bass Setting:** ABCX Blend at **Center Detent (50/50)** (MMTWX in Single-Coil Mode).
+* **32" Bass Setting:** ABCX Blend at **Center Detent (50/50)** (MMTWX in Single-Coil Mode - Push/Pull Down).
 
 ### 07. `07_stingray_mm_parallel` (Music Man Dual-Coil Parallel)
 * **Archetype:** Music Man StingRay 4-String Dual-Coil Parallel Humbucker
 * **Coil Model:** Dual-coil humbucker ($w = 1.50''$, $d = 0.75''$) in parallel
 * **Electrical Parameters:** $L = 2.40\text{ H}$, $R_{\text{dc}} = 4.60\text{ k}\Omega$, $R_{\text{eddy}} = 140\text{ k}\Omega$, $C_{\text{coil}} = 130\text{ pF}$
 * **Acoustic Character:** Dual-coil phase comb cancellation notch at $2.5\text{ kHz}$ combined with an electrical resonance peak at $3.5\text{ kHz}$. Tight low end with pronounced metallic clank.
-* **32" Bass Setting:** ABCX Blend **100% Bridge** (MMTWX in Dual-Coil Mode).
+* **32" Bass Setting:** ABCX Blend **100% Bridge** (MMTWX in Dual-Coil Mode - Push/Pull Up).
 
 ### 08. `08_rickenbacker_bridge_hpf` (Rickenbacker 4003 Bridge with 4.7nF HPF)
 * **Archetype:** Rickenbacker 4001/4003 Bridge Pickup with Vintage High-Pass Push-Pull
 * **Coil Model:** High-output single coil with $4.7\text{ nF}$ series capacitor
 * **Electrical Parameters:** $L = 3.80\text{ H}$, $R_{\text{dc}} = 8.40\text{ k}\Omega$, $C_{\text{series}} = 4.7\text{ nF}$, $C_{\text{coil}} = 90\text{ pF}$
 * **Acoustic Character:** The series capacitor acts as a high-pass filter, rolling off sub-bass below $150\text{ Hz}$ while focusing midrange punch ($1.5\text{--}2.5\text{ kHz}$). Produces an aggressive, gritty pick attack.
-* **32" Bass Setting:** ABCX Blend **100% Bridge** (MMTWX in Single-Coil Mode).
+* **32" Bass Setting:** ABCX Blend **100% Bridge** (MMTWX in Single-Coil Mode - Push/Pull Down).
 
 ### 09. `09_pmm_hybrid_series` (P/MM Hybrid Series Sum)
 * **Archetype:** Custom P/MM Hybrid in Series
@@ -90,21 +91,28 @@ This catalog details the physical parameters, equivalent RLC circuit values, aco
   * **Music Man Bridge:** Dual-coil humbucker MM4CBC ($L = 2.40\text{ H}, f_r = 3500\text{ Hz}, Q = 1.5$)
 * **Electrical Parameters:** Series-connected SPICE stages; total series $L_{\text{ser}} = 7.20\text{ H}$, $R_{\text{dc}} = 14.10\text{ k}\Omega$, $R_{\text{eddy}} = 250\text{ k}\Omega$, $C_{\text{coil}} = 50\text{ pF}$ (composite $f_r = 2.0\text{ kHz}, Q = 2.2$)
 * **Acoustic Character:** Series inductance addition yields a large $+5.8\text{ dB}$ signal boost and a dense, forward $2.0\text{ kHz}$ resonant center. Fills out sparse instrument arrangements with commanding low-mids.
-* **32" Bass Setting:** ABCX Blend at **Center Detent (50/50)** (MMTWX in Dual-Coil Mode).
+* **32" Bass Setting:** ABCX Blend at **Center Detent (50/50)** (MMTWX in Dual-Coil Mode - Push/Pull Up).
 
 ### 10. `10_mudbucker_ultra_series` (Ultra-High Inductance Overwound Series)
 * **Archetype:** Gibson EB-0 Mudbucker / Overwound Series Dual-Coil
 * **Coil Model:** Extreme dual-coil overwound series network
 * **Electrical Parameters:** $L = 14.40\text{ H}$, $R_{\text{dc}} = 27.90\text{ k}\Omega$, $R_{\text{eddy}} = 80\text{ k}\Omega$, $C_{\text{coil}} = 80\text{ pF}$
 * **Acoustic Character:** Resonant peak pulls down to $1.2\text{ kHz}$, naturally rolling off high frequencies. Deep, massive low end with zero high-frequency fizz, ideal for heavy fuzz and saturated drive stages.
-* **32" Bass Setting:** ABCX Blend at **Center Detent (50/50)** (MMTWX in Dual-Coil Mode).
+* **32" Bass Setting:** ABCX Blend **100% Neck (PX/PCSX)**.
 
 ### 11. `11_dingwall_multiscale_bridge` (Fanned-Fret Multi-Scale Bridge)
 * **Archetype:** Dingwall NG Multi-Scale Angled Bridge Position
 * **Coil Model:** Dual-coil humbucker in parallel positioned $48.0\text{ mm}$ from bridge
 * **Electrical Parameters:** $L = 2.30\text{ H}$, $R_{\text{dc}} = 4.40\text{ k}\Omega$, $R_{\text{eddy}} = 150\text{ k}\Omega$, $C_{\text{coil}} = 120\text{ pF}$
 * **Acoustic Character:** Fanned-fret wave-speed scaling with high string tension. Tightened sub-bass ($+1.5\text{ dB}$ @ $75\text{ Hz}$), scooped low-mids ($-3.5\text{ dB}$ @ $220\text{ Hz}$), and metallic clank ($+3.5\text{ dB}$ @ $3.2\text{ kHz}$).
-* **32" Bass Setting:** ABCX Blend **100% Bridge** (MMTWX in Dual-Coil Mode).
+* **32" Bass Setting:** ABCX Blend **100% Bridge** (MMTWX in Dual-Coil Mode - Push/Pull Up).
+
+### 12. `12_upright_bridge_transducer` (Upright Acoustic Bridge Transducer)
+* **Archetype:** Direct Bridge Piezo Transducer on 3/4 Double Bass (41.5" Scale)
+* **Sensor Model:** Direct bridge saddle force sensor ($x = 5.0\text{ mm}$) with velocity-to-force integration
+* **Electrical Parameters:** $f_r = 4.5\text{ kHz}, Q = 0.70$, high-pass filter @ $30\text{ Hz}$
+* **Acoustic Character:** Eliminates magnetic pickup comb filtering; delivers smooth, woody double-bass pizzicato bloom with deep sub-bass body resonance.
+* **32" Fretless Setting:** ABCX Blend to **Upright Blend** (85% PCSX + 15% MMTWX Single - Push/Pull Down: J Mode).
 
 ---
 

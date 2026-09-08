@@ -58,3 +58,15 @@ name = "34\"-37\" Multi-Scale (Fanned Fret)"
 scale_length_in = 37.0
 scale_length_m = 0.9398
 string_wave_speeds = [77.44, 98.50, 131.00, 169.27]
+
+# ------------------------------------------------------------------------------
+# 41.5" Upright Acoustic Bass (Standard 3/4 Scale)
+# Character: High wave speed, long acoustic sustain, massive wood fundamental,
+# fast harmonic decay, and organic pizzicato attack envelope.
+# ------------------------------------------------------------------------------
+[scales.upright]
+name = "41.5\" Upright Bass (3/4 Scale)"
+scale_length_in = 41.5
+scale_length_m = 1.0541
+string_wave_speeds = [86.86, 115.95, 154.76, 206.59]
+
