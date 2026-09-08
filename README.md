@@ -149,10 +149,14 @@ Trains a high-efficiency **NAM Architecture 2 (A2)** neural model on the input/o
 # The input is the raw bass calibration sweep (v1_1_1.wav) and the target is the simulated output:
 nam train v1_1_1.wav audio/30in_emg_mmtw/out_03_modern_p_ceramic.wav ./models/30in_emg_mmtw/03_modern_p_ceramic.nam --architecture "A2"
 
-# Alternatively, run via the automated Passivizer trainer:
+# Run via the automated Passivizer trainer (defaults to studio reference goal ESR <= 0.0005 with 100 max epochs):
 uv run python main.py --stage train --instrument 30in --voice 03_modern_p_ceramic
+
+# Customize goal ESR or disable early stopping:
+uv run python main.py --stage train --instrument 30in --voice 03_modern_p_ceramic --goal-esr 0.0002
+uv run python main.py --stage train --instrument 30in --voice 03_modern_p_ceramic --no-goal-esr --epochs 100
 ```
-*(In modern versions of `neural-amp-modeler` and the official Google Colab trainer, `--architecture A2` is the default. Note: NAM is trained end-to-end from the raw input `v1_1_1.wav` to capture the entire acoustic aperture, string tension, and electrical RLC behavior in a single unified model).*
+*(In modern versions of `neural-amp-modeler` and the official Google Colab trainer, `--architecture A2` is the default. Passivizer enables goal-driven early stopping by default (`--goal-esr 0.0005`, $\approx -33\text{ dB}$ ESR), halting training as soon as transparent studio reference fidelity is reached).*
 
 ### 4. Master Automation Runner (`scripts/run_pipeline.py` & `main.py`)
 Execute the entire pipeline or specific stages with a single command:

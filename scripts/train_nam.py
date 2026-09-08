@@ -39,6 +39,8 @@ def find_sweep_input(candidate_path=None):
             return p
     return None
 
+DEFAULT_GOAL_ESR = 0.0005  # Studio reference early-stopping target (~ -33 dB ESR)
+
 def train_voice(
     instrument="30in",
     voice="03_modern_p_ceramic",
@@ -46,6 +48,7 @@ def train_voice(
     output_wav=None,
     models_dir=MODELS_DIR,
     epochs=100,
+    goal_esr=DEFAULT_GOAL_ESR,
     batch_size=16,
     silent=True,
     save_plot=False,
@@ -105,6 +108,11 @@ def train_voice(
     model_basename = voice
     target_nam = inst_models_dir / f"{voice}.nam"
 
+    if goal_esr is not None and goal_esr <= 0:
+        threshold_esr = None
+    else:
+        threshold_esr = goal_esr
+
     print(f"\n========================================")
     print(f"  PASSIVIZER NAM LOCAL A2 TRAINER")
     print(f"  Source Bass: {inst_name} ({inst_id}, {scale_length_in}\")")
@@ -112,7 +120,13 @@ def train_voice(
     print(f"  Target Voice:{voice} ({voice_name})")
     print(f"  Input Audio: {input_path.name}")
     print(f"  Output Audio:{output_path.name}")
-    print(f"  Epochs:      {epochs}")
+    print(f"  Max Epochs:  {epochs}")
+    esr_display = (
+        f"{threshold_esr:.6f} (Studio Quality Early Stopping)"
+        if threshold_esr is not None
+        else "Disabled (Fixed Epochs)"
+    )
+    print(f"  Goal ESR:    {esr_display}")
     print(f"  Destination: {target_nam}")
     print(f"========================================\n")
 
@@ -137,6 +151,7 @@ def train_voice(
         silent=silent,
         save_plot=save_plot,
         local=True,
+        threshold_esr=threshold_esr,
         user_metadata=user_metadata,
         fast_dev_run=fast_dev_run,
     )
@@ -200,7 +215,14 @@ def train_voice(
         print(f"  Source Bass:   {inst_name}")
         print(f"  Source Pickup: {src_pickup_name} ({src_pos_mm:.1f}mm)")
         if train_output.metadata.validation_esr is not None:
-            print(f"  Validation ESR: {train_output.metadata.validation_esr:.6f}")
+            vesr = train_output.metadata.validation_esr
+            esr_status = ""
+            if threshold_esr is not None:
+                if vesr <= threshold_esr:
+                    esr_status = f" (Goal Met <= {threshold_esr:.6f})"
+                else:
+                    esr_status = f" (Safety ceiling reached at {epochs} epochs)"
+            print(f"  Validation ESR: {vesr:.6f}{esr_status}")
         print(f"  Ready for Darkglass Anagram Block 1 (Preamp) loading.")
         return True
     else:
@@ -223,7 +245,18 @@ def main():
     parser.add_argument("--input", help="Path to dry training sweep WAV (default: auto-detect T3K-sweep-v3.wav)")
     parser.add_argument("--output", help="Path to simulated SPICE output WAV (default: circuits/out_<voice>.wav)")
     parser.add_argument("--models-dir", default=str(MODELS_DIR), help="Output models directory")
-    parser.add_argument("--epochs", type=int, default=100, help="Number of training epochs (default: 100)")
+    parser.add_argument("--epochs", type=int, default=100, help="Maximum number of training epochs (default: 100)")
+    parser.add_argument(
+        "--goal-esr",
+        type=float,
+        default=DEFAULT_GOAL_ESR,
+        help=f"Goal validation ESR for early stopping (default: {DEFAULT_GOAL_ESR} for studio quality; set to 0 to disable)"
+    )
+    parser.add_argument(
+        "--no-goal-esr",
+        action="store_true",
+        help="Disable goal ESR early stopping and train for the exact number of epochs specified"
+    )
     parser.add_argument("--batch-size", type=int, default=16, help="Batch size (default: 16)")
     parser.add_argument("--show-plot", action="store_true", help="Display matplotlib validation plot window")
     parser.add_argument("--save-plot", action="store_true", help="Save validation plot as PNG in models/")
@@ -240,6 +273,8 @@ def main():
             print("Error: 'neural-amp-modeler' GUI could not be loaded.")
             return
 
+    effective_goal_esr = None if args.no_goal_esr or (args.goal_esr is not None and args.goal_esr <= 0) else args.goal_esr
+
     voices_to_run = resolve_voices(args.voice)
     all_ok = True
     for idx, voice in enumerate(voices_to_run, 1):
@@ -255,6 +290,7 @@ def main():
             output_wav=out_wav,
             models_dir=args.models_dir,
             epochs=args.epochs,
+            goal_esr=effective_goal_esr,
             batch_size=args.batch_size,
             silent=not args.show_plot,
             save_plot=args.save_plot,

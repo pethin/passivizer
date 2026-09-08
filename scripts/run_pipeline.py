@@ -114,7 +114,7 @@ def run_spice_batch(voices=None, instrument="30in", input_wav=None, backend="nat
         run_circuit_simulation(voice, instrument=instrument, input_wav=input_wav, backend=backend, ltspice_bin=ltspice_bin)
     print("Batch circuit simulation finished.")
 
-def run_training(instrument="30in", voice="03_modern_p_ceramic", input_wav=None, epochs=100, fast_dev_run=False):
+def run_training(instrument="30in", voice="03_modern_p_ceramic", input_wav=None, epochs=100, goal_esr=0.0005, fast_dev_run=False):
     """Trains a Neural Amp Modeler (NAM) Architecture 2 model locally with MPS GPU acceleration."""
     print(f"\n[Training] Training Neural Amp Modeler A2 model for {voice} (Instrument: {instrument})...")
     script = SCRIPTS_DIR / "train_nam.py"
@@ -124,6 +124,10 @@ def run_training(instrument="30in", voice="03_modern_p_ceramic", input_wav=None,
         "--voice", voice,
         "--epochs", str(epochs),
     ]
+    if goal_esr is not None and goal_esr > 0:
+        cmd.extend(["--goal-esr", str(goal_esr)])
+    else:
+        cmd.append("--no-goal-esr")
     if input_wav:
         cmd.extend(["--input", input_wav])
     if fast_dev_run:
@@ -192,7 +196,18 @@ def main():
         "--epochs",
         type=int,
         default=100,
-        help="Number of training epochs for NAM model (default: 100)"
+        help="Maximum number of training epochs for NAM model (default: 100)"
+    )
+    parser.add_argument(
+        "--goal-esr",
+        type=float,
+        default=0.0005,
+        help="Goal validation ESR for early stopping (default: 0.0005 for studio quality; set to 0 to disable)"
+    )
+    parser.add_argument(
+        "--no-goal-esr",
+        action="store_true",
+        help="Disable goal ESR early stopping and train for the exact number of epochs specified"
     )
     parser.add_argument(
         "--fast-dev-run",
@@ -224,6 +239,7 @@ def main():
         list_voices()
         return
 
+    effective_goal_esr = None if args.no_goal_esr or (args.goal_esr is not None and args.goal_esr <= 0) else args.goal_esr
     voices_to_run = resolve_voices(args.voice)
 
     print("========================================")
@@ -268,6 +284,7 @@ def main():
                 voice=voice,
                 input_wav=input_wav,
                 epochs=args.epochs,
+                goal_esr=effective_goal_esr,
                 fast_dev_run=args.fast_dev_run,
             )
 
@@ -288,6 +305,7 @@ def main():
                 voice=voice,
                 input_wav=input_wav,
                 epochs=args.epochs,
+                goal_esr=effective_goal_esr,
                 fast_dev_run=args.fast_dev_run,
             )
 

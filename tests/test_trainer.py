@@ -43,3 +43,41 @@ def test_model_metadata_contains_input_bass():
     if not found:
         # If model hasn't finished exporting yet, test the structure via mock
         pass
+
+def test_default_goal_esr():
+    from train_nam import DEFAULT_GOAL_ESR, train_voice
+    import inspect
+    assert DEFAULT_GOAL_ESR == 0.0005
+    sig = inspect.signature(train_voice)
+    assert "goal_esr" in sig.parameters
+    assert sig.parameters["goal_esr"].default == DEFAULT_GOAL_ESR
+
+def test_train_nam_cli_goal_esr_parsing():
+    import argparse
+    from train_nam import DEFAULT_GOAL_ESR
+
+    # Test parser construction from train_nam
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--goal-esr", type=float, default=DEFAULT_GOAL_ESR)
+    parser.add_argument("--no-goal-esr", action="store_true")
+
+    # Default case
+    args = parser.parse_args([])
+    effective = None if args.no_goal_esr or (args.goal_esr is not None and args.goal_esr <= 0) else args.goal_esr
+    assert effective == 0.0005
+
+    # Custom goal ESR
+    args = parser.parse_args(["--goal-esr", "0.0001"])
+    effective = None if args.no_goal_esr or (args.goal_esr is not None and args.goal_esr <= 0) else args.goal_esr
+    assert effective == 0.0001
+
+    # Disabling via --no-goal-esr
+    args = parser.parse_args(["--no-goal-esr"])
+    effective = None if args.no_goal_esr or (args.goal_esr is not None and args.goal_esr <= 0) else args.goal_esr
+    assert effective is None
+
+    # Disabling via --goal-esr 0
+    args = parser.parse_args(["--goal-esr", "0"])
+    effective = None if args.no_goal_esr or (args.goal_esr is not None and args.goal_esr <= 0) else args.goal_esr
+    assert effective is None
+
