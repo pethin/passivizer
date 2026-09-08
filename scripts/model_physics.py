@@ -236,8 +236,184 @@ def resolve_voices(voice_arg):
                 print(f"Warning: Unknown voice identifier '{token}'.")
     return resolved if resolved else list(VOICES.keys())
 
+def resolve_pickup_coils(pickup_dict, instrument=None):
+    """
+    Resolves an instrument pickup configuration into a canonical list of coil dicts.
+    Handles:
+      - Composite pickups ('components' referencing other pickups with weights)
+      - Explicit coil arrays ('coils' with per-string bindings)
+      - Dual-coil humbuckers with coil spacing 'd'
+      - Single-coil / split-coil fallbacks
+    Each returned coil has:
+      - position_from_bridge_m: float
+      - aperture_width_in: float
+      - weight: float
+      - polarity: float
+      - strings: list of str (e.g. ['E', 'A'], ['D', 'G'], or ['all'])
+    """
+    # 1. Composite blend / sum
+    if pickup_dict.get("type") == "composite" or "components" in pickup_dict:
+        resolved = []
+        components = pickup_dict.get("components", [])
+        pickups_map = instrument.get("pickups", {}) if instrument else {}
+        for comp in components:
+            p_ref = comp.get("pickup")
+            c_weight = comp.get("weight", 1.0)
+            c_pol = comp.get("polarity", 1.0)
+            if p_ref in pickups_map:
+                sub_coils = resolve_pickup_coils(pickups_map[p_ref], instrument)
+                for sc in sub_coils:
+                    sc_copy = sc.copy()
+                    sc_copy["weight"] = sc.get("weight", 1.0) * c_weight
+                    sc_copy["polarity"] = sc.get("polarity", 1.0) * c_pol
+                    resolved.append(sc_copy)
+            elif "position_from_bridge_m" in comp:
+                resolved.append({
+                    "position_from_bridge_m": comp["position_from_bridge_m"],
+                    "aperture_width_in": comp.get("aperture_width_in", 0.75),
+                    "weight": c_weight,
+                    "polarity": c_pol,
+                    "strings": comp.get("strings", ["all"])
+                })
+        if resolved:
+            return resolved
+
+    # 2. Explicit coils list
+    if "coils" in pickup_dict and pickup_dict["coils"]:
+        coils = []
+        for c in pickup_dict["coils"]:
+            coils.append({
+                "position_from_bridge_m": c["position_from_bridge_m"],
+                "aperture_width_in": c.get("aperture_width_in", pickup_dict.get("aperture_width_in", 0.75)),
+                "weight": c.get("weight", 1.0),
+                "polarity": c.get("polarity", 1.0),
+                "strings": c.get("strings", ["all"])
+            })
+        return coils
+
+    # 3. Dual-coil humbucker via coil_spacing_in
+    pos_m = pickup_dict.get("position_from_bridge_m", 0.08)
+    w_in = pickup_dict.get("aperture_width_in", 0.75)
+    d_in = pickup_dict.get("coil_spacing_in", 0.0)
+    d_m = d_in * 0.0254
+    if d_in > 0:
+        return [
+            {
+                "position_from_bridge_m": pos_m - d_m / 2.0,
+                "aperture_width_in": w_in / 2.0,
+                "weight": 0.5,
+                "polarity": 1.0,
+                "strings": ["all"]
+            },
+            {
+                "position_from_bridge_m": pos_m + d_m / 2.0,
+                "aperture_width_in": w_in / 2.0,
+                "weight": 0.5,
+                "polarity": 1.0,
+                "strings": ["all"]
+            }
+        ]
+
+    # 4. Standard single coil
+    return [
+        {
+            "position_from_bridge_m": pos_m,
+            "aperture_width_in": w_in,
+            "weight": 1.0,
+            "polarity": 1.0,
+            "strings": ["all"]
+        }
+    ]
+
+def resolve_voice_coils(voice_cfg):
+    """Resolves target voice configuration into a canonical list of coil dicts."""
+    if "coils" in voice_cfg:
+        return voice_cfg["coils"]
+    pos_m = voice_cfg.get("pos_34", 0.088)
+    w_in = voice_cfg.get("w", 0.75)
+    d_in = voice_cfg.get("d", 0.0)
+    d_m = d_in * 0.0254
+    if d_in > 0:
+        return [
+            {
+                "position_from_bridge_m": pos_m - d_m / 2.0,
+                "aperture_width_in": w_in / 2.0,
+                "weight": 0.5,
+                "polarity": 1.0,
+                "strings": ["all"]
+            },
+            {
+                "position_from_bridge_m": pos_m + d_m / 2.0,
+                "aperture_width_in": w_in / 2.0,
+                "weight": 0.5,
+                "polarity": 1.0,
+                "strings": ["all"]
+            }
+        ]
+    return [
+        {
+            "position_from_bridge_m": pos_m,
+            "aperture_width_in": w_in,
+            "weight": 1.0,
+            "polarity": 1.0,
+            "strings": ["all"]
+        }
+    ]
+
+def compute_effective_position(coils):
+    """Computes weighted average physical position from bridge in meters."""
+    if not coils:
+        return 0.08
+    total_w = sum(c.get("weight", 1.0) for c in coils)
+    if total_w == 0:
+        return coils[0]["position_from_bridge_m"]
+    return sum(c["position_from_bridge_m"] * c.get("weight", 1.0) for c in coils) / total_w
+
+def polars_pickup_acoustic_response(freq_expr, coils, string_speeds, string_names=None):
+    """
+    Computes the unified spatial standing-wave and aperture response for an arbitrary
+    array of N physical coils across multi-string wave speeds using Polars.
+    Respects per-string coil bindings (e.g. P-Bass split E/A vs D/G coils).
+    """
+    if string_names is None:
+        if len(string_speeds) == 4:
+            string_names = ["E", "A", "D", "G"]
+        elif len(string_speeds) == 5:
+            string_names = ["B", "E", "A", "D", "G"]
+        else:
+            string_names = [f"S{i}" for i in range(len(string_speeds))]
+
+    acc = pl.lit(0.0)
+    for s_name, v in zip(string_names, string_speeds):
+        # Filter coils active under this string
+        active = [
+            c for c in coils
+            if "all" in c.get("strings", ["all"]) or s_name in c.get("strings", [])
+        ]
+        if not active:
+            active = coils
+
+        coil_sum = pl.lit(0.0)
+        for c in active:
+            pos_m = c["position_from_bridge_m"]
+            w_m = c["aperture_width_in"] * 0.0254
+            weight = c.get("weight", 1.0)
+            polarity = c.get("polarity", 1.0)
+
+            arg_p = freq_expr * (2.0 * math.pi * pos_m / v)
+            standing_wave = arg_p.sin()
+
+            arg_w = freq_expr * (math.pi * w_m / v)
+            sinc_w = pl.when(freq_expr == 0).then(1.0).otherwise(arg_w.sin() / arg_w)
+
+            coil_sum = coil_sum + (weight * polarity * standing_wave * sinc_w)
+
+        acc = acc + (coil_sum.abs() + 0.05)
+
+    return acc / len(string_speeds)
+
 def polars_aperture(freq_expr, w_in, d_in, speeds):
-    """Computes multi-string aperture sinc + dual-coil comb using Polars."""
+    """Computes multi-string aperture sinc + dual-coil comb using Polars (legacy helper)."""
     w_m = w_in * 0.0254
     d_m = d_in * 0.0254
     acc = pl.lit(0.0)
@@ -253,7 +429,7 @@ def polars_aperture(freq_expr, w_in, d_in, speeds):
     return acc / len(speeds)
 
 def polars_position(freq_expr, pos_m, speeds):
-    """Computes spatial standing wave envelope using Polars."""
+    """Computes spatial standing wave envelope using Polars (legacy helper)."""
     acc = pl.lit(0.0)
     for v in speeds:
         arg_p = freq_expr * (2.0 * math.pi * pos_m / v)
@@ -262,7 +438,7 @@ def polars_position(freq_expr, pos_m, speeds):
 
 def compute_aperture_prefilter_fir(voice_id, instrument="30in", src_scale=None, num_taps=NUM_TAPS):
     """
-    Computes the acoustic pre-filter FIR (aperture de-humbucking, displacement delta,
+    Computes the acoustic pre-filter FIR (multi-coil aperture de-convolution, displacement delta,
     and scale tension) to pre-filter audio before feeding SPICE circuit digital twins.
     Instrument can be an instrument ID ('30in_emg_mm'), a path to a TOML file, or an alias ('30in', '32in').
     """
@@ -281,32 +457,29 @@ def compute_aperture_prefilter_fir(voice_id, instrument="30in", src_scale=None, 
         src_speeds = [2.0 * l_m * f0 for f0 in [41.203, 55.0, 73.416, 97.999]]
 
     src_pickup = get_source_pickup(inst, voice_id)
-    src_w = src_pickup["aperture_width_in"]
-    src_d = src_pickup["coil_spacing_in"]
-    src_pos_m = src_pickup["position_from_bridge_m"]
+    src_coils = resolve_pickup_coils(src_pickup, inst)
+    tgt_coils = resolve_voice_coils(cfg)
+
+    src_pos_eff = compute_effective_position(src_coils)
+    tgt_pos_eff = compute_effective_position(tgt_coils)
 
     df = pl.DataFrame({"freq": FREQS})
     f = pl.col("freq")
 
-    # 1. Aperture Transfer via Polars
-    h_src_ap = polars_aperture(f, src_w, src_d, src_speeds)
-    h_tgt_ap = polars_aperture(f, cfg["w"], cfg["d"], tgt_speeds)
-    h_ap_transfer = (h_tgt_ap * h_src_ap) / (h_src_ap.pow(2) + 0.001)
+    # 1. Unified Multi-Coil Acoustic Transfer via Polars
+    h_src_acoustic = polars_pickup_acoustic_response(f, src_coils, src_speeds)
+    h_tgt_acoustic = polars_pickup_acoustic_response(f, tgt_coils, tgt_speeds)
+    h_acoustic_transfer = (h_tgt_acoustic * h_src_acoustic) / (h_src_acoustic.pow(2) + 0.001)
 
-    # 2. Position Transfer via Polars
-    h_src_pos = polars_position(f, src_pos_m, src_speeds)
-    h_tgt_pos = polars_position(f, cfg["pos_34"], tgt_speeds)
-    h_pos_transfer = (h_tgt_pos * h_src_pos) / (h_src_pos.pow(2) + 0.002)
-
-    # 3. Macro Position Displacement Tilt (1.5 dB per inch)
-    delta_in = (cfg["pos_34"] - src_pos_m) / 0.0254
+    # 2. Macro Position Displacement Tilt (1.5 dB per inch)
+    delta_in = (tgt_pos_eff - src_pos_eff) / 0.0254
     tilt_db = delta_in * 1.5
     g_low = 10.0 ** (tilt_db / 20.0)
     g_hi = 10.0 ** (-tilt_db / 20.0)
     h_low_tilt = ((g_low ** 2 + (f / 250.0).pow(2)) / (1.0 + (f / 250.0).pow(2))).sqrt()
     h_hi_tilt = ((1.0 + g_hi ** 2 * (f / 2200.0).pow(2)) / (1.0 + (f / 2200.0).pow(2))).sqrt()
 
-    # 4. Scale-Length Tension Filter
+    # 3. Scale-Length Tension Filter
     src_scale_in = inst.get("scale_length_in", 34.0)
     if target_scale_key == "multiscale":
         sub_gain = 10.0 ** (1.5 / 20.0)
@@ -324,7 +497,7 @@ def compute_aperture_prefilter_fir(voice_id, instrument="30in", src_scale=None, 
 
     # Total acoustic/spatial pre-filter response (RLC electronics handled in SPICE)
     df = df.with_columns(
-        (h_ap_transfer * h_pos_transfer * (h_low_tilt * h_hi_tilt) * h_tension).alias("prefilter_curve")
+        (h_acoustic_transfer * (h_low_tilt * h_hi_tilt) * h_tension).alias("prefilter_curve")
     )
 
     resp_series = df["prefilter_curve"]
@@ -332,4 +505,5 @@ def compute_aperture_prefilter_fir(voice_id, instrument="30in", src_scale=None, 
     resp_norm = [v / max_val for v in resp_series.to_list()]
 
     return synthesize_minimum_phase_fir(resp_norm, num_taps=num_taps)
+
 

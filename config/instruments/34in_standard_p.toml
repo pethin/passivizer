@@ -12,3 +12,7 @@ position_from_bridge_m = 0.1250
 aperture_width_in = 1.00
 coil_spacing_in = 0.0
 type = "split_coil"
+coils = [
+    { strings = ["E", "A"], position_from_bridge_m = 0.1390, aperture_width_in = 1.00, weight = 1.0 },
+    { strings = ["D", "G"], position_from_bridge_m = 0.1110, aperture_width_in = 1.00, weight = 1.0 }
+]

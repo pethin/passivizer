@@ -25,7 +25,11 @@ name = "Jazz Neck + Bridge Parallel"
 position_from_bridge_m = 0.0880
 aperture_width_in = 0.75
 coil_spacing_in = 0.0
-type = "parallel_pair"
+type = "composite"
+components = [
+    { pickup = "neck", weight = 0.5 },
+    { pickup = "bridge", weight = 0.5 }
+]
 
 [pickup_mapping]
 "01_jazz_bass_pair" = "pair_parallel"

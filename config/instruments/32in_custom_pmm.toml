@@ -9,9 +9,13 @@ default_pickup = "mmtwx_dual"
 [pickups.px]
 name = "Reverse EMG PX Split-Coil (Neck)"
 position_from_bridge_m = 0.1228
-aperture_width_in = 1.00
+aperture_width_in = 1.10
 coil_spacing_in = 0.0
 type = "split_coil"
+coils = [
+    { strings = ["D", "G"], position_from_bridge_m = 0.1368, aperture_width_in = 1.10, weight = 1.0 },
+    { strings = ["E", "A"], position_from_bridge_m = 0.1088, aperture_width_in = 1.10, weight = 1.0 }
+]
 
 [pickups.mmtwx_single]
 name = "EMG MMTWX Single-Coil (Bridge)"
@@ -19,27 +23,42 @@ position_from_bridge_m = 0.0508
 aperture_width_in = 0.75
 coil_spacing_in = 0.0
 type = "single_coil"
+coils = [
+    { strings = ["all"], position_from_bridge_m = 0.0508, aperture_width_in = 0.75, weight = 1.0 }
+]
 
 [pickups.mmtwx_dual]
 name = "EMG MMTWX Dual-Coil (Centerline)"
 position_from_bridge_m = 0.0622
 aperture_width_in = 1.50
-coil_spacing_in = 0.75
+coil_spacing_in = 0.90
 type = "dual_coil_parallel"
+coils = [
+    { strings = ["all"], position_from_bridge_m = 0.0737, aperture_width_in = 0.75, weight = 0.5 },
+    { strings = ["all"], position_from_bridge_m = 0.0508, aperture_width_in = 0.75, weight = 0.5 }
+]
 
 [pickups.blend_parallel]
 name = "EMG PX + MMTWX Parallel (Center Detent)"
 position_from_bridge_m = 0.0868
 aperture_width_in = 0.88
 coil_spacing_in = 0.0
-type = "parallel_pair"
+type = "composite"
+components = [
+    { pickup = "px", weight = 0.5 },
+    { pickup = "mmtwx_dual", weight = 0.5 }
+]
 
 [pickups.blend_series]
 name = "EMG PX + MMTWX Series Sum"
 position_from_bridge_m = 0.0925
 aperture_width_in = 1.25
 coil_spacing_in = 0.75
-type = "series_pair"
+type = "composite"
+components = [
+    { pickup = "px", weight = 1.0 },
+    { pickup = "mmtwx_dual", weight = 1.0 }
+]
 
 [pickup_mapping]
 "01_jazz_bass_pair" = "blend_parallel"

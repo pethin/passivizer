@@ -116,3 +116,31 @@ coil_spacing_in = 0.65
         assert len(fir) == NUM_TAPS
         max_peak = max(abs(x) for x in fir)
         assert math.isclose(max_peak, 0.99, rel_tol=1e-3)
+
+def test_resolve_pickup_coils():
+    from scripts.model_physics import load_instrument, resolve_pickup_coils
+
+    # 1. 30" MM (dual coil)
+    inst_30 = load_instrument("30in_emg_mm")
+    coils_30 = resolve_pickup_coils(inst_30["pickups"]["mm"], inst_30)
+    assert len(coils_30) == 2
+    assert all("all" in c["strings"] for c in coils_30)
+
+    # 2. 34" P (split coils with E/A and D/G binding)
+    inst_p = load_instrument("34in_standard_p")
+    coils_p = resolve_pickup_coils(inst_p["pickups"]["split_p"], inst_p)
+    assert len(coils_p) == 2
+    assert coils_p[0]["strings"] == ["E", "A"]
+    assert coils_p[1]["strings"] == ["D", "G"]
+    assert math.isclose(coils_p[0]["position_from_bridge_m"], 0.1390, abs_tol=1e-4)
+    assert math.isclose(coils_p[1]["position_from_bridge_m"], 0.1110, abs_tol=1e-4)
+
+    # 3. 34" Jazz (composite pair_parallel)
+    inst_j = load_instrument("34in_standard_jazz")
+    coils_j = resolve_pickup_coils(inst_j["pickups"]["pair_parallel"], inst_j)
+    assert len(coils_j) == 2
+    assert math.isclose(coils_j[0]["position_from_bridge_m"], 0.1480, abs_tol=1e-4)
+    assert math.isclose(coils_j[1]["position_from_bridge_m"], 0.0406, abs_tol=1e-4)
+    assert coils_j[0]["weight"] == 0.5
+    assert coils_j[1]["weight"] == 0.5
+

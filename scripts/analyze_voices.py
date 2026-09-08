@@ -21,8 +21,10 @@ from model_physics import (
     SCALES,
     load_instrument,
     get_source_pickup,
-    polars_aperture,
-    polars_position
+    resolve_pickup_coils,
+    resolve_voice_coils,
+    compute_effective_position,
+    polars_pickup_acoustic_response
 )
 
 NUM_POINTS = 600
@@ -46,32 +48,29 @@ def build_voice_dataframe(voice_id, cfg, instrument="30in", src_scale=None):
         src_speeds = [2.0 * l_m * f0 for f0 in [41.203, 55.0, 73.416, 97.999]]
 
     src_pickup = get_source_pickup(inst, voice_id)
-    src_w = src_pickup["aperture_width_in"]
-    src_d = src_pickup["coil_spacing_in"]
-    src_pos_m = src_pickup["position_from_bridge_m"]
+    src_coils = resolve_pickup_coils(src_pickup, inst)
+    tgt_coils = resolve_voice_coils(cfg)
+
+    src_pos_eff = compute_effective_position(src_coils)
+    tgt_pos_eff = compute_effective_position(tgt_coils)
 
     df = pl.DataFrame({"frequency": log_freqs})
     f_col = pl.col("frequency")
 
-    # 1. Aperture Transfer via Polars
-    h_src_ap = polars_aperture(f_col, src_w, src_d, src_speeds)
-    h_tgt_ap = polars_aperture(f_col, cfg["w"], cfg["d"], tgt_speeds)
-    h_ap_transfer = (h_tgt_ap * h_src_ap) / (h_src_ap.pow(2) + 0.001)
+    # 1. Unified Multi-Coil Acoustic Transfer via Polars
+    h_src_acoustic = polars_pickup_acoustic_response(f_col, src_coils, src_speeds)
+    h_tgt_acoustic = polars_pickup_acoustic_response(f_col, tgt_coils, tgt_speeds)
+    h_acoustic_transfer = (h_tgt_acoustic * h_src_acoustic) / (h_src_acoustic.pow(2) + 0.001)
 
-    # 2. Position Transfer via Polars
-    h_src_pos = polars_position(f_col, src_pos_m, src_speeds)
-    h_tgt_pos = polars_position(f_col, cfg["pos_34"], tgt_speeds)
-    h_pos_transfer = (h_tgt_pos * h_src_pos) / (h_src_pos.pow(2) + 0.002)
-
-    # 3. Macro Position Displacement Tilt (1.5 dB/inch)
-    delta_in = (cfg["pos_34"] - src_pos_m) / 0.0254
+    # 2. Macro Position Displacement Tilt (1.5 dB/inch)
+    delta_in = (tgt_pos_eff - src_pos_eff) / 0.0254
     tilt_db = delta_in * 1.5
     g_low = 10.0 ** (tilt_db / 20.0)
     g_hi = 10.0 ** (-tilt_db / 20.0)
     h_low_tilt = ((g_low ** 2 + (f_col / 250.0).pow(2)) / (1.0 + (f_col / 250.0).pow(2))).sqrt()
     h_hi_tilt = ((1.0 + g_hi ** 2 * (f_col / 2200.0).pow(2)) / (1.0 + (f_col / 2200.0).pow(2))).sqrt()
 
-    # 4. Scale Tension Filter
+    # 3. Scale Tension Filter
     src_scale_in = inst.get("scale_length_in", 34.0)
     if tgt_scale == "multiscale":
         sub_gain = 10.0 ** (1.5 / 20.0)
@@ -87,7 +86,7 @@ def build_voice_dataframe(voice_id, cfg, instrument="30in", src_scale=None):
     else:
         h_tension = pl.lit(1.0)
 
-    # 5. Electrical RLC Resonance
+    # 4. Electrical RLC Resonance
     fr, Q = cfg["fr"], cfg["Q"]
     h_elec = 1.0 / (((1.0 - (f_col / fr).pow(2)).pow(2) + (1.0 / Q ** 2) * (f_col / fr).pow(2))).sqrt()
 
@@ -96,7 +95,7 @@ def build_voice_dataframe(voice_id, cfg, instrument="30in", src_scale=None):
         h_elec = h_elec * (f_col / (f_col.pow(2) + fc_hpf ** 2).sqrt())
 
     df = df.with_columns(
-        (h_ap_transfer * h_pos_transfer * (h_low_tilt * h_hi_tilt) * h_tension * h_elec).alias("mag_raw")
+        (h_acoustic_transfer * (h_low_tilt * h_hi_tilt) * h_tension * h_elec).alias("mag_raw")
     )
 
     max_val = df["mag_raw"].max()
