@@ -62,38 +62,51 @@ MAGNET_PROPERTIES = {
         "f_core": 2500.0,
         "eta_hyst": 0.06,
         "alpha": 0.26,
+        "alpha3": 0.10,
+        "k_sag": 0.08,
     },
     "alnico_ii": {
         "k_core": 0.10,
         "f_core": 1800.0,
         "eta_hyst": 0.09,
         "alpha": 0.32,
+        "alpha3": 0.14,
+        "k_sag": 0.12,
     },
     "ceramic": {
         "k_core": 0.02,
         "f_core": 6500.0,
         "eta_hyst": 0.02,
         "alpha": 0.12,
+        "alpha3": 0.04,
+        "k_sag": 0.03,
     },
     "ceramic_alnico_hybrid": {
         "k_core": 0.05,
         "f_core": 4500.0,
         "eta_hyst": 0.04,
         "alpha": 0.18,
+        "alpha3": 0.07,
+        "k_sag": 0.05,
     },
     "neodymium": {
         "k_core": 0.01,
         "f_core": 8500.0,
         "eta_hyst": 0.01,
         "alpha": 0.08,
+        "alpha3": 0.02,
+        "k_sag": 0.01,
     },
     "piezo": {
         "k_core": 0.00,
         "f_core": 0.0,
         "eta_hyst": 0.00,
         "alpha": 0.00,
+        "alpha3": 0.00,
+        "k_sag": 0.00,
     },
 }
+MAGNET_PROPERTIES["hybrid"] = MAGNET_PROPERTIES["ceramic_alnico_hybrid"]
 
 class CircuitModel:
     """Represents a parsed RLC guitar circuit digital twin."""
@@ -740,17 +753,20 @@ def apply_oversampled_saturation(
     audio: np.ndarray,
     vsat: float,
     alpha: float = 0.20,
+    alpha3: float = 0.08,
     eta_hyst: float = 0.0,
+    k_sag: float = 0.08,
     oversample: int = 2,
     displacement_weighting: bool = True,
     magnet_drag: bool = True,
 ) -> np.ndarray:
     """
     Applies asymmetric soft-knee magnetic saturation with:
-    1. Dynamic magnet drag on forte initial transients (Alnico V / ceramic core braking).
-    2. Dahl magnetic hysteresis friction model in displacement domain (domain-wall pinning bloom).
-    3. Displacement-domain pre/de-emphasis excursion weighting (suppressing treble IMD hash).
-    4. Multi-rate anti-aliased oversampling (2x or 4x) suppressing ultrasonic harmonic foldback by >100 dB.
+    1. Dynamic Lenz-law core flux sag on forte peak excursions (k_sag demagnetization braking).
+    2. Higher-order magnetic dipole field expansion (v + alpha * v^2 + alpha3 * v^3).
+    3. Dahl magnetic domain-wall pinning hysteresis in displacement domain (sustain bloom).
+    4. Displacement-domain pre/de-emphasis excursion weighting (suppressing treble IMD hash).
+    5. Multi-rate anti-aliased oversampling (2x or 4x) suppressing ultrasonic harmonic foldback by >100 dB.
     For small-signal linear excitations (e.g. test impulses <= 0.10 peak), bypasses non-linearity
     to preserve 100% exact mathematical impulse response linearity.
     """
@@ -763,11 +779,11 @@ def apply_oversampled_saturation(
 
     # For unipolar test vectors (e.g. DC step tests), bypass differentiation and apply direct saturation
     if float(np.min(audio)) >= 0.0:
-        v_asym = x + alpha * (x ** 2)
+        v_asym = x + alpha * (x ** 2) + alpha3 * (x ** 3)
         return (vsat * np.tanh(v_asym / vsat)).astype(np.float32)
 
-    # 1. Dynamic Magnet Drag on forte peak excursions
-    if magnet_drag and vsat > 0:
+    # 1. Dynamic Lenz-Law Core Flux Sag / Magnet Drag on forte peak excursions
+    if magnet_drag and vsat > 0 and k_sag > 0.0:
         win_len = int(48000 * 0.030)  # 30 ms
         t_win = np.arange(win_len) / 48000.0
         win = np.exp(-t_win / 0.012).astype(np.float64)
@@ -775,7 +791,7 @@ def apply_oversampled_saturation(
         n_fft_drag = 1 << (n_sig + win_len - 1).bit_length()
         env = np.fft.irfft(np.fft.rfft(np.abs(x), n_fft_drag) * np.fft.rfft(win, n_fft_drag), n_fft_drag)[:n_sig]
         excess = np.maximum(0.0, (env - vsat) / vsat)
-        drag = 1.0 - 0.08 * np.clip(excess, 0.0, 1.0)
+        drag = 1.0 - k_sag * np.clip(excess, 0.0, 1.0)
         x = x * drag
 
     if oversample <= 1:
@@ -792,13 +808,13 @@ def apply_oversampled_saturation(
             x_disp = x_disp * scale
             if eta_hyst > 0.0:
                 x_disp = apply_dahl_hysteresis(x_disp, eta=eta_hyst)
-            v_asym = x_disp + alpha * (x_disp ** 2)
+            v_asym = x_disp + alpha * (x_disp ** 2) + alpha3 * (x_disp ** 3)
             v_sat = vsat * np.tanh(v_asym / vsat)
             out = np.fft.irfft(np.fft.rfft(v_sat) * H_de, n_sig) * (1.0 / scale)
         else:
             if eta_hyst > 0.0:
                 x = apply_dahl_hysteresis(x, eta=eta_hyst)
-            v_asym = x + alpha * (x ** 2)
+            v_asym = x + alpha * (x ** 2) + alpha3 * (x ** 3)
             out = vsat * np.tanh(v_asym / vsat)
         return out.astype(np.float32)
 
@@ -830,7 +846,7 @@ def apply_oversampled_saturation(
         if eta_hyst > 0.0:
             x_up_disp = apply_dahl_hysteresis(x_up_disp, eta=eta_hyst)
 
-    v_asym = x_up_disp + alpha * (x_up_disp ** 2)
+    v_asym = x_up_disp + alpha * (x_up_disp ** 2) + alpha3 * (x_up_disp ** 3)
     v_sat = vsat * np.tanh(v_asym / vsat)
 
     if displacement_weighting:
@@ -866,8 +882,12 @@ def simulate_circuit_audio(
     magnet_drag: bool = True,
     alpha: float = 0.20,
     alphas=None,
+    alpha3: float = 0.08,
+    alpha3s=None,
     eta_hyst: float = 0.06,
     eta_hysts=None,
+    k_sag: float = 0.08,
+    k_sags=None,
     dc_block: bool = True,
 ):
     """
@@ -875,8 +895,8 @@ def simulate_circuit_audio(
     If prefilter_firs is provided, convolves input audio through acoustic aperture and
     scale-tension FIRs in memory first.
     For active instruments, applies anti-aliased oversampled soft-knee saturation with
-    displacement-domain weighting, dynamic magnet drag, magnet-specific alpha asymmetry, and
-    Dahl magnetic hysteresis friction.
+    displacement-domain weighting, dynamic Lenz flux sag, dipole cubic proximity expansion,
+    magnet-specific alpha asymmetry, and Dahl magnetic hysteresis friction.
     For passive source instruments, bypasses forward saturation (to prevent double-compression)
     and applies regularized differential SPICE transfer functions (H_target / H_source).
     Applies sub-audible DC-blocking high-pass filtering (8.0 Hz) to eliminate DC offset before
@@ -947,17 +967,29 @@ def simulate_circuit_audio(
                 if (isinstance(alphas, (list, tuple)) and len(alphas) > ch_idx)
                 else alpha
             )
+            ch_alpha3 = (
+                alpha3s[ch_idx]
+                if (isinstance(alpha3s, (list, tuple)) and len(alpha3s) > ch_idx)
+                else alpha3
+            )
             ch_eta = (
                 eta_hysts[ch_idx]
                 if (isinstance(eta_hysts, (list, tuple)) and len(eta_hysts) > ch_idx)
                 else eta_hyst
+            )
+            ch_sag = (
+                k_sags[ch_idx]
+                if (isinstance(k_sags, (list, tuple)) and len(k_sags) > ch_idx)
+                else k_sag
             )
 
             in_dyn = apply_oversampled_saturation(
                 in_ch,
                 vsat=vsat,
                 alpha=ch_alpha,
+                alpha3=ch_alpha3,
                 eta_hyst=ch_eta,
+                k_sag=ch_sag,
                 oversample=oversample,
                 displacement_weighting=displacement_weighting,
                 magnet_drag=magnet_drag,
@@ -1080,7 +1112,9 @@ def simulate_voice(
     displacement_weighting: bool = True,
     magnet_drag: bool = True,
     alpha: float = None,
+    alpha3: float = None,
     eta_hyst: float = None,
+    k_sag: float = None,
     eddy_diffusion: bool = True,
     dc_block: bool = True,
 ):
@@ -1089,8 +1123,8 @@ def simulate_voice(
     By default, applies acoustic aperture pre-filtering and circuit simulation
     end-to-end in memory from raw calibration audio.
     Applies magnet-specific saturation voicing (Alnico V, Alnico II, Ceramic, Neodymium, Piezo),
-    Foster 2-stage core eddy diffusion, Dahl magnetic hysteresis friction, and
-    sub-audible 8 Hz DC-blocking filtering.
+    Foster 2-stage core eddy diffusion, Dahl magnetic hysteresis friction, dynamic Lenz flux sag,
+    dipole cubic proximity expansion, and sub-audible 8 Hz DC-blocking filtering.
     Automatically normalizes output levels based on the input sweep's dBFS (or target_dbfs).
     Outputs are saved by default to audio/{instrument_id}/out_{voice_id}.wav.
     """
@@ -1150,6 +1184,13 @@ def simulate_voice(
         else:
             voice_alpha = global_props["alpha"]
 
+    voice_alpha3 = alpha3
+    if voice_alpha3 is None:
+        if "alpha3" in vcfg:
+            voice_alpha3 = float(vcfg["alpha3"])
+        else:
+            voice_alpha3 = global_props["alpha3"]
+
     voice_eta = eta_hyst
     if voice_eta is None:
         if "eta_hyst" in vcfg:
@@ -1157,18 +1198,31 @@ def simulate_voice(
         else:
             voice_eta = global_props["eta_hyst"]
 
+    voice_sag = k_sag
+    if voice_sag is None:
+        if "k_sag" in vcfg:
+            voice_sag = float(vcfg["k_sag"])
+        else:
+            voice_sag = global_props["k_sag"]
+
     pickups_cfg = vcfg.get("pickups", [])
     if pickups_cfg and len(pickups_cfg) > 1:
         voice_alphas = []
+        voice_alpha3s = []
         voice_eta_hysts = []
+        voice_k_sags = []
         for p in pickups_cfg:
             p_mag = p.get("magnet_type", mag_type_global)
             p_props = MAGNET_PROPERTIES.get(p_mag, MAGNET_PROPERTIES["alnico_v"])
             voice_alphas.append(float(p["alpha"]) if "alpha" in p else p_props["alpha"])
+            voice_alpha3s.append(float(p["alpha3"]) if "alpha3" in p else p_props["alpha3"])
             voice_eta_hysts.append(float(p["eta_hyst"]) if "eta_hyst" in p else p_props["eta_hyst"])
+            voice_k_sags.append(float(p["k_sag"]) if "k_sag" in p else p_props["k_sag"])
     else:
         voice_alphas = None
+        voice_alpha3s = None
         voice_eta_hysts = None
+        voice_k_sags = None
 
     is_passive = (inst_cfg.get("electronics") == "passive")
     diff_curves = None
@@ -1191,7 +1245,7 @@ def simulate_voice(
     else:
         stage_desc = "Circuit Simulation (Pre-filtered Input)"
 
-    print(f"  -> Simulating Native VA ({stage_desc}): {cir_path.name} (Topology: {model.topology}, Source: {inst_id}, Alpha: {voice_alpha}, Eta: {voice_eta})...")
+    print(f"  -> Simulating Native VA ({stage_desc}): {cir_path.name} (Topology: {model.topology}, Source: {inst_id}, Alpha: {voice_alpha}, Alpha3: {voice_alpha3}, Eta: {voice_eta}, Sag: {voice_sag})...")
     simulate_circuit_audio(
         input_wav,
         output_wav,
@@ -1207,8 +1261,12 @@ def simulate_voice(
         magnet_drag=magnet_drag,
         alpha=voice_alpha,
         alphas=voice_alphas,
+        alpha3=voice_alpha3,
+        alpha3s=voice_alpha3s,
         eta_hyst=voice_eta,
         eta_hysts=voice_eta_hysts,
+        k_sag=voice_sag,
+        k_sags=voice_k_sags,
         dc_block=dc_block,
     )
     print(f"     Exported: {output_wav}")
@@ -1262,6 +1320,18 @@ def main():
         help="Explicit saturation asymmetry factor alpha (default: resolved from magnet_type in voices.toml)",
     )
     parser.add_argument(
+        "--alpha3",
+        type=float,
+        default=None,
+        help="Explicit cubic dipole proximity factor alpha3 (default: resolved from magnet_type in voices.toml)",
+    )
+    parser.add_argument(
+        "--k-sag",
+        type=float,
+        default=None,
+        help="Explicit dynamic Lenz-law core flux sag factor k_sag (default: resolved from magnet_type in voices.toml)",
+    )
+    parser.add_argument(
         "--no-eddy-diffusion",
         action="store_true",
         help="Disable Foster 2-stage core eddy diffusion (fall back to ideal frequency-independent L)",
@@ -1307,7 +1377,9 @@ def main():
             displacement_weighting=displacement_weighting,
             magnet_drag=magnet_drag,
             alpha=args.alpha,
+            alpha3=args.alpha3,
             eta_hyst=eta_hyst,
+            k_sag=args.k_sag,
             eddy_diffusion=eddy_diffusion,
             dc_block=dc_block,
         )

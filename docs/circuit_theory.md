@@ -81,11 +81,13 @@ In instruments equipped with active onboard preamps (e.g., Sadowsky NYC 2-band, 
 * This heavy $125\text{ k}\Omega$ loading naturally damps the $Q$ factor of the pickup coils, producing the warm, woody, organic low-mid bloom characteristic of vintage 1960s Jazz Basses and 1980s P/Js.
 * Tone control is a single $250\text{k}\Omega$ pot with a $47\text{ nF}$ capacitor.
 
-### C. Vintage CTS 250k Split-P Harness (`05_vintage_62_p_alnico`, `03_jazz_bridge_60s`)
+### C. Vintage CTS 250k Split-P Harness (`05_vintage_62_p_alnico`, `05b_vintage_62_p_tone50`, `03_jazz_bridge_60s`)
 * Classic 1962 Fender Precision specification:
   * Volume: CTS $250\text{ k}\Omega$ Audio Pot
   * Tone: CTS $250\text{ k}\Omega$ Audio Pot with $47\text{ nF}$ paper-in-oil capacitor
   * Net parallel pot load: $250\text{k} \parallel 250\text{k} = 125\text{ k}\Omega$ (unloaded) / with $1\text{ M}\Omega$ receiver: $111\text{ k}\Omega$.
+  * **Tone at 100% (Wide Open - `05_vintage_62_p_alnico`):** Full CTS $250\text{ k}\Omega$ series wiper resistance isolates the $47\text{ nF}$ capacitor, preserving the iconic $2.8\text{ kHz}$ resonant bite and open harmonic attack.
+  * **Tone at 50% (Studio Sweet Spot - `05b_vintage_62_p_tone50`):** Due to the logarithmic CTS audio taper, physical rotation position "5" sets the wiper series resistance to $R_{\text{tone}} \approx 50\text{ k}\Omega$. The $50\text{ k}\Omega + 47\text{ nF}$ branch forms a smooth midrange plateau ($-1.0\text{ dB}$ at $1\text{ kHz}$, $-4.6\text{ dB}$ at $2.8\text{ kHz}$), eliminating pick click, string buzz, and fret clatter while retaining punchy low-mid warmth and definition without descending into 100% rolloff mud.
 
 ### D. Modern Boutique 500k Harness with Treble Bleed (`04_modern_p_ceramic`)
 * Modern ceramic split-coils use $500\text{ k}\Omega$ pots to maintain high-frequency extension:
@@ -218,13 +220,40 @@ Where:
 
 ---
 
-## 8. Magnet Metallurgy Parameter Reference
+## 8. Higher-Order Dipole Proximity & Dynamic Lenz-Law Core Flux Sag
 
-| Magnet Material | $k_{\text{core}}$ | $f_{\text{core}}\text{ (Hz)}$ | $\eta_{\text{hyst}}$ | Asymmetry $\alpha$ | Physical Metallurgy & Application |
-|---|---|---|---|---|---|
-| **Alnico V** | $0.08$ | $2500$ | $0.06$ | $0.26$ | Highly conductive cast Al-Ni-Co alloy; vintage P-Bass, Jazz Bass, StingRay. |
-| **Alnico II** | $0.10$ | $1800$ | $0.09$ | $0.32$ | Softer magnetic pull, lower coercivity, rich 2nd harmonic bloom; Gibson Mudbucker. |
-| **Ceramic (Ferrite)** | $0.02$ | $6500$ | $0.02$ | $0.12$ | Electrically insulating Ba/Sr ferrite; Modern P, Modern PJ, Rickenbacker 4003. |
-| **Neodymium** | $0.01$ | $8500$ | $0.01$ | $0.08$ | High coercivity, linear magnetic response; Dingwall FD3 multi-scale. |
-| **Piezo** | $0.00$ | $0$ | $0.00$ | $0.00$ | Non-magnetic PZT ceramic transducer; Upright acoustic bridge. |
+Physical guitar pickups deviate from ideal linear transducers in two critical dynamic regimes during aggressive fingerstyle, slap, or pick attacks:
+
+### A. Higher-Order Magnetic Dipole Proximity Stiffening ($\alpha_3$)
+The magnetic field $B(z)$ above a cylindrical pole piece decays nonlinearly with air-gap distance $z$ as a magnetic dipole:
+$$B(z) \propto \frac{\mu_0 m}{2\pi (z^2 + R^2)^{3/2}}$$
+
+Expanding the string excursion $x(t)$ about its resting equilibrium distance $z_0$ in a Taylor series yields both quadratic (even) and cubic (odd) proximity stiffening terms:
+$$v_{\text{geom}}(t) = x_{\text{disp}}(t) + \alpha \cdot x_{\text{disp}}(t)^2 + \alpha_3 \cdot x_{\text{disp}}(t)^3$$
+
+* $\alpha$ (quadratic asymmetry) generates even-order (2nd harmonic) musical warmth and octave bloom.
+* $\alpha_3$ (cubic expansion) generates touch-sensitive 3rd-harmonic punch and tactile low-mid compression when digging in hard on low strings.
+* On lower-coercivity magnets (Alnico II $\alpha_3 = 0.14$, Alnico V $\alpha_3 = 0.10$), the string modulates the magnetic field more deeply, yielding rich harmonic crunch. High-coercivity magnets (Ceramic $\alpha_3 = 0.04$, Neodymium $\alpha_3 = 0.02$) remain significantly tighter and cleaner; non-magnetic Piezo ($\alpha_3 = 0.00$) is purely linear.
+
+### B. Dynamic Lenz-Law Core Flux Sag ($k_{\text{sag}}$)
+Under explosive pluck transients, the rapid rate of change of magnetic flux ($d\Phi/dt$) induces counter-electromotive eddy currents within conductive magnet alloys according to Lenz's Law. These circulating counter-currents momentarily oppose and depress the net core flux during the initial $20\text{--}40\text{ ms}$ pluck attack:
+$$\text{drag}[n] = 1.0 - k_{\text{sag}} \cdot \text{clip}\left(\frac{\text{env}[n] - V_{\text{sat}}}{V_{\text{sat}}}, 0, 1\right)$$
+
+Where:
+* $\text{env}[n]$ is the attack envelope smoothed through a causal leaky integrator ($\tau = 12\text{ ms}$).
+* $k_{\text{sag}}$ controls the depth of dynamic attack compression ($0.12$ for Alnico II, $0.08$ for Alnico V, $0.03$ for Ceramic, $0.01$ for Neodymium, $0.00$ for Piezo).
+* This provides organic, punchy pick compression on forte attacks that blooms into sustained notes without harsh clipping or flat-topping.
+
+---
+
+## 9. Magnet Metallurgy Parameter Reference
+
+| Magnet Material | $k_{\text{core}}$ | $f_{\text{core}}\text{ (Hz)}$ | $\eta_{\text{hyst}}$ | Quadratic $\alpha$ | Cubic $\alpha_3$ | Lenz Sag $k_{\text{sag}}$ | Physical Metallurgy & Application |
+|---|---|---|---|---|---|---|---|
+| **Alnico V** | $0.08$ | $2500$ | $0.06$ | $0.26$ | $0.10$ | $0.08$ | Highly conductive cast Al-Ni-Co alloy; vintage P-Bass, Jazz Bass, StingRay. |
+| **Alnico II** | $0.10$ | $1800$ | $0.09$ | $0.32$ | $0.14$ | $0.12$ | Softer pull, lower coercivity, rich 2nd & 3rd harmonic bloom; Gibson Mudbucker. |
+| **Ceramic (Ferrite)** | $0.02$ | $6500$ | $0.02$ | $0.12$ | $0.04$ | $0.03$ | Electrically insulating Ba/Sr ferrite; Modern P, Modern PJ, Rickenbacker 4003. |
+| **Hybrid** | $0.05$ | $3500$ | $0.04$ | $0.18$ | $0.07$ | $0.05$ | Combined Alnico split-coil + Ceramic MM humbucker; P/MM Hybrid series. |
+| **Neodymium** | $0.01$ | $8500$ | $0.01$ | $0.08$ | $0.02$ | $0.01$ | High coercivity, ultra-linear transient response; Dingwall FD3 multi-scale. |
+| **Piezo** | $0.00$ | $0$ | $0.00$ | $0.00$ | $0.00$ | $0.00$ | Non-magnetic PZT ceramic transducer; Upright acoustic bridge. |
 

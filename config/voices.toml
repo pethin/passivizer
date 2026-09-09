@@ -180,6 +180,28 @@ coils = [
 ]
 
 # ------------------------------------------------------------------------------
+# 05b. VINTAGE '62 SPLIT-COIL P (TONE 50% SWEET SPOT)
+# ------------------------------------------------------------------------------
+# Classic Alnico V split-coil with tone pot rolled to 50% (50k wiper resistance
+# in series with 47nF capacitor), yielding the smooth, organic Jamerson / Pino
+# fingerstyle midrange contour with zero pick click.
+[voices.05b_vintage_62_p_tone50]
+name = "05b. Vintage '62 Split-P (Tone 50%)"
+circuit = "circuits/05b_vintage_62_p_tone50.cir"
+topology = "Split-Coil Alnico V (Tone 50%)"
+description = "Vintage '62 Alnico V split-coil with tone pot rolled to 50% (50k + 47nF sweet spot)"
+magnet_type = "alnico_v"
+alpha = 0.26
+fr = 1600.0
+Q = 1.1
+gain_db = 0.0
+scale = "34in"
+coils = [
+    { strings = ["E", "A"], position_from_bridge_m = 0.1390, aperture_width_in = 1.00, weight = 1.0 },
+    { strings = ["D", "G"], position_from_bridge_m = 0.1110, aperture_width_in = 1.00, weight = 1.0 }
+]
+
+# ------------------------------------------------------------------------------
 # 06. SPLIT-COIL P (47nF TONE ROLLOFF)
 # ------------------------------------------------------------------------------
 # Split-coil P-Bass loaded with a 47nF tone capacitor (tone pot rolled to 0),

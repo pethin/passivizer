@@ -735,6 +735,111 @@ def test_dahl_magnetic_hysteresis():
     out_impulse = apply_oversampled_saturation(impulse, vsat=0.5, alpha=0.26, eta_hyst=0.06)
     assert np.array_equal(impulse, out_impulse)
 
+def test_tone_50_sweet_spot_transfer_function():
+    """
+    Verify Voice 05b (Vintage '62 P-Bass with Tone at 50% Sweet Spot):
+    1. Netlist parses R_tone = 50k, C_tone = 47nF.
+    2. Frequency response forms a gentle midrange plateau rather than extreme resonance peak or total mud.
+    3. Rolloff at 2.8 kHz is ~4-5 dB down, smoothing pick transients while preserving 1 kHz low-mids.
+    """
+    m05b = parse_netlist(CIRCUITS_DIR / "05b_vintage_62_p_tone50.cir")
+    assert m05b.Ctone == pytest.approx(47e-9)
+    assert m05b.Rtone == pytest.approx(50000.0)
+
+    m05_open = parse_netlist(CIRCUITS_DIR / "05_vintage_62_p_alnico.cir")
+    m06_roll = parse_netlist(CIRCUITS_DIR / "06_p_bass_47nf_rolloff.cir")
+
+    curves_05b = compute_circuit_transfer_functions(m05b, freqs=FREQS)[0]
+    curves_05 = compute_circuit_transfer_functions(m05_open, freqs=FREQS)[0]
+    curves_06 = compute_circuit_transfer_functions(m06_roll, freqs=FREQS)[0]
+
+    idx_1k = min(range(len(FREQS)), key=lambda i: abs(FREQS[i] - 1000.0))
+    idx_2k8 = min(range(len(FREQS)), key=lambda i: abs(FREQS[i] - 2800.0))
+
+    # At 1 kHz, 05b is within 2.5 dB of wide-open 05
+    diff_1k_db = 20.0 * math.log10(curves_05b[idx_1k] / curves_05[idx_1k])
+    assert -2.5 <= diff_1k_db <= -0.5
+
+    # At 2.8 kHz (where 05 has its bright resonant peak), 05b rolls off by 3.5 to 6.0 dB relative to 05
+    diff_2k8_db = 20.0 * math.log10(curves_05b[idx_2k8] / curves_05[idx_2k8])
+    assert -6.5 <= diff_2k8_db <= -3.0
+
+    # At 2.8 kHz, 05b retains significantly more clarity and bite than fully rolled-off 06
+    assert curves_05b[idx_2k8] > curves_06[idx_2k8] * 2.5
+
+def test_higher_order_dipole_expansion_and_sag():
+    """
+    Verify higher-order magnetic dipole expansion (alpha3) and Lenz-law flux sag (k_sag):
+    1. MAGNET_PROPERTIES defines alpha3 and k_sag across all magnet types.
+    2. Cubic expansion generates 3rd harmonic (3f) excitation.
+    3. Flux sag reduces peak excursion envelope on forte attacks, proportional to k_sag.
+    4. Small signals (<= 0.10) preserve mathematical linearity.
+    """
+    # 1. Magnet properties dictionary check
+    for mag_type in ["alnico_v", "alnico_ii", "ceramic", "hybrid", "neodymium", "piezo"]:
+        assert mag_type in MAGNET_PROPERTIES
+        props = MAGNET_PROPERTIES[mag_type]
+        assert "alpha3" in props
+        assert "k_sag" in props
+        assert 0.0 <= props["alpha3"] <= 0.20
+        assert 0.0 <= props["k_sag"] <= 0.20
+
+    # Alnico II has highest sag and proximity stiffening; Piezo has 0.0
+    assert MAGNET_PROPERTIES["alnico_ii"]["alpha3"] > MAGNET_PROPERTIES["ceramic"]["alpha3"]
+    assert MAGNET_PROPERTIES["alnico_ii"]["k_sag"] > MAGNET_PROPERTIES["ceramic"]["k_sag"]
+    assert MAGNET_PROPERTIES["piezo"]["alpha3"] == 0.0
+    assert MAGNET_PROPERTIES["piezo"]["k_sag"] == 0.0
+
+    # 2. Cubic expansion generating 3rd harmonic
+    sr = 48000
+    n = 8192
+    t = np.arange(n) / sr
+    f0 = 150.0
+    sig = 0.50 * np.sin(2.0 * np.pi * f0 * t)
+
+    # Pure quadratic (alpha=0.20, alpha3=0.0)
+    out_quad = apply_oversampled_saturation(
+        sig, vsat=0.6, alpha=0.20, alpha3=0.0, k_sag=0.0, displacement_weighting=False, oversample=1
+    )
+    # Cubic proximity stiffening (alpha=0.20, alpha3=0.10)
+    out_cubic = apply_oversampled_saturation(
+        sig, vsat=0.6, alpha=0.20, alpha3=0.10, k_sag=0.0, displacement_weighting=False, oversample=1
+    )
+
+    # Difference signal (out_cubic - out_quad) matches sin^3(theta) = (3*sin(theta) - sin(3*theta)) / 4
+    diff_sig = out_cubic - out_quad
+    fft_diff = np.abs(np.fft.rfft(diff_sig))
+    freqs = np.fft.rfftfreq(n, 1.0 / sr)
+
+    idx_h3 = int(np.argmin(np.abs(freqs - 3.0 * f0)))
+    h3_diff = fft_diff[idx_h3]
+
+    # Cubic proximity stiffening must produce significant 3rd harmonic modulation and increased excursion
+    assert h3_diff > 2.0
+    assert np.max(out_cubic) > np.max(out_quad)
+
+    # 3. Dynamic Lenz-law core flux sag
+    # Large burst signal exceeding vsat
+    burst = 0.80 * np.sin(2.0 * np.pi * f0 * t)
+    out_nosag = apply_oversampled_saturation(
+        burst, vsat=0.5, alpha=0.0, alpha3=0.0, k_sag=0.0, magnet_drag=True, oversample=1
+    )
+    out_sag = apply_oversampled_saturation(
+        burst, vsat=0.5, alpha=0.0, alpha3=0.0, k_sag=0.12, magnet_drag=True, oversample=1
+    )
+
+    # RMS of sagged burst must be lower due to dynamic Lenz braking
+    rms_nosag = np.sqrt(np.mean(out_nosag ** 2))
+    rms_sag = np.sqrt(np.mean(out_sag ** 2))
+    assert rms_sag < rms_nosag
+
+    # 4. Small-signal linearity
+    small_sig = 0.05 * np.sin(2.0 * np.pi * f0 * t)
+    out_small = apply_oversampled_saturation(
+        small_sig, vsat=0.5, alpha=0.20, alpha3=0.10, k_sag=0.12, oversample=1
+    )
+    assert np.allclose(small_sig, out_small, atol=1e-6)
+
 
 
 
