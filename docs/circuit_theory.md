@@ -139,3 +139,43 @@ Unlike magnetic pickups whose output is induced via Faraday's Law across an indu
      $$V_{\text{dyn}}(t) = 0.42 \cdot \tanh\left(\frac{V(t)}{0.42}\right)$$
    * Captures the warm, compressed "bloom" and physical tactile pushback of a double-bass bridge.
 
+---
+
+## 5. Passive-to-Passive Modeling & Differential SPICE Engine
+
+When transforming a passive source bass (such as a stock Fender Precision Bass or Jazz Bass) into a target passive voice, the physical assumptions change fundamentally from active EMG modeling:
+
+```
+Active Source (EMG):    [Wideband ~20 kHz] ──► [H_target(s)] ──► [Target Sound]
+Passive Source:         [V_string] ──► [H_source(s)] ──► [Track] ──► [H_diff(s)] ──► [Target Sound]
+```
+
+### The Cascaded Double-Filtering Problem
+On an active EMG bass, the internal op-amp buffer outputs an essentially flat, wideband signal. Applying the target circuit's absolute SPICE transfer function $H_{\text{target}}(s)$ accurately imparts the target pickup's loaded RLC resonance and $-12\text{ dB/octave}$ cutoff.
+
+On a passive recording, however:
+1. The track **already contains** the source pickup's loaded RLC resonance, cable capacitance ($750\text{ pF}$), and potentiometer loading.
+2. Applying absolute $H_{\text{target}}(s)$ cascades the filters, producing an unphysical **$-24\text{ dB/octave}$** rolloff ("underwater" muffled tone).
+3. Applying forward $\tanh$ core saturation compresses the signal a second time (double-saturation).
+
+### The Differential Solution
+Passivizer resolves passive source modeling through a **regularized differential transfer function**:
+
+$$|H_{\text{diff}}(f)| = \frac{|H_{\text{target}}(f)| \cdot |H_{\text{source}}(f)|}{|H_{\text{source}}(f)|^2 + \epsilon^2}$$
+
+Where:
+* $H_{\text{source}}(s)$ is the analytical nodal AC transfer function of the source instrument's pickup, pots ($250\text{ k}\Omega$ vol, $250\text{ k}\Omega$ tone), and $750\text{ pF}$ cable.
+* $H_{\text{target}}(s)$ is the target voice's SPICE transfer function.
+* $\epsilon = 0.05$ is the **Wiener regularization floor**, preventing the inverse filter from dividing by near-zero stopband values.
+* **High-Frequency Clamping:** Above $4.5\text{ kHz}$, maximum boost is clamped to $+6.0\text{ dB}$ relative to the $1\text{ kHz}$ reference gain, preventing amplification of passive coil hum, Johnson thermal noise, and audio interface preamp hiss.
+
+### Analytical Tone Pot Admittance
+To model a passive guitar's tone control at any position (from $100\%$ wide open down to $0$ rolled off), the nodal admittance of the tone branch is formulated as:
+
+$$Y_{\text{tone}}(s) = \frac{s \cdot C_{\text{tone}}}{1 + s \cdot R_{\text{tone}} \cdot C_{\text{tone}}}$$
+
+* **Wide open ($R_{\text{tone}} = 250\text{ k}\Omega$, $C_{\text{tone}} = 47\text{ nF}$):** At audio frequencies ($2\text{--}4\text{ kHz}$), the capacitor's impedance is negligible ($\approx 1.2\text{ k}\Omega$), so the tone pot acts essentially as a pure $250\text{ k}\Omega$ resistive shunt in parallel with the volume pot ($250\text{k} \,||\, 250\text{k} = 125\text{ k}\Omega$).
+* **Rolled off ($R_{\text{tone}} = 0\,\Omega$):** The admittance simplifies to $s \cdot C_{\text{tone}}$, shunting high frequencies directly to ground.
+
+### Dynamic Magnetic Core Saturation Bypass
+Because a physical passive bass already experienced magnetic core saturation during the original string pluck, forward $\tanh$ saturation is automatically bypassed (`in_dyn = in_ch`) whenever `electronics = "passive"`, preserving authentic natural dynamics without artificial distortion.

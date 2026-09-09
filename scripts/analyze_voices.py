@@ -176,7 +176,8 @@ def build_voice_dataframe(voice_id, cfg, instrument="30in", src_scale=None):
         h_tgt_total += branch_transfer
 
     # 3. Active Pickup Electrical Resonance Deconvolution
-    h_elec_inv = np.ones_like(freqs) if is_identity else resolve_pickup_electrical_deconvolution(freqs, src_pickup, inst)
+    is_passive = (inst.get("electronics") == "passive")
+    h_elec_inv = np.ones_like(freqs) if (is_identity or is_passive) else resolve_pickup_electrical_deconvolution(freqs, src_pickup, inst)
 
     # 4. Scale-Length Tension Filter
     src_scale_in = inst.get("scale_length_in", 34.0)

@@ -17,6 +17,7 @@ id = "34in_standard_p"
 name = "34\" Standard P-Bass"
 scale_length_in = 34.0
 scale_length_m = 0.8636
+electronics = "passive"
 
 # String wave speeds: v = 2 * L * f0 (for E1=41.2Hz, A1=55.0Hz, D2=73.4Hz, G2=98.0Hz)
 string_wave_speeds = [71.16, 95.00, 126.81, 169.27]
@@ -45,6 +46,7 @@ position_from_bridge_m = 0.1250  # Centerline 125.0mm
 aperture_width_in = 1.00         # 1.00" aperture per split half
 coil_spacing_in = 0.0
 type = "split_coil"
+circuit = "circuits/sources/source_standard_p.cir"
 resonant_frequency_hz = 2800.0   # Standard Fender split-coil loaded resonance (2.8 kHz)
 q_factor = 1.40                  # Vintage Alnico V loaded Q factor
 coils = [
@@ -53,3 +55,22 @@ coils = [
     # D/G strings see rearward coil half (tighter, punchier mid bite)
     { strings = ["D", "G"], position_from_bridge_m = 0.1110, aperture_width_in = 1.00, weight = 1.0 }
 ]
+
+# ------------------------------------------------------------------------------
+# 2. SMART VOICE MAPPING
+# ------------------------------------------------------------------------------
+# Single-pickup passive bass: all digital twin voicings map directly to the split-coil P.
+[pickup_mapping]
+"01_jazz_bass_pair" = "split_p"
+"02_jazz_bridge_60s" = "split_p"
+"03_modern_p_ceramic" = "split_p"
+"04_vintage_62_p_alnico" = "split_p"
+"05_p_bass_47nf_rolloff" = "split_p"
+"06_pj_hybrid_parallel" = "split_p"
+"07_stingray_mm_parallel" = "split_p"
+"08_rickenbacker_bridge_hpf" = "split_p"
+"09_pmm_hybrid_series" = "split_p"
+"10_mudbucker_ultra_series" = "split_p"
+"11_dingwall_multiscale_bridge" = "split_p"
+"12_upright_bridge_transducer" = "split_p"
+

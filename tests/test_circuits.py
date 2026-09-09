@@ -333,4 +333,98 @@ def test_upright_voicing_simulation_vs_theory_consistency():
         diff = abs(val_sim - val_theory)
         assert diff < 1.5, f"Upright at {test_f} Hz diff={diff:.2f} dB exceeds 1.5 dB (sim={val_sim:.2f}, theory={val_theory:.2f})"
 
+def test_tone_pot_series_admittance():
+    """Verify that series Rtone allows wide-open tone pots to preserve pickup resonance."""
+    # 1. Voice 05: Rtone = 0, Ctone = 47nF -> collapses peak to 200-500 Hz
+    m_rolled = parse_netlist(CIRCUITS_DIR / "05_p_bass_47nf_rolloff.cir")
+    assert m_rolled.Rtone == 0.0
+    assert m_rolled.Ctone == pytest.approx(47e-9)
+    curves_rolled = compute_circuit_transfer_functions(m_rolled, freqs=FREQS)
+    peak_rolled = FREQS[curves_rolled[0].index(max(curves_rolled[0]))]
+    assert 200.0 <= peak_rolled <= 500.0
+
+    # 2. Source Standard P: Rtone = 250k, Ctone = 47nF -> loaded peak stays in 2000-2400 Hz range
+    m_open = parse_netlist(REPO_ROOT / "circuits" / "sources" / "source_standard_p.cir")
+    assert m_open.Rtone == pytest.approx(250000.0)
+    assert m_open.Ctone == pytest.approx(47e-9)
+    curves_open = compute_circuit_transfer_functions(m_open, freqs=FREQS)
+    peak_open = FREQS[curves_open[0].index(max(curves_open[0]))]
+    assert 2000.0 <= peak_open <= 2400.0
+
+def test_passive_identity_differential_flatness():
+    """Verify that identity differential response is flat, and pot unloading is accurately modeled."""
+    from scripts.simulate_circuits import compute_differential_circuit_transfer_functions
+    m_src = parse_netlist(REPO_ROOT / "circuits" / "sources" / "source_standard_p.cir")
+
+    # 1. True identity: source to source should be < 0.2 dB across passband
+    diff_self = compute_differential_circuit_transfer_functions(m_src, m_src, freqs=FREQS)
+    h_self = np.asarray(diff_self[0])
+    h_self_db = 20.0 * np.log10(h_self / h_self[0])
+    f_arr = np.asarray(FREQS)
+    passband_mask = (f_arr >= 40.0) & (f_arr <= 4500.0)
+    assert np.all(np.abs(h_self_db[passband_mask]) < 0.2)
+
+    # 2. Source Standard P (250k pot + 250k tone = 125k load) to Target '62 P (500k load):
+    # Produces subtle ~3.7 dB clarity lift at resonance due to higher impedance harness
+    m_tgt = parse_netlist(CIRCUITS_DIR / "04_vintage_62_p_alnico.cir")
+    diff_curves = compute_differential_circuit_transfer_functions(m_tgt, m_src, freqs=FREQS)
+    h_diff = np.asarray(diff_curves[0])
+    h_diff_db = 20.0 * np.log10(h_diff / h_diff[0])
+    # Peak boost due to 500k vs 125k unloading
+    assert 3.0 <= np.max(h_diff_db[passband_mask]) <= 4.2
+
+def test_passive_saturation_bypassed():
+    """Verify that forward tanh saturation is bypassed when is_passive is True."""
+    import pedalboard.io
+    sr = 48000
+    n_samples = 4800
+    # High amplitude input (0.80) exceeding vsat (0.45)
+    in_heavy = np.full((1, n_samples), 0.80, dtype=np.float32)
+
+    m = parse_netlist(CIRCUITS_DIR / "04_vintage_62_p_alnico.cir")
+
+    with tempfile.NamedTemporaryFile(suffix=".wav") as tmp_act, tempfile.NamedTemporaryFile(suffix=".wav") as tmp_pas:
+        # Active simulation: applies tanh
+        simulate_circuit_audio(in_heavy, Path(tmp_act.name), m, is_passive=False)
+        # Passive simulation: bypasses tanh
+        simulate_circuit_audio(in_heavy, Path(tmp_pas.name), m, is_passive=True)
+
+        with pedalboard.io.AudioFile(tmp_act.name) as f:
+            audio_act = f.read(f.frames)[0]
+        with pedalboard.io.AudioFile(tmp_pas.name) as f:
+            audio_pas = f.read(f.frames)[0]
+
+    # Passive output should maintain linear proportional gain (higher uncompressed peak)
+    assert np.max(np.abs(audio_pas)) > np.max(np.abs(audio_act))
+
+def test_wiener_clamping_prevents_noise_explosion():
+    """Verify that differential top-end boost is strictly clamped <= +6.0 dB above 4.5 kHz."""
+    from scripts.simulate_circuits import compute_differential_circuit_transfer_functions
+    # Convert high-inductance P (3.8H) to brighter Jazz Bridge (3.6H)
+    m_src = parse_netlist(REPO_ROOT / "circuits" / "sources" / "source_standard_p.cir")
+    m_tgt = parse_netlist(CIRCUITS_DIR / "02_jazz_bridge_60s.cir")
+
+    diff_curves = compute_differential_circuit_transfer_functions(m_tgt, m_src, freqs=FREQS, max_boost_db=6.0)
+    h_diff = np.asarray(diff_curves[0])
+
+    f_arr = np.asarray(FREQS)
+    ref_idx = int(np.argmin(np.abs(f_arr - 1000.0)))
+    h_diff_rel_db = 20.0 * np.log10(h_diff / h_diff[ref_idx])
+
+    hi_mask = f_arr >= 4500.0
+    max_hi_boost = np.max(h_diff_rel_db[hi_mask])
+    assert max_hi_boost <= 6.05  # Within 0.05 dB of +6.0 dB ceiling
+
+def test_passive_source_simulation_runs():
+    """Verify end-to-end simulate_voice runs for passive source instruments."""
+    with tempfile.NamedTemporaryFile(suffix=".wav") as tmp1, tempfile.NamedTemporaryFile(suffix=".wav") as tmp2:
+        res1 = simulate_voice("04_vintage_62_p_alnico", output_wav=Path(tmp1.name), instrument="34in_standard_p")
+        assert res1 is True
+        assert os.path.exists(tmp1.name) and os.path.getsize(tmp1.name) > 1000
+
+        res2 = simulate_voice("01_jazz_bass_pair", output_wav=Path(tmp2.name), instrument="34in_standard_jazz")
+        assert res2 is True
+        assert os.path.exists(tmp2.name) and os.path.getsize(tmp2.name) > 1000
+
+
 

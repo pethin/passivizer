@@ -35,6 +35,7 @@ from model_physics import (
     compute_voice_prefilter_firs,
     load_instrument,
     get_instrument_string,
+    get_source_pickup,
 )
 
 def parse_spice_val(val_str: str) -> float:
@@ -75,8 +76,9 @@ class CircuitModel:
         self.Reddy_b = 125000.0
         self.Ccoil_b = 70e-12
 
-        # Optional tone / HPF caps
+        # Optional tone / HPF
         self.Ctone = 0.0
+        self.Rtone = 0.0
         self.Crick = 0.0
 
         # Volume pot & treble bleed
@@ -157,6 +159,8 @@ def parse_netlist(cir_path: Path) -> CircuitModel:
         # Tone / HPF
         elif tag == "C_TONE":
             model.Ctone = parse_spice_val(tokens[3])
+        elif tag == "R_TONE":
+            model.Rtone = parse_spice_val(tokens[3])
         elif tag == "C_RICK":
             model.Crick = parse_spice_val(tokens[3])
 
@@ -216,7 +220,14 @@ def compute_circuit_transfer_functions(model: CircuitModel, freqs=FREQS):
 
             # Branch admittance (L + Rdc || Reddy)
             Y_branch = 1.0 / (model.Rdc + s * model.L) + 1.0 / model.Reddy
-            Y_shunt2 = s * model.Ccoil + (s * model.Ctone if model.Ctone > 0 else 0.0)
+
+            # Tone circuit admittance (series R-C branch to ground)
+            if model.Ctone > 0:
+                Y_tone = (s * model.Ctone) / (1.0 + s * model.Rtone * model.Ctone) if model.Rtone > 0 else s * model.Ctone
+            else:
+                Y_tone = 0.0
+
+            Y_shunt2 = s * model.Ccoil + Y_tone
 
             # Treble bleed impedance
             Z_tb = model.Rtb_ser + model.Rtb_par / (1.0 + s * model.Rtb_par * model.Ctb)
@@ -242,7 +253,14 @@ def compute_circuit_transfer_functions(model: CircuitModel, freqs=FREQS):
 
             Y_br_n = 1.0 / (model.Rdc + s * model.L) + 1.0 / model.Reddy
             Y_br_b = 1.0 / (model.Rdc_b + s * model.L_b) + 1.0 / model.Reddy_b
-            Y_shunt2 = s * (model.Ccoil + model.Ccoil_b)
+
+            # Tone circuit admittance (series R-C branch to ground)
+            if model.Ctone > 0:
+                Y_tone = (s * model.Ctone) / (1.0 + s * model.Rtone * model.Ctone) if model.Rtone > 0 else s * model.Ctone
+            else:
+                Y_tone = 0.0
+
+            Y_shunt2 = s * (model.Ccoil + model.Ccoil_b) + Y_tone
 
             Z_tb = model.Rtb_ser + model.Rtb_par / (1.0 + s * model.Rtb_par * model.Ctb)
             Z23 = (model.Rtop * Z_tb) / (model.Rtop + Z_tb)
@@ -272,13 +290,19 @@ def compute_circuit_transfer_functions(model: CircuitModel, freqs=FREQS):
             Y_cb = s * model.Ccoil_b
             Y_2b = Y_br_b + Y_cb
 
+            # Tone circuit admittance (series R-C branch to ground)
+            if model.Ctone > 0:
+                Y_tone = (s * model.Ctone) / (1.0 + s * model.Rtone * model.Ctone) if model.Rtone > 0 else s * model.Ctone
+            else:
+                Y_tone = 0.0
+
             Z_tb = model.Rtb_ser + model.Rtb_par / (1.0 + s * model.Rtb_par * model.Ctb)
             Z23 = (model.Rtop * Z_tb) / (model.Rtop + Z_tb)
             Zload = 1.0 / (1.0 / Rload + s * Cload)
             Y_out_load = 1.0 / (Z23 + Zload)
 
             Y_m = Y_br_n + Y_cn + Y_2b
-            Y_2 = Y_2b + Y_out_load
+            Y_2 = Y_2b + Y_out_load + Y_tone
             delta = Y_m * Y_2 - Y_2b ** 2
 
             T2_n = (Y_2b * Y_br_n) / delta
@@ -290,6 +314,50 @@ def compute_circuit_transfer_functions(model: CircuitModel, freqs=FREQS):
         return [mag_n, mag_b]
 
     raise ValueError(f"Unknown circuit topology: {model.topology}")
+
+def compute_differential_circuit_transfer_functions(
+    target_model: CircuitModel,
+    source_model: CircuitModel,
+    freqs=FREQS,
+    max_boost_db: float = 6.0,
+    eps: float = 0.05,
+):
+    """
+    Computes regularized differential AC transfer functions for passive-to-passive modeling:
+    |H_diff(s)| = (|H_target(s)| * |H_source(s)|) / (|H_source(s)|^2 + eps^2)
+    with Wiener regularization and frequency-dependent high-frequency gain clamping (<= max_boost_db
+    above 4.5 kHz) to prevent amplifying passive coil hum, Johnson noise, or cable hiss.
+    """
+    tgt_curves = compute_circuit_transfer_functions(target_model, freqs=freqs)
+    src_curves = compute_circuit_transfer_functions(source_model, freqs=freqs)
+
+    f_arr = np.asarray(freqs, dtype=np.float64)
+    ref_idx = int(np.argmin(np.abs(f_arr - 1000.0)))
+
+    diff_curves = []
+    for ch_idx, tgt_c in enumerate(tgt_curves):
+        src_c = src_curves[ch_idx] if len(src_curves) > ch_idx else src_curves[0]
+
+        tgt_arr = np.asarray(tgt_c, dtype=np.float64)
+        src_arr = np.asarray(src_c, dtype=np.float64)
+
+        # Wiener regularized quotient
+        h_diff = (tgt_arr * src_arr) / (src_arr ** 2 + eps ** 2)
+
+        # Reference gain at 1 kHz (or DC)
+        ref_gain = h_diff[ref_idx] if ref_idx < len(h_diff) else h_diff[0]
+        if ref_gain <= 0:
+            ref_gain = 1.0
+
+        max_allowed = ref_gain * (10.0 ** (max_boost_db / 20.0))
+
+        # Smooth clamp gain above 4.5 kHz
+        hi_mask = f_arr >= 4500.0
+        h_diff[hi_mask] = np.minimum(h_diff[hi_mask], max_allowed)
+
+        diff_curves.append(h_diff.tolist())
+
+    return diff_curves
 
 def apply_prefilter_to_audio(audio: np.ndarray, sr: int, fir_samples) -> np.ndarray:
     """
@@ -352,13 +420,17 @@ def simulate_circuit_audio(
     model: CircuitModel,
     prefilter_firs=None,
     save_intermediate: Path = None,
+    circuit_curves=None,
+    is_passive: bool = False,
 ):
     """
     Executes native Virtual Analog circuit simulation on audio.
     If prefilter_firs is provided, convolves input audio through acoustic aperture and
     scale-tension FIRs in memory first.
-    Applies soft-knee tanh compliance, convolves with exact circuit transfer function,
-    and writes canonical 24-bit 48 kHz mono audio.
+    For active instruments, applies soft-knee tanh compliance.
+    For passive source instruments, bypasses forward saturation (to prevent double-compression)
+    and applies regularized differential SPICE transfer functions (H_target / H_source).
+    Writes canonical 24-bit 48 kHz mono audio.
     """
     from pedalboard.io import AudioFile
 
@@ -386,7 +458,10 @@ def simulate_circuit_audio(
                 wf.setparams(params)
                 wf.writeframes(frames)
 
-    mag_curves = compute_circuit_transfer_functions(model, freqs=FREQS)
+    if circuit_curves is not None:
+        mag_curves = circuit_curves
+    else:
+        mag_curves = compute_circuit_transfer_functions(model, freqs=FREQS)
     n_ch = len(mag_curves)
 
     channel_outputs = []
@@ -398,13 +473,15 @@ def simulate_circuit_audio(
         else:
             in_ch = audio
 
-        # Resolve soft-knee saturation threshold
-        if model.topology in ["parallel", "series"]:
-            vsat = model.vsat_n if ch_idx == 0 else model.vsat_b
+        # Dynamic magnetic saturation: bypassed for passive sources (already physically saturated)
+        if is_passive:
+            in_dyn = in_ch.copy().astype(np.float32)
         else:
-            vsat = model.vsat
-
-        in_dyn = (vsat * np.tanh(in_ch / vsat)).astype(np.float32)
+            if model.topology in ["parallel", "series"]:
+                vsat = model.vsat_n if ch_idx == 0 else model.vsat_b
+            else:
+                vsat = model.vsat
+            in_dyn = (vsat * np.tanh(in_ch / vsat)).astype(np.float32)
 
         # Synthesize minimum-phase causal impulse response
         fir = np.array(
@@ -521,10 +598,23 @@ def simulate_voice(
         if excursion > 0:
             model.vsat = round(model.vsat / excursion, 3)
 
+    is_passive = (inst_cfg.get("electronics") == "passive")
+    diff_curves = None
+    if is_passive:
+        src_pickup = get_source_pickup(inst_cfg, voice_id)
+        src_cir_rel = src_pickup.get("circuit", "circuits/sources/source_standard_p.cir")
+        src_cir_path = REPO_ROOT / src_cir_rel
+        if src_cir_path.exists():
+            src_model = parse_netlist(src_cir_path)
+            diff_curves = compute_differential_circuit_transfer_functions(model, src_model, freqs=FREQS)
+
     prefilter_firs = None
     if not prefiltered:
         prefilter_firs = compute_voice_prefilter_firs(voice_id, instrument=instrument)
-        stage_desc = "Acoustic Aperture + Circuit Simulation"
+        if is_passive:
+            stage_desc = "Acoustic Aperture + Differential Circuit Simulation (Passive Source)"
+        else:
+            stage_desc = "Acoustic Aperture + Circuit Simulation"
     else:
         stage_desc = "Circuit Simulation (Pre-filtered Input)"
 
@@ -535,6 +625,8 @@ def simulate_voice(
         model,
         prefilter_firs=prefilter_firs,
         save_intermediate=save_intermediate,
+        circuit_curves=diff_curves,
+        is_passive=is_passive,
     )
     print(f"     Exported: {output_wav}")
     return True

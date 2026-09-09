@@ -15,6 +15,7 @@ id = "32in_custom_pmm"
 name = "32\" Medium Scale Custom (EMG PX + MMTWX)"
 scale_length_in = 32.0
 scale_length_m = 0.8128
+electronics = "active"
 
 # String wave speeds: v = 2 * L * f0 (for E1=41.2Hz, A1=55.0Hz, D2=73.4Hz, G2=98.0Hz)
 string_wave_speeds = [66.98, 89.41, 119.35, 159.31]

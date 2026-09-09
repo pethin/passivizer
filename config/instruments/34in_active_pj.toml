@@ -21,6 +21,7 @@ id = "34in_active_pj"
 name = "34\" Active P/J Bass (EMG PX + JX)"
 scale_length_in = 34.0
 scale_length_m = 0.8636
+electronics = "active"
 
 # String wave speeds: v = 2 * L * f0 (for E1=41.2Hz, A1=55.0Hz, D2=73.4Hz, G2=98.0Hz)
 string_wave_speeds = [71.16, 95.00, 126.81, 169.27]

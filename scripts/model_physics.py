@@ -775,7 +775,9 @@ def compute_voice_prefilter_firs(voice_id, instrument="30in", src_scale=None, nu
     use_branch_matching = (len(src_components) == len(pickups) and len(pickups) > 1)
 
     # Active Pickup Electrical Resonance Deconvolution (Wiener Inversion)
-    h_elec_inv = np.ones_like(freqs) if is_identity else resolve_pickup_electrical_deconvolution_np(freqs, src_pickup, inst)
+    # For passive source instruments, electrical deconvolution is handled directly in the differential SPICE engine
+    is_passive = (inst.get("electronics") == "passive")
+    h_elec_inv = np.ones_like(freqs) if (is_identity or is_passive) else resolve_pickup_electrical_deconvolution_np(freqs, src_pickup, inst)
     raw_firs = []
     for i, p in enumerate(pickups):
         p_coils = p["coils"]
@@ -961,7 +963,8 @@ def compute_aperture_prefilter_fir(voice_id, instrument="30in", src_scale=None, 
     else:
         h_str_diff = np.ones_like(freqs)
 
-    h_elec_inv = np.ones_like(freqs) if is_identity else resolve_pickup_electrical_deconvolution_np(freqs, src_pickup, inst)
+    is_passive = (inst.get("electronics") == "passive")
+    h_elec_inv = np.ones_like(freqs) if (is_identity or is_passive) else resolve_pickup_electrical_deconvolution_np(freqs, src_pickup, inst)
 
     prefilter_curve = h_acoustic_transfer * h_elec_inv * h_tilt * h_tension * h_str_diff
     max_val = np.max(prefilter_curve)
