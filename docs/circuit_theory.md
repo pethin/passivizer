@@ -172,3 +172,59 @@ $$|H_{\text{diff}}(f)| = \frac{|H_{\text{target}}(f)| \cdot |H_{\text{source}}(f
 * **High-Frequency Clamping:** Above $4.5\text{ kHz}$, maximum boost is clamped to $+6.0\text{ dB}$ relative to $1\text{ kHz}$ reference gain, preventing amplification of passive coil noise and audio interface hiss.
 * **True Identity Verification:** When the source instrument equals the target voice (e.g., standard Precision Bass into `05_vintage_62_p_alnico`, or standard Jazz Bass into `02_jazz_bass_pair`), $H_{\text{diff}}$ evaluates to an exact flat line ($\Delta < 0.10\text{ dB}$ across $40\text{--}4500\text{ Hz}$).
 * **Dynamic Saturation Bypass:** When `electronics = "passive"`, forward $\tanh$ saturation is automatically bypassed, preserving authentic uncompressed dynamics.
+
+---
+
+## 6. Fractional Core Eddy-Current Diffusion (Foster Ladder)
+
+Traditional guitar circuit simulations treat pickup coil inductance as a fixed, frequency-independent parameter ($s L$). In physical pickups, the high electrical conductivity of solid metallic pole pieces (e.g. Alnico V cylinder magnets or mild steel pole screws) causes eddy currents to circulate within the core as frequency rises.
+
+This magnetic skin effect expels magnetic flux from the core's center into the outer air, causing:
+1. An effective reduction in inductance $L(f)$ above $1\text{--}3\text{ kHz}$ (typically $6\text{--}10\%$ drop for conductive Alnico alloys).
+2. Frequency-dependent resistive eddy damping ($R_{\text{eddy}} \propto \sqrt{f}$).
+
+Passivizer models this phenomenon using a physical **Foster 2-stage ladder network**:
+
+```
+           ┌─── L_core ───┐
+──[ L_inf ]┴─── R_core ───┴──
+```
+
+$$Z_L(s) = s L_{\infty} + \frac{s L_{\text{core}} R_{\text{core}}}{s L_{\text{core}} + R_{\text{core}}}$$
+
+Where:
+* $L_{\infty} = (1 - k_{\text{core}}) L_0$ is the high-frequency asymptote where core flux is expelled.
+* $L_{\text{core}} = k_{\text{core}} L_0$ is the core inductance subject to eddy suppression.
+* $R_{\text{core}} = 2\pi f_{\text{core}} L_{\text{core}}$ is the eddy loss resistance tuned to the pole piece skin-depth transition frequency ($f_{\text{core}}$).
+
+---
+
+## 7. Dahl Magnetic Domain-Wall Pinning Hysteresis Model
+
+Ferromagnetic core materials exhibit touch-sensitive sustain bloom and micro-hysteresis due to the pinning of magnetic domain walls at grain boundaries and material defects.
+
+Passivizer simulates rate-independent minor hysteresis loops in the string displacement domain at $96\text{ kHz}$ oversampling:
+
+$$\Delta[n] = |x[n] - z[n-1]|$$
+$$\text{coupling}[n] = \frac{\Delta[n]}{\Delta[n] + r}$$
+$$z[n] = z[n-1] + \Delta x[n] \cdot \text{coupling}[n]$$
+$$x_{\text{hyst}}[n] = (1 - \eta_{\text{hyst}}) x[n] + \eta_{\text{hyst}} z[n]$$
+
+Where:
+* $z[n]$ represents the internal pinned magnetic polarization state.
+* $r = 0.06$ is the domain-wall unpinning threshold.
+* $\eta_{\text{hyst}}$ is the material-specific hysteresis coupling factor ($0.06$ for Alnico V; $0.09$ for Alnico II; $0.02$ for Ceramic; $0.01$ for Neodymium; $0.00$ for Piezo).
+* This provides warm sustain bloom and subtle phase delay without introducing DC offset.
+
+---
+
+## 8. Magnet Metallurgy Parameter Reference
+
+| Magnet Material | $k_{\text{core}}$ | $f_{\text{core}}\text{ (Hz)}$ | $\eta_{\text{hyst}}$ | Asymmetry $\alpha$ | Physical Metallurgy & Application |
+|---|---|---|---|---|---|
+| **Alnico V** | $0.08$ | $2500$ | $0.06$ | $0.26$ | Highly conductive cast Al-Ni-Co alloy; vintage P-Bass, Jazz Bass, StingRay. |
+| **Alnico II** | $0.10$ | $1800$ | $0.09$ | $0.32$ | Softer magnetic pull, lower coercivity, rich 2nd harmonic bloom; Gibson Mudbucker. |
+| **Ceramic (Ferrite)** | $0.02$ | $6500$ | $0.02$ | $0.12$ | Electrically insulating Ba/Sr ferrite; Modern P, Modern PJ, Rickenbacker 4003. |
+| **Neodymium** | $0.01$ | $8500$ | $0.01$ | $0.08$ | High coercivity, linear magnetic response; Dingwall FD3 multi-scale. |
+| **Piezo** | $0.00$ | $0$ | $0.00$ | $0.00$ | Non-magnetic PZT ceramic transducer; Upright acoustic bridge. |
+

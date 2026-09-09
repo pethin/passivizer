@@ -56,6 +56,45 @@ def parse_spice_val(val_str: str) -> float:
         return float(s[:-1]) * suffix_map[last_char]
     return float(s)
 
+MAGNET_PROPERTIES = {
+    "alnico_v": {
+        "k_core": 0.08,
+        "f_core": 2500.0,
+        "eta_hyst": 0.06,
+        "alpha": 0.26,
+    },
+    "alnico_ii": {
+        "k_core": 0.10,
+        "f_core": 1800.0,
+        "eta_hyst": 0.09,
+        "alpha": 0.32,
+    },
+    "ceramic": {
+        "k_core": 0.02,
+        "f_core": 6500.0,
+        "eta_hyst": 0.02,
+        "alpha": 0.12,
+    },
+    "ceramic_alnico_hybrid": {
+        "k_core": 0.05,
+        "f_core": 4500.0,
+        "eta_hyst": 0.04,
+        "alpha": 0.18,
+    },
+    "neodymium": {
+        "k_core": 0.01,
+        "f_core": 8500.0,
+        "eta_hyst": 0.01,
+        "alpha": 0.08,
+    },
+    "piezo": {
+        "k_core": 0.00,
+        "f_core": 0.0,
+        "eta_hyst": 0.00,
+        "alpha": 0.00,
+    },
+}
+
 class CircuitModel:
     """Represents a parsed RLC guitar circuit digital twin."""
     def __init__(self):
@@ -66,12 +105,16 @@ class CircuitModel:
 
         # Branch parameters (single or neck)
         self.L = 4.8
+        self.L_core = 0.0
+        self.R_core = 0.0
         self.Rdc = 9500.0
         self.Reddy = 110000.0
         self.Ccoil = 80e-12
 
         # Bridge branch (for parallel or series)
         self.L_b = 3.6
+        self.L_core_b = 0.0
+        self.R_core_b = 0.0
         self.Rdc_b = 7800.0
         self.Reddy_b = 125000.0
         self.Ccoil_b = 70e-12
@@ -163,6 +206,16 @@ def parse_netlist(cir_path: Path) -> CircuitModel:
             if tokens[1] in ["node_mid", "in_dyn_b"] and tokens[2] in ["node1_b"]:
                 pass
 
+        # Core Eddy Diffusion
+        elif tag in ["L_CORE", "L_CORE_N"]:
+            model.L_core = parse_spice_val(tokens[3])
+        elif tag == "L_CORE_B":
+            model.L_core_b = parse_spice_val(tokens[3])
+        elif tag in ["R_CORE", "R_CORE_N"]:
+            model.R_core = parse_spice_val(tokens[3])
+        elif tag == "R_CORE_B":
+            model.R_core_b = parse_spice_val(tokens[3])
+
         # DC Resistance
         elif tag in ["R_DC", "R_DC_N"]:
             model.Rdc = parse_spice_val(tokens[3])
@@ -235,6 +288,62 @@ def parse_netlist(cir_path: Path) -> CircuitModel:
 
     return model
 
+def compute_core_impedance(s, L: float, L_core: float = 0.0, R_core: float = 0.0):
+    """
+    Computes Foster 2-stage ladder impedance of the coil inductor:
+    Z_L(s) = s * L_inf + (s * L_core * R_core) / (s * L_core + R_core)
+    where L_inf = max(L - L_core, 0.0).
+    Captures high-frequency magnetic flux expulsion from conductive pole pieces (skin effect)
+    and eddy damping losses.
+    """
+    if L_core <= 0.0 or R_core <= 0.0:
+        return s * L
+    L_inf = max(L - L_core, 0.0)
+    num = s * L_core * R_core
+    den = s * L_core + R_core
+    return s * L_inf + (num / den)
+
+def apply_magnet_properties_to_model(
+    model: CircuitModel,
+    vcfg: dict,
+    eddy_diffusion: bool = True,
+):
+    """
+    Applies Foster 2-stage core eddy diffusion parameters (L_core, R_core)
+    to the CircuitModel based on authentic magnet metallurgy if not explicitly
+    specified in the SPICE netlist.
+    """
+    if not eddy_diffusion:
+        model.L_core = 0.0
+        model.R_core = 0.0
+        model.L_core_b = 0.0
+        model.R_core_b = 0.0
+        return
+
+    pickups = vcfg.get("pickups", [])
+    mag_type_global = vcfg.get("magnet_type", "alnico_v")
+
+    if model.topology in ["parallel", "series"] and len(pickups) >= 2:
+        mag_n = pickups[0].get("magnet_type", mag_type_global)
+        mag_b = pickups[1].get("magnet_type", mag_type_global)
+    else:
+        mag_n = mag_type_global
+        mag_b = mag_type_global
+
+    props_n = MAGNET_PROPERTIES.get(mag_n, MAGNET_PROPERTIES["alnico_v"])
+    props_b = MAGNET_PROPERTIES.get(mag_b, MAGNET_PROPERTIES["alnico_v"])
+
+    if model.L_core <= 0.0 and props_n.get("k_core", 0.0) > 0.0:
+        model.L_core = props_n["k_core"] * model.L
+        f_c = props_n["f_core"]
+        model.R_core = 2.0 * math.pi * f_c * model.L_core if f_c > 0.0 else 0.0
+
+    if model.topology in ["parallel", "series"]:
+        if model.L_core_b <= 0.0 and props_b.get("k_core", 0.0) > 0.0:
+            model.L_core_b = props_b["k_core"] * model.L_b
+            f_cb = props_b["f_core"]
+            model.R_core_b = 2.0 * math.pi * f_cb * model.L_core_b if f_cb > 0.0 else 0.0
+
 def compute_active_preamp_eq(preamp_type: str, s):
     """
     Evaluates analog active preamp contour transfer function:
@@ -301,7 +410,8 @@ def compute_circuit_transfer_functions(model: CircuitModel, freqs=FREQS):
                     Y_tone = 0.0
                 Y_eff2 = Y_preamp_in + Y_tone
 
-                Y_branch = 1.0 / (model.Rdc + s * model.L) + 1.0 / model.Reddy
+                Z_L = compute_core_impedance(s, model.L, model.L_core, model.R_core)
+                Y_branch = 1.0 / (model.Rdc + Z_L) + 1.0 / model.Reddy
                 Y_shunt2 = s * model.Ccoil + Y_eff2
                 H_dyn_to_2 = Y_branch / (Y_branch + Y_shunt2)
 
@@ -331,8 +441,10 @@ def compute_circuit_transfer_functions(model: CircuitModel, freqs=FREQS):
                     Y_tone = 0.0
                 Y_eff2 = Y_preamp_in + Y_tone
 
-                Y_br_n = 1.0 / (model.Rdc + s * model.L) + 1.0 / model.Reddy
-                Y_br_b = 1.0 / (model.Rdc_b + s * model.L_b) + 1.0 / model.Reddy_b
+                Z_L = compute_core_impedance(s, model.L, model.L_core, model.R_core)
+                Z_L_b = compute_core_impedance(s, model.L_b, model.L_core_b, model.R_core_b)
+                Y_br_n = 1.0 / (model.Rdc + Z_L) + 1.0 / model.Reddy
+                Y_br_b = 1.0 / (model.Rdc_b + Z_L_b) + 1.0 / model.Reddy_b
                 Y_shunt2 = s * (model.Ccoil + model.Ccoil_b) + Y_eff2
                 Y_total = Y_br_n + Y_br_b + Y_shunt2
 
@@ -363,8 +475,9 @@ def compute_circuit_transfer_functions(model: CircuitModel, freqs=FREQS):
                 w = 2.0 * math.pi * f
             s = 1j * w
 
-            # Branch admittance (L + Rdc || Reddy)
-            Y_branch = 1.0 / (model.Rdc + s * model.L) + 1.0 / model.Reddy
+            # Branch admittance (Foster core impedance Z_L + Rdc || Reddy)
+            Z_L = compute_core_impedance(s, model.L, model.L_core, model.R_core)
+            Y_branch = 1.0 / (model.Rdc + Z_L) + 1.0 / model.Reddy
 
             # Tone circuit admittance (series R-C branch to ground)
             if model.Ctone > 0:
@@ -400,8 +513,10 @@ def compute_circuit_transfer_functions(model: CircuitModel, freqs=FREQS):
             w = 2.0 * math.pi * f
             s = 1j * w
 
-            Y_br_n = 1.0 / (model.Rdc + s * model.L) + 1.0 / model.Reddy
-            Y_br_b = 1.0 / (model.Rdc_b + s * model.L_b) + 1.0 / model.Reddy_b
+            Z_L = compute_core_impedance(s, model.L, model.L_core, model.R_core)
+            Z_L_b = compute_core_impedance(s, model.L_b, model.L_core_b, model.R_core_b)
+            Y_br_n = 1.0 / (model.Rdc + Z_L) + 1.0 / model.Reddy
+            Y_br_b = 1.0 / (model.Rdc_b + Z_L_b) + 1.0 / model.Reddy_b
 
             # Tone circuit admittance (series R-C branch to ground)
             if model.Ctone > 0:
@@ -437,8 +552,10 @@ def compute_circuit_transfer_functions(model: CircuitModel, freqs=FREQS):
             w = 2.0 * math.pi * f
             s = 1j * w
 
-            Y_br_n = 1.0 / (model.Rdc + s * model.L) + 1.0 / model.Reddy
-            Y_br_b = 1.0 / (model.Rdc_b + s * model.L_b) + 1.0 / model.Reddy_b
+            Z_L = compute_core_impedance(s, model.L, model.L_core, model.R_core)
+            Z_L_b = compute_core_impedance(s, model.L_b, model.L_core_b, model.R_core_b)
+            Y_br_n = 1.0 / (model.Rdc + Z_L) + 1.0 / model.Reddy
+            Y_br_b = 1.0 / (model.Rdc_b + Z_L_b) + 1.0 / model.Reddy_b
             Y_cn = s * model.Ccoil
             Y_cb = s * model.Ccoil_b
             Y_2b = Y_br_b + Y_cb
@@ -592,10 +709,38 @@ def prefilter_audio(input_wav_path: Path, output_wav_path: Path, fir_samples):
         wf.setparams(params)
         wf.writeframes(frames)
 
+def apply_dahl_hysteresis(x: np.ndarray, eta: float = 0.06, r: float = 0.06) -> np.ndarray:
+    """
+    Applies a state-space Dahl magnetic domain-wall pinning hysteresis model in the displacement domain:
+    delta[n] = |x[n] - z[n-1]|
+    coupling[n] = delta[n] / (delta[n] + r)
+    z[n] = z[n-1] + dx[n] * coupling[n]
+    x_hyst[n] = (1 - eta) * x[n] + eta * z[n]
+    Captures domain-wall pinning, touch-sensitive sustain bloom, and subtle hysteresis phase lag
+    without DC bias.
+    """
+    if eta <= 0.0 or len(x) == 0:
+        return x
+    n = len(x)
+    z = np.empty(n, dtype=np.float64)
+    z_prev = 0.0
+    x_arr = x.astype(np.float64)
+
+    for i in range(1, n):
+        dx = x_arr[i] - x_arr[i - 1]
+        delta = abs(x_arr[i] - z_prev)
+        coupling = delta / (delta + r)
+        z_prev = z_prev + dx * coupling
+        z[i] = z_prev
+
+    z[0] = 0.0
+    return ((1.0 - eta) * x_arr + eta * z).astype(x.dtype)
+
 def apply_oversampled_saturation(
     audio: np.ndarray,
     vsat: float,
     alpha: float = 0.20,
+    eta_hyst: float = 0.0,
     oversample: int = 2,
     displacement_weighting: bool = True,
     magnet_drag: bool = True,
@@ -603,8 +748,9 @@ def apply_oversampled_saturation(
     """
     Applies asymmetric soft-knee magnetic saturation with:
     1. Dynamic magnet drag on forte initial transients (Alnico V / ceramic core braking).
-    2. Displacement-domain pre/de-emphasis excursion weighting (suppressing treble IMD hash).
-    3. Multi-rate anti-aliased oversampling (2x or 4x) suppressing ultrasonic harmonic foldback by >100 dB.
+    2. Dahl magnetic hysteresis friction model in displacement domain (domain-wall pinning bloom).
+    3. Displacement-domain pre/de-emphasis excursion weighting (suppressing treble IMD hash).
+    4. Multi-rate anti-aliased oversampling (2x or 4x) suppressing ultrasonic harmonic foldback by >100 dB.
     For small-signal linear excitations (e.g. test impulses <= 0.10 peak), bypasses non-linearity
     to preserve 100% exact mathematical impulse response linearity.
     """
@@ -644,10 +790,14 @@ def apply_oversampled_saturation(
             x_disp = np.fft.irfft(np.fft.rfft(x) * H_pre, n_sig)
             scale = np.max(np.abs(x)) / max(np.max(np.abs(x_disp)), 1e-9)
             x_disp = x_disp * scale
+            if eta_hyst > 0.0:
+                x_disp = apply_dahl_hysteresis(x_disp, eta=eta_hyst)
             v_asym = x_disp + alpha * (x_disp ** 2)
             v_sat = vsat * np.tanh(v_asym / vsat)
             out = np.fft.irfft(np.fft.rfft(v_sat) * H_de, n_sig) * (1.0 / scale)
         else:
+            if eta_hyst > 0.0:
+                x = apply_dahl_hysteresis(x, eta=eta_hyst)
             v_asym = x + alpha * (x ** 2)
             out = vsat * np.tanh(v_asym / vsat)
         return out.astype(np.float32)
@@ -673,8 +823,12 @@ def apply_oversampled_saturation(
         x_up_disp = np.fft.irfft(np.fft.rfft(x_up) * H_pre, n_up)
         scale = np.max(np.abs(x_up)) / max(np.max(np.abs(x_up_disp)), 1e-9)
         x_up_disp = x_up_disp * scale
+        if eta_hyst > 0.0:
+            x_up_disp = apply_dahl_hysteresis(x_up_disp, eta=eta_hyst)
     else:
         x_up_disp = x_up
+        if eta_hyst > 0.0:
+            x_up_disp = apply_dahl_hysteresis(x_up_disp, eta=eta_hyst)
 
     v_asym = x_up_disp + alpha * (x_up_disp ** 2)
     v_sat = vsat * np.tanh(v_asym / vsat)
@@ -712,6 +866,8 @@ def simulate_circuit_audio(
     magnet_drag: bool = True,
     alpha: float = 0.20,
     alphas=None,
+    eta_hyst: float = 0.06,
+    eta_hysts=None,
     dc_block: bool = True,
 ):
     """
@@ -719,7 +875,8 @@ def simulate_circuit_audio(
     If prefilter_firs is provided, convolves input audio through acoustic aperture and
     scale-tension FIRs in memory first.
     For active instruments, applies anti-aliased oversampled soft-knee saturation with
-    displacement-domain weighting, dynamic magnet drag, and magnet-specific alpha asymmetry.
+    displacement-domain weighting, dynamic magnet drag, magnet-specific alpha asymmetry, and
+    Dahl magnetic hysteresis friction.
     For passive source instruments, bypasses forward saturation (to prevent double-compression)
     and applies regularized differential SPICE transfer functions (H_target / H_source).
     Applies sub-audible DC-blocking high-pass filtering (8.0 Hz) to eliminate DC offset before
@@ -790,11 +947,17 @@ def simulate_circuit_audio(
                 if (isinstance(alphas, (list, tuple)) and len(alphas) > ch_idx)
                 else alpha
             )
+            ch_eta = (
+                eta_hysts[ch_idx]
+                if (isinstance(eta_hysts, (list, tuple)) and len(eta_hysts) > ch_idx)
+                else eta_hyst
+            )
 
             in_dyn = apply_oversampled_saturation(
                 in_ch,
                 vsat=vsat,
                 alpha=ch_alpha,
+                eta_hyst=ch_eta,
                 oversample=oversample,
                 displacement_weighting=displacement_weighting,
                 magnet_drag=magnet_drag,
@@ -917,13 +1080,16 @@ def simulate_voice(
     displacement_weighting: bool = True,
     magnet_drag: bool = True,
     alpha: float = None,
+    eta_hyst: float = None,
+    eddy_diffusion: bool = True,
     dc_block: bool = True,
 ):
     """
     Simulates a target voice digital twin using the native Virtual Analog engine.
     By default, applies acoustic aperture pre-filtering and circuit simulation
     end-to-end in memory from raw calibration audio.
-    Applies magnet-specific saturation voicing (Alnico V, Ceramic, Neodymium, Piezo) and
+    Applies magnet-specific saturation voicing (Alnico V, Alnico II, Ceramic, Neodymium, Piezo),
+    Foster 2-stage core eddy diffusion, Dahl magnetic hysteresis friction, and
     sub-audible 8 Hz DC-blocking filtering.
     Automatically normalizes output levels based on the input sweep's dBFS (or target_dbfs).
     Outputs are saved by default to audio/{instrument_id}/out_{voice_id}.wav.
@@ -964,6 +1130,7 @@ def simulate_voice(
         save_intermediate = Path(save_intermediate)
 
     model = parse_netlist(cir_path)
+    apply_magnet_properties_to_model(model, vcfg, eddy_diffusion=eddy_diffusion)
 
     # Dynamic bridge compliance scaling based on source string pluck excursion
     if "upright_bridge_transducer" in voice_id:
@@ -972,35 +1139,36 @@ def simulate_voice(
         if excursion > 0:
             model.vsat = round(model.vsat / excursion, 3)
 
-    # Resolve magnet-specific saturation profile
-    magnet_defaults = {
-        "alnico_v": 0.26,
-        "ceramic": 0.12,
-        "neodymium": 0.08,
-        "piezo": 0.00,
-        "ceramic_alnico_hybrid": 0.18,
-    }
+    # Resolve magnet-specific saturation profile and Dahl hysteresis coupling
+    mag_type_global = vcfg.get("magnet_type", "alnico_v")
+    global_props = MAGNET_PROPERTIES.get(mag_type_global, MAGNET_PROPERTIES["alnico_v"])
+
     voice_alpha = alpha
     if voice_alpha is None:
         if "alpha" in vcfg:
             voice_alpha = float(vcfg["alpha"])
-        elif "magnet_type" in vcfg:
-            voice_alpha = magnet_defaults.get(vcfg["magnet_type"], 0.20)
         else:
-            voice_alpha = 0.20
+            voice_alpha = global_props["alpha"]
+
+    voice_eta = eta_hyst
+    if voice_eta is None:
+        if "eta_hyst" in vcfg:
+            voice_eta = float(vcfg["eta_hyst"])
+        else:
+            voice_eta = global_props["eta_hyst"]
 
     pickups_cfg = vcfg.get("pickups", [])
     if pickups_cfg and len(pickups_cfg) > 1:
         voice_alphas = []
+        voice_eta_hysts = []
         for p in pickups_cfg:
-            if "alpha" in p:
-                voice_alphas.append(float(p["alpha"]))
-            elif "magnet_type" in p:
-                voice_alphas.append(magnet_defaults.get(p["magnet_type"], voice_alpha))
-            else:
-                voice_alphas.append(voice_alpha)
+            p_mag = p.get("magnet_type", mag_type_global)
+            p_props = MAGNET_PROPERTIES.get(p_mag, MAGNET_PROPERTIES["alnico_v"])
+            voice_alphas.append(float(p["alpha"]) if "alpha" in p else p_props["alpha"])
+            voice_eta_hysts.append(float(p["eta_hyst"]) if "eta_hyst" in p else p_props["eta_hyst"])
     else:
         voice_alphas = None
+        voice_eta_hysts = None
 
     is_passive = (inst_cfg.get("electronics") == "passive")
     diff_curves = None
@@ -1010,6 +1178,7 @@ def simulate_voice(
         src_cir_path = REPO_ROOT / src_cir_rel
         if src_cir_path.exists():
             src_model = parse_netlist(src_cir_path)
+            apply_magnet_properties_to_model(src_model, src_pickup, eddy_diffusion=eddy_diffusion)
             diff_curves = compute_differential_circuit_transfer_functions(model, src_model, freqs=FREQS)
 
     prefilter_firs = None
@@ -1022,7 +1191,7 @@ def simulate_voice(
     else:
         stage_desc = "Circuit Simulation (Pre-filtered Input)"
 
-    print(f"  -> Simulating Native VA ({stage_desc}): {cir_path.name} (Topology: {model.topology}, Source: {inst_id}, Alpha: {voice_alpha})...")
+    print(f"  -> Simulating Native VA ({stage_desc}): {cir_path.name} (Topology: {model.topology}, Source: {inst_id}, Alpha: {voice_alpha}, Eta: {voice_eta})...")
     simulate_circuit_audio(
         input_wav,
         output_wav,
@@ -1038,6 +1207,8 @@ def simulate_voice(
         magnet_drag=magnet_drag,
         alpha=voice_alpha,
         alphas=voice_alphas,
+        eta_hyst=voice_eta,
+        eta_hysts=voice_eta_hysts,
         dc_block=dc_block,
     )
     print(f"     Exported: {output_wav}")
@@ -1091,6 +1262,22 @@ def main():
         help="Explicit saturation asymmetry factor alpha (default: resolved from magnet_type in voices.toml)",
     )
     parser.add_argument(
+        "--no-eddy-diffusion",
+        action="store_true",
+        help="Disable Foster 2-stage core eddy diffusion (fall back to ideal frequency-independent L)",
+    )
+    parser.add_argument(
+        "--no-hysteresis",
+        action="store_true",
+        help="Disable Dahl magnetic hysteresis friction modeling (eta_hyst = 0.0)",
+    )
+    parser.add_argument(
+        "--eta-hyst",
+        type=float,
+        default=None,
+        help="Explicit Dahl hysteresis coupling coefficient eta (default: resolved from magnet_type)",
+    )
+    parser.add_argument(
         "--no-dc-block",
         action="store_true",
         help="Disable sub-audible 8 Hz DC-blocking high-pass filter",
@@ -1100,6 +1287,8 @@ def main():
     displacement_weighting = not args.no_displacement_weighting
     magnet_drag = not args.no_magnet_drag
     dc_block = not args.no_dc_block
+    eddy_diffusion = not args.no_eddy_diffusion
+    eta_hyst = 0.0 if args.no_hysteresis else args.eta_hyst
 
     voices = list(VOICES.keys()) if args.voice == "all" else [args.voice]
     for v in voices:
@@ -1118,6 +1307,8 @@ def main():
             displacement_weighting=displacement_weighting,
             magnet_drag=magnet_drag,
             alpha=args.alpha,
+            eta_hyst=eta_hyst,
+            eddy_diffusion=eddy_diffusion,
             dc_block=dc_block,
         )
 

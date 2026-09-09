@@ -16,6 +16,11 @@ from scripts.simulate_circuits import (
     parse_spice_val,
     parse_netlist,
     compute_circuit_transfer_functions,
+    compute_core_impedance,
+    apply_magnet_properties_to_model,
+    apply_dahl_hysteresis,
+    apply_oversampled_saturation,
+    MAGNET_PROPERTIES,
     simulate_circuit_audio,
     simulate_voice,
     CircuitModel,
@@ -646,6 +651,89 @@ def test_magnet_specific_saturation_voicing():
     assert h2_alnico_db > h2_ceramic_db + 5.0
     # Piezo must have negligible 2nd harmonic (< -60 dB relative to fundamental)
     assert h2_piezo_db < -60.0
+
+def test_fractional_core_eddy_diffusion():
+    """
+    Verify Foster 2-stage ladder core eddy diffusion:
+    1. Alnico V has ~8% inductance drop and authentic damping at 10 kHz.
+    2. Ceramic has <= 2% inductance drop due to non-conductive ferrite.
+    3. Core impedance introduces real resistive losses Re(Z_L) > 0 at audio frequencies.
+    4. Disabling eddy diffusion preserves constant ideal inductance s * L.
+    """
+    L0 = 4.8  # H
+    # 1. Alnico V
+    model_alnico = CircuitModel()
+    model_alnico.L = L0
+    apply_magnet_properties_to_model(model_alnico, {"magnet_type": "alnico_v"})
+    assert model_alnico.L_core == pytest.approx(0.08 * L0)
+    assert model_alnico.R_core > 0.0
+
+    # Evaluate at 10 kHz
+    w_hi = 2.0 * math.pi * 10000.0
+    s_hi = 1j * w_hi
+    Z_hi_alnico = compute_core_impedance(s_hi, model_alnico.L, model_alnico.L_core, model_alnico.R_core)
+
+    # Inductance at high frequency should be dropped by ~7-8%
+    L_eff_hi = Z_hi_alnico.imag / w_hi
+    assert L_eff_hi < L0
+    drop_pct = (L0 - L_eff_hi) / L0 * 100.0
+    assert 6.0 <= drop_pct <= 8.5
+    # Real part must represent eddy loss resistance (Re(Z) > 0)
+    assert Z_hi_alnico.real > 500.0
+
+    # 2. Ceramic (insulating ferrite core)
+    model_ceramic = CircuitModel()
+    model_ceramic.L = L0
+    apply_magnet_properties_to_model(model_ceramic, {"magnet_type": "ceramic"})
+    assert model_ceramic.L_core == pytest.approx(0.02 * L0)
+    Z_hi_ceramic = compute_core_impedance(s_hi, model_ceramic.L, model_ceramic.L_core, model_ceramic.R_core)
+    L_eff_ceramic = Z_hi_ceramic.imag / w_hi
+    drop_ceramic = (L0 - L_eff_ceramic) / L0 * 100.0
+    assert drop_ceramic <= 2.2
+
+    # 3. Disabled eddy diffusion
+    model_disabled = CircuitModel()
+    model_disabled.L = L0
+    apply_magnet_properties_to_model(model_disabled, {"magnet_type": "alnico_v"}, eddy_diffusion=False)
+    assert model_disabled.L_core == 0.0
+    assert model_disabled.R_core == 0.0
+    Z_hi_disabled = compute_core_impedance(s_hi, model_disabled.L, model_disabled.L_core, model_disabled.R_core)
+    assert Z_hi_disabled.imag / w_hi == pytest.approx(L0)
+    assert Z_hi_disabled.real == 0.0
+
+def test_dahl_magnetic_hysteresis():
+    """
+    Verify Dahl magnetic hysteresis friction modeling:
+    1. Produces phase lag on sinusoidal signals without generating DC bias.
+    2. Alnico V (eta=0.06) exhibits hysteresis lag; Piezo (eta=0.0) has 0 phase lag.
+    3. Small signals (<= 0.10 peak) bypass saturation/hysteresis.
+    """
+    sr = 96000
+    t = np.linspace(0, 0.1, int(sr * 0.1), endpoint=False)
+    freq = 100.0
+    x = 0.60 * np.sin(2 * np.pi * freq * t)
+
+    # 1. Alnico V hysteresis
+    y_alnico = apply_dahl_hysteresis(x, eta=0.06)
+    # Zero crossing phase lag: y should cross 0 slightly later than x
+    idx_cross = int(sr * 0.005)
+    # Just after crossing where x is negative:
+    assert x[idx_cross + 1] < 0.0
+    # y should lag behind x (more positive)
+    assert y_alnico[idx_cross + 1] > x[idx_cross + 1]
+
+    # DC offset must be minimal (< 1e-3)
+    assert abs(np.mean(y_alnico)) < 1e-3
+
+    # 2. Piezo (eta=0.0) must be exact identity
+    y_piezo = apply_dahl_hysteresis(x, eta=0.0)
+    assert np.array_equal(x, y_piezo)
+
+    # 3. Small-signal test impulse bypass in apply_oversampled_saturation
+    impulse = np.zeros(2048, dtype=np.float32)
+    impulse[0] = 0.05
+    out_impulse = apply_oversampled_saturation(impulse, vsat=0.5, alpha=0.26, eta_hyst=0.06)
+    assert np.array_equal(impulse, out_impulse)
 
 
 

@@ -46,6 +46,7 @@ from simulate_circuits import (
     parse_netlist,
     compute_circuit_transfer_functions,
     compute_differential_circuit_transfer_functions,
+    apply_magnet_properties_to_model,
 )
 
 NUM_POINTS = 600
@@ -81,6 +82,7 @@ def build_voice_dataframe(voice_id, cfg, instrument="30in", src_scale=None, mode
         # 1. Output Voice: Target acoustic aperture + loaded SPICE circuit + string + body bloom
         if cir_path.exists():
             model = parse_netlist(cir_path)
+            apply_magnet_properties_to_model(model, cfg)
             circuit_curves = compute_circuit_transfer_functions(model, freqs)
         else:
             fc_hpf = cfg.get("hpf")
@@ -148,13 +150,16 @@ def build_voice_dataframe(voice_id, cfg, instrument="30in", src_scale=None, mode
             src_cir_rel = src_pickup.get("circuit", "circuits/sources/source_standard_p.cir")
             src_cir_path = REPO_ROOT / src_cir_rel
             model = parse_netlist(cir_path)
+            apply_magnet_properties_to_model(model, cfg)
             if src_cir_path.exists():
                 src_model = parse_netlist(src_cir_path)
+                apply_magnet_properties_to_model(src_model, src_pickup)
                 circuit_curves = compute_differential_circuit_transfer_functions(model, src_model, freqs=freqs)
             else:
                 circuit_curves = compute_circuit_transfer_functions(model, freqs)
         elif cir_path.exists():
             model = parse_netlist(cir_path)
+            apply_magnet_properties_to_model(model, cfg)
             circuit_curves = compute_circuit_transfer_functions(model, freqs)
         else:
             fc_hpf = cfg.get("hpf")
