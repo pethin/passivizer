@@ -163,7 +163,7 @@ Execute the entire pipeline or specific stages with a single command:
 
 ```bash
 # Run complete pipeline for 30" source instrument (using native VA circuit engine):
-uv run python main.py --source-scale 30in
+uv run python main.py --instrument 30in
 
 # Run only visualization:
 uv run python main.py --stage viz

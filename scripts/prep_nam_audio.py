@@ -31,11 +31,6 @@ def main():
         default="30in",
         help="Source instrument configuration (ID, path to .toml, or alias like 30in, 32in)"
     )
-    parser.add_argument(
-        "--source-scale",
-        dest="instrument",
-        help="Legacy alias for --instrument (e.g. 30in, 32in)"
-    )
     parser.add_argument("--voice", choices=VOICES.keys(), default="03_modern_p_ceramic", help="Target pickup voice")
     parser.add_argument("--out", help="Output WAV path (default: audio/<instrument>/aperture_<voice>.wav)")
     args = parser.parse_args()

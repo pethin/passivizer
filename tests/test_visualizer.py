@@ -25,7 +25,7 @@ def test_build_voice_dataframe():
 def test_generate_interactive_chart():
     with tempfile.TemporaryDirectory() as tmpdir:
         out_html = Path(tmpdir) / "chart.html"
-        generate_interactive_chart(source_scale="30in", out_html=str(out_html))
+        generate_interactive_chart(instrument="30in", out_html=str(out_html))
         
         assert out_html.exists()
         content = out_html.read_text(encoding="utf-8")

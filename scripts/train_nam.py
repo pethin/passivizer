@@ -236,11 +236,6 @@ def main():
         default="30in",
         help="Source instrument configuration (ID, path to .toml, or alias like 30in, 32in)"
     )
-    parser.add_argument(
-        "--source-scale",
-        dest="instrument",
-        help="Legacy alias for --instrument (e.g. 30in, 32in)"
-    )
     parser.add_argument("--voice", default="03_modern_p_ceramic", help="Target pickup voice (ID, comma-separated list, or 'all')")
     parser.add_argument("--input", help="Path to dry training sweep WAV (default: auto-detect T3K-sweep-v3.wav)")
     parser.add_argument("--output", help="Path to simulated SPICE output WAV (default: circuits/out_<voice>.wav)")

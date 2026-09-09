@@ -166,11 +166,6 @@ def main():
         help="Source instrument configuration (ID, path to .toml, or alias like 30in, 32in)"
     )
     parser.add_argument(
-        "--source-scale",
-        dest="instrument",
-        help="Legacy alias for --instrument (e.g. 30in, 32in)"
-    )
-    parser.add_argument(
         "--stage",
         choices=["all", "viz", "prep", "spice", "sim", "simulate", "train"],
         default="all",

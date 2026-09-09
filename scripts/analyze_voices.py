@@ -544,10 +544,9 @@ def generate_portal_pages(output_dir=None, default_id=None):
         root_portal_path.write_text(root_portal_html, encoding="utf-8")
         print(f"Saved master portal: {root_portal_path}")
 
-def generate_interactive_chart(instrument="30in", out_html=None, source_scale=None):
+def generate_interactive_chart(instrument="30in", out_html=None):
     """Calculates voice responses and renders an interactive Altair chart."""
-    inst_selector = source_scale if source_scale is not None else instrument
-    inst = load_instrument(inst_selector) if not isinstance(inst_selector, dict) else inst_selector
+    inst = load_instrument(instrument) if not isinstance(instrument, dict) else instrument
     inst_id = inst.get("id", "custom_instrument")
     inst_name = inst.get("name", inst_id)
 
@@ -646,11 +645,6 @@ def main():
         "--instrument", "-i",
         default="all",
         help="Source instrument configuration (ID, alias like 30in, 32in, path to .toml, or 'all' to generate all)"
-    )
-    parser.add_argument(
-        "--source-scale",
-        dest="instrument",
-        help="Legacy alias for --instrument (e.g. 30in, 32in)"
     )
     parser.add_argument(
         "--all",
