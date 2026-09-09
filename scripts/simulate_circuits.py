@@ -506,13 +506,25 @@ def compute_differential_circuit_transfer_functions(
         if ref_gain <= 0:
             ref_gain = 1.0
 
-        max_allowed = ref_gain * (10.0 ** (max_boost_db / 20.0))
+        # Convert to relative dB for smooth soft-knee compression
+        h_db = 20.0 * np.log10(np.maximum(h_diff / ref_gain, 1e-6))
 
-        # Smooth clamp gain above 4.5 kHz
-        hi_mask = f_arr >= 4500.0
-        h_diff[hi_mask] = np.minimum(h_diff[hi_mask], max_allowed)
+        # Soft-knee limiting: smoothly saturate boost towards max_boost_db
+        knee_width = min(2.5, max_boost_db / 2.0)
+        thresh = max_boost_db - knee_width
+        excess = np.maximum(h_db - thresh, 0.0)
+        h_db_soft = np.where(h_db > thresh, thresh + knee_width * np.tanh(excess / knee_width), h_db)
 
-        diff_curves.append(h_diff.tolist())
+        # Smooth high-frequency cosine taper above 8.0 kHz to 20.0 kHz
+        # Eliminates unnatural flat horizontal ceilings and suppresses extreme ultrasonic noise
+        f_start = 8000.0
+        f_end = 20000.0
+        t = np.clip((f_arr - f_start) / (f_end - f_start), 0.0, 1.0)
+        w = 0.5 * (1.0 + np.cos(np.pi * t))
+        h_db_final = np.where(h_db_soft > 0.0, h_db_soft * (0.25 + 0.75 * w), h_db_soft)
+
+        h_diff_smooth = ref_gain * (10.0 ** (h_db_final / 20.0))
+        diff_curves.append(h_diff_smooth.tolist())
 
     return diff_curves
 
