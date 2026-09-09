@@ -95,11 +95,9 @@ def write_wav_24bit(filepath, samples, sample_rate=FS):
             wf.setnchannels(1)
             wf.setsampwidth(3)  # 3 bytes = 24-bit PCM
             wf.setframerate(sample_rate)
-            buf = bytearray()
-            for s in samples:
-                val = max(-8388608, min(8388607, int(s * 8388607.0)))
-                buf.extend(val.to_bytes(3, byteorder="little", signed=True))
-            wf.writeframes(buf)
+            scaled = np.clip(np.asarray(samples, dtype=np.float32) * 8388607.0, -8388608.0, 8388607.0).astype(np.int32)
+            raw_bytes = scaled.astype("<i4").view(np.uint8).reshape(-1, 4)[:, :3].tobytes()
+            wf.writeframes(raw_bytes)
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 CONFIG_DIR = REPO_ROOT / "config"

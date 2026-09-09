@@ -669,13 +669,16 @@ def apply_prefilter_to_audio(audio: np.ndarray, sr: int, fir_samples) -> np.ndar
     input_mono = audio[0] if audio.ndim > 1 and audio.shape[0] > 1 else (audio[0] if audio.ndim > 1 else audio)
     n_sig = len(input_mono)
 
+    # Precompute forward FFT of input mono once across all channels (avoids redundant FFTs)
+    max_ir_len = max(len(np.asarray(ch_fir)) for ch_fir in channels_firs)
+    n_fft = 1 << (n_sig + max_ir_len - 1).bit_length()
+    X_input = np.fft.rfft(input_mono, n_fft)
+
     effected_channels = []
     for ch_fir in channels_firs:
         fir = np.asarray(ch_fir, dtype=np.float32)
-        n_ir = len(fir)
-        n_fft = 1 << (n_sig + n_ir - 1).bit_length()
         eff = np.fft.irfft(
-            np.fft.rfft(input_mono, n_fft) * np.fft.rfft(fir, n_fft),
+            X_input * np.fft.rfft(fir, n_fft),
             n_fft
         )[:n_sig].astype(np.float32)
         effected_channels.append(eff)
@@ -722,6 +725,40 @@ def prefilter_audio(input_wav_path: Path, output_wav_path: Path, fir_samples):
         wf.setparams(params)
         wf.writeframes(frames)
 
+try:
+    from numba import njit
+    _HAS_NUMBA = True
+except ImportError:
+    _HAS_NUMBA = False
+
+if _HAS_NUMBA:
+    @njit(fastmath=True)
+    def _dahl_core(x_arr: np.ndarray, eta: float, r: float) -> np.ndarray:
+        n = len(x_arr)
+        z = np.empty(n, dtype=np.float64)
+        z_prev = 0.0
+        for i in range(1, n):
+            dx = x_arr[i] - x_arr[i - 1]
+            delta = abs(x_arr[i] - z_prev)
+            coupling = delta / (delta + r)
+            z_prev = z_prev + dx * coupling
+            z[i] = z_prev
+        z[0] = 0.0
+        return (1.0 - eta) * x_arr + eta * z
+else:
+    def _dahl_core(x_arr: np.ndarray, eta: float, r: float) -> np.ndarray:
+        n = len(x_arr)
+        z = np.empty(n, dtype=np.float64)
+        z_prev = 0.0
+        for i in range(1, n):
+            dx = x_arr[i] - x_arr[i - 1]
+            delta = abs(x_arr[i] - z_prev)
+            coupling = delta / (delta + r)
+            z_prev = z_prev + dx * coupling
+            z[i] = z_prev
+        z[0] = 0.0
+        return (1.0 - eta) * x_arr + eta * z
+
 def apply_dahl_hysteresis(x: np.ndarray, eta: float = 0.06, r: float = 0.06) -> np.ndarray:
     """
     Applies a state-space Dahl magnetic domain-wall pinning hysteresis model in the displacement domain:
@@ -730,24 +767,13 @@ def apply_dahl_hysteresis(x: np.ndarray, eta: float = 0.06, r: float = 0.06) -> 
     z[n] = z[n-1] + dx[n] * coupling[n]
     x_hyst[n] = (1 - eta) * x[n] + eta * z[n]
     Captures domain-wall pinning, touch-sensitive sustain bloom, and subtle hysteresis phase lag
-    without DC bias.
+    without DC bias. Accelerated with Numba JIT when available.
     """
     if eta <= 0.0 or len(x) == 0:
         return x
-    n = len(x)
-    z = np.empty(n, dtype=np.float64)
-    z_prev = 0.0
     x_arr = x.astype(np.float64)
-
-    for i in range(1, n):
-        dx = x_arr[i] - x_arr[i - 1]
-        delta = abs(x_arr[i] - z_prev)
-        coupling = delta / (delta + r)
-        z_prev = z_prev + dx * coupling
-        z[i] = z_prev
-
-    z[0] = 0.0
-    return ((1.0 - eta) * x_arr + eta * z).astype(x.dtype)
+    out = _dahl_core(x_arr, float(eta), float(r))
+    return out.astype(x.dtype)
 
 def apply_oversampled_saturation(
     audio: np.ndarray,
@@ -769,6 +795,7 @@ def apply_oversampled_saturation(
     5. Multi-rate anti-aliased oversampling (2x or 4x) suppressing ultrasonic harmonic foldback by >100 dB.
     For small-signal linear excitations (e.g. test impulses <= 0.10 peak), bypasses non-linearity
     to preserve 100% exact mathematical impulse response linearity.
+    Optimized with single-pass frequency-domain weighting and decimation.
     """
     n_sig = len(audio)
     max_in = float(np.max(np.abs(audio)))
@@ -803,13 +830,13 @@ def apply_oversampled_saturation(
             H_pre = H_pre / np.abs(np.interp(100.0, freqs, H_pre))
             H_de = 1.0 / H_pre
             x_disp = np.fft.irfft(np.fft.rfft(x) * H_pre, n_sig)
-            scale = np.max(np.abs(x)) / max(np.max(np.abs(x_disp)), 1e-9)
+            scale = max_in / max(np.max(np.abs(x_disp)), 1e-9)
             x_disp = x_disp * scale
             if eta_hyst > 0.0:
                 x_disp = apply_dahl_hysteresis(x_disp, eta=eta_hyst)
             v_asym = x_disp + alpha * (x_disp ** 2) + alpha3 * (x_disp ** 3)
             v_sat = vsat * np.tanh(v_asym / vsat)
-            out = np.fft.irfft(np.fft.rfft(v_sat) * H_de, n_sig) * (1.0 / scale)
+            out = np.fft.irfft(np.fft.rfft(v_sat) * (H_de / scale), n_sig)
         else:
             if eta_hyst > 0.0:
                 x = apply_dahl_hysteresis(x, eta=eta_hyst)
@@ -825,43 +852,40 @@ def apply_oversampled_saturation(
     X = np.fft.rfft(x)
     X_up = np.zeros(n_up // 2 + 1, dtype=complex)
     X_up[:len(X)] = X
-    x_up = np.fft.irfft(X_up, n_up) * float(m)
 
-    if displacement_weighting:
-        freqs_up = np.fft.rfftfreq(n_up, 1.0 / sr_up)
-        wc = 2.0 * np.pi * 40.0
-        s_up = 1j * 2.0 * np.pi * freqs_up
-        H_pre = (wc / (s_up + wc)) ** 0.55
-        H_pre = H_pre / np.abs(np.interp(100.0, freqs_up, H_pre))
-        H_de = 1.0 / H_pre
-        x_up_disp = np.fft.irfft(np.fft.rfft(x_up) * H_pre, n_up)
-        scale = np.max(np.abs(x_up)) / max(np.max(np.abs(x_up_disp)), 1e-9)
-        x_up_disp = x_up_disp * scale
-        if eta_hyst > 0.0:
-            x_up_disp = apply_dahl_hysteresis(x_up_disp, eta=eta_hyst)
-    else:
-        x_up_disp = x_up
-        if eta_hyst > 0.0:
-            x_up_disp = apply_dahl_hysteresis(x_up_disp, eta=eta_hyst)
-
-    v_asym = x_up_disp + alpha * (x_up_disp ** 2) + alpha3 * (x_up_disp ** 3)
-    v_sat = vsat * np.tanh(v_asym / vsat)
-
-    if displacement_weighting:
-        v_sat = np.fft.irfft(np.fft.rfft(v_sat) * H_de, n_up) * (1.0 / scale)
-
-    # Anti-Aliasing Lowpass filter and Decimation
-    Y_up = np.fft.rfft(v_sat)
     freqs_up = np.fft.rfftfreq(n_up, 1.0 / sr_up)
     f_pass = 22000.0
     f_stop = 24000.0
     t = np.clip((freqs_up - f_pass) / (f_stop - f_pass), 0.0, 1.0)
     aa_mask = np.where(freqs_up <= f_pass, 1.0, 0.5 * (1.0 + np.cos(np.pi * t)))
     aa_mask[freqs_up >= f_stop] = 0.0
-    Y_filtered = Y_up * aa_mask
+
+    if displacement_weighting:
+        wc = 2.0 * np.pi * 40.0
+        s_up = 1j * 2.0 * np.pi * freqs_up
+        H_pre = (wc / (s_up + wc)) ** 0.55
+        H_pre = H_pre / np.abs(np.interp(100.0, freqs_up, H_pre))
+        H_de = 1.0 / H_pre
+        # Direct single-pass forward IRFFT with H_pre applied in frequency domain (saves 2 full 9M-point FFTs)
+        x_up_disp = np.fft.irfft(X_up * H_pre, n_up) * float(m)
+        scale = max_in / max(np.max(np.abs(x_up_disp)), 1e-9)
+        x_up_disp = x_up_disp * scale
+        if eta_hyst > 0.0:
+            x_up_disp = apply_dahl_hysteresis(x_up_disp, eta=eta_hyst)
+        v_asym = x_up_disp + alpha * (x_up_disp ** 2) + alpha3 * (x_up_disp ** 3)
+        v_sat = vsat * np.tanh(v_asym / vsat)
+        # Direct single-pass frequency-domain de-emphasis and anti-aliasing filter (saves 2 full 9M-point FFTs)
+        Y_up = np.fft.rfft(v_sat) * (H_de / scale) * aa_mask
+    else:
+        x_up = np.fft.irfft(X_up, n_up) * float(m)
+        if eta_hyst > 0.0:
+            x_up = apply_dahl_hysteresis(x_up, eta=eta_hyst)
+        v_asym = x_up + alpha * (x_up ** 2) + alpha3 * (x_up ** 3)
+        v_sat = vsat * np.tanh(v_asym / vsat)
+        Y_up = np.fft.rfft(v_sat) * aa_mask
 
     # Decimate back to 48 kHz
-    Y_down = Y_filtered[:n_sig // 2 + 1]
+    Y_down = Y_up[:n_sig // 2 + 1]
     out = np.fft.irfft(Y_down, n_sig)
     return out.astype(np.float32)
 
@@ -1079,11 +1103,8 @@ def simulate_circuit_audio(
         # Convert float32 [-1.0, 1.0] to 24-bit integers
         int24_max = 8388607.0
         scaled = np.clip(out_total * int24_max, -8388608.0, 8388607.0).astype(np.int32)
-        # Pack into 3 bytes little-endian
-        raw_bytes = bytearray(len(scaled) * 3)
-        for i, val in enumerate(scaled):
-            b = int(val).to_bytes(4, byteorder="little", signed=True)
-            raw_bytes[i * 3: (i + 1) * 3] = b[:3]
+        # Vectorized 24-bit little-endian packing (drops 4th byte of each 32-bit int in C)
+        raw_bytes = scaled.astype("<i4").view(np.uint8).reshape(-1, 4)[:, :3].tobytes()
         wf.writeframes(raw_bytes)
 
     return True
@@ -1270,6 +1291,10 @@ def simulate_voice(
     print(f"     Exported: {output_wav}")
     return True
 
+def _simulate_voice_task(task_args):
+    v, kwargs = task_args
+    return simulate_voice(v, **kwargs)
+
 def main():
     parser = argparse.ArgumentParser(description="Passivizer Native Virtual Analog Circuit Simulator.")
     parser.add_argument("--voice", "-v", default="04_modern_p_ceramic", help="Target voice to simulate (or 'all')")
@@ -1350,6 +1375,12 @@ def main():
         action="store_true",
         help="Disable sub-audible 8 Hz DC-blocking high-pass filter",
     )
+    parser.add_argument(
+        "--jobs", "-j",
+        type=int,
+        default=None,
+        help="Number of parallel worker processes for batch simulation (default: min(4, CPU count))",
+    )
     args = parser.parse_args()
 
     displacement_weighting = not args.no_displacement_weighting
@@ -1359,28 +1390,37 @@ def main():
     eta_hyst = 0.0 if args.no_hysteresis else args.eta_hyst
 
     voices = list(VOICES.keys()) if args.voice == "all" else [args.voice]
-    for v in voices:
-        in_path = Path(args.input) if args.input else None
-        out_path = Path(args.out) if args.out else None
-        simulate_voice(
-            v,
-            input_wav=in_path,
-            output_wav=out_path,
-            instrument=args.instrument,
-            prefiltered=args.prefiltered,
-            save_intermediate=args.save_intermediate,
-            normalize=args.normalize,
-            target_dbfs=args.target_dbfs,
-            oversample=args.oversample,
-            displacement_weighting=displacement_weighting,
-            magnet_drag=magnet_drag,
-            alpha=args.alpha,
-            alpha3=args.alpha3,
-            eta_hyst=eta_hyst,
-            k_sag=args.k_sag,
-            eddy_diffusion=eddy_diffusion,
-            dc_block=dc_block,
-        )
+    in_path = Path(args.input) if args.input else None
+    out_path = Path(args.out) if args.out else None
+
+    sim_kwargs = dict(
+        input_wav=in_path,
+        output_wav=out_path,
+        instrument=args.instrument,
+        prefiltered=args.prefiltered,
+        save_intermediate=args.save_intermediate,
+        normalize=args.normalize,
+        target_dbfs=args.target_dbfs,
+        oversample=args.oversample,
+        displacement_weighting=displacement_weighting,
+        magnet_drag=magnet_drag,
+        alpha=args.alpha,
+        alpha3=args.alpha3,
+        eta_hyst=eta_hyst,
+        k_sag=args.k_sag,
+        eddy_diffusion=eddy_diffusion,
+        dc_block=dc_block,
+    )
+
+    max_workers = args.jobs if args.jobs is not None else min(4, os.cpu_count() or 4)
+    if len(voices) > 1 and max_workers > 1:
+        from concurrent.futures import ProcessPoolExecutor
+        tasks = [(v, sim_kwargs) for v in voices]
+        with ProcessPoolExecutor(max_workers=max_workers) as executor:
+            list(executor.map(_simulate_voice_task, tasks))
+    else:
+        for v in voices:
+            simulate_voice(v, **sim_kwargs)
 
 if __name__ == "__main__":
     main()
