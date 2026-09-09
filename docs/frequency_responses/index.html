@@ -159,6 +159,9 @@
     <button class="tab-btn active" data-id="30in_emg_mmtw" onclick="selectInstrument('30in_emg_mmtw')"><span>30" Short Scale MM (EMG MMTW)</span></button>
     <button class="tab-btn" data-id="32in_custom_pmm" onclick="selectInstrument('32in_custom_pmm')"><span>32" Medium Scale Custom (EMG PX + MMTWX)</span></button>
     <button class="tab-btn" data-id="32in_fretless_pmm" onclick="selectInstrument('32in_fretless_pmm')"><span>32" Fretless Custom (EMG PCSX + MMTWX)</span></button>
+    <button class="tab-btn" data-id="34in_active_jazz" onclick="selectInstrument('34in_active_jazz')"><span>34" Active Jazz Bass (EMG JX Pair)</span></button>
+    <button class="tab-btn" data-id="34in_active_p" onclick="selectInstrument('34in_active_p')"><span>34" Active P-Bass (EMG PX)</span></button>
+    <button class="tab-btn" data-id="34in_active_pj" onclick="selectInstrument('34in_active_pj')"><span>34" Active P/J Bass (EMG PX + JX)</span></button>
     <button class="tab-btn" data-id="34in_standard_jazz" onclick="selectInstrument('34in_standard_jazz')"><span>34" Standard Jazz Bass</span></button>
     <button class="tab-btn" data-id="34in_standard_p" onclick="selectInstrument('34in_standard_p')"><span>34" Standard P-Bass</span></button>
     </div>
@@ -216,6 +219,33 @@
     "speeds_str": "67.0 m/s, 89.4 m/s, 119.3 m/s, 159.3 m/s",
     "pickups_summary": "Reverse EMG PCSX Split-Coil (Neck) (@ 140.4mm) | EMG MMTWX Single-Coil (Bridge) (@ 50.8mm) | EMG MMTWX Dual-Coil (Centerline) (@ 62.2mm)",
     "default_pickup": "pcsx"
+  },
+  "34in_active_jazz": {
+    "id": "34in_active_jazz",
+    "name": "34\" Active Jazz Bass (EMG JX Pair)",
+    "scale_in": 34.0,
+    "scale_m": 0.8636,
+    "speeds_str": "71.2 m/s, 95.0 m/s, 126.8 m/s, 169.3 m/s",
+    "pickups_summary": "EMG JX Neck Single-Coil (@ 155.6mm) | EMG JX Bridge Single-Coil (@ 63.5mm)",
+    "default_pickup": "pair_parallel"
+  },
+  "34in_active_p": {
+    "id": "34in_active_p",
+    "name": "34\" Active P-Bass (EMG PX)",
+    "scale_in": 34.0,
+    "scale_m": 0.8636,
+    "speeds_str": "71.2 m/s, 95.0 m/s, 126.8 m/s, 169.3 m/s",
+    "pickups_summary": "Active EMG PX Split-Coil (@ 125.0mm)",
+    "default_pickup": "px"
+  },
+  "34in_active_pj": {
+    "id": "34in_active_pj",
+    "name": "34\" Active P/J Bass (EMG PX + JX)",
+    "scale_in": 34.0,
+    "scale_m": 0.8636,
+    "speeds_str": "71.2 m/s, 95.0 m/s, 126.8 m/s, 169.3 m/s",
+    "pickups_summary": "Active EMG PX Split-Coil (Neck) (@ 125.0mm) | Active EMG JX Single-Coil (Bridge) (@ 63.5mm)",
+    "default_pickup": "pair_parallel"
   },
   "34in_standard_jazz": {
     "id": "34in_standard_jazz",

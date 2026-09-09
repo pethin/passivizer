@@ -1,0 +1,112 @@
+# ==============================================================================
+# PASSIVIZER SOURCE INSTRUMENT CONFIGURATION
+# 34" Standard Scale Active P/J Bass (EMG PX Split-Coil + EMG JX Single-Coil)
+# ==============================================================================
+# Physical Datums:
+#   - Scale Length: 34.0" (863.6mm total, 431.8mm 12th fret to bridge saddle)
+#   - Standard Fender Split-Coil P: Centerline 125.0mm from bridge saddle
+#       - E/A half (forward towards neck): 139.0mm from bridge (292.8mm from 12th fret)
+#       - D/G half (rearward towards bridge): 111.0mm from bridge (320.8mm from 12th fret)
+#       - Aperture width: 1.00" (25.4mm) per coil half
+#   - 60s/Modern Bridge Single-Coil: 63.5mm from bridge saddle (368.3mm from 12th fret, 14 1/2")
+#       - Aperture width: 0.75" (19.05mm) narrow single-coil sensing envelope
+# Electronics (EMG P-X & J-X Official Datasheets):
+#   - Active 18V EMG X-Series preamps: Ultra-linear wideband response, >8.0V dynamic headroom.
+#   - Neck EMG PX: Ceramic magnets (C), fr = 3.20 kHz, Q = 1.40.
+#   - Bridge EMG JX: Ceramic magnets (C), fr = 4.05 kHz, Q = 1.40.
+#   - Output: Low-impedance 2.0 kOhm buffered output direct to jack / Anagram Block 1.
+#   - Blending: Active parallel summing (EMG ABCX active blend or dual buffered volume controls).
+
+id = "34in_active_pj"
+name = "34\" Active P/J Bass (EMG PX + JX)"
+scale_length_in = 34.0
+scale_length_m = 0.8636
+
+# String wave speeds: v = 2 * L * f0 (for E1=41.2Hz, A1=55.0Hz, D2=73.4Hz, G2=98.0Hz)
+string_wave_speeds = [71.16, 95.00, 126.81, 169.27]
+
+default_pickup = "pair_parallel"
+
+# ------------------------------------------------------------------------------
+# Physical Strings Configuration (Source Instrument Setup)
+# ------------------------------------------------------------------------------
+# Strung with standard nickel roundwounds (D'Addario EXL165 / Fender 7250M .045-.105).
+[strings]
+preset = "roundwound_nickel_standard"
+brand = "D'Addario"
+model = "EXL165"
+gauge = "45-105"
+core = "hex"
+wrap = "nickel_round"
+tension_lbs = 171.0
+
+# ------------------------------------------------------------------------------
+# 1. ACTIVE EMG PX SPLIT-COIL (Neck Solo)
+# ------------------------------------------------------------------------------
+[pickups.px]
+name = "Active EMG PX Split-Coil (Neck)"
+position_from_bridge_m = 0.1250  # Centerline 125.0mm
+aperture_width_in = 1.00         # 1.00" aperture per split half
+coil_spacing_in = 0.0
+type = "split_coil"
+resonant_frequency_hz = 3200.0   # Ceramic active X-series resonance (from EMG PX datasheet: 3.20 kHz)
+q_factor = 1.40
+coils = [
+    # E/A strings see forward coil half (warmer, deeper fundamental)
+    { strings = ["E", "A"], position_from_bridge_m = 0.1390, aperture_width_in = 1.00, weight = 1.0 },
+    # D/G strings see rearward coil half (tighter, punchier mid bite)
+    { strings = ["D", "G"], position_from_bridge_m = 0.1110, aperture_width_in = 1.00, weight = 1.0 }
+]
+
+# ------------------------------------------------------------------------------
+# 2. ACTIVE EMG JX SINGLE-COIL (Bridge Solo)
+# ------------------------------------------------------------------------------
+[pickups.jx]
+name = "Active EMG JX Single-Coil (Bridge)"
+position_from_bridge_m = 0.0635  # 63.5mm from bridge
+aperture_width_in = 0.75         # 0.75" narrow single-coil aperture
+coil_spacing_in = 0.0
+type = "single_coil"
+resonant_frequency_hz = 4050.0   # Ceramic active X-series resonance (from EMG JX datasheet: 4.05 kHz)
+q_factor = 1.40
+coils = [
+    { strings = ["all"], position_from_bridge_m = 0.0635, aperture_width_in = 0.75, weight = 1.0 }
+]
+
+# ------------------------------------------------------------------------------
+# 3. EMG PX + JX PARALLEL (Active Blend Center Detent / 50-50 P/J)
+# ------------------------------------------------------------------------------
+[pickups.pair_parallel]
+name = "Active EMG PX + JX Parallel (P/J Blend)"
+position_from_bridge_m = 0.09425 # Acoustic centroid (125.0mm + 63.5mm) / 2
+aperture_width_in = 0.875        # Blended effective aperture
+coil_spacing_in = 0.0
+type = "composite"
+resonant_frequency_hz = 3600.0   # Blended parallel active resonance
+q_factor = 1.40
+components = [
+    { pickup = "px", weight = 0.5 },
+    { pickup = "jx", weight = 0.5 }
+]
+
+# ------------------------------------------------------------------------------
+# 4. SMART VOICE MAPPING
+# ------------------------------------------------------------------------------
+# Directs the player to select the closest physical pickup state on the P/J Bass:
+#   - Neck Solo (PX): Precision bass voicings, Mudbucker, and Upright acoustic depth
+#   - Bridge Solo (JX): 60s Jazz bridge growl, StingRay bite, and Rickenbacker clank
+#   - Both Parallel (P/J): Authentic P/J hybrid, scooped Jazz slap, and modern punch
+
+[pickup_mapping]
+"01_jazz_bass_pair" = "pair_parallel"          # Both pickups in parallel
+"02_jazz_bridge_60s" = "jx"                    # Solo JX bridge pickup
+"03_modern_p_ceramic" = "px"                   # Solo PX split-coil (identity placement)
+"04_vintage_62_p_alnico" = "px"                # Solo PX split-coil (identity placement)
+"05_p_bass_47nf_rolloff" = "px"                # Solo PX split-coil
+"06_pj_hybrid_parallel" = "pair_parallel"      # Authentic P/J parallel configuration
+"07_stingray_mm_parallel" = "jx"               # Solo JX bridge pickup
+"08_rickenbacker_bridge_hpf" = "jx"            # Solo JX bridge pickup
+"09_pmm_hybrid_series" = "pair_parallel"       # Dual pickups in parallel
+"10_mudbucker_ultra_series" = "px"             # Solo PX neck pickup
+"11_dingwall_multiscale_bridge" = "jx"         # Solo JX bridge pickup
+"12_upright_bridge_transducer" = "px"          # Solo PX neck pickup

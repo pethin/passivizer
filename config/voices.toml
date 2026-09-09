@@ -287,15 +287,16 @@ coils = [
 # 11. DINGWALL FANNED-FRET BRIDGE (MULTI-SCALE)
 # ------------------------------------------------------------------------------
 # Dual-coil humbucker mounted at the angled bridge sweet spot (48.0mm datum)
-# on a 34"-37" multi-scale bass, combined with high-tension metallic clank filter.
+# Dual-coil humbucker mounted at the angled bridge sweet spot (48.0mm datum)
+# on a 34"-37" multi-scale bass, combined with stainless steel string mechanics.
 [voices.11_dingwall_multiscale_bridge]
 name = "11. Dingwall Fanned-Fret Bridge (Multi-Scale)"
 circuit = "circuits/11_dingwall_multiscale_bridge.cir"
 topology = "Multi-Scale Angled Dual-Coil"
-description = "34\"-37\" fanned fret bridge sweet spot with high wave-speed tension filter"
+description = "34\"-37\" fanned fret bridge sweet spot with high wave-speed stainless string physics"
 fr = 3400.0
 Q = 1.5
-gain_db = 1.0
+gain_db = 0.0
 scale = "multiscale"
 target_string = "roundwound_stainless_clank"
 coils = [

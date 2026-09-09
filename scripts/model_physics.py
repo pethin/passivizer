@@ -139,7 +139,14 @@ def load_instrument(identifier_or_path):
         "32in": "32in_custom_pmm",
         "32in_fretless": "32in_fretless_pmm",
         "fretless": "32in_fretless_pmm",
-        "34in": "34in_standard_p"
+        "34in": "34in_standard_p",
+        "34in_active_p": "34in_active_p",
+        "active_p": "34in_active_p",
+        "34in_active_jazz": "34in_active_jazz",
+        "active_jazz": "34in_active_jazz",
+        "active_j": "34in_active_jazz",
+        "34in_active_pj": "34in_active_pj",
+        "active_pj": "34in_active_pj"
     }
     raw = str(identifier_or_path).strip()
     key = aliases.get(raw, raw)
@@ -746,17 +753,7 @@ def compute_voice_prefilter_firs(voice_id, instrument="30in", src_scale=None, nu
 
     # Scale-Length Tension & Body Bloom Filter
     src_scale_in = inst.get("scale_length_in", 34.0)
-    if target_scale_key == "multiscale":
-        sub_gain = 10.0 ** (1.5 / 20.0)
-        h_sub = np.sqrt((sub_gain ** 2 + (freqs / 75.0) ** 2) / (1.0 + (freqs / 75.0) ** 2))
-        a_clank = 10.0 ** (3.5 / 40.0)
-        x_clank = freqs / 3200.0
-        h_clank = np.sqrt(
-            ((1.0 - x_clank ** 2) ** 2 + (a_clank * x_clank / 1.5) ** 2) /
-            ((1.0 - x_clank ** 2) ** 2 + (x_clank / (a_clank * 1.5)) ** 2)
-        )
-        h_tension = h_sub * h_clank
-    elif target_scale_key == "upright":
+    if target_scale_key == "upright":
         # Upright string physics & body bloom: deep fundamental, woody low-mids
         # Modulated by differential bloom between target double-bass strings and source instrument strings
         delta_bloom = float(tgt_string.get("bloom_db", 2.8)) - float(src_string.get("bloom_db", 0.0))
@@ -946,16 +943,6 @@ def compute_aperture_prefilter_fir(voice_id, instrument="30in", src_scale=None, 
     src_scale_in = inst.get("scale_length_in", 34.0)
     if is_identity:
         h_tension = np.ones_like(freqs)
-    elif target_scale_key == "multiscale":
-        sub_gain = 10.0 ** (1.5 / 20.0)
-        h_sub = np.sqrt((sub_gain ** 2 + (freqs / 75.0) ** 2) / (1.0 + (freqs / 75.0) ** 2))
-        a_clank = 10.0 ** (3.5 / 40.0)
-        x_clank = freqs / 3200.0
-        h_clank = np.sqrt(
-            ((1.0 - x_clank ** 2) ** 2 + (a_clank * x_clank / 1.5) ** 2) /
-            ((1.0 - x_clank ** 2) ** 2 + (x_clank / (a_clank * 1.5)) ** 2)
-        )
-        h_tension = h_sub * h_clank
     elif target_scale_key == "upright":
         # Upright string physics & body bloom: deep fundamental, woody low-mids
         delta_bloom = float(tgt_string.get("bloom_db", 2.8)) - float(src_string.get("bloom_db", 0.0))

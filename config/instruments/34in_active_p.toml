@@ -1,0 +1,74 @@
+# ==============================================================================
+# PASSIVIZER SOURCE INSTRUMENT CONFIGURATION
+# 34" Standard Scale Active Precision Bass (EMG PX Split-Coil)
+# ==============================================================================
+# Physical Datums:
+#   - Scale Length: 34.0" (863.6mm total, 431.8mm 12th fret to bridge saddle)
+#   - Standard Fender Split-Coil P: Centerline 125.0mm from bridge saddle
+#       - E/A half (forward towards neck): 139.0mm from bridge (292.8mm from 12th fret)
+#       - D/G half (rearward towards bridge): 111.0mm from bridge (320.8mm from 12th fret)
+#       - Aperture width: 1.00" (25.4mm) per coil half
+# Electronics (EMG P-X Official Datasheet):
+#   - Active 18V EMG X-Series preamp: Ultra-linear wideband response, >8.5V dynamic headroom.
+#   - Ceramic magnets (C), resonant peak fr = 3.20 kHz, Q = 1.40.
+#   - Output: Low-impedance 2.0 kOhm buffered output direct to jack / Anagram Block 1.
+#   - Output Voltage: 2.00V (string), 8.50V (thump); Output Noise (60 Hz): -106 dBV.
+
+id = "34in_active_p"
+name = "34\" Active P-Bass (EMG PX)"
+scale_length_in = 34.0
+scale_length_m = 0.8636
+
+# String wave speeds: v = 2 * L * f0 (for E1=41.2Hz, A1=55.0Hz, D2=73.4Hz, G2=98.0Hz)
+string_wave_speeds = [71.16, 95.00, 126.81, 169.27]
+
+default_pickup = "px"
+
+# ------------------------------------------------------------------------------
+# Physical Strings Configuration (Source Instrument Setup)
+# ------------------------------------------------------------------------------
+# Strung with standard nickel roundwounds (D'Addario EXL165 / Fender 7250M .045-.105).
+[strings]
+preset = "roundwound_nickel_standard"
+brand = "D'Addario"
+model = "EXL165"
+gauge = "45-105"
+core = "hex"
+wrap = "nickel_round"
+tension_lbs = 171.0
+
+# ------------------------------------------------------------------------------
+# 1. ACTIVE EMG PX SPLIT-COIL
+# ------------------------------------------------------------------------------
+[pickups.px]
+name = "Active EMG PX Split-Coil"
+position_from_bridge_m = 0.1250  # Centerline 125.0mm (standard Fender P placement)
+aperture_width_in = 1.00         # 1.00" aperture per split half
+coil_spacing_in = 0.0
+type = "split_coil"
+resonant_frequency_hz = 3200.0   # Ceramic active X-series resonance (from EMG PX datasheet: 3.20 kHz)
+q_factor = 1.40                  # Quality factor of the active preamp resonance
+coils = [
+    # E/A strings see forward coil half (warmer, deeper fundamental)
+    { strings = ["E", "A"], position_from_bridge_m = 0.1390, aperture_width_in = 1.00, weight = 1.0 },
+    # D/G strings see rearward coil half (tighter, punchier mid bite)
+    { strings = ["D", "G"], position_from_bridge_m = 0.1110, aperture_width_in = 1.00, weight = 1.0 }
+]
+
+# ------------------------------------------------------------------------------
+# 2. SMART VOICE MAPPING
+# ------------------------------------------------------------------------------
+# Single-pickup active bass: all digital twin voicings map directly to the EMG PX.
+[pickup_mapping]
+"01_jazz_bass_pair" = "px"
+"02_jazz_bridge_60s" = "px"
+"03_modern_p_ceramic" = "px"
+"04_vintage_62_p_alnico" = "px"
+"05_p_bass_47nf_rolloff" = "px"
+"06_pj_hybrid_parallel" = "px"
+"07_stingray_mm_parallel" = "px"
+"08_rickenbacker_bridge_hpf" = "px"
+"09_pmm_hybrid_series" = "px"
+"10_mudbucker_ultra_series" = "px"
+"11_dingwall_multiscale_bridge" = "px"
+"12_upright_bridge_transducer" = "px"

@@ -18,7 +18,7 @@ This catalog details the physical parameters, equivalent RLC circuit values, aco
 | **08** | `08_rickenbacker_bridge_hpf`| 4003 Bridge HPF | Series HPF | $3.80\text{ H}$ | $8.40\text{ k}\Omega$ | $2.2\text{ kHz}$ | $2.2$ | Single-coil with vintage $4.7\text{ nF}$ series HPF; removes low-end mud below 150 Hz, aggressive pick grit. |
 | **09** | `09_pmm_hybrid_series` | P + MM Hybrid | Series Sum | $7.20\text{ H}$ | $14.10\text{ k}\Omega$ | $2.0\text{ kHz}$ | $2.2$ | Split P and MM humbucker in series; $+5.8\text{ dB}$ inductive voltage boost with forward $2.0\text{ kHz}$ authority. |
 | **10** | `10_mudbucker_ultra_series`| Overwound Series| Ultra Series | $14.40\text{ H}$| $27.90\text{ k}\Omega$ | $1.2\text{ kHz}$ | $1.6$ | Extreme dual-coil series network; subterranean low-end focus, steep natural top-end rolloff. |
-| **11** | `11_dingwall_multiscale_bridge`| Multi-Scale MM | Angled Parallel | $2.30\text{ H}$| $4.40\text{ k}\Omega$ | $3.4\text{ kHz}$ | $1.7$ | 34"-37" fanned-fret bridge position ($48.0\text{ mm}$) with high string tension and piano-like clank filter. |
+| **11** | `11_dingwall_multiscale_bridge`| Multi-Scale MM | Angled Parallel | $2.30\text{ H}$| $4.40\text{ k}\Omega$ | $3.4\text{ kHz}$ | $1.7$ | 34"-37" fanned-fret bridge position ($48.0\text{ mm}$) with high-tension wave speeds and FD3 parallel dual-coil resonance. |
 | **12** | `12_upright_bridge_transducer`| Upright Transducer | Bridge Force | — | — | $4.5\text{ kHz}$ | $0.7$ | Direct bridge force sensor with velocity-to-force leaky integration; woody double-bass bloom. |
 
 ---
@@ -104,7 +104,7 @@ This catalog details the physical parameters, equivalent RLC circuit values, aco
 * **Archetype:** Dingwall NG Multi-Scale Angled Bridge Position
 * **Coil Model:** Dual-coil humbucker in parallel positioned $48.0\text{ mm}$ from bridge
 * **Electrical Parameters:** $L = 2.30\text{ H}$, $R_{\text{dc}} = 4.40\text{ k}\Omega$, $R_{\text{eddy}} = 150\text{ k}\Omega$, $C_{\text{coil}} = 120\text{ pF}$
-* **Acoustic Character:** Fanned-fret wave-speed scaling with high string tension. Tightened sub-bass ($+1.5\text{ dB}$ @ $75\text{ Hz}$), scooped low-mids ($-3.5\text{ dB}$ @ $220\text{ Hz}$), and metallic clank ($+3.5\text{ dB}$ @ $3.2\text{ kHz}$).
+* **Acoustic Character:** 34"-37" fanned-fret wave-speed scaling with high string tension, angled bridge sweet spot ($48.0\text{ mm}$), FD3 dual-coil parallel resonance ($3.4\text{ kHz}$), and stainless-steel string harmonic extension.
 * **32" Bass Setting:** ABCX Blend **100% Bridge** (MMTWX in Dual-Coil Mode - Push/Pull Up).
 
 ### 12. `12_upright_bridge_transducer` (Upright Acoustic Bridge Transducer)

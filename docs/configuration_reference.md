@@ -13,8 +13,12 @@ config/
 ├── instruments/              # Physical source instruments (the bass in the player's hands)
 │   ├── 30in_emg_mmtw.toml    # 30" Short scale with EMG MMTW dual-mode pickup
 │   ├── 32in_custom_pmm.toml  # 32" Medium scale with Reverse PX + MMTWX + ABCX active blend
-│   ├── 34in_standard_p.toml  # 34" Standard Fender Precision Bass
-│   └── 34in_standard_jazz.toml # 34" Standard Fender Jazz Bass
+│   ├── 32in_fretless_pmm.toml # 32" Fretless Medium scale with Reverse PX + MMTWX
+│   ├── 34in_active_p.toml    # 34" Standard scale Active Precision Bass (EMG PX)
+│   ├── 34in_active_jazz.toml # 34" Standard scale Active Jazz Bass (EMG JX pair)
+│   ├── 34in_active_pj.toml   # 34" Standard scale Active P/J Bass (EMG PX + JX)
+│   ├── 34in_standard_p.toml  # 34" Standard Fender Precision Bass (passive datum)
+│   └── 34in_standard_jazz.toml # 34" Standard Fender Jazz Bass (passive datum)
 ├── scales.toml               # Physical scale lengths, wave speeds, and string dispersion
 └── voices.toml               # Master target passive pickup voices & SPICE netlist links
 ```

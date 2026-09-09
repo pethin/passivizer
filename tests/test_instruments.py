@@ -14,7 +14,16 @@ from scripts.model_physics import (
 
 def test_load_all_default_instruments():
     instruments = load_all_instruments()
-    expected_ids = ["30in_emg_mmtw", "32in_custom_pmm", "32in_fretless_pmm", "34in_standard_p", "34in_standard_jazz"]
+    expected_ids = [
+        "30in_emg_mmtw",
+        "32in_custom_pmm",
+        "32in_fretless_pmm",
+        "34in_standard_p",
+        "34in_standard_jazz",
+        "34in_active_p",
+        "34in_active_jazz",
+        "34in_active_pj",
+    ]
     for iid in expected_ids:
         assert iid in instruments, f"Default instrument '{iid}' not found"
 
@@ -228,6 +237,75 @@ def test_32in_pj_blend_parallel_definition():
         assert pj["resonant_frequency_hz"] > 0
         assert pj["q_factor"] > 0
         assert inst["pickup_mapping"]["06_pj_hybrid_parallel"] == "pj_blend_parallel"
+
+def test_34in_active_p_routing():
+    inst = load_instrument("34in_active_p")
+    assert inst["id"] == "34in_active_p"
+    assert inst["scale_length_in"] == 34.0
+    assert "px" in inst["pickups"]
+    px = inst["pickups"]["px"]
+    assert px["resonant_frequency_hz"] == 3200.0
+    assert px["q_factor"] == 1.40
+    assert px["type"] == "split_coil"
+
+    # All voices route to px
+    for vid in VOICES:
+        pickup = get_source_pickup(inst, vid)
+        assert pickup["id"] == "px"
+
+    # Shorthand alias check
+    assert load_instrument("active_p")["id"] == "34in_active_p"
+
+def test_34in_active_jazz_routing():
+    inst = load_instrument("34in_active_jazz")
+    assert inst["id"] == "34in_active_jazz"
+    assert inst["scale_length_in"] == 34.0
+    assert "neck" in inst["pickups"]
+    assert "bridge" in inst["pickups"]
+    assert "pair_parallel" in inst["pickups"]
+
+    assert inst["pickups"]["neck"]["resonant_frequency_hz"] == 4050.0
+    assert inst["pickups"]["bridge"]["resonant_frequency_hz"] == 4050.0
+    assert inst["pickups"]["pair_parallel"]["resonant_frequency_hz"] == 4050.0
+
+    # Bridge solo voices
+    assert get_source_pickup(inst, "02_jazz_bridge_60s")["id"] == "bridge"
+    assert get_source_pickup(inst, "07_stingray_mm_parallel")["id"] == "bridge"
+
+    # Neck solo voices
+    assert get_source_pickup(inst, "03_modern_p_ceramic")["id"] == "neck"
+
+    # Parallel voices
+    assert get_source_pickup(inst, "01_jazz_bass_pair")["id"] == "pair_parallel"
+
+    # Shorthand alias check
+    assert load_instrument("active_jazz")["id"] == "34in_active_jazz"
+
+def test_34in_active_pj_routing():
+    inst = load_instrument("34in_active_pj")
+    assert inst["id"] == "34in_active_pj"
+    assert inst["scale_length_in"] == 34.0
+    assert "px" in inst["pickups"]
+    assert "jx" in inst["pickups"]
+    assert "pair_parallel" in inst["pickups"]
+
+    assert inst["pickups"]["px"]["resonant_frequency_hz"] == 3200.0
+    assert inst["pickups"]["jx"]["resonant_frequency_hz"] == 4050.0
+
+    # P voices route to PX
+    assert get_source_pickup(inst, "03_modern_p_ceramic")["id"] == "px"
+    assert get_source_pickup(inst, "04_vintage_62_p_alnico")["id"] == "px"
+
+    # Bridge voices route to JX
+    assert get_source_pickup(inst, "02_jazz_bridge_60s")["id"] == "jx"
+    assert get_source_pickup(inst, "07_stingray_mm_parallel")["id"] == "jx"
+
+    # Hybrid voices route to parallel blend
+    assert get_source_pickup(inst, "06_pj_hybrid_parallel")["id"] == "pair_parallel"
+
+    # Shorthand alias check
+    assert load_instrument("active_pj")["id"] == "34in_active_pj"
+
 
 
 

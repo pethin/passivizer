@@ -182,16 +182,6 @@ def build_voice_dataframe(voice_id, cfg, instrument="30in", src_scale=None):
     src_scale_in = inst.get("scale_length_in", 34.0)
     if is_identity:
         h_tension = np.ones_like(freqs)
-    elif tgt_scale == "multiscale":
-        sub_gain = 10.0 ** (1.5 / 20.0)
-        h_sub = np.sqrt((sub_gain ** 2 + (freqs / 75.0) ** 2) / (1.0 + (freqs / 75.0) ** 2))
-        a_clank = 10.0 ** (3.5 / 40.0)
-        x_clank = freqs / 3200.0
-        h_clank = np.sqrt(
-            ((1.0 - x_clank ** 2) ** 2 + (a_clank * x_clank / 1.5) ** 2) /
-            ((1.0 - x_clank ** 2) ** 2 + (x_clank / (a_clank * 1.5)) ** 2)
-        )
-        h_tension = h_sub * h_clank
     elif tgt_scale == "upright":
         delta_bloom = float(tgt_string.get("bloom_db", 2.8)) - float(src_string.get("bloom_db", 0.0))
         g_bloom = 10.0 ** (max(delta_bloom, 0.5) / 20.0)
