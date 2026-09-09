@@ -44,6 +44,50 @@ While an Impulse Response (IR) or FIR filter can reproduce a static frequency cu
 
 ---
 
+## The Ideal Source Instrument: Single-Pickup Architecture (34" Scale)
+
+While Passivizer supports multi-pickup and active-blend source instruments, the **optimal hardware platform** for driving all 12 digital twin voicings is a **single-pickup, zero-control bass**.
+
+```
+[12th Fret] ◄────────────── 338.3 mm ──────────────► [Pickup Center] ◄──── 93.5 mm ────► [Bridge Saddle]
+```
+
+### 1. The Single-Pickup Philosophy: Total Decoupling & Zero Comb Nulls
+* **No Comb-Filtering Nulls to Invert:** Humbuckers with dual coils under the same string introduce physical phase cancellation notches ($f = v / 2d \approx 2.5\text{ kHz}$) that cannot be cleanly inverted in DSP without boosting noise. A single line of sensing per string provides a clean, notch-free transfer function that allows Passivizer to synthesize any target aperture or dual-coil comb filter effortlessly.
+* **Total Preset Decoupling:** Eliminates the "hand-foot desync" problem. You never have to adjust physical knobs or flip coil switches to match patch changes on your pedalboard; stepping on a Darkglass Anagram footswitch transforms the tone entirely in software.
+
+### 2. Recommended Pickup: EMG PX or EMG 35P4X (18V)
+* **Split-Coil Geometry (Zero Comb Nulls):** The E/A and D/G strings each pass over only **one** isolated coil ($d = 0$). There is zero inter-coil phase cancellation along any string.
+* **Hum-Canceling Common-Mode Rejection:** Reverse-wound, reverse-polarity split bobbins ensure 100% hum-free performance on a pot-free instrument.
+* **Ceramic X-Series Preamp @ 18V:** Delivers an ultra-wide, linear frequency response ($f_r \approx 3.2\text{ kHz}$), near-zero core saturation, and $>8.5\text{V}_{\text{p-p}}$ dynamic headroom.
+* **Form Factors:** Traditional two-piece split-P covers (**EMG PX**) or a single $3.50'' \times 1.50''$ rectangular soapbar (**EMG 35P4X** for 4-string, **40P5X** for 5-string).
+
+### 3. Lutherie Datums: The $93.5\text{ mm}$ ($3.68''$) Acoustic Median
+On a standard **34.0" scale length** ($863.6\text{ mm}$), **$93.5\text{ mm}$** is the exact mathematical median between a 60s Jazz Bridge ($63.5\text{ mm}$) and a standard Precision Bass ($125.0\text{ mm}$):
+
+$$\bar{x} = \frac{63.5\text{ mm} + 125.0\text{ mm}}{2} = 94.25\text{ mm} \approx \mathbf{93.5\text{ mm}}$$
+
+This median position achieves a **Reverse-P Dual-Datum Alignment**:
+
+| Geometry | Measurement from Bridge Saddle | Measurement from 12th Fret | Notes |
+| :--- | :--- | :--- | :--- |
+| **Reverse-P: E/A Coil Half** | **$80.8\text{ mm}$** ($3.18''$) | **$351.0\text{ mm}$** ($13.82''$) | **Exact StingRay sweet spot!** Rearward placement keeps low E & A strings punchy, tight, and articulate. |
+| **Reverse-P: D/G Coil Half** | **$106.2\text{ mm}$** ($4.18''$) | **$325.6\text{ mm}$** ($12.82''$) | **Within $4.8\text{ mm}$ of a vintage P-Bass!** Forward placement gives high D & G strings warm, singing body. |
+| **Reverse-P Acoustic Centroid** | **$93.5\text{ mm}$** ($3.68''$) | **$338.3\text{ mm}$** ($13.32''$) | Perfect geometric acoustic balance across all 4 strings. |
+| **Soapbar Center (EMG 35P4X)** | **$93.5\text{ mm}$** ($3.68''$) | **$338.3\text{ mm}$** ($13.32''$) | Casing cavity: $74.5\text{ mm}$ bridge edge, $112.5\text{ mm}$ neck edge. |
+
+* **Why this position outclasses all others:** 
+  1. The low E and A strings are physically sampled right where a Music Man StingRay senses, ensuring tight sub-bass, punchy low-mids, and zero flub.
+  2. The high D and G strings are physically sampled within $5\text{ mm}$ of an authentic 1962 Fender P-Bass, ensuring rich fundamental bloom and eliminating high-register "plinkiness."
+  3. Because the pickup is equidistant between bridge single-coils ($63.5\text{ mm}$) and neck split-coils ($125.0\text{ mm}$), the DSP acoustic tilt adjustments in Passivizer are kept to an absolute minimum ($\le 1.8\text{ dB}$ in either direction).
+
+### 4. Zero-Control Electrical Wiring (Direct-to-Jack)
+* **Wiring:** Connect the EMG pickup signal wire directly to the stereo 1/4" output jack Tip, battery negative to Ring (for automatic power switching on cable insertion), and pickup/battery ground to Sleeve.
+* **Power:** Two 9V batteries wired in series (**18V**) for maximum linear headroom.
+* **Zero Loading:** Eliminates potentiometer wiper resistance, pot capacitance loading, and accidental level bumps, ensuring $100\%$ consistent calibration into Block 1 every time you plug in.
+
+---
+
 ## Modeling Architecture
 
 Passivizer models the complete electro-acoustic path in four distinct layers:
