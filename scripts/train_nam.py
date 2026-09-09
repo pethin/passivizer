@@ -33,7 +33,7 @@ from model_physics import (
 def find_sweep_input(candidate_path=None):
     if candidate_path and Path(candidate_path).exists():
         return Path(candidate_path)
-    for name in ["T3K-sweep-v3.wav", "v3_0_0.wav", "v1_1_1.wav", "input.wav"]:
+    for name in ["T3K-sweep-v3.wav", "v3_0_0.wav", "input.wav"]:
         p = REPO_ROOT / name
         if p.exists():
             return p

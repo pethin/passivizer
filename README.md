@@ -168,7 +168,7 @@ uv run python scripts/analyze_voices.py --instrument 30in
 *Outputs: Master interactive portal at `docs/frequency_responses.html` (and `docs/frequency_responses/index.html`) with embedded tabbed navigation and spec breakdown, and per-instrument standalone visualizations in `docs/frequency_responses/<instrument_id>.html`.*
 
 ### 2. Native WAV SPICE Circuit Simulation (`scripts/simulate_circuits.py`)
-Directly streams raw NAM calibration audio (`v1_1_1.wav`) through the entire physical digital twin in a single in-memory pass:
+Directly streams raw NAM calibration audio (`T3K-sweep-v3.wav` / `v3_0_0.wav` / `input.wav`) through the entire physical digital twin in a single in-memory pass:
 1. **Acoustic Aperture & Placement:** De-humbucking sinc aperture filtering, spatial standing-wave comb filtering, displacement tilt ($\Delta x$), and string tension filtering.
 2. **Dynamic Non-Linear Compliance:** Soft-knee saturation ($V_{\text{sat}} \cdot \tanh(v / V_{\text{sat}})$).
 3. **Passive Pickup Circuit Twin:** Exact closed-form nodal AC transfer functions, eddy-current damping, authentic volume/tone pot dividers, active preamp buffers, hybrid treble bleed, cable capacitance ($750\text{ pF}$), and pedalboard load ($1\text{ M}\Omega \parallel 30\text{ pF}$).
@@ -193,8 +193,8 @@ Trains a high-efficiency **NAM Architecture 2 (A2)** neural model on the input/o
 
 ```bash
 # Train NAM Architecture 2 (A2) model for Darkglass Anagram Block 1:
-# The input is the raw bass calibration sweep (v1_1_1.wav) and the target is the simulated output:
-nam train v1_1_1.wav audio/30in_emg_mmtw/out_04_modern_p_ceramic.wav ./models/30in_emg_mmtw/04_modern_p_ceramic.nam --architecture "A2"
+# The input is the raw bass calibration sweep (T3K-sweep-v3.wav) and the target is the simulated output:
+nam train T3K-sweep-v3.wav audio/30in_emg_mmtw/out_04_modern_p_ceramic.wav ./models/30in_emg_mmtw/04_modern_p_ceramic.nam --architecture "A2"
 
 # Run via the automated Passivizer trainer (defaults to studio reference goal ESR <= 0.0005 with 100 max epochs):
 uv run python main.py --stage train --instrument 30in --voice 04_modern_p_ceramic
@@ -218,8 +218,11 @@ uv run python main.py --stage viz
 # Run audio pre-filtering for a specific voice:
 uv run python main.py --stage prep --voice 07_stingray_mm_parallel
 
-# Run circuit simulation stage:
+# Run circuit simulation stage (with automatic output level normalization based on input sweep dBFS):
 uv run python main.py --stage sim --voice 07_stingray_mm_parallel
+
+# Or run native circuit simulation directly with automatic sweep level normalization:
+uv run python scripts/simulate_circuits.py --instrument 30in --voice all --normalize auto
 ```
 
 ---
@@ -284,7 +287,7 @@ passivizer/
 │   ├── prep_nam_audio.py                  # Aperture & scale tension pre-filtering for NAM
 │   ├── simulate_circuits.py               # Native Apple Silicon WAV SPICE circuit engine
 │   └── run_pipeline.py                    # Master end-to-end automated runner
-├── tests/                                 # Pytest test suite (75 tests)
+├── tests/                                 # Pytest test suite (78 tests)
 └── models/                                # Exported .nam neural models
 ```
 
@@ -294,11 +297,11 @@ passivizer/
 
 ### Completed Milestones
 - [x] **Electro-Acoustic Physical Modeling:** Magnetic aperture sinc filtering, spatial comb nulls, scale-length wave-speed scaling ($30''/32'' \to 34''/37''$), and differential string tension modeling.
-- [x] **Native WAV SPICE Simulator:** High-performance Apple Silicon engine (`scripts/simulate_circuits.py`) solving analytical nodal RLC equations and $\tanh$ soft-knee saturation directly on audio at >1500x speed.
+- [x] **Native WAV SPICE Simulator:** High-performance Apple Silicon engine (`scripts/simulate_circuits.py`) solving analytical nodal RLC equations, asymmetric 2nd-harmonic $\tanh$ compliance, and automatic output level normalization based on input sweep dBFS at >1500x speed.
 - [x] **14 Voice Profiles & Transducers:** Modern active 2-band Jazz, vintage single-coil, split-coil, series/parallel dual-coils, active Music Man, fanned multi-scale, and double-bass bridge piezo force transducers.
 - [x] **Interactive Visualization Portal:** Polars + Altair frequency response portal with spec sheets and per-instrument interactive charts (`docs/frequency_responses.html`).
 - [x] **Automated NAM Training Pipeline:** End-to-end Architecture 2 (A2) neural model training targeting Darkglass Anagram Block 1.
-- [x] **Automated Test Suite:** Comprehensive 75-test pytest verification covering physical filters, nodal transfer functions, FIR DSP, and audio simulation.
+- [x] **Automated Test Suite:** Comprehensive 78-test pytest verification covering physical filters, nodal transfer functions, FIR DSP, and audio simulation.
 
 ### Upcoming Objectives
 - [ ] **Hardware Reference Calibration:** Dry-DI spectral matching and A/B verification against physical vintage instruments (1962 P-Bass, 1975 Jazz Bass, 1979 StingRay).

@@ -4,8 +4,8 @@
 .options plotwinsize=0 numdgt=7
 
 * 1. Audio Sources: Independent String Motion per Pickup (Channel 0 = Neck, Channel 1 = Bridge)
-V_neck in_neck 0 wavefile="v1_1_1.wav" chan=0
-V_bridge in_bridge 0 wavefile="v1_1_1.wav" chan=1
+V_neck in_neck 0 wavefile="T3K-sweep-v3.wav" chan=0
+V_bridge in_bridge 0 wavefile="T3K-sweep-v3.wav" chan=1
 
 * 2. Pickup Coils: Dual Parallel Pickup Branches (J-Neck || J-Bridge)
 * --- Branch 1: Neck Single-Coil (3.2H, 7.2k, 70pF, 135k eddy) ---

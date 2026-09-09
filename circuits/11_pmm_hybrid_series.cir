@@ -3,12 +3,12 @@
 .options plotwinsize=0 numdgt=7
 
 * 1. Audio Sources: Independent String Motion per Pickup (Channel 0 = P-Neck, Channel 1 = MM-Bridge)
-V_neck in_neck 0 wavefile="v1_1_1_aperture.wav" chan=0
-V_bridge in_bridge node_mid wavefile="v1_1_1_aperture.wav" chan=1
+V_neck in_neck 0 wavefile="T3K-sweep-v3.wav" chan=0
+V_bridge in_bridge node_mid wavefile="T3K-sweep-v3.wav" chan=1
 
 * 2. Dynamic Magnetic Core & String Excursion Saturation (Soft-Knee Compliance)
-B_comp_n in_dyn_n 0 V=0.40 * tanh(V(in_neck) / 0.40)
-B_comp_b in_dyn_b node_mid V=0.40 * tanh(V(in_bridge, node_mid) / 0.40)
+B_comp_n in_dyn_n 0 V=0.38 * tanh(V(in_neck) / 0.38)
+B_comp_b in_dyn_b node_mid V=0.58 * tanh(V(in_bridge, node_mid) / 0.58)
 
 * 3. Pickup Coils: P/MM in Series Sum (Precision Neck + Music Man Bridge)
 * --- Stage 1: Bartolini 8CBP Precision Neck (4.8H, 9.5k, 80pF, 110k eddy) ---

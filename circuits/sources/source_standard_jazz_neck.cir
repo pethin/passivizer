@@ -4,7 +4,7 @@
 .options plotwinsize=0 numdgt=7
 
 * 1. Audio Source (Pre-filtered NAM Calibration Track)
-V_in in 0 wavefile="v1_1_1.wav"
+V_in in 0 wavefile="T3K-sweep-v3.wav"
 
 * 2. Pickup Coils (Standard Fender Jazz Neck Single-Coil)
 L_coil in node1 3.20

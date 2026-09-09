@@ -275,7 +275,7 @@ def test_default_output_directories():
     assert len(wav_files_in_circuits) == 0, f"Found .wav files in circuits/: {wav_files_in_circuits}"
 
 def test_sweep_audio_auto_detection():
-    """Verify that simulate_voice automatically finds T3K-sweep-v3.wav even if given None or missing v1_1_1.wav."""
+    """Verify that simulate_voice automatically finds T3K-sweep-v3.wav even if given None or missing input path."""
     from scripts.simulate_circuits import find_default_input_audio
     sweep = find_default_input_audio()
     assert sweep is not None
@@ -289,9 +289,9 @@ def test_sweep_audio_auto_detection():
         assert res is True
         assert out_wav.exists()
 
-        # Test with input_wav pointing to missing v1_1_1.wav (fallback behavior)
+        # Test with input_wav pointing to missing file (fallback behavior to T3K-sweep-v3.wav)
         out_wav_fallback = Path(tmpdir) / "fallback_sweep_out.wav"
-        res_fallback = simulate_voice("04_modern_p_ceramic", input_wav="v1_1_1.wav", output_wav=out_wav_fallback, instrument="30in")
+        res_fallback = simulate_voice("04_modern_p_ceramic", input_wav="missing_sweep.wav", output_wav=out_wav_fallback, instrument="30in")
         assert res_fallback is True
         assert out_wav_fallback.exists()
 
@@ -476,6 +476,62 @@ def test_passive_source_simulation_runs():
         res2 = simulate_voice("02_jazz_bass_pair", output_wav=Path(tmp2.name), instrument="34in_standard_jazz")
         assert res2 is True
         assert os.path.exists(tmp2.name) and os.path.getsize(tmp2.name) > 1000
+
+def test_auto_output_level_normalization_to_input_sweep():
+    """Verify that simulated output automatically normalizes its RMS to match the input sweep dBFS."""
+    import pedalboard.io
+    sweep_path = REPO_ROOT / "T3K-sweep-v3.wav"
+    if not sweep_path.exists():
+        pytest.skip("T3K-sweep-v3.wav not found in repo root")
+
+    with pedalboard.io.AudioFile(str(sweep_path)) as f:
+        in_audio = f.read(f.frames)[0]
+    in_rms = float(np.sqrt(np.mean(in_audio ** 2)))
+    in_rms_db = 20.0 * math.log10(in_rms)
+
+    with tempfile.NamedTemporaryFile(suffix=".wav") as tmp_out:
+        out_path = Path(tmp_out.name)
+        res = simulate_voice("04_modern_p_ceramic", input_wav=sweep_path, output_wav=out_path, instrument="30in", normalize="auto")
+        assert res is True
+
+        with pedalboard.io.AudioFile(str(out_path)) as f:
+            out_audio = f.read(f.frames)[0]
+
+        out_rms = float(np.sqrt(np.mean(out_audio ** 2)))
+        out_rms_db = 20.0 * math.log10(out_rms)
+        out_peak = float(np.max(np.abs(out_audio)))
+
+        # Output RMS must match input sweep RMS within 0.05 dB
+        assert abs(out_rms_db - in_rms_db) < 0.05
+        # Peak must have clean true-peak safety headroom (< -0.1 dBFS = 0.9885)
+        assert out_peak <= 0.9885
+
+def test_output_normalization_modes_and_target_dbfs():
+    """Verify custom target_dbfs override and normalize modes (rms, peak, none)."""
+    import pedalboard.io
+    sweep_path = REPO_ROOT / "T3K-sweep-v3.wav"
+    if not sweep_path.exists():
+        pytest.skip("T3K-sweep-v3.wav not found in repo root")
+
+    # 1. Custom target dBFS (-20.0 dBFS)
+    with tempfile.NamedTemporaryFile(suffix=".wav") as tmp_out:
+        out_path = Path(tmp_out.name)
+        simulate_voice("04_modern_p_ceramic", input_wav=sweep_path, output_wav=out_path, instrument="30in", normalize="rms", target_dbfs=-20.0)
+        with pedalboard.io.AudioFile(str(out_path)) as f:
+            out_audio = f.read(f.frames)[0]
+        out_rms_db = 20.0 * math.log10(np.sqrt(np.mean(out_audio ** 2)))
+        assert abs(out_rms_db - (-20.0)) < 0.05
+
+    # 2. None (raw unnormalized)
+    with tempfile.NamedTemporaryFile(suffix=".wav") as tmp_out:
+        out_path = Path(tmp_out.name)
+        simulate_voice("04_modern_p_ceramic", input_wav=sweep_path, output_wav=out_path, instrument="30in", normalize="none")
+        with pedalboard.io.AudioFile(str(out_path)) as f:
+            out_audio = f.read(f.frames)[0]
+        out_rms_db = 20.0 * math.log10(np.sqrt(np.mean(out_audio ** 2)))
+        # Raw unnormalized should be around -26.6 dBFS, distinctly lower than input sweep (-22.1 dBFS)
+        assert out_rms_db < -25.0
+
 
 
 

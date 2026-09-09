@@ -1,8 +1,8 @@
 """
 Passivizer - Scale-Length & Acoustic Aperture Pre-Filter for NAM Training
-Pre-filters NAM calibration audio (e.g. v1_1_1.wav) through the physical
+Pre-filters NAM calibration audio (e.g. T3K-sweep-v3.wav) through the physical
 acoustic aperture, dual-coil spacing, placement delta, and scale tension filters.
-The resulting audio is placed in circuits/v1_1_1_aperture.wav to drive SPICE simulation.
+The resulting audio is placed in audio/<instrument>/aperture_<voice>.wav to drive SPICE simulation.
 
 Uses Spotify's Pedalboard library for SIMD-accelerated C++ convolution and 24-bit audio I/O.
 """
@@ -25,7 +25,7 @@ from simulate_circuits import prefilter_audio, AUDIO_DIR
 
 def main():
     parser = argparse.ArgumentParser(description="Pre-filter NAM audio for SPICE simulation.")
-    parser.add_argument("--input", default="v1_1_1.wav", help="Input NAM calibration audio (e.g. v1_1_1.wav)")
+    parser.add_argument("--input", default="T3K-sweep-v3.wav", help="Input NAM calibration audio (e.g. T3K-sweep-v3.wav)")
     parser.add_argument(
         "--instrument", "-i",
         default="30in",
@@ -37,13 +37,13 @@ def main():
 
     input_path = Path(args.input)
     if not input_path.exists():
-        for candidate in ["T3K-sweep-v3.wav", "v1_1_1.wav", "v3_0_0.wav", "input.wav"]:
+        for candidate in ["T3K-sweep-v3.wav", "v3_0_0.wav", "input.wav"]:
             if (REPO_ROOT / candidate).exists():
                 input_path = REPO_ROOT / candidate
                 break
 
     if not input_path.exists():
-        print(f"Notice: Neither '{args.input}' nor any standard sweep file (T3K-sweep-v3.wav, v1_1_1.wav) was found.")
+        print(f"Notice: Neither '{args.input}' nor any standard sweep file (T3K-sweep-v3.wav, v3_0_0.wav, input.wav) was found.")
         return
 
     inst_cfg = load_instrument(args.instrument) if not isinstance(args.instrument, dict) else args.instrument

@@ -4,8 +4,8 @@
 .options plotwinsize=0 numdgt=7
 
 * 1. Audio Sources: Independent String Motion per Pickup (Channel 0 = P-Neck, Channel 1 = J-Bridge)
-V_neck in_neck 0 wavefile="v1_1_1.wav" chan=0
-V_bridge in_bridge 0 wavefile="v1_1_1.wav" chan=1
+V_neck in_neck 0 wavefile="T3K-sweep-v3.wav" chan=0
+V_bridge in_bridge 0 wavefile="T3K-sweep-v3.wav" chan=1
 
 * 2. Pickup Coils: Dual Parallel Pickup Branches (Vintage Split-P || 60s Jazz Bridge)
 * --- Branch 1: Vintage '62 Split-P Alnico V (3.8H, 10.5k, 60pF, 180k eddy) ---

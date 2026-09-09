@@ -3,7 +3,7 @@
 .options plotwinsize=0 numdgt=7
 
 * 1. Audio Source (Pre-filtered NAM Training Track)
-V_in in 0 wavefile="v1_1_1_aperture.wav"
+V_in in 0 wavefile="T3K-sweep-v3.wav"
 
 * 2. Dynamic Magnetic Core & String Excursion Saturation (Soft-Knee Compliance)
 B_comp in_dyn 0 V=0.45 * tanh(V(in) / 0.45)

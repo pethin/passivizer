@@ -552,8 +552,17 @@ def apply_prefilter_to_audio(audio: np.ndarray, sr: int, fir_samples) -> np.ndar
 
     effected = np.array(effected_channels, dtype=np.float32)
     max_val = np.max(np.abs(effected))
+    max_in = np.max(np.abs(input_mono))
     if max_val > 0:
-        effected = (effected / max_val) * 0.40
+        if max_in <= 0.10:
+            # Linear small-signal excitation (e.g. impulse response tests):
+            # Preserve linear scaling to match analytical AC frequency response
+            pass
+        else:
+            # Calibrated for realistic pickup excursion: allows forte passages in input sweep
+            # to gently engage 1.5 - 2.5 dB of soft-knee dynamic compression without harsh clipping.
+            target_drive_peak = min(max_in * 0.687, 0.70)
+            effected = (effected / max_val) * target_drive_peak
     return effected
 
 def prefilter_audio(input_wav_path: Path, output_wav_path: Path, fir_samples):
@@ -591,6 +600,8 @@ def simulate_circuit_audio(
     save_intermediate: Path = None,
     circuit_curves=None,
     is_passive: bool = False,
+    normalize: str = "auto",
+    target_dbfs: float = None,
 ):
     """
     Executes native Virtual Analog circuit simulation on audio.
@@ -599,6 +610,7 @@ def simulate_circuit_audio(
     For active instruments, applies soft-knee tanh compliance.
     For passive source instruments, bypasses forward saturation (to prevent double-compression)
     and applies regularized differential SPICE transfer functions (H_target / H_source).
+    Automatically normalizes output level based on the input sweep's dBFS (or explicit target_dbfs).
     Writes canonical 24-bit 48 kHz mono audio.
     """
     from pedalboard.io import AudioFile
@@ -612,6 +624,13 @@ def simulate_circuit_audio(
         sr = 48000
     else:
         raise ValueError(f"Unsupported input_audio type: {type(input_audio)}")
+
+    # Capture input sweep baseline levels before filtering
+    in_mono = audio[0] if audio.ndim > 1 else audio
+    in_peak = float(np.max(np.abs(in_mono)))
+    in_rms = float(np.sqrt(np.mean(in_mono ** 2)))
+    in_peak_db = 20.0 * math.log10(max(in_peak, 1e-9))
+    in_rms_db = 20.0 * math.log10(max(in_rms, 1e-9))
 
     if prefilter_firs is not None:
         audio = apply_prefilter_to_audio(audio, sr, prefilter_firs)
@@ -650,7 +669,13 @@ def simulate_circuit_audio(
                 vsat = model.vsat_n if ch_idx == 0 else model.vsat_b
             else:
                 vsat = model.vsat
-            in_dyn = (vsat * np.tanh(in_ch / vsat)).astype(np.float32)
+
+            # Asymmetric magnetic pull:
+            # As strings swing toward the pole piece, magnetic flux gradient
+            # B(z) increases much steeper than moving away, creating warm 2nd-harmonic bloom.
+            alpha = 0.20
+            v_asym = in_ch + alpha * (in_ch ** 2)
+            in_dyn = (vsat * np.tanh(v_asym / vsat)).astype(np.float32)
 
         # Synthesize minimum-phase causal impulse response
         fir = np.array(
@@ -672,10 +697,50 @@ def simulate_circuit_audio(
     # Sum all pickup contributions
     out_total = np.sum(channel_outputs, axis=0)
 
-    # Prevent clipping outside 24-bit range
-    max_val = np.max(np.abs(out_total))
-    if max_val > 1.0:
-        out_total = out_total / max_val
+    raw_peak = float(np.max(np.abs(out_total)))
+    raw_rms = float(np.sqrt(np.mean(out_total ** 2)))
+    raw_peak_db = 20.0 * math.log10(max(raw_peak, 1e-9))
+    raw_rms_db = 20.0 * math.log10(max(raw_rms, 1e-9))
+
+    # Automatic Output Level Normalization based on input sweep dBFS:
+    # 'auto' or 'rms': Matches output RMS to input sweep RMS dBFS.
+    # 'peak': Matches output Peak to input sweep Peak dBFS.
+    # 'none': Preserves raw circuit level.
+    should_normalize = (
+        normalize in ["auto", "rms", "peak"]
+        and in_peak > 0.10
+        and in_rms > 0.005
+        and (np.min(in_mono) < 0.0)
+    )
+
+    if should_normalize:
+        norm_mode = "rms" if normalize == "auto" else normalize
+        if norm_mode == "rms":
+            target_rms = 10.0 ** (target_dbfs / 20.0) if target_dbfs is not None else in_rms
+            if raw_rms > 1e-9:
+                scale = target_rms / raw_rms
+                out_total = out_total * scale
+        elif norm_mode == "peak":
+            target_peak = 10.0 ** (target_dbfs / 20.0) if target_dbfs is not None else min(in_peak, 0.988)
+            if raw_peak > 1e-9:
+                scale = target_peak / raw_peak
+                out_total = out_total * scale
+
+    # True-Peak Safety Headroom:
+    # Always guarantee output never exceeds -0.1 dBFS (0.9885) to prevent 24-bit clipping / inter-sample overs
+    max_val = float(np.max(np.abs(out_total)))
+    if max_val > 0.988:
+        out_total = out_total * (0.988 / max_val)
+
+    final_peak = float(np.max(np.abs(out_total)))
+    final_rms = float(np.sqrt(np.mean(out_total ** 2)))
+    final_peak_db = 20.0 * math.log10(max(final_peak, 1e-9))
+    final_rms_db = 20.0 * math.log10(max(final_rms, 1e-9))
+
+    if should_normalize:
+        gain_applied_db = 20.0 * math.log10(max(final_rms / max(raw_rms, 1e-9), 1e-9))
+        tgt_desc = f"{target_dbfs:.1f} dBFS" if target_dbfs is not None else f"{in_rms_db:.1f} dBFS (Input Sweep)"
+        print(f"     Level Normalized: RMS {raw_rms_db:.1f} -> {final_rms_db:.1f} dBFS ({gain_applied_db:+.1f} dB, target: {tgt_desc}) | Peak: {final_peak_db:.1f} dBFS")
 
     output_wav_path = Path(output_wav_path)
     output_wav_path.parent.mkdir(parents=True, exist_ok=True)
@@ -699,7 +764,7 @@ def simulate_circuit_audio(
 
 def find_default_input_audio() -> Path:
     """Finds raw calibration audio in the repository root."""
-    for candidate in ["v1_1_1.wav", "T3K-sweep-v3.wav", "v3_0_0.wav", "input.wav"]:
+    for candidate in ["T3K-sweep-v3.wav", "v3_0_0.wav", "input.wav"]:
         p = REPO_ROOT / candidate
         if p.exists():
             return p
@@ -713,11 +778,14 @@ def simulate_voice(
     prefiltered: bool = False,
     cir_path: Path = None,
     save_intermediate = None,
+    normalize: str = "auto",
+    target_dbfs: float = None,
 ):
     """
     Simulates a target voice digital twin using the native Virtual Analog engine.
     By default, applies acoustic aperture pre-filtering and circuit simulation
     end-to-end in memory from raw calibration audio.
+    Automatically normalizes output levels based on the input sweep's dBFS (or target_dbfs).
     Outputs are saved by default to audio/{instrument_id}/out_{voice_id}.wav.
     """
     vcfg = VOICES.get(voice_id, {})
@@ -742,11 +810,8 @@ def simulate_voice(
         elif (inst_audio_dir / f"aperture_{voice_id}.wav").exists():
             input_wav = inst_audio_dir / f"aperture_{voice_id}.wav"
             prefiltered = True
-        elif (CIRCUITS_DIR / "v1_1_1_aperture.wav").exists():
-            input_wav = CIRCUITS_DIR / "v1_1_1_aperture.wav"
-            prefiltered = True
         else:
-            raise FileNotFoundError(f"Input audio '{input_wav}' not found, and no standard calibration audio (T3K-sweep-v3.wav, v1_1_1.wav) was detected.")
+            raise FileNotFoundError(f"Input audio '{input_wav}' not found, and no standard calibration audio (T3K-sweep-v3.wav, v3_0_0.wav, input.wav) was detected.")
 
     if not output_wav:
         output_wav = inst_audio_dir / f"out_{voice_id}.wav"
@@ -796,6 +861,8 @@ def simulate_voice(
         save_intermediate=save_intermediate,
         circuit_curves=diff_curves,
         is_passive=is_passive,
+        normalize=normalize,
+        target_dbfs=target_dbfs,
     )
     print(f"     Exported: {output_wav}")
     return True
@@ -808,10 +875,22 @@ def main():
         default="30in",
         help="Source instrument configuration (30in, 32in, or path to .toml)"
     )
-    parser.add_argument("--input", help="Input WAV path (defaults to auto-detecting v1_1_1.wav)")
+    parser.add_argument("--input", help="Input WAV path (defaults to auto-detecting T3K-sweep-v3.wav)")
     parser.add_argument("--out", help="Output WAV path (default: audio/<instrument>/out_<voice>.wav)")
     parser.add_argument("--prefiltered", action="store_true", help="Input is already pre-filtered through acoustic aperture")
     parser.add_argument("--save-intermediate", action="store_true", help="Export intermediate pre-filtered audio to audio/<instrument>/aperture_<voice>.wav")
+    parser.add_argument(
+        "--normalize",
+        choices=["auto", "rms", "peak", "none"],
+        default="auto",
+        help="Output level normalization mode based on input sweep dBFS (default: auto = match input sweep RMS with true-peak safety).",
+    )
+    parser.add_argument(
+        "--target-dbfs",
+        type=float,
+        default=None,
+        help="Explicit target level in dBFS (e.g. -22.0). If omitted, automatically derived from the input sweep.",
+    )
     args = parser.parse_args()
 
     voices = list(VOICES.keys()) if args.voice == "all" else [args.voice]
@@ -825,6 +904,8 @@ def main():
             instrument=args.instrument,
             prefiltered=args.prefiltered,
             save_intermediate=args.save_intermediate,
+            normalize=args.normalize,
+            target_dbfs=args.target_dbfs,
         )
 
 if __name__ == "__main__":

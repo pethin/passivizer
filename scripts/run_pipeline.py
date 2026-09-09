@@ -44,7 +44,7 @@ def run_visualization(instrument="30in"):
 def run_prep_audio(input_wav=None, instrument="30in", voice="03_modern_p_ceramic"):
     """Pre-filters NAM calibration audio through acoustic and spatial transfer functions."""
     if not input_wav or not (REPO_ROOT / input_wav).exists():
-        for candidate in ["T3K-sweep-v3.wav", "v3_0_0.wav", "v1_1_1.wav", "input.wav"]:
+        for candidate in ["T3K-sweep-v3.wav", "v3_0_0.wav", "input.wav"]:
             if (REPO_ROOT / candidate).exists():
                 input_wav = candidate
                 break
@@ -85,7 +85,9 @@ def run_circuit_simulation(voice, instrument="30in", input_wav=None, backend="na
         print(f"Warning: Netlist '{cir_path.name}' not found.")
         return False
 
-    input_aperture = CIRCUITS_DIR / "v1_1_1_aperture.wav"
+    input_aperture = AUDIO_DIR / instrument / f"aperture_{voice}.wav"
+    if not input_aperture.exists():
+        input_aperture = CIRCUITS_DIR / "aperture.wav"
     if not input_aperture.exists():
         print(f"Notice: Audio source '{input_aperture.name}' not found in circuits/.")
         return False
@@ -185,7 +187,7 @@ def main():
     parser.add_argument(
         "--input-wav",
         default=None,
-        help="Path to NAM calibration audio file (default: auto-detects T3K-sweep-v3.wav or v1_1_1.wav)"
+        help="Path to NAM calibration audio file (default: auto-detects T3K-sweep-v3.wav, v3_0_0.wav, or input.wav)"
     )
     parser.add_argument(
         "--epochs",
@@ -247,7 +249,7 @@ def main():
 
     input_wav = args.input_wav
     if not input_wav or not (REPO_ROOT / input_wav).exists():
-        for candidate in ["T3K-sweep-v3.wav", "v3_0_0.wav", "v1_1_1.wav", "input.wav"]:
+        for candidate in ["T3K-sweep-v3.wav", "v3_0_0.wav", "input.wav"]:
             if (REPO_ROOT / candidate).exists():
                 input_wav = candidate
                 break

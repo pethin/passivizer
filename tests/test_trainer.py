@@ -17,7 +17,7 @@ def test_find_sweep_input():
     sweep = find_sweep_input()
     assert sweep is not None
     assert sweep.exists()
-    assert sweep.name in ["T3K-sweep-v3.wav", "v3_0_0.wav", "v1_1_1.wav"]
+    assert sweep.name in ["T3K-sweep-v3.wav", "v3_0_0.wav", "input.wav"]
 
 def test_model_metadata_contains_input_bass():
     model_paths = [

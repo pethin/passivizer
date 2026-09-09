@@ -4,7 +4,7 @@
 .options plotwinsize=0 numdgt=7
 
 * 1. Audio Source (Pre-filtered NAM Training Track)
-V_in in 0 wavefile="v1_1_1_aperture.wav"
+V_in in 0 wavefile="T3K-sweep-v3.wav"
 
 * 2. Dynamic Bridge Rocking Compliance & Wood Compression (Soft-Knee Saturation)
 * Models bridge flex over bass bar and soundpost under firm pizzicato attack
