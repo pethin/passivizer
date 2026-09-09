@@ -287,7 +287,7 @@ passivizer/
 │   ├── prep_nam_audio.py                  # Aperture & scale tension pre-filtering for NAM
 │   ├── simulate_circuits.py               # Native Apple Silicon WAV SPICE circuit engine
 │   └── run_pipeline.py                    # Master end-to-end automated runner
-├── tests/                                 # Pytest test suite (78 tests)
+├── tests/                                 # Pytest test suite (85 tests)
 └── models/                                # Exported .nam neural models
 ```
 
@@ -297,11 +297,11 @@ passivizer/
 
 ### Completed Milestones
 - [x] **Electro-Acoustic Physical Modeling:** Magnetic aperture sinc filtering, spatial comb nulls, scale-length wave-speed scaling ($30''/32'' \to 34''/37''$), and differential string tension modeling.
-- [x] **Native WAV SPICE Simulator:** High-performance Apple Silicon engine (`scripts/simulate_circuits.py`) solving analytical nodal RLC equations, asymmetric 2nd-harmonic $\tanh$ compliance, and automatic output level normalization based on input sweep dBFS at >1500x speed.
+- [x] **Native WAV SPICE Simulator:** High-performance Apple Silicon engine (`scripts/simulate_circuits.py`) solving analytical nodal RLC equations, Foster 2-stage core eddy diffusion, Dahl magnetic domain-wall pinning hysteresis, asymmetric magnet saturation compliance, sub-audible 8 Hz DC blocking, and automatic output level normalization based on input sweep dBFS at >1500x speed.
 - [x] **14 Voice Profiles & Transducers:** Modern active 2-band Jazz, vintage single-coil, split-coil, series/parallel dual-coils, active Music Man, fanned multi-scale, and double-bass bridge piezo force transducers.
 - [x] **Interactive Visualization Portal:** Polars + Altair frequency response portal with spec sheets and per-instrument interactive charts (`docs/frequency_responses.html`).
 - [x] **Automated NAM Training Pipeline:** End-to-end Architecture 2 (A2) neural model training targeting Darkglass Anagram Block 1.
-- [x] **Automated Test Suite:** Comprehensive 81+ test pytest verification covering physical filters, nodal transfer functions, FIR DSP, and audio simulation.
+- [x] **Automated Test Suite:** Comprehensive 85+ test pytest verification covering physical filters, nodal transfer functions, FIR DSP, and audio simulation.
 
 ### Upcoming Objectives
 - [ ] **Interactive A/B Audio Auditioning CLI:** Terminal and real-time audio auditioning tool (`scripts/preview_voices.py`) with seamless dry-to-wet switching, looping bass riffs, and instantaneous A/B comparison across pickup voices before neural training or pedalboard export.
