@@ -61,15 +61,17 @@ coils = [
 # ------------------------------------------------------------------------------
 # Single-pickup active bass: all digital twin voicings map directly to the EMG PX.
 [pickup_mapping]
-"01_jazz_bass_pair" = "px"
-"02_jazz_bridge_60s" = "px"
-"03_modern_p_ceramic" = "px"
-"04_vintage_62_p_alnico" = "px"
-"05_p_bass_47nf_rolloff" = "px"
-"06_pj_hybrid_parallel" = "px"
-"07_stingray_mm_parallel" = "px"
-"08_rickenbacker_bridge_hpf" = "px"
-"09_pmm_hybrid_series" = "px"
-"10_mudbucker_ultra_series" = "px"
-"11_dingwall_multiscale_bridge" = "px"
-"12_upright_bridge_transducer" = "px"
+"01_modern_jazz_active" = "px"
+"02_jazz_bass_pair" = "px"
+"03_jazz_bridge_60s" = "px"
+"04_modern_p_ceramic" = "px"
+"05_vintage_62_p_alnico" = "px"
+"06_p_bass_47nf_rolloff" = "px"
+"07_modern_pj_active" = "px"   # Modern Active P/J
+"08_vintage_pj_passive" = "px"  # Vintage Alnico P/J
+"09_stingray_mm_parallel" = "px"
+"10_rickenbacker_bridge_hpf" = "px"
+"11_pmm_hybrid_series" = "px"
+"12_mudbucker_ultra_series" = "px"
+"13_dingwall_multiscale_bridge" = "px"
+"14_upright_bridge_transducer" = "px"

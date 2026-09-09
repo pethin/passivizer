@@ -48,8 +48,8 @@ passivizer/
 ├── main.py                   # Main CLI entrypoint delegation
 ├── audio/                    # Generated 24-bit audio digital twins (audio/<instrument>/)
 ├── circuits/                 # Standalone SPICE circuit netlists (.cir)
-│   ├── 01_jazz_bass_pair.cir
-│   └── ... (01 through 12)
+│   ├── 01_modern_jazz_active.cir
+│   └── ... (01 through 14)
 ├── config/                   # Modular TOML configuration files
 │   ├── instruments/          # Source bass definitions (scale, pickups, routing)
 │   ├── scales.toml           # Standard scale wave speeds
@@ -68,7 +68,7 @@ passivizer/
 │   ├── prep_nam_audio.py     # Standalone/legacy aperture pre-filter exporter
 │   ├── simulate_circuits.py  # Native WAV SPICE simulator (in-memory aperture + circuit sim)
 │   └── run_pipeline.py       # Master end-to-end automated runner
-└── tests/                    # Pytest test suite (47 tests)
+└── tests/                    # Pytest test suite (75 tests)
 ```
 
 ---

@@ -1,6 +1,6 @@
 # Circuit Theory & Electrical Modeling
 
-This document details the electrical equations, component parameters, and physical phenomena modeled in **Passivizer** to recreate passive bass pickups from active EMG X-Series signals.
+This document details the electrical equations, component parameters, and physical phenomena modeled in **Passivizer** to recreate authentic passive bass pickups and vintage/modern active preamps from active EMG X-Series signals.
 
 ---
 
@@ -11,7 +11,7 @@ A passive magnetic pickup is not merely a voltage source; it is a complex, high-
 $$V_{\text{out}}(s) = V_{\text{ind}}(s) \cdot H_{\text{elec}}(s)$$
 
 Where:
-* $V_{\text{ind}}$ is the voltage induced across the coils by the vibrating string.
+* $V_{\text{ind}}$ is the voltage induced across the coils by the vibrating string ($V_{\text{ind}} \propto \frac{d\Phi}{dt}$).
 * $H_{\text{elec}}(s)$ is the transfer function of the pickup loaded by the guitar's internal circuitry, cable, and amplifier.
 
 ```
@@ -27,21 +27,21 @@ Where:
 ### Key Parameters:
 
 1. **Coil Inductance ($L_{\text{coil}}$):**
-   * Typically $2\text{ to }10\text{ Henries}$ for bass pickups.
+   * Typically $1.6\text{ to }14.4\text{ Henries}$ for bass pickups.
    * Directly governs the frequency of the resonant peak ($f_r$). Higher inductance shifts the peak down into the low-mids.
    * Series wiring quadruples inductance relative to single coils ($L_{\text{ser}} \approx 4 \times L_{\text{single}}$), while parallel wiring halves it ($L_{\text{par}} \approx \frac{1}{2} L_{\text{single}}$).
 
 2. **DC Resistance ($R_{\text{dc}}$):**
-   * Resistance of thousands of turns of AWG 42 or 43 copper wire (typically $4\text{ k}\Omega\text{ to }18\text{ k}\Omega$).
+   * Resistance of thousands of turns of AWG 42 or 43 copper wire (typically $3.6\text{ k}\Omega\text{ to }28\text{ k}\Omega$).
    * Determines the baseline damping of the circuit and limits the maximum quality factor ($Q$).
 
 3. **Inter-Winding Self-Capacitance ($C_{\text{coil}}$):**
    * Stray capacitance between adjacent coil turns, typically $50\text{ to }150\text{ pF}$.
-   * Minor compared to cable capacitance, but sets the theoretical upper ceiling for unloaded resonance.
+   * Minor compared to cable capacitance in passive circuits, but sets the upper ceiling for unloaded resonance and active buffer isolation.
 
 4. **Core Losses & Eddy Currents ($R_{\text{eddy}}$):**
    * Moving magnetic fields induce circular eddy currents in conductive pole pieces, steel baseplates, and magnets.
-   * Modeled as a parallel resistance ($R_{\text{eddy}} \approx 80\text{ k}\Omega\text{ to }180\text{ k}\Omega$) across the coil.
+   * Modeled as a parallel resistance ($R_{\text{eddy}} \approx 60\text{ k}\Omega\text{ to }250\text{ k}\Omega$) across the coil.
    * This creates frequency-dependent damping: upper harmonics roll off more smoothly than an ideal 2nd-order filter, eliminating harsh, synthetic high-end resonance.
 
 5. **Dynamic Core Compliance & String Excursion Saturation ($B_{\text{comp}}$):**
@@ -53,129 +53,122 @@ Where:
 
 ---
 
-## 2. Onboard Guitar Controls & Loading
+## 2. Onboard Control Harnesses & Loading Topologies
 
-Once the signal leaves the coils, it encounters the potentiometer network and tone controls:
+Passivizer does not assume a generic volume/tone harness for all instruments. Each voice utilizes its authentic manufacturer and era-specific harness:
+
+### A. Active Preamp Buffer Topologies (`01_modern_jazz_active`, `07_modern_pj_active`, `09_stingray_mm_parallel`)
+In instruments equipped with active onboard preamps (e.g., Sadowsky NYC 2-band, Spector 2-band, Music Man 2-band), an internal discrete JFET or op-amp buffer stage directly interfaces with the pickup coils:
 
 ```
-[From Coils] ── Lug 3 (Input)
-                  │
-                  ├──[ Hybrid Treble Bleed: (C_tb || R_tb_par) + R_tb_ser ]──┐
-                  │                                                          │
-              [ R_vol: 500k ]                                                │
-                  │                                                          │
-                Lug 2 (Wiper / Output) ◄─────────────────────────────────────┘
-                  │
-                 Lug 1 (Ground) ──► GND
+[Coils] ── Lug 3 (Preamp In) ──► [Buffer Op-Amp: Zin = 1Meg || 25pF] ──► [Active 2-Band EQ] ──► [R_out: 100Ω] ──► [Cable + Anagram]
 ```
 
-### A. The 500k Volume Pot
-* Unlike a $250\text{ k}\Omega$ pot which damps the resonant peak, a $500\text{ k}\Omega$ pot maintains higher $Q$ (cleaner articulation and more pronounced transient bite).
-* In SPICE, the pot is modeled as two variable resistors:
-  $$R_{\text{top}} = R_{\text{pot}} \cdot (1 - \alpha), \quad R_{\text{bot}} = R_{\text{pot}} \cdot \alpha$$
-  where $\alpha \in [0, 1]$ represents the mechanical taper.
+1. **Cable Capacitance Isolation:**
+   * In a traditional passive bass, the $750\text{ pF}$ instrument cable load capacitance directly shunts the high-impedance pickup coils, dragging the resonant peak down into the $2.5\text{--}3.5\text{ kHz}$ range.
+   * An active preamp presents a high input impedance ($R_{\text{preamp\_in}} = 1.0\text{ M}\Omega$, $C_{\text{preamp\_in}} = 25\text{ pF}$). The coils resonate solely against $C_{\text{coil}} + C_{\text{in}} \approx 100\text{--}170\text{ pF}$, shifting the raw electrical resonant peak into the ultra-clarity $7.0\text{--}8.5\text{ kHz}$ region.
+2. **Low-Impedance Cable Driver ($R_{\text{out}} = 100\,\Omega$):**
+   * The low output impedance ($100\,\Omega$) drives long instrument cables and downstream pedalboards without high-frequency attenuation:
+     $$f_{\text{cable\_cutoff}} = \frac{1}{2\pi \cdot 100 \cdot 780\text{ pF}} \approx 2.04\text{ MHz}$$
+3. **Active 2-Band Shelving Filters:**
+   * **Sadowsky 2-Band (Jazz & P/J):** $+4.0\text{ dB}$ Bass boost ($40\text{ Hz}$ shelf) and $+4.0\text{ dB}$ Treble boost ($4.0\text{ kHz}$ shelf).
+   * **Music Man StingRay 2-Band:** $+5.0\text{ dB}$ Bass boost ($50\text{ Hz}$ shelf) and $+3.0\text{ dB}$ Treble boost ($7.0\text{ kHz}$ shelf).
 
-### B. Hybrid Treble-Bleed Network
-The blueprint specifies:
-* **Capacitor ($C_{\text{tb}}$):** $1,000\text{ pF}$ ($1.0\text{ nF}$)
-* **Parallel Resistor ($R_{\text{par}}$):** $150\text{ k}\Omega$ (1/4W, 1%)
-* **Series Resistor ($R_{\text{ser}}$):** $20\text{ k}\Omega$ (1/4W, 1%)
+### B. Vintage Dual-Volume Harness (`02_jazz_bass_pair`, `08_vintage_pj_passive`)
+* Standard Jazz Basses and passive P/Js utilize two separate $250\text{k}\Omega$ volume pots wired in parallel.
+* At $100\%$ volume, the two pots act as a combined resistive load:
+  $$R_{\text{vol\_net}} = 250\text{ k}\Omega \parallel 250\text{ k}\Omega = 125\text{ k}\Omega$$
+* This heavy $125\text{ k}\Omega$ loading naturally damps the $Q$ factor of the pickup coils, producing the warm, woody, organic low-mid bloom characteristic of vintage 1960s Jazz Basses and 1980s P/Js.
+* Tone control is a single $250\text{k}\Omega$ pot with a $47\text{ nF}$ capacitor.
 
-**Transfer Function of the Bleed Network:**
-$$Z_{\text{tb}}(s) = R_{\text{ser}} + \frac{R_{\text{par}}}{1 + s \cdot R_{\text{par}} \cdot C_{\text{tb}}}$$
+### C. Vintage CTS 250k Split-P Harness (`05_vintage_62_p_alnico`, `03_jazz_bridge_60s`)
+* Classic 1962 Fender Precision specification:
+  * Volume: CTS $250\text{ k}\Omega$ Audio Pot
+  * Tone: CTS $250\text{ k}\Omega$ Audio Pot with $47\text{ nF}$ paper-in-oil capacitor
+  * Net parallel pot load: $250\text{k} \parallel 250\text{k} = 125\text{ k}\Omega$ (unloaded) / with $1\text{ M}\Omega$ receiver: $111\text{ k}\Omega$.
 
-* At wide-open volume ($\alpha = 1$), Lug 2 connects directly to Lug 3, shorting out $Z_{\text{tb}}$ entirely (zero tonal coloration).
-* When rolling volume down to $6\text{--}8$, the network routes frequencies above $1.5\text{ kHz}$ directly to the output, preventing high-frequency loss while avoiding the thin, tinny sound of pure-capacitor bleeds.
+### D. Modern Boutique 500k Harness with Treble Bleed (`04_modern_p_ceramic`)
+* Modern ceramic split-coils use $500\text{ k}\Omega$ pots to maintain high-frequency extension:
+  * Volume: $500\text{ k}\Omega$ Audio Pot
+  * Tone: $500\text{ k}\Omega$ Audio Pot with $22\text{ nF}$ Orange Drop capacitor (higher cutoff than $47\text{ nF}$, preserving punchy midrange bite)
+  * **Hybrid Treble Bleed Network:**
+    $$Z_{\text{tb}}(s) = R_{\text{ser}} + \frac{R_{\text{par}}}{1 + s \cdot R_{\text{par}} \cdot C_{\text{tb}}}$$
+    where $C_{\text{tb}} = 1000\text{ pF}$, $R_{\text{par}} = 150\text{ k}\Omega$, $R_{\text{ser}} = 20\text{ k}\Omega$.
+    Maintains crisp pick transient definition when backing off volume without thinness.
+
+### E. Factory Rickenbacker 330k Harness with Series HPF (`10_rickenbacker_bridge_hpf`)
+* Authentic Rickenbacker 4001/4003 circuit:
+  * Volume: $330\text{ k}\Omega$ Pot
+  * Tone: $330\text{ k}\Omega$ Pot with $47\text{ nF}$ capacitor
+  * **Vintage Push-Pull Series HPF:** In vintage mode, a $4.7\text{ nF}$ capacitor is inserted in series between the bridge pickup hot lead and the volume control:
+    $$f_c = \frac{1}{2\pi \cdot R_{\text{load}} \cdot C_{\text{series}}} \approx 150\text{ Hz}$$
+    Rolls off sub-bass rumble while sharpening the aggressive $1.5\text{--}2.5\text{ kHz}$ bridge bite.
+
+### F. High-Inductance 500k Harnesses (`11_pmm_hybrid_series`, `12_mudbucker_ultra_series`, `13_dingwall_multiscale_bridge`)
+* High-inductance series pickups ($L > 7\text{ H}$) require $500\text{ k}\Omega$ volume and tone pots to prevent excessive high-frequency rolloff.
+* Dingwall and P/MM voices use $47\text{ nF}$ tone caps; Gibson Mudbucker uses $22\text{ nF}$ tone cap.
 
 ---
 
-## 3. Output Cable & Receiver Impedance
+## 3. Output Cable & Receiver Loading
 
-A passive guitar cannot be analyzed in isolation from the cable and amplifier input.
+A passive instrument cannot be modeled without including cable and receiver impedances:
 
-### Cable Capacitance ($C_{\text{cable}}$)
+### Instrument Cable Capacitance ($C_{\text{cable}}$)
 A standard $15\text{--}20\text{ ft}$ quality instrument cable exhibits $30\text{ to }50\text{ pF per foot}$:
-$$C_{\text{cable}} \approx 700\text{ to }850\text{ pF}$$
+$$C_{\text{cable}} \approx 750\text{ pF}$$
 
-This capacitance is in parallel with the pickup's self-capacitance and dominates the total load capacitance $C_{\text{tot}}$:
-$$C_{\text{tot}} \approx C_{\text{coil}} + C_{\text{cable}} + C_{\text{amp}}$$
+This capacitance appears in parallel with the pickup's self-capacitance and receiver input capacitance:
+$$C_{\text{tot}} \approx C_{\text{coil}} + C_{\text{cable}} + C_{\text{receiver}}$$
 
-### The Resonant Formula
-The resulting resonant peak frequency ($f_r$) is:
-$$f_r = \frac{1}{2\pi \sqrt{L_{\text{coil}} \cdot C_{\text{tot}}}}$$
+### Receiver Input Load
+The Darkglass Anagram hardware input stage presents:
+$$R_{\text{receiver}} = 1.0\text{ M}\Omega, \quad C_{\text{receiver}} \approx 30\text{ pF}$$
 
-For the **Bartolini 8CBP** ($L = 4.8\text{ H}$, $C_{\text{tot}} \approx 850\text{ pF}$):
-$$f_r = \frac{1}{2\pi \sqrt{4.8 \cdot 850 \times 10^{-12}}} \approx 2,490\text{ Hz}$$
-Under pot and core loading, this lands right at $\approx 2.2\text{ kHz}$, providing the signature punchy P-bass high-mid growl.
-
-### Amplifier Input Impedance
-The Darkglass Anagram input stage presents a load of:
-$$R_{\text{load}} = 1.0\text{ M}\Omega, \quad C_{\text{load}} \approx 30\text{ pF}$$
-This load is included in the Passivizer SPICE netlists to guarantee zero impedance mismatch when loaded onto hardware.
+All Passivizer passive SPICE netlists incorporate this complete load network to guarantee zero tonal discrepancy between simulated DAW pipelines and hardware pedalboard operation.
 
 ---
 
-## 4. Acoustic Bridge Force Transducers (Piezoelectric Load)
+## 4. Acoustic Bridge Force Transducers (`14_upright_bridge_transducer`)
 
-Unlike magnetic pickups whose output is induced via Faraday's Law across an inductive coil ($V \propto d\Phi/dt$), an acoustic bridge transducer (e.g. Underwood, David Gage Realist, Fishman Full Circle) operates through the **piezoelectric effect**, generating electrical charge from mechanical shear stress and compression within the maple bridge wings:
+Unlike magnetic pickups whose output is induced via Faraday's Law across an inductive coil ($V \propto d\Phi/dt$), an acoustic bridge transducer (e.g. Underwood, David Gage Realist) operates through the **piezoelectric effect**, generating electrical charge from mechanical shear stress within the bridge:
 
 ```
-[V_piezo] ───[ R_dc: 50Ω ]──┬───[ C_rick: 15nF ]───┬─── [Direct Tailpiece Out]
+[V_piezo] ───[ R_dc: 50Ω ]──┬───[ C_rick: 15nF ]───┬─── [Direct Buffer Out]
                             │                      │
-                        [ C_sensor: 1.2nF ]     [ Cable: 750pF || Anagram: 1Meg ]
+                        [ C_sensor: 1.2nF ]     [ Zin = 100Meg || 750pF ]
                             │                      │
                            GND                    GND
 ```
 
-### Key Parameters & Differences from Magnetic Circuits:
-1. **Zero Inductive Peaking ($L \approx 1\ \mu\text{H}$):**
-   * Piezoelectric ceramics exhibit negligible inductance. The transducer has no passive electrical $RLC$ resonant peak; its electrical response is purely capacitive ($C_{\text{sensor}} \approx 1.2\text{ nF}$).
-2. **Direct Tailpiece Wiring (Volume Pot Bypass):**
-   * Upright bridge transducers connect directly to high-impedance buffers without passing through typical $500\text{ k}\Omega$ volume pots or treble bleed networks. The circuit load resistance is set to $100\text{ M}\Omega$ internal, dominated solely by the receiver ($1.0\text{ M}\Omega$ Anagram input).
-3. **Subsonic Decoupling ($C_{\text{rick}} = 15\text{ nF}$):**
-   * A series decoupling capacitor decouples DC and subsonic stage rumble ($f_c \approx 10.6\text{ Hz}$ into $1\text{ M}\Omega$), preventing handling thumps from overloading downstream compressors and impulse engines.
+1. **Pure Capacitive Sensor ($L \approx 1\ \mu\text{H}, C_{\text{sensor}} = 1.2\text{ nF}$):**
+   * Negligible inductance eliminates RLC peaking; electrical response is purely capacitive.
+2. **Direct High-Z Buffer ($100\text{ M}\Omega$):**
+   * Transducer bypasses guitar volume/tone pots into a transparent high-impedance buffer.
+3. **Subsonic Rumble Decoupling ($C_{\text{series}} = 15\text{ nF}$):**
+   * Decouples subsonic mechanical rumble ($f_c \approx 10.6\text{ Hz}$ into $1\text{ M}\Omega$).
 4. **Dynamic Bridge Rocking Compliance ($B_{\text{comp}}$):**
-   * Under heavy pizzicato finger plucks, physical maple wood flex and soundpost compliance introduce gentle mechanical soft-knee saturation modeled in SPICE via:
-     $$V_{\text{dyn}}(t) = 0.42 \cdot \tanh\left(\frac{V(t)}{0.42}\right)$$
-   * Captures the warm, compressed "bloom" and physical tactile pushback of a double-bass bridge.
+   * Non-linear mechanical rocking under pizzicato attack modeled via:
+     $$V_{\text{dyn}}(t) = V_{\text{sat}} \cdot \tanh\left(\frac{V(t)}{V_{\text{sat}}}\right)$$
+     with $V_{\text{sat}} = 0.42\text{ V}$ (roundwounds) scaled to $0.336\text{ V}$ on 32" fretless flatwounds.
 
 ---
 
 ## 5. Passive-to-Passive Modeling & Differential SPICE Engine
 
-When transforming a passive source bass (such as a stock Fender Precision Bass or Jazz Bass) into a target passive voice, the physical assumptions change fundamentally from active EMG modeling:
+When transforming a passive source bass (such as a stock Fender Precision Bass or Jazz Bass) into a target passive voice:
 
 ```
-Active Source (EMG):    [Wideband ~20 kHz] ──► [H_target(s)] ──► [Target Sound]
+Active Source (EMG):    [Flat ~20 kHz] ──► [H_target(s)] ──► [Target Sound]
 Passive Source:         [V_string] ──► [H_source(s)] ──► [Track] ──► [H_diff(s)] ──► [Target Sound]
 ```
 
-### The Cascaded Double-Filtering Problem
-On an active EMG bass, the internal op-amp buffer outputs an essentially flat, wideband signal. Applying the target circuit's absolute SPICE transfer function $H_{\text{target}}(s)$ accurately imparts the target pickup's loaded RLC resonance and $-12\text{ dB/octave}$ cutoff.
-
-On a passive recording, however:
-1. The track **already contains** the source pickup's loaded RLC resonance, cable capacitance ($750\text{ pF}$), and potentiometer loading.
-2. Applying absolute $H_{\text{target}}(s)$ cascades the filters, producing an unphysical **$-24\text{ dB/octave}$** rolloff ("underwater" muffled tone).
-3. Applying forward $\tanh$ core saturation compresses the signal a second time (double-saturation).
-
-### The Differential Solution
-Passivizer resolves passive source modeling through a **regularized differential transfer function**:
+### The Regularized Differential Transfer Function
+To prevent double-filtering (which would cause a disastrous $-24\text{ dB/octave}$ cutoff), Passivizer uses an analytical differential transfer function:
 
 $$|H_{\text{diff}}(f)| = \frac{|H_{\text{target}}(f)| \cdot |H_{\text{source}}(f)|}{|H_{\text{source}}(f)|^2 + \epsilon^2}$$
 
-Where:
-* $H_{\text{source}}(s)$ is the analytical nodal AC transfer function of the source instrument's pickup, pots ($250\text{ k}\Omega$ vol, $250\text{ k}\Omega$ tone), and $750\text{ pF}$ cable.
-* $H_{\text{target}}(s)$ is the target voice's SPICE transfer function.
-* $\epsilon = 0.05$ is the **Wiener regularization floor**, preventing the inverse filter from dividing by near-zero stopband values.
-* **High-Frequency Clamping:** Above $4.5\text{ kHz}$, maximum boost is clamped to $+6.0\text{ dB}$ relative to the $1\text{ kHz}$ reference gain, preventing amplification of passive coil hum, Johnson thermal noise, and audio interface preamp hiss.
-
-### Analytical Tone Pot Admittance
-To model a passive guitar's tone control at any position (from $100\%$ wide open down to $0$ rolled off), the nodal admittance of the tone branch is formulated as:
-
-$$Y_{\text{tone}}(s) = \frac{s \cdot C_{\text{tone}}}{1 + s \cdot R_{\text{tone}} \cdot C_{\text{tone}}}$$
-
-* **Wide open ($R_{\text{tone}} = 250\text{ k}\Omega$, $C_{\text{tone}} = 47\text{ nF}$):** At audio frequencies ($2\text{--}4\text{ kHz}$), the capacitor's impedance is negligible ($\approx 1.2\text{ k}\Omega$), so the tone pot acts essentially as a pure $250\text{ k}\Omega$ resistive shunt in parallel with the volume pot ($250\text{k} \,||\, 250\text{k} = 125\text{ k}\Omega$).
-* **Rolled off ($R_{\text{tone}} = 0\,\Omega$):** The admittance simplifies to $s \cdot C_{\text{tone}}$, shunting high frequencies directly to ground.
-
-### Dynamic Magnetic Core Saturation Bypass
-Because a physical passive bass already experienced magnetic core saturation during the original string pluck, forward $\tanh$ saturation is automatically bypassed (`in_dyn = in_ch`) whenever `electronics = "passive"`, preserving authentic natural dynamics without artificial distortion.
+* $\epsilon = 0.05$ is the **Wiener regularization floor**, preventing division by near-zero stopband values.
+* **High-Frequency Clamping:** Above $4.5\text{ kHz}$, maximum boost is clamped to $+6.0\text{ dB}$ relative to $1\text{ kHz}$ reference gain, preventing amplification of passive coil noise and audio interface hiss.
+* **True Identity Verification:** When the source instrument equals the target voice (e.g., standard Precision Bass into `05_vintage_62_p_alnico`, or standard Jazz Bass into `02_jazz_bass_pair`), $H_{\text{diff}}$ evaluates to an exact flat line ($\Delta < 0.10\text{ dB}$ across $40\text{--}4500\text{ Hz}$).
+* **Dynamic Saturation Bypass:** When `electronics = "passive"`, forward $\tanh$ saturation is automatically bypassed, preserving authentic uncompressed dynamics.

@@ -45,15 +45,21 @@ def test_parse_all_circuit_netlists():
         assert model.Rdc > 0
         assert model.Reddy > 0
         assert model.Ccoil > 0
-        assert model.Rtop > 0
-        assert model.Rbot > 0
         assert model.Ccable > 0
 
-        if vid in ["01_jazz_bass_pair", "06_pj_hybrid_parallel"]:
+        if model.has_active_buffer:
+            assert model.R_out > 0
+            assert model.R_preamp_in > 0
+            assert model.C_preamp_in > 0
+        else:
+            assert model.Rtop > 0
+            assert model.Rbot > 0
+
+        if vid in ["01_modern_jazz_active", "02_jazz_bass_pair", "07_modern_pj_active", "08_vintage_pj_passive"]:
             assert model.topology == "parallel"
             assert model.L_b > 0
             assert model.Rdc_b > 0
-        elif vid == "09_pmm_hybrid_series":
+        elif vid == "11_pmm_hybrid_series":
             assert model.topology == "series"
             assert model.L_b > 0
             assert model.Rdc_b > 0
@@ -61,7 +67,7 @@ def test_parse_all_circuit_netlists():
             assert model.topology == "single"
 
 def test_single_pickup_transfer_function():
-    cir_path = CIRCUITS_DIR / "03_modern_p_ceramic.cir"
+    cir_path = CIRCUITS_DIR / "04_modern_p_ceramic.cir"
     model = parse_netlist(cir_path)
     curves = compute_circuit_transfer_functions(model, freqs=FREQS)
 
@@ -71,18 +77,18 @@ def test_single_pickup_transfer_function():
     # DC Gain should be near 0 dB (~0.97 due to 10-ohm pot + load divider)
     assert 0.95 < mag[0] < 1.0
 
-    # Resonant peak should occur between 2000 Hz and 2300 Hz
+    # Resonant peak should occur between 1850 Hz and 2300 Hz
     max_val = max(mag)
     peak_idx = mag.index(max_val)
     peak_freq = FREQS[peak_idx]
-    assert 2000.0 <= peak_freq <= 2300.0
-    assert max_val > 1.2  # Under pot/cable load, Q peak > 1.2
+    assert 1850.0 <= peak_freq <= 2300.0
+    assert max_val > 1.10  # Under pot/cable load, Q peak > 1.10
 
     # High-frequency rolloff (at 20 kHz, gain should be < 0.20)
     assert mag[-1] < 0.20
 
 def test_tone_rolloff_transfer_function():
-    cir_path = CIRCUITS_DIR / "05_p_bass_47nf_rolloff.cir"
+    cir_path = CIRCUITS_DIR / "06_p_bass_47nf_rolloff.cir"
     model = parse_netlist(cir_path)
     assert model.Ctone == pytest.approx(47e-9)
 
@@ -100,7 +106,7 @@ def test_tone_rolloff_transfer_function():
     assert mag[idx_3k] < 0.10
 
 def test_series_hpf_transfer_function():
-    cir_path = CIRCUITS_DIR / "08_rickenbacker_bridge_hpf.cir"
+    cir_path = CIRCUITS_DIR / "10_rickenbacker_bridge_hpf.cir"
     model = parse_netlist(cir_path)
     assert model.Crick == pytest.approx(4.7e-9)
 
@@ -115,7 +121,7 @@ def test_series_hpf_transfer_function():
     assert mag[idx_2k] > 0.8
 
 def test_parallel_dual_pickup_transfer_function():
-    cir_path = CIRCUITS_DIR / "01_jazz_bass_pair.cir"
+    cir_path = CIRCUITS_DIR / "02_jazz_bass_pair.cir"
     model = parse_netlist(cir_path)
     assert model.topology == "parallel"
 
@@ -123,14 +129,51 @@ def test_parallel_dual_pickup_transfer_function():
     assert len(curves) == 2  # Neck and Bridge curves
 
     mag_n, mag_b = curves
-    # Both channels should have peak in upper mids (3.5 - 4.5 kHz)
+    # Both channels under authentic dual 250k vol (125k net) + 250k tone have peak in 2.4 - 3.2 kHz
     peak_n = FREQS[mag_n.index(max(mag_n))]
     peak_b = FREQS[mag_b.index(max(mag_b))]
-    assert 3500.0 <= peak_n <= 4500.0
-    assert 3200.0 <= peak_b <= 4200.0
+    assert 2400.0 <= peak_n <= 3200.0
+    assert 2500.0 <= peak_b <= 3200.0
+
+def test_active_preamp_buffer_transfer_function():
+    # 1. Voice 01 Modern Active Jazz Bass
+    m01 = parse_netlist(CIRCUITS_DIR / "01_modern_jazz_active.cir")
+    assert m01.has_active_buffer is True
+    assert m01.preamp_type == "sadowsky_2band"
+    assert m01.topology == "parallel"
+
+    curves01 = compute_circuit_transfer_functions(m01, freqs=FREQS)
+    assert len(curves01) == 2
+    mag_n01, mag_b01 = curves01
+    peak_n01 = FREQS[mag_n01.index(max(mag_n01))]
+    peak_b01 = FREQS[mag_b01.index(max(mag_b01))]
+    # Coils are isolated from 750pF cable load, and boosted by Sadowsky active treble shelf (6.5 - 9 kHz)
+    assert 6500.0 <= peak_n01 <= 8500.0
+    assert 7000.0 <= peak_b01 <= 9000.0
+
+    # 2. Voice 07 Modern Active P/J 2-Band
+    m07 = parse_netlist(CIRCUITS_DIR / "07_modern_pj_active.cir")
+    assert m07.has_active_buffer is True
+    assert m07.preamp_type == "sadowsky_2band"
+    assert m07.topology == "parallel"
+    curves07 = compute_circuit_transfer_functions(m07, freqs=FREQS)
+    assert len(curves07) == 2
+
+    # 3. Voice 09 Music Man StingRay Active 2-Band
+    m09 = parse_netlist(CIRCUITS_DIR / "09_stingray_mm_parallel.cir")
+    assert m09.has_active_buffer is True
+    assert m09.preamp_type == "stingray_2band"
+    assert m09.topology == "single"
+
+    curves09 = compute_circuit_transfer_functions(m09, freqs=FREQS)
+    assert len(curves09) == 1
+    mag09 = curves09[0]
+    peak09 = FREQS[mag09.index(max(mag09))]
+    # Isolated from cable capacitance, peak is in 6.5 - 8.5 kHz clank & sizzle region
+    assert 6500.0 <= peak09 <= 8500.0
 
 def test_series_dual_pickup_transfer_function():
-    cir_path = CIRCUITS_DIR / "09_pmm_hybrid_series.cir"
+    cir_path = CIRCUITS_DIR / "11_pmm_hybrid_series.cir"
     model = parse_netlist(cir_path)
     assert model.topology == "series"
 
@@ -140,9 +183,9 @@ def test_series_dual_pickup_transfer_function():
     mag_n, mag_b = curves
     # Both channels sum at DC with equal weight
     assert math.isclose(mag_n[0], mag_b[0], rel_tol=1e-3)
-    # Combined series inductance shifts peak into low-mids (~2 kHz)
+    # Combined series inductance shifts peak into low-mids (~1.6 - 2.1 kHz)
     peak_n = FREQS[mag_n.index(max(mag_n))]
-    assert 1800.0 <= peak_n <= 2300.0
+    assert 1500.0 <= peak_n <= 2100.0
 
 def test_simulate_circuit_audio_output():
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -153,7 +196,7 @@ def test_simulate_circuit_audio_output():
         samples = [0.4 if i % 200 == 0 else 0.0 for i in range(4800)]
         write_wav_24bit(str(input_wav), samples, sample_rate=48000)
 
-        model = parse_netlist(CIRCUITS_DIR / "03_modern_p_ceramic.cir")
+        model = parse_netlist(CIRCUITS_DIR / "04_modern_p_ceramic.cir")
         res = simulate_circuit_audio(input_wav, output_wav, model)
         assert res is True
         assert output_wav.exists()
@@ -177,7 +220,7 @@ def test_simulate_voice_end_to_end():
 
         # Single pickup voice (P-Bass Ceramic)
         res = simulate_voice(
-            "03_modern_p_ceramic",
+            "04_modern_p_ceramic",
             input_wav=input_wav,
             output_wav=output_wav,
             instrument="30in",
@@ -198,7 +241,7 @@ def test_simulate_voice_end_to_end():
         output_jazz = Path(tmpdir) / "jazz_out.wav"
         inter_jazz = Path(tmpdir) / "jazz_aperture.wav"
         res_jazz = simulate_voice(
-            "01_jazz_bass_pair",
+            "02_jazz_bass_pair",
             input_wav=input_wav,
             output_wav=output_jazz,
             instrument="30in",
@@ -242,13 +285,13 @@ def test_sweep_audio_auto_detection():
     with tempfile.TemporaryDirectory() as tmpdir:
         out_wav = Path(tmpdir) / "auto_sweep_out.wav"
         # Test with input_wav=None
-        res = simulate_voice("03_modern_p_ceramic", input_wav=None, output_wav=out_wav, instrument="30in")
+        res = simulate_voice("04_modern_p_ceramic", input_wav=None, output_wav=out_wav, instrument="30in")
         assert res is True
         assert out_wav.exists()
 
         # Test with input_wav pointing to missing v1_1_1.wav (fallback behavior)
         out_wav_fallback = Path(tmpdir) / "fallback_sweep_out.wav"
-        res_fallback = simulate_voice("03_modern_p_ceramic", input_wav="v1_1_1.wav", output_wav=out_wav_fallback, instrument="30in")
+        res_fallback = simulate_voice("04_modern_p_ceramic", input_wav="v1_1_1.wav", output_wav=out_wav_fallback, instrument="30in")
         assert res_fallback is True
         assert out_wav_fallback.exists()
 
@@ -264,7 +307,7 @@ def test_circuit_simulation_vs_theory_consistency():
     impulse = np.zeros(n_samples, dtype=np.float32)
     impulse[10] = 0.05  # Linear small-signal excitation
 
-    for voice_id in ["03_modern_p_ceramic", "01_jazz_bass_pair", "06_pj_hybrid_parallel"]:
+    for voice_id in ["04_modern_p_ceramic", "02_jazz_bass_pair", "07_modern_pj_active"]:
         cfg = VOICES[voice_id]
         cir_path = CIRCUITS_DIR / f"{voice_id}.cir"
         model = parse_netlist(cir_path)
@@ -299,7 +342,7 @@ def test_upright_voicing_simulation_vs_theory_consistency():
     import pedalboard.io
 
     inst_id = "32in_fretless_pmm"
-    voice_id = "12_upright_bridge_transducer"
+    voice_id = "14_upright_bridge_transducer"
     sr = 48000
     n_samples = 48000 * 2
     impulse = np.zeros(n_samples, dtype=np.float32)
@@ -335,8 +378,8 @@ def test_upright_voicing_simulation_vs_theory_consistency():
 
 def test_tone_pot_series_admittance():
     """Verify that series Rtone allows wide-open tone pots to preserve pickup resonance."""
-    # 1. Voice 05: Rtone = 0, Ctone = 47nF -> collapses peak to 200-500 Hz
-    m_rolled = parse_netlist(CIRCUITS_DIR / "05_p_bass_47nf_rolloff.cir")
+    # 1. Voice 06: Rtone = 0, Ctone = 47nF -> collapses peak to 200-500 Hz
+    m_rolled = parse_netlist(CIRCUITS_DIR / "06_p_bass_47nf_rolloff.cir")
     assert m_rolled.Rtone == 0.0
     assert m_rolled.Ctone == pytest.approx(47e-9)
     curves_rolled = compute_circuit_transfer_functions(m_rolled, freqs=FREQS)
@@ -354,24 +397,32 @@ def test_tone_pot_series_admittance():
 def test_passive_identity_differential_flatness():
     """Verify that identity differential response is flat, and pot unloading is accurately modeled."""
     from scripts.simulate_circuits import compute_differential_circuit_transfer_functions
-    m_src = parse_netlist(REPO_ROOT / "circuits" / "sources" / "source_standard_p.cir")
-
-    # 1. True identity: source to source should be < 0.2 dB across passband
-    diff_self = compute_differential_circuit_transfer_functions(m_src, m_src, freqs=FREQS)
-    h_self = np.asarray(diff_self[0])
-    h_self_db = 20.0 * np.log10(h_self / h_self[0])
     f_arr = np.asarray(FREQS)
     passband_mask = (f_arr >= 40.0) & (f_arr <= 4500.0)
-    assert np.all(np.abs(h_self_db[passband_mask]) < 0.2)
 
-    # 2. Source Standard P (250k pot + 250k tone = 125k load) to Target '62 P (500k load):
-    # Produces subtle ~3.7 dB clarity lift at resonance due to higher impedance harness
-    m_tgt = parse_netlist(CIRCUITS_DIR / "04_vintage_62_p_alnico.cir")
-    diff_curves = compute_differential_circuit_transfer_functions(m_tgt, m_src, freqs=FREQS)
-    h_diff = np.asarray(diff_curves[0])
-    h_diff_db = 20.0 * np.log10(h_diff / h_diff[0])
-    # Peak boost due to 500k vs 125k unloading
-    assert 3.0 <= np.max(h_diff_db[passband_mask]) <= 4.2
+    # 1. Precision Bass true identity: Standard P source against Voice 05 Vintage '62 P (< 0.10 dB)
+    m_src_p = parse_netlist(REPO_ROOT / "circuits" / "sources" / "source_standard_p.cir")
+    m_tgt_p = parse_netlist(CIRCUITS_DIR / "05_vintage_62_p_alnico.cir")
+    diff_p = compute_differential_circuit_transfer_functions(m_tgt_p, m_src_p, freqs=FREQS)
+    h_p = np.asarray(diff_p[0])
+    h_p_db = 20.0 * np.log10(h_p / h_p[0])
+    assert np.all(np.abs(h_p_db[passband_mask]) < 0.10), "P-Bass identity differential not flat!"
+
+    # 2. Jazz Bass true identity: Standard Jazz source against Voice 02 Jazz Bass Pair (< 0.10 dB)
+    m_src_j = parse_netlist(REPO_ROOT / "circuits" / "sources" / "source_standard_jazz_pair.cir")
+    m_tgt_j = parse_netlist(CIRCUITS_DIR / "02_jazz_bass_pair.cir")
+    diff_j = compute_differential_circuit_transfer_functions(m_tgt_j, m_src_j, freqs=FREQS)
+    for ch_idx, ch in enumerate(diff_j):
+        h_j = np.asarray(ch)
+        h_j_db = 20.0 * np.log10(h_j / h_j[0])
+        assert np.all(np.abs(h_j_db[passband_mask]) < 0.10), f"Jazz channel {ch_idx} identity differential not flat!"
+
+    # 3. Pot unloading: Source Standard P (250k V/T) vs Target Modern Ceramic P (500k V/T + 22nF)
+    m_tgt_mod = parse_netlist(CIRCUITS_DIR / "04_modern_p_ceramic.cir")
+    diff_mod = compute_differential_circuit_transfer_functions(m_tgt_mod, m_src_p, freqs=FREQS)
+    h_mod = np.asarray(diff_mod[0])
+    h_mod_db = 20.0 * np.log10(h_mod / h_mod[0])
+    assert 0.4 <= np.max(h_mod_db[passband_mask]) <= 2.0
 
 def test_passive_saturation_bypassed():
     """Verify that forward tanh saturation is bypassed when is_passive is True."""
@@ -381,7 +432,7 @@ def test_passive_saturation_bypassed():
     # High amplitude input (0.80) exceeding vsat (0.45)
     in_heavy = np.full((1, n_samples), 0.80, dtype=np.float32)
 
-    m = parse_netlist(CIRCUITS_DIR / "04_vintage_62_p_alnico.cir")
+    m = parse_netlist(CIRCUITS_DIR / "05_vintage_62_p_alnico.cir")
 
     with tempfile.NamedTemporaryFile(suffix=".wav") as tmp_act, tempfile.NamedTemporaryFile(suffix=".wav") as tmp_pas:
         # Active simulation: applies tanh
@@ -402,7 +453,7 @@ def test_wiener_clamping_prevents_noise_explosion():
     from scripts.simulate_circuits import compute_differential_circuit_transfer_functions
     # Convert high-inductance P (3.8H) to brighter Jazz Bridge (3.6H)
     m_src = parse_netlist(REPO_ROOT / "circuits" / "sources" / "source_standard_p.cir")
-    m_tgt = parse_netlist(CIRCUITS_DIR / "02_jazz_bridge_60s.cir")
+    m_tgt = parse_netlist(CIRCUITS_DIR / "03_jazz_bridge_60s.cir")
 
     diff_curves = compute_differential_circuit_transfer_functions(m_tgt, m_src, freqs=FREQS, max_boost_db=6.0)
     h_diff = np.asarray(diff_curves[0])
@@ -418,11 +469,11 @@ def test_wiener_clamping_prevents_noise_explosion():
 def test_passive_source_simulation_runs():
     """Verify end-to-end simulate_voice runs for passive source instruments."""
     with tempfile.NamedTemporaryFile(suffix=".wav") as tmp1, tempfile.NamedTemporaryFile(suffix=".wav") as tmp2:
-        res1 = simulate_voice("04_vintage_62_p_alnico", output_wav=Path(tmp1.name), instrument="34in_standard_p")
+        res1 = simulate_voice("05_vintage_62_p_alnico", output_wav=Path(tmp1.name), instrument="34in_standard_p")
         assert res1 is True
         assert os.path.exists(tmp1.name) and os.path.getsize(tmp1.name) > 1000
 
-        res2 = simulate_voice("01_jazz_bass_pair", output_wav=Path(tmp2.name), instrument="34in_standard_jazz")
+        res2 = simulate_voice("02_jazz_bass_pair", output_wav=Path(tmp2.name), instrument="34in_standard_jazz")
         assert res2 is True
         assert os.path.exists(tmp2.name) and os.path.getsize(tmp2.name) > 1000
 

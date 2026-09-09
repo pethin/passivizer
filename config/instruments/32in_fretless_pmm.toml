@@ -149,15 +149,17 @@ components = [
 # 7. SMART VOICE MAPPING
 # ------------------------------------------------------------------------------
 [pickup_mapping]
-"01_jazz_bass_pair" = "pj_blend_parallel"
-"02_jazz_bridge_60s" = "mmtwx_single"
-"03_modern_p_ceramic" = "pcsx"
-"04_vintage_62_p_alnico" = "pcsx"
-"05_p_bass_47nf_rolloff" = "pcsx"
-"06_pj_hybrid_parallel" = "pj_blend_parallel"
-"07_stingray_mm_parallel" = "mmtwx_dual"
-"08_rickenbacker_bridge_hpf" = "mmtwx_single"
-"09_pmm_hybrid_series" = "blend_parallel"
-"10_mudbucker_ultra_series" = "pcsx"
-"11_dingwall_multiscale_bridge" = "mmtwx_dual"
-"12_upright_bridge_transducer" = "pcsx"
+"01_modern_jazz_active" = "pj_blend_parallel"
+"02_jazz_bass_pair" = "pj_blend_parallel"
+"03_jazz_bridge_60s" = "mmtwx_single"
+"04_modern_p_ceramic" = "pcsx"
+"05_vintage_62_p_alnico" = "pcsx"
+"06_p_bass_47nf_rolloff" = "pcsx"
+"07_modern_pj_active" = "pj_blend_parallel"   # Modern Active P/J
+"08_vintage_pj_passive" = "pj_blend_parallel"  # Vintage Alnico P/J
+"09_stingray_mm_parallel" = "mmtwx_dual"
+"10_rickenbacker_bridge_hpf" = "mmtwx_single"
+"11_pmm_hybrid_series" = "blend_parallel"
+"12_mudbucker_ultra_series" = "pcsx"
+"13_dingwall_multiscale_bridge" = "mmtwx_dual"
+"14_upright_bridge_transducer" = "upright_blend"

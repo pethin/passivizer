@@ -55,37 +55,37 @@ def test_instrument_string_resolution():
 
 def test_target_voice_strings():
     """Verify target voice goal string mappings."""
-    v12 = VOICES["12_upright_bridge_transducer"]
-    str_v12 = get_voice_string(v12)
-    assert str_v12["type"] == "double_bass"
-    assert str_v12["tension_lbs"] == 265.0
-    assert str_v12["bloom_db"] == 2.8
+    v14 = VOICES["14_upright_bridge_transducer"]
+    str_v14 = get_voice_string(v14)
+    assert str_v14["type"] == "double_bass"
+    assert str_v14["tension_lbs"] == 265.0
+    assert str_v14["bloom_db"] == 2.8
 
-    v11 = VOICES["11_dingwall_multiscale_bridge"]
-    str_v11 = get_voice_string(v11)
-    assert str_v11["type"] == "roundwound"
-    assert str_v11["wrap"] == "stainless"
+    v13 = VOICES["13_dingwall_multiscale_bridge"]
+    str_v13 = get_voice_string(v13)
+    assert str_v13["type"] == "roundwound"
+    assert str_v13["wrap"] == "stainless"
 
-    v05 = VOICES["05_p_bass_47nf_rolloff"]
-    str_v05 = get_voice_string(v05)
-    assert str_v05["type"] == "flatwound"
+    v06 = VOICES["06_p_bass_47nf_rolloff"]
+    str_v06 = get_voice_string(v06)
+    assert str_v06["type"] == "flatwound"
 
     # Standard voices default to roundwound_nickel_standard
-    v03 = VOICES["03_modern_p_ceramic"]
-    str_v03 = get_voice_string(v03)
-    assert str_v03["type"] == "roundwound"
+    v04 = VOICES["04_modern_p_ceramic"]
+    str_v04 = get_voice_string(v04)
+    assert str_v04["type"] == "roundwound"
 
 def test_differential_damping_anti_double_muffling():
     """
-    Verify that Voice 12 avoids double-damping on flatwounds:
+    Verify that Voice 14 avoids double-damping on flatwounds:
     When evaluated on 32in fretless (flatwound source), the prefilter FIR
     preserves more upper treble energy around 3.5 kHz relative to a roundwound
     source where harsh clank must be rolled off.
     """
     # Pre-filter FIR for 32" fretless (La Bella LTF source)
-    firs_fretless = compute_voice_prefilter_firs("12_upright_bridge_transducer", instrument="32in_fretless")
+    firs_fretless = compute_voice_prefilter_firs("14_upright_bridge_transducer", instrument="32in_fretless")
     # Pre-filter FIR for 30" (roundwound source)
-    firs_round = compute_voice_prefilter_firs("12_upright_bridge_transducer", instrument="30in")
+    firs_round = compute_voice_prefilter_firs("14_upright_bridge_transducer", instrument="30in")
 
     assert len(firs_fretless) == 1
     assert len(firs_round) == 1
@@ -114,7 +114,7 @@ def test_bridge_compliance_scaling():
     excursion = float(str_fretless.get("pluck_excursion_factor", 1.0))
     assert excursion == 1.25
 
-    model = parse_netlist(CIRCUITS_DIR / "12_upright_bridge_transducer.cir")
+    model = parse_netlist(CIRCUITS_DIR / "14_upright_bridge_transducer.cir")
     base_vsat = model.vsat
     assert base_vsat == 0.42
 

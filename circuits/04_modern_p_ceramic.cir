@@ -1,12 +1,12 @@
-* Passivizer Netlist 05: Split-Coil P (47nF Tone Rolloff)
-* Target: Split-Coil P with Tone at 0 (47nF Shunt Loading, 450 Hz Peak)
+* Passivizer Netlist 04: Modern Split-Coil P (Ceramic)
+* Target: Modern High-Inductance Ceramic Split-P with Boutique 500k V/T Harness
 .options plotwinsize=0 numdgt=7
 
 * 1. Audio Source (Pre-filtered NAM Training Track)
 V_in in 0 wavefile="v1_1_1_aperture.wav"
 
 * 2. Dynamic Magnetic Core & String Excursion Saturation (Soft-Knee Compliance)
-B_comp in_dyn 0 V=0.50 * tanh(V(in) / 0.50)
+B_comp in_dyn 0 V=0.45 * tanh(V(in) / 0.45)
 
 * 3. Pickup Coils (Bartolini 8CBP Ceramic Split-P)
 L_coil in_dyn node1 4.8
@@ -14,28 +14,26 @@ R_dc node1 node2 9.5k
 R_eddy in_dyn node2 110k
 C_coil node2 0 80p
 
-* 3. Tone Pot Rolled Off (0 Ohm resistance, direct 47nF shunted to ground)
-C_tone node2 0 47n
+* 4. Modern Tone Pot (500k Audio with 22nF Capacitor)
+R_tone node2 tone_mid 500k
+C_tone tone_mid 0 22n
 
-* 4. 500k Volume Pot (Volume @ 100%)
+* 5. 500k Volume Pot (Volume @ 100%)
 R_pot_top node2 node3 10
 R_pot_bot node3 0 500k
 
-* 5. Hybrid Treble Bleed (Lug 3 to Lug 2)
+* 6. Hybrid Treble Bleed (Lug 3 to Lug 2)
 C_tb node2 tb_mid 1.0n
 R_tb_par node2 tb_mid 150k
 R_tb_ser tb_mid node3 20k
 
-* 6. Instrument Cable Load (15-ft cable ~750pF)
+* 7. Instrument Cable Load (15-ft cable ~750pF)
 C_cable node3 0 750p
 
-* 7. Darkglass Anagram Input Stage (1 M-Ohm || 30pF)
+* 8. Darkglass Anagram Input Stage (1 M-Ohm || 30pF)
 R_anagram node3 0 1Meg
 C_anagram node3 0 30p
 
-* 8. Transient Execution (48 kHz sample interval)
-.tran 0 190 0 20.833333333333333u
-
 * 9. Output Audio Export for NAM Training
-.wave "out_05_p_bass_47nf_rolloff.wav" 24 48000 V(node3)
+.wave "out_04_modern_p_ceramic.wav" 24 48000 V(node3)
 .end

@@ -49,12 +49,12 @@ def test_30in_mmtw_routing():
     assert "mmtw_single" in inst["pickups"]
 
     # 60s Jazz Bridge should route to single-coil mode
-    j_pickup = get_source_pickup(inst, "02_jazz_bridge_60s")
+    j_pickup = get_source_pickup(inst, "03_jazz_bridge_60s")
     assert j_pickup["name"] == "EMG MMTW Single-Coil (Bridge Coil)"
     assert math.isclose(j_pickup["position_from_bridge_m"], 0.06607, abs_tol=1e-4)
 
     # StingRay should route to dual-coil mode
-    mm_pickup = get_source_pickup(inst, "07_stingray_mm_parallel")
+    mm_pickup = get_source_pickup(inst, "09_stingray_mm_parallel")
     assert mm_pickup["name"] == "EMG MMTW Dual-Coil (Centerline)"
     assert math.isclose(mm_pickup["position_from_bridge_m"], 0.0775, abs_tol=1e-4)
     assert math.isclose(mm_pickup["coil_spacing_in"], 0.90, abs_tol=1e-4)
@@ -62,7 +62,7 @@ def test_30in_mmtw_routing():
 def test_30in_mm_legacy_routing():
     inst = load_instrument("30in_emg_mm")
     assert inst["id"] == "30in_emg_mmtw"
-    pickup = get_source_pickup(inst, "07_stingray_mm_parallel")
+    pickup = get_source_pickup(inst, "09_stingray_mm_parallel")
     assert pickup["name"] == "EMG MMTW Dual-Coil (Centerline)"
     assert math.isclose(pickup["position_from_bridge_m"], 0.0775, abs_tol=1e-4)
     assert math.isclose(pickup["coil_spacing_in"], 0.90, abs_tol=1e-4)
@@ -72,22 +72,22 @@ def test_32in_custom_pmm_routing():
     assert inst["id"] == "32in_custom_pmm"
 
     # P-Bass voices route to neck PX split-coil
-    p_pickup = get_source_pickup(inst, "03_modern_p_ceramic")
+    p_pickup = get_source_pickup(inst, "04_modern_p_ceramic")
     assert p_pickup["name"] == "Reverse EMG PX Split-Coil (Neck)"
     assert math.isclose(p_pickup["position_from_bridge_m"], 0.1228, abs_tol=1e-4)
 
     # 60s Jazz Bridge routes to bridge single coil
-    j_pickup = get_source_pickup(inst, "02_jazz_bridge_60s")
+    j_pickup = get_source_pickup(inst, "03_jazz_bridge_60s")
     assert j_pickup["name"] == "EMG MMTWX Single-Coil (Bridge)"
     assert math.isclose(j_pickup["position_from_bridge_m"], 0.0508, abs_tol=1e-4)
 
     # StingRay MM routes to dual coil centerline
-    mm_pickup = get_source_pickup(inst, "07_stingray_mm_parallel")
+    mm_pickup = get_source_pickup(inst, "09_stingray_mm_parallel")
     assert mm_pickup["name"] == "EMG MMTWX Dual-Coil (Centerline)"
     assert math.isclose(mm_pickup["position_from_bridge_m"], 0.0622, abs_tol=1e-4)
 
     # P/J hybrid routes to parallel P/J pair (Reverse PX + MMTWX single-coil)
-    pj_pickup = get_source_pickup(inst, "06_pj_hybrid_parallel")
+    pj_pickup = get_source_pickup(inst, "07_modern_pj_active")
     assert pj_pickup["name"] == "EMG PX + MMTWX Single Parallel (P/J Mode)"
     assert pj_pickup["type"] == "composite"
     assert len(pj_pickup["components"]) == 2
@@ -96,12 +96,12 @@ def test_32in_custom_pmm_routing():
     assert math.isclose(pj_pickup["position_from_bridge_m"], 0.0868, abs_tol=1e-4)
 
     # P/MM series voice routes to physical parallel center detent blend
-    pmm_pickup = get_source_pickup(inst, "09_pmm_hybrid_series")
+    pmm_pickup = get_source_pickup(inst, "11_pmm_hybrid_series")
     assert pmm_pickup["name"] == "EMG PX + MMTWX Parallel (Center Detent)"
     assert math.isclose(pmm_pickup["position_from_bridge_m"], 0.0868, abs_tol=1e-4)
 
     # Mudbucker routes to neck PX
-    mud_pickup = get_source_pickup(inst, "10_mudbucker_ultra_series")
+    mud_pickup = get_source_pickup(inst, "12_mudbucker_ultra_series")
     assert mud_pickup["name"] == "Reverse EMG PX Split-Coil (Neck)"
     assert math.isclose(mud_pickup["position_from_bridge_m"], 0.1228, abs_tol=1e-4)
 
@@ -126,10 +126,10 @@ def test_32in_fretless_pmm_routing():
     assert pcsx["coils"][1]["strings"] == ["E", "A"]
     assert math.isclose(pcsx["coils"][1]["position_from_bridge_m"], 0.1264, abs_tol=1e-4)
 
-    # Upright voice routes to solo pcsx
-    up_pickup = get_source_pickup(inst, "12_upright_bridge_transducer")
-    assert up_pickup["name"] == "Reverse EMG PCSX Split-Coil (Neck)"
-    assert up_pickup["type"] == "split_coil"
+    # Upright voice routes to upright_blend composite
+    up_pickup = get_source_pickup(inst, "14_upright_bridge_transducer")
+    assert up_pickup["name"] == "Fretless Upright Blend (85% PCSX + 15% MMTWX Single)"
+    assert up_pickup["type"] == "composite"
 
 def test_load_custom_user_bass_toml():
     """Verify that any future bass or external user bass can be loaded from an arbitrary TOML file."""
@@ -154,8 +154,8 @@ aperture_width_in = 1.35
 coil_spacing_in = 0.65
 
 [pickup_mapping]
-"03_modern_p_ceramic" = "neck_soapbar"
-"07_stingray_mm_parallel" = "bridge_soapbar"
+"04_modern_p_ceramic" = "neck_soapbar"
+"09_stingray_mm_parallel" = "bridge_soapbar"
 """
     with tempfile.TemporaryDirectory() as tmpdir:
         tmp_file = Path(tmpdir) / "my_custom_bass.toml"
@@ -165,11 +165,11 @@ coil_spacing_in = 0.65
         assert inst["id"] == "custom_35in_soapbar"
         assert inst["scale_length_in"] == 35.0
 
-        p_pick = get_source_pickup(inst, "03_modern_p_ceramic")
+        p_pick = get_source_pickup(inst, "04_modern_p_ceramic")
         assert p_pick["name"] == "Neck Dual Soapbar"
 
         # Compute prefilter FIR using the custom user bass
-        fir = compute_aperture_prefilter_fir("03_modern_p_ceramic", instrument=tmp_file, num_taps=NUM_TAPS)
+        fir = compute_aperture_prefilter_fir("04_modern_p_ceramic", instrument=tmp_file, num_taps=NUM_TAPS)
         assert len(fir) == NUM_TAPS
         max_peak = max(abs(x) for x in fir)
         assert math.isclose(max_peak, 0.99, rel_tol=1e-3)
@@ -236,7 +236,8 @@ def test_32in_pj_blend_parallel_definition():
         assert pj["components"][1]["pickup"] == "mmtwx_single"
         assert pj["resonant_frequency_hz"] > 0
         assert pj["q_factor"] > 0
-        assert inst["pickup_mapping"]["06_pj_hybrid_parallel"] == "pj_blend_parallel"
+        assert inst["pickup_mapping"]["07_modern_pj_active"] == "pj_blend_parallel"
+        assert inst["pickup_mapping"]["08_vintage_pj_passive"] == "pj_blend_parallel"
 
 def test_34in_active_p_routing():
     inst = load_instrument("34in_active_p")
@@ -269,14 +270,15 @@ def test_34in_active_jazz_routing():
     assert inst["pickups"]["pair_parallel"]["resonant_frequency_hz"] == 4050.0
 
     # Bridge solo voices
-    assert get_source_pickup(inst, "02_jazz_bridge_60s")["id"] == "bridge"
-    assert get_source_pickup(inst, "07_stingray_mm_parallel")["id"] == "bridge"
+    assert get_source_pickup(inst, "03_jazz_bridge_60s")["id"] == "bridge"
+    assert get_source_pickup(inst, "09_stingray_mm_parallel")["id"] == "bridge"
 
     # Neck solo voices
-    assert get_source_pickup(inst, "03_modern_p_ceramic")["id"] == "neck"
+    assert get_source_pickup(inst, "04_modern_p_ceramic")["id"] == "neck"
 
     # Parallel voices
-    assert get_source_pickup(inst, "01_jazz_bass_pair")["id"] == "pair_parallel"
+    assert get_source_pickup(inst, "01_modern_jazz_active")["id"] == "pair_parallel"
+    assert get_source_pickup(inst, "02_jazz_bass_pair")["id"] == "pair_parallel"
 
     # Shorthand alias check
     assert load_instrument("active_jazz")["id"] == "34in_active_jazz"
@@ -293,15 +295,16 @@ def test_34in_active_pj_routing():
     assert inst["pickups"]["jx"]["resonant_frequency_hz"] == 4050.0
 
     # P voices route to PX
-    assert get_source_pickup(inst, "03_modern_p_ceramic")["id"] == "px"
-    assert get_source_pickup(inst, "04_vintage_62_p_alnico")["id"] == "px"
+    assert get_source_pickup(inst, "04_modern_p_ceramic")["id"] == "px"
+    assert get_source_pickup(inst, "05_vintage_62_p_alnico")["id"] == "px"
 
     # Bridge voices route to JX
-    assert get_source_pickup(inst, "02_jazz_bridge_60s")["id"] == "jx"
-    assert get_source_pickup(inst, "07_stingray_mm_parallel")["id"] == "jx"
+    assert get_source_pickup(inst, "03_jazz_bridge_60s")["id"] == "jx"
+    assert get_source_pickup(inst, "09_stingray_mm_parallel")["id"] == "jx"
 
     # Hybrid voices route to parallel blend
-    assert get_source_pickup(inst, "06_pj_hybrid_parallel")["id"] == "pair_parallel"
+    assert get_source_pickup(inst, "07_modern_pj_active")["id"] == "pair_parallel"
+    assert get_source_pickup(inst, "08_vintage_pj_passive")["id"] == "pair_parallel"
 
     # Shorthand alias check
     assert load_instrument("active_pj")["id"] == "34in_active_pj"

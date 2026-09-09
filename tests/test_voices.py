@@ -2,18 +2,20 @@ from pathlib import Path
 from scripts.model_physics import VOICES, SCALES
 
 EXPECTED_VOICES = [
-    "01_jazz_bass_pair",
-    "02_jazz_bridge_60s",
-    "03_modern_p_ceramic",
-    "04_vintage_62_p_alnico",
-    "05_p_bass_47nf_rolloff",
-    "06_pj_hybrid_parallel",
-    "07_stingray_mm_parallel",
-    "08_rickenbacker_bridge_hpf",
-    "09_pmm_hybrid_series",
-    "10_mudbucker_ultra_series",
-    "11_dingwall_multiscale_bridge",
-    "12_upright_bridge_transducer"
+    "01_modern_jazz_active",
+    "02_jazz_bass_pair",
+    "03_jazz_bridge_60s",
+    "04_modern_p_ceramic",
+    "05_vintage_62_p_alnico",
+    "06_p_bass_47nf_rolloff",
+    "07_modern_pj_active",
+    "08_vintage_pj_passive",
+    "09_stingray_mm_parallel",
+    "10_rickenbacker_bridge_hpf",
+    "11_pmm_hybrid_series",
+    "12_mudbucker_ultra_series",
+    "13_dingwall_multiscale_bridge",
+    "14_upright_bridge_transducer"
 ]
 
 def test_all_expected_voices_exist():
@@ -51,35 +53,50 @@ def test_voice_parameter_validity():
 def test_resolve_voice_pickups():
     from scripts.model_physics import resolve_voice_pickups
 
-    # 1. Multi-pickup: 06_pj_hybrid_parallel
-    p_pj = resolve_voice_pickups(VOICES["06_pj_hybrid_parallel"])
-    assert len(p_pj) == 2
-    assert p_pj[0]["fr"] == 2200.0
-    assert p_pj[0]["Q"] == 1.8
-    assert p_pj[0]["weight"] == 0.5
-    assert len(p_pj[0]["coils"]) == 2  # P-split E/A + D/G
+    # 1. Multi-pickup: 01_modern_jazz_active
+    p_act = resolve_voice_pickups(VOICES["01_modern_jazz_active"])
+    assert len(p_act) == 2
+    assert p_act[0]["fr"] == 5200.0
+    assert p_act[0]["Q"] == 1.7
+    assert p_act[1]["fr"] == 4600.0
+    assert p_act[1]["Q"] == 1.8
 
-    assert p_pj[1]["fr"] == 3200.0
-    assert p_pj[1]["Q"] == 1.6
-    assert p_pj[1]["weight"] == 0.5
-    assert len(p_pj[1]["coils"]) == 1  # J-bridge
-
-    # 2. Multi-pickup: 01_jazz_bass_pair
-    p_jazz = resolve_voice_pickups(VOICES["01_jazz_bass_pair"])
+    # 2. Multi-pickup: 02_jazz_bass_pair
+    p_jazz = resolve_voice_pickups(VOICES["02_jazz_bass_pair"])
     assert len(p_jazz) == 2
     assert p_jazz[0]["fr"] == 3600.0
     assert p_jazz[0]["Q"] == 1.5
     assert p_jazz[1]["fr"] == 3200.0
     assert p_jazz[1]["Q"] == 1.6
 
-    # 3. Multi-pickup: 09_pmm_hybrid_series
-    p_pmm = resolve_voice_pickups(VOICES["09_pmm_hybrid_series"])
+    # 3. Multi-pickup: 07_modern_pj_active
+    p_pj_act = resolve_voice_pickups(VOICES["07_modern_pj_active"])
+    assert len(p_pj_act) == 2
+    assert p_pj_act[0]["fr"] == 4800.0
+    assert p_pj_act[0]["Q"] == 1.7
+    assert p_pj_act[0]["weight"] == 0.5
+    assert len(p_pj_act[0]["coils"]) == 2  # P-split E/A + D/G
+    assert p_pj_act[1]["fr"] == 4600.0
+    assert p_pj_act[1]["Q"] == 1.8
+    assert p_pj_act[1]["weight"] == 0.5
+    assert len(p_pj_act[1]["coils"]) == 1  # J-bridge
+
+    # 4. Multi-pickup: 08_vintage_pj_passive
+    p_pj_pas = resolve_voice_pickups(VOICES["08_vintage_pj_passive"])
+    assert len(p_pj_pas) == 2
+    assert p_pj_pas[0]["fr"] == 2600.0
+    assert p_pj_pas[0]["Q"] == 1.3
+    assert p_pj_pas[1]["fr"] == 2800.0
+    assert p_pj_pas[1]["Q"] == 1.3
+
+    # 5. Multi-pickup: 11_pmm_hybrid_series
+    p_pmm = resolve_voice_pickups(VOICES["11_pmm_hybrid_series"])
     assert len(p_pmm) == 2
     assert p_pmm[0]["fr"] == 2200.0
     assert p_pmm[1]["fr"] == 3500.0
 
-    # 4. Single-pickup voice auto-wrapping: 03_modern_p_ceramic
-    p_p = resolve_voice_pickups(VOICES["03_modern_p_ceramic"])
+    # 6. Single-pickup voice auto-wrapping: 04_modern_p_ceramic
+    p_p = resolve_voice_pickups(VOICES["04_modern_p_ceramic"])
     assert len(p_p) == 1
     assert p_p[0]["fr"] == 2200.0
     assert p_p[0]["Q"] == 1.8
@@ -89,35 +106,35 @@ def test_resolve_voice_pickups():
 def test_resolve_voice_coils():
     from scripts.model_physics import resolve_voice_coils, compute_effective_position
 
-    # 01 Jazz pair should have 2 coils, each with strings=["all"]
-    c01 = resolve_voice_coils(VOICES["01_jazz_bass_pair"])
+    # 01 Modern active jazz should have 2 coils, each with strings=["all"]
+    c01 = resolve_voice_coils(VOICES["01_modern_jazz_active"])
     assert len(c01) == 2
     assert c01[0]["position_from_bridge_m"] == 0.1556
     assert c01[1]["position_from_bridge_m"] == 0.0635
     assert c01[0]["strings"] == ["all"]
 
-    # 03 Modern P ceramic should have 2 split coils with specific string bindings
-    c03 = resolve_voice_coils(VOICES["03_modern_p_ceramic"])
-    assert len(c03) == 2
-    assert c03[0]["strings"] == ["E", "A"]
-    assert c03[0]["position_from_bridge_m"] == 0.1390
-    assert c03[1]["strings"] == ["D", "G"]
-    assert c03[1]["position_from_bridge_m"] == 0.1110
+    # 04 Modern P ceramic should have 2 split coils with specific string bindings
+    c04 = resolve_voice_coils(VOICES["04_modern_p_ceramic"])
+    assert len(c04) == 2
+    assert c04[0]["strings"] == ["E", "A"]
+    assert c04[0]["position_from_bridge_m"] == 0.1390
+    assert c04[1]["strings"] == ["D", "G"]
+    assert c04[1]["position_from_bridge_m"] == 0.1110
 
-    # 06 PJ hybrid should have 3 coils (split P + J bridge)
-    c06 = resolve_voice_coils(VOICES["06_pj_hybrid_parallel"])
-    assert len(c06) == 3
-    assert c06[0]["strings"] == ["E", "A"]
-    assert c06[1]["strings"] == ["D", "G"]
-    assert c06[2]["strings"] == ["all"]
+    # 07 Modern PJ active should have 3 coils (split P + J bridge)
+    c07 = resolve_voice_coils(VOICES["07_modern_pj_active"])
+    assert len(c07) == 3
+    assert c07[0]["strings"] == ["E", "A"]
+    assert c07[1]["strings"] == ["D", "G"]
+    assert c07[2]["strings"] == ["all"]
 
-    # 09 P/MM hybrid should have 4 coils (split P + MM humbucker pair)
-    c09 = resolve_voice_coils(VOICES["09_pmm_hybrid_series"])
-    assert len(c09) == 4
-    assert c09[0]["strings"] == ["E", "A"]
-    assert c09[1]["strings"] == ["D", "G"]
-    assert c09[2]["strings"] == ["all"]
-    assert c09[3]["strings"] == ["all"]
+    # 11 P/MM hybrid should have 4 coils (split P + MM humbucker pair)
+    c11 = resolve_voice_coils(VOICES["11_pmm_hybrid_series"])
+    assert len(c11) == 4
+    assert c11[0]["strings"] == ["E", "A"]
+    assert c11[1]["strings"] == ["D", "G"]
+    assert c11[2]["strings"] == ["all"]
+    assert c11[3]["strings"] == ["all"]
 
     # Check effective positions are calculated correctly
     eff01 = compute_effective_position(c01)
@@ -161,23 +178,23 @@ def test_scales_structure():
 def test_resolve_voices():
     from scripts.model_physics import resolve_voices
 
-    # "all" should return all 12 voices
+    # "all" should return all 14 voices
     all_voices = resolve_voices("all")
-    assert len(all_voices) == 12
+    assert len(all_voices) == 14
     assert all_voices == list(VOICES.keys())
 
     # Single voice
-    single = resolve_voices("03_modern_p_ceramic")
-    assert single == ["03_modern_p_ceramic"]
+    single = resolve_voices("04_modern_p_ceramic")
+    assert single == ["04_modern_p_ceramic"]
 
     # Upright voice
-    upright = resolve_voices("12")
-    assert upright == ["12_upright_bridge_transducer"]
+    upright = resolve_voices("14")
+    assert upright == ["14_upright_bridge_transducer"]
 
     # Comma-separated voices
-    multi = resolve_voices("01_jazz_bass_pair, 07_stingray_mm_parallel")
-    assert multi == ["01_jazz_bass_pair", "07_stingray_mm_parallel"]
+    multi = resolve_voices("01_modern_jazz_active, 09_stingray_mm_parallel")
+    assert multi == ["01_modern_jazz_active", "09_stingray_mm_parallel"]
 
     # Prefix shorthand matching
-    shorthand = resolve_voices("01, 04")
-    assert shorthand == ["01_jazz_bass_pair", "04_vintage_62_p_alnico"]
+    shorthand = resolve_voices("01, 05")
+    assert shorthand == ["01_modern_jazz_active", "05_vintage_62_p_alnico"]

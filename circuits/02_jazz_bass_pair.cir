@@ -1,0 +1,43 @@
+* Passivizer Netlist 02: 60s Jazz Bass Pair in Parallel
+* Target: Vintage 60s Dual Single-Coil Pair in Parallel (Aperture Sinc Scoop + 3.9 kHz Peak)
+.options plotwinsize=0 numdgt=7
+
+* 1. Audio Sources: Independent String Motion per Pickup (Channel 0 = Neck, Channel 1 = Bridge)
+V_neck in_neck 0 wavefile="v1_1_1_aperture.wav" chan=0
+V_bridge in_bridge 0 wavefile="v1_1_1_aperture.wav" chan=1
+
+* 2. Dynamic Magnetic Core & String Excursion Saturation (Soft-Knee Compliance)
+B_comp_n in_dyn_n 0 V=0.55 * tanh(V(in_neck) / 0.55)
+B_comp_b in_dyn_b 0 V=0.55 * tanh(V(in_bridge) / 0.55)
+
+* 3. Pickup Coils: Dual Parallel Pickup Branches (J-Neck || J-Bridge in 60s Spacing)
+* --- Branch 1: Vintage Neck Single-Coil (3.2H, 7.2k, 70pF, 135k eddy) ---
+L_neck in_dyn_n node1_n 3.20
+R_dc_n node1_n node2 7.20k
+R_eddy_n in_dyn_n node2 135k
+C_coil_n node2 0 70p
+
+* --- Branch 2: Vintage Bridge Single-Coil (3.6H, 7.8k, 70pF, 125k eddy) ---
+L_bridge in_dyn_b node1_b 3.60
+R_dc_b node1_b node2 7.80k
+R_eddy_b in_dyn_b node2 125k
+C_coil_b node2 0 70p
+
+* 4. Tone Pot (100% Wide Open: 250k series resistance with 47nF capacitor)
+R_tone node2 tone_mid 250k
+C_tone tone_mid 0 47n
+
+* 5. Dual 250k Volume Pots in Parallel (Volume @ 100%: 250k || 250k = 125k)
+R_pot_top node2 node3 10
+R_pot_bot node3 0 125k
+
+* 6. Instrument Cable Load (15-ft cable ~750pF)
+C_cable node3 0 750p
+
+* 7. Darkglass Anagram Input Stage (1 M-Ohm || 30pF)
+R_anagram node3 0 1Meg
+C_anagram node3 0 30p
+
+* 8. Output Audio Export for NAM Training
+.wave "out_02_jazz_bass_pair.wav" 24 48000 V(node3)
+.end

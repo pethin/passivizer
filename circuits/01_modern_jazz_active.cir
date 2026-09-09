@@ -1,5 +1,5 @@
-* Passivizer Netlist 01: Jazz Bass Pair in Parallel
-* Target: Dual Single-Coil Pair in Parallel (Aperture Sinc Scoop + 3.9 kHz Peak)
+* Passivizer Netlist 01: Modern Active Jazz Bass Pair
+* Target: Dual Single-Coil Pair in 60s Spacing with Active 2-Band Preamp Buffer (Sadowsky Style)
 .options plotwinsize=0 numdgt=7
 
 * 1. Audio Sources: Independent String Motion per Pickup (Channel 0 = Neck, Channel 1 = Bridge)
@@ -10,7 +10,7 @@ V_bridge in_bridge 0 wavefile="v1_1_1_aperture.wav" chan=1
 B_comp_n in_dyn_n 0 V=0.55 * tanh(V(in_neck) / 0.55)
 B_comp_b in_dyn_b 0 V=0.55 * tanh(V(in_bridge) / 0.55)
 
-* 3. Pickup Coils: Dual Parallel Pickup Branches (J-Neck || J-Bridge)
+* 3. Pickup Coils: Dual Parallel Pickup Branches in 60s Spacing
 * --- Branch 1: Bartolini 9CBJS1 Neck Single-Coil (3.2H, 7.2k, 70pF, 135k eddy) ---
 L_neck in_dyn_n node1_n 3.20
 R_dc_n node1_n node2 7.20k
@@ -23,25 +23,23 @@ R_dc_b node1_b node2 7.80k
 R_eddy_b in_dyn_b node2 125k
 C_coil_b node2 0 70p
 
-* 3. 500k Volume Pot (Volume @ 100%)
-R_pot_top node2 node3 10
-R_pot_bot node3 0 500k
+* 4. Active Preamp Input Stage (High-Z Input Buffer, Zero Cable Drag on Coils)
+R_preamp_in node2 0 1Meg
+C_preamp_in node2 0 25p
 
-* 4. Hybrid Treble Bleed (Lug 3 to Lug 2)
-C_tb node2 tb_mid 1.0n
-R_tb_par node2 tb_mid 150k
-R_tb_ser tb_mid node3 20k
+* 5. Active Preamp Buffer Stage (Sadowsky 2-Band Active Contour)
+* Direct low-Z op-amp output buffer isolating coils from cable capacitance
+E_preamp node_buf 0 node2 0 1.0
+R_out node_buf node3 100
+* Preamp voicing: sadowsky_2band (+3.5 dB @ 40 Hz, +3.5 dB @ 4 kHz)
 
-* 5. Instrument Cable Load (15-ft cable ~750pF)
+* 6. Instrument Cable Load (15-ft cable ~750pF)
 C_cable node3 0 750p
 
-* 6. Darkglass Anagram Input Stage (1 M-Ohm || 30pF)
+* 7. Darkglass Anagram Input Stage (1 M-Ohm || 30pF)
 R_anagram node3 0 1Meg
 C_anagram node3 0 30p
 
-* 7. Transient Execution (48 kHz sample interval)
-.tran 0 190 0 20.833333333333333u
-
 * 8. Output Audio Export for NAM Training
-.wave "out_01_jazz_bass_pair.wav" 24 48000 V(node3)
+.wave "out_01_modern_jazz_active.wav" 24 48000 V(node3)
 .end

@@ -70,7 +70,7 @@ def test_split_coil_string_differentiation():
 def test_3coil_pmm_compound_response():
     """Verify that 3-coil P/MM blend evaluates 3 distinct physical coil positions."""
     inst = load_instrument("32in_custom_pmm")
-    blend = get_source_pickup(inst, "09_pmm_hybrid_series") # routes to blend_parallel
+    blend = get_source_pickup(inst, "11_pmm_hybrid_series") # routes to blend_parallel
     coils = resolve_pickup_coils(blend, inst)
 
     # Should have 4 coil records (PX D/G, PX E/A, MMTWX neck, MMTWX bridge)

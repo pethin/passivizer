@@ -1,0 +1,33 @@
+* Passivizer Netlist 06: Split-Coil P (47nF Tone Rolloff)
+* Target: Vintage P-Bass with Tone Pot Rolled to 0 (47nF Direct Shunt Loading, 450 Hz Peak)
+.options plotwinsize=0 numdgt=7
+
+* 1. Audio Source (Pre-filtered NAM Training Track)
+V_in in 0 wavefile="v1_1_1_aperture.wav"
+
+* 2. Dynamic Magnetic Core & String Excursion Saturation (Soft-Knee Compliance)
+B_comp in_dyn 0 V=0.45 * tanh(V(in) / 0.45)
+
+* 3. Pickup Coils (Split-Coil P with Tone Shunted)
+L_coil in_dyn node1 4.8
+R_dc node1 node2 9.5k
+R_eddy in_dyn node2 110k
+C_coil node2 0 80p
+
+* 4. Tone Pot Rolled Off (0 Ohm resistance, direct 47nF shunted to ground)
+C_tone node2 0 47n
+
+* 5. 250k Volume Pot (Volume @ 100%)
+R_pot_top node2 node3 10
+R_pot_bot node3 0 250k
+
+* 6. Instrument Cable Load (15-ft cable ~750pF)
+C_cable node3 0 750p
+
+* 7. Darkglass Anagram Input Stage (1 M-Ohm || 30pF)
+R_anagram node3 0 1Meg
+C_anagram node3 0 30p
+
+* 8. Output Audio Export for NAM Training
+.wave "out_06_p_bass_47nf_rolloff.wav" 24 48000 V(node3)
+.end

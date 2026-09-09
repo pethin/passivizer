@@ -1,4 +1,4 @@
-* Passivizer Netlist 12: Upright Acoustic Bridge Transducer
+* Passivizer Netlist 14: Upright Acoustic Bridge Transducer
 * Target: Direct bridge force sensor (Underwood / David Gage Realist style)
 * Captures dynamic bridge rocking compliance, piezo source capacitance, and subsonic decoupling
 .options plotwinsize=0 numdgt=7
@@ -40,5 +40,5 @@ C_anagram node3 0 30p
 .tran 0 190 0 20.833333333333333u
 
 * 10. Output Audio Export for NAM Training
-.wave "out_12_upright_bridge_transducer.wav" 24 48000 V(node3)
+.wave "out_14_upright_bridge_transducer.wav" 24 48000 V(node3)
 .end

@@ -1,0 +1,37 @@
+* Passivizer Netlist 10: Rickenbacker 4003 Bridge (4.7nF HPF)
+* Target: High-Output Single-Coil with Vintage 4.7nF Series HPF & Factory 330k V/T Harness
+.options plotwinsize=0 numdgt=7
+
+* 1. Audio Source (Pre-filtered NAM Training Track)
+V_in in 0 wavefile="v1_1_1_aperture.wav"
+
+* 2. Dynamic Magnetic Core & String Excursion Saturation (Soft-Knee Compliance)
+B_comp in_dyn 0 V=0.50 * tanh(V(in) / 0.50)
+
+* 3. Pickup Coils (Rickenbacker High-Output Bridge Coil)
+L_coil in_dyn node1 3.8
+R_dc node1 node2 8.4k
+R_eddy in_dyn node2 140k
+C_coil node2 0 90p
+
+* 4. Rickenbacker Vintage High-Pass Series Capacitor (Cuts sub-mud below 150Hz)
+C_rick node2 node_hpf 4.7n
+
+* 5. Factory Rickenbacker Tone Pot (330k with 47nF Capacitor)
+R_tone node_hpf tone_mid 330k
+C_tone tone_mid 0 47n
+
+* 6. Factory Rickenbacker 330k Volume Pot (Volume @ 100%)
+R_pot_top node_hpf node3 10
+R_pot_bot node3 0 330k
+
+* 7. Instrument Cable Load (15-ft cable ~750pF)
+C_cable node3 0 750p
+
+* 8. Darkglass Anagram Input Stage (1 M-Ohm || 30pF)
+R_anagram node3 0 1Meg
+C_anagram node3 0 30p
+
+* 9. Output Audio Export for NAM Training
+.wave "out_10_rickenbacker_bridge_hpf.wav" 24 48000 V(node3)
+.end

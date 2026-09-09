@@ -1,5 +1,5 @@
-* Passivizer Netlist 09: P/MM Hybrid (Series Sum)
-* Target: Split-P + MM Dual-Coil in Series (7.2H Inductive Sum, 2.0 kHz Peak)
+* Passivizer Netlist 11: P/MM Hybrid (Series Sum)
+* Target: Split-P + MM Dual-Coil in Series (7.2H Inductive Sum, 500k V/T Harness, 2.0 kHz Peak)
 .options plotwinsize=0 numdgt=7
 
 * 1. Audio Sources: Independent String Motion per Pickup (Channel 0 = P-Neck, Channel 1 = MM-Bridge)
@@ -23,25 +23,21 @@ R_dc_b node1_b node2 4.60k
 R_eddy_b in_dyn_b node2 85k
 C_coil_b node2 node_mid 90p
 
-* 3. 500k Volume Pot (Volume @ 100%)
+* 4. Tone Pot (500k Audio with 47nF Capacitor)
+R_tone node2 tone_mid 500k
+C_tone tone_mid 0 47n
+
+* 5. 500k Volume Pot (Volume @ 100%)
 R_pot_top node2 node3 10
 R_pot_bot node3 0 500k
 
-* 4. Hybrid Treble Bleed (Lug 3 to Lug 2)
-C_tb node2 tb_mid 1.0n
-R_tb_par node2 tb_mid 150k
-R_tb_ser tb_mid node3 20k
-
-* 5. Instrument Cable Load (15-ft cable ~750pF)
+* 6. Instrument Cable Load (15-ft cable ~750pF)
 C_cable node3 0 750p
 
-* 6. Darkglass Anagram Input Stage (1 M-Ohm || 30pF)
+* 7. Darkglass Anagram Input Stage (1 M-Ohm || 30pF)
 R_anagram node3 0 1Meg
 C_anagram node3 0 30p
 
-* 7. Transient Execution (48 kHz sample interval)
-.tran 0 190 0 20.833333333333333u
-
 * 8. Output Audio Export for NAM Training
-.wave "out_09_pmm_hybrid_series.wav" 24 48000 V(node3)
+.wave "out_11_pmm_hybrid_series.wav" 24 48000 V(node3)
 .end

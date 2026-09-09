@@ -46,7 +46,8 @@ While an Impulse Response (IR) or FIR filter can reproduce a static frequency cu
 
 ## The Ideal Source Instrument: Single-Pickup Architecture (34" Scale)
 
-While Passivizer supports multi-pickup and active-blend source instruments, the **optimal hardware platform** for driving all 12 digital twin voicings is a **single-pickup, zero-control bass**.
+While Passivizer supports multi-pickup and active-blend source instruments, the **optimal hardware platform** for driving all 14 digital twin voicings is a **single-pickup, zero-control bass**.
+By installing a single active EMG pickup wired straight to the output jack, you establish an uncompromising reference baseline:
 
 ```
 [12th Fret] ◄────────────── 338.3 mm ──────────────► [Pickup Center] ◄──── 93.5 mm ────► [Bridge Saddle]
@@ -126,24 +127,26 @@ Passivizer converts the lower tension and warm low-mid "bloom" of **30" short-sc
 
 ---
 
-## Target Voice Catalog (12 Master Passive Configurations & Acoustic Transducers)
+## Target Voice Catalog (14 Master Configurations & Acoustic Transducers)
 
-Passivizer includes pre-configured physical and electrical parameters for **12 distinct pickup topologies and transducers** including fanned-fret multi-scale and upright double bass (see [`docs/voice_catalog.md`](file:///Users/peter/Projects/pethin/passivizer/docs/voice_catalog.md) for full engineering specifications):
+Passivizer includes pre-configured physical and electrical parameters for **14 distinct pickup topologies and transducers** including active 2-band preamps, fanned-fret multi-scale, and upright double bass (see [`docs/voice_catalog.md`](file:///Users/peter/Projects/pethin/passivizer/docs/voice_catalog.md) for full engineering specifications):
 
-| # | Profile ID | Pickup Type | Topology | $L_{\text{eq}}$ | $f_r$ (Peak) | Circuit & Acoustic Character |
-| :- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **01** | `01_jazz_bass_pair` | J-Bass Pair | Dual Parallel | $1.69\text{ H}$ | $3.9\text{ kHz}$ | Dual narrow single-coils in parallel; 60s/modern $92.1\text{ mm}$ ($3\frac{5}{8}''$) aperture scoop with top sparkle. |
-| **02** | `02_jazz_bridge_60s` | J-Bass Bridge | Single Coil | $3.60\text{ H}$ | $3.2\text{ kHz}$ | 60s bridge single-coil ($63.5\text{ mm}$ datum); focused $1.2\text{ kHz}$ harmonic bite with balanced low end. |
-| **03** | `03_modern_p_ceramic` | Split P-Bass | Single Split | $4.80\text{ H}$ | $2.2\text{ kHz}$ | Modern ceramic split-coil (Bartolini 8CBP style); high-inductance punch and fast pick transient attack. |
-| **04** | `04_vintage_62_p_alnico` | Split P-Bass | Single Split | $3.80\text{ H}$ | $2.8\text{ kHz}$ | Classic Alnico V split-coil; lower eddy-current damping, open and dynamic woody resonance. |
-| **05** | `05_p_bass_47nf_rolloff` | Split P-Bass | Split w/ 47nF | $4.80\text{ H}$ | $0.45\text{ kHz}$| Split-coil with passive tone rolled to 0; deep, fundamental-heavy pillowy sub-bass. |
-| **06** | `06_pj_hybrid_parallel` | P + J Hybrid | Parallel Sum | $2.06\text{ H}$ | $3.6\text{ kHz}$ | Split P-neck and single-coil J-bridge summed in parallel; balanced low thump with bridge snap. |
-| **07** | `07_stingray_mm_parallel` | MM Humbucker | Dual Parallel | $2.40\text{ H}$ | $3.5\text{ kHz}$ | Music Man dual-coil humbucker in parallel; $0.75''$ spacing comb filter with prominent $3.5\text{ kHz}$ clank. |
-| **08** | `08_rickenbacker_bridge_hpf` | High-Pass Bridge | Series HPF | $3.80\text{ H}$ | $2.2\text{ kHz}$ | High-output bridge coil with vintage $4.7\text{ nF}$ series capacitor; tight high-pass cut below $150\text{ Hz}$. |
-| **09** | `09_pmm_hybrid_series` | P + MM Hybrid | Series Sum | $7.20\text{ H}$ | $2.0\text{ kHz}$ | Split P and MM humbucker wired in series; massive $+5.8\text{ dB}$ inductive boost with $2.0\text{ kHz}$ focus. |
-| **10** | `10_mudbucker_ultra_series` | Heavy Series MM | Ultra Series | $14.40\text{ H}$| $1.2\text{ kHz}$ | Overwound dual-coil series humbucker; subterranean low end with natural high-frequency rolloff. |
-| **11** | `11_dingwall_multiscale_bridge` | Multi-Scale MM | Angled Parallel | $2.30\text{ H}$| $3.4\text{ kHz}$ | 34"-37" fanned-fret angled bridge sweet spot ($48.0\text{ mm}$) with high-tension wave-speed clank filter. |
-| **12** | `12_upright_bridge_transducer` | Upright Transducer | Bridge Force | $1\ \mu\text{H}$ / Piezo | $4.5\text{ kHz}$ | Direct bridge force sensor (Underwood / Realist style); leaky integration, 32 Hz rumble cut, and soft-knee bridge compliance. |
+| # | Profile ID | Pickup Type | Topology | Harness / Controls | $L_{\text{eq}}$ | $f_r$ (Peak) | Circuit & Acoustic Character |
+| :- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **01** | `01_modern_jazz_active` | Modern Active Jazz | Active 2-Band | Sadowsky 2-Band ($R_{\text{in}}=1\text{M}\Omega, R_{\text{out}}=100\,\Omega$) | $1.69\text{ H}$ (isolated) | $7.8\text{ kHz}$ | Isolated 60s J-pair with Sadowsky active 2-band boost; wideband sparkle with $+4\text{ dB}$ bass/treble. |
+| **02** | `02_jazz_bass_pair` | Vintage 60s J-Bass Pair | Dual Parallel | Vintage $2\times 250\text{k}\Omega$ Vol ($125\text{k}\Omega$ net), $250\text{k}\Omega$ Tone, $47\text{nF}$ | $1.69\text{ H}$ | $2.7\text{ kHz}$ | Dual narrow single-coils in parallel; 60s $92.1\text{ mm}$ ($3\frac{5}{8}''$) aperture scoop with woody resonance. |
+| **03** | `03_jazz_bridge_60s` | 60s J-Bass Bridge | Single Coil | Vintage $250\text{k}\Omega$ Vol, $250\text{k}\Omega$ Tone, $47\text{nF}$ | $3.60\text{ H}$ | $2.8\text{ kHz}$ | 60s bridge single-coil ($63.5\text{ mm}$ datum); focused midrange bite, authentic Jaco growl. |
+| **04** | `04_modern_p_ceramic` | Modern Split P | Single Split | Boutique $500\text{k}\Omega$ Vol/Tone, $22\text{nF}$ Cap, Treble Bleed | $4.80\text{ H}$ | $2.4\text{ kHz}$ | Modern ceramic split-coil (Bartolini 8CBP); punchy attack with extended clarity from 500k harness. |
+| **05** | `05_vintage_62_p_alnico` | Vintage '62 P | Single Split | Vintage CTS $250\text{k}\Omega$ Vol/Tone, $47\text{nF}$ PIO Cap | $3.80\text{ H}$ | $2.6\text{ kHz}$ | Classic Alnico V split-coil; lower eddy damping, open dynamic sensitivity and woody bloom. |
+| **06** | `06_p_bass_47nf_rolloff` | Split P w/ 47nF | Split w/ Shunt | Vintage $250\text{k}\Omega$ Vol + Direct $47\text{nF}$ Tone Shunt Rolloff | $4.80\text{ H}$ | $0.45\text{ kHz}$| Split-coil with tone rolled to 0; deep, fundamental-heavy pillowy Motown sub-bass. |
+| **07** | `07_modern_pj_active` | Modern Active P/J | Active 2-Band | Sadowsky/Spector 2-Band ($R_{\text{in}}=1\text{M}\Omega, R_{\text{out}}=100\,\Omega$) | $2.06\text{ H}$ (isolated) | $7.6\text{ kHz}$ | Active 2-band boost with isolated ceramic P/J coils; punchy sub-bass fundamental, wideband sparkle, and aggressive clank. |
+| **08** | `08_vintage_pj_passive` | Vintage '80s Passive P/J | Parallel Sum | Dual $250\text{k}\Omega$ Vol ($125\text{k}\Omega$ net), $250\text{k}\Omega$ Tone, $47\text{nF}$ | $1.85\text{ H}$ | $2.8\text{ kHz}$ | Vintage Alnico V split-P and 60s J-bridge in parallel; authentic '80s Fender Special / Yamaha BB thump with woody mid-punch. |
+| **09** | `09_stingray_mm_parallel` | Music Man StingRay | Active MM Buffer | Music Man 2-Band ($R_{\text{in}}=1\text{M}\Omega, R_{\text{out}}=100\,\Omega$) | $2.40\text{ H}$ (isolated) | $7.2\text{ kHz}$ | Authentic active 2-band MM humbucker; cable isolation, comb notch at $2.5\text{ kHz}$, metallic clank. |
+| **10** | `10_rickenbacker_bridge_hpf` | High-Pass Bridge | Series HPF | Factory Rickenbacker $330\text{k}\Omega$ Vol/Tone, $4.7\text{nF}$ Series Cap | $3.80\text{ H}$ | $2.2\text{ kHz}$ | High-output bridge coil with vintage $4.7\text{ nF}$ series capacitor; tight high-pass cut below $150\text{ Hz}$. |
+| **11** | `11_pmm_hybrid_series` | P + MM Hybrid | Series Sum | Modern $500\text{k}\Omega$ Vol/Tone, $47\text{nF}$ Cap | $7.20\text{ H}$ | $1.6\text{ kHz}$ | Split P and MM humbucker wired in series; $+5.8\text{ dB}$ inductive boost with $1.6\text{ kHz}$ punch. |
+| **12** | `12_mudbucker_ultra_series` | Heavy Series MM | Ultra Series | Gibson $500\text{k}\Omega$ Vol/Tone, $22\text{nF}$ Cap | $14.40\text{ H}$| $1.2\text{ kHz}$ | Overwound dual-coil series humbucker; subterranean low end with natural high-frequency rolloff. |
+| **13** | `13_dingwall_multiscale_bridge` | Multi-Scale MM | Angled Parallel | Dingwall $500\text{k}\Omega$ Vol/Tone, $47\text{nF}$ Cap | $2.30\text{ H}$| $3.4\text{ kHz}$ | 34"-37" fanned-fret angled bridge sweet spot ($48.0\text{ mm}$) with high-tension wave-speed clank filter. |
+| **14** | `14_upright_bridge_transducer` | Upright Transducer | Bridge Force | Direct $100\text{ M}\Omega$ Buffer, $15\text{ nF}$ Subsonic Cap | — | $4.5\text{ kHz}$ | Direct bridge force sensor (Underwood / Realist style); leaky integration, 32 Hz rumble cut, bridge compliance. |
 
 ---
 
@@ -152,7 +155,7 @@ Passivizer includes pre-configured physical and electrical parameters for **12 d
 Passivizer models acoustic aperture and scale tension in Python, executes the passive circuit digital twin directly using its native WAV SPICE simulator, and trains lightweight NAM (`.nam`) neural captures for Block 1 of the Darkglass Anagram:
 
 ### 1. Interactive Acoustic & Electrical Visualizer (`scripts/analyze_voices.py`)
-Renders interactive frequency response curves in Altair (Vega-Lite), comparing all 12 target configurations against any source instrument. Outputs are organized into per-instrument standalone charts and a unified interactive portal:
+Renders interactive frequency response curves in Altair (Vega-Lite), comparing all 14 target configurations against any source instrument. Outputs are organized into per-instrument standalone charts and a unified interactive portal:
 
 ```bash
 # Generate interactive charts for all configured source instruments and refresh master portal:
@@ -168,19 +171,19 @@ uv run python scripts/analyze_voices.py --instrument 30in
 Directly streams raw NAM calibration audio (`v1_1_1.wav`) through the entire physical digital twin in a single in-memory pass:
 1. **Acoustic Aperture & Placement:** De-humbucking sinc aperture filtering, spatial standing-wave comb filtering, displacement tilt ($\Delta x$), and string tension filtering.
 2. **Dynamic Non-Linear Compliance:** Soft-knee saturation ($V_{\text{sat}} \cdot \tanh(v / V_{\text{sat}})$).
-3. **Passive Pickup Circuit Twin:** Exact closed-form nodal AC transfer functions, eddy-current damping, 500k volume pot divider, hybrid treble bleed, cable capacitance ($750\text{ pF}$), and pedalboard load ($1\text{ M}\Omega \parallel 30\text{ pF}$).
+3. **Passive Pickup Circuit Twin:** Exact closed-form nodal AC transfer functions, eddy-current damping, authentic volume/tone pot dividers, active preamp buffers, hybrid treble bleed, cable capacitance ($750\text{ pF}$), and pedalboard load ($1\text{ M}\Omega \parallel 30\text{ pF}$).
 
 Passivizer features a built-in **WAV SPICE simulator** running natively on Apple Silicon (`arm64`). By evaluating exact analytical nodal equations and vector non-linearities directly in memory on the audio waveform, it eliminates external SPICE dependencies (such as LTspice or ngspice) and intermediate disk writes, executing in ~0.8s per voice (>1500x faster than traditional transient SPICE engines):
 
 ```bash
 # Run unified WAV SPICE simulation from raw audio for a specific voice (~0.8s):
-uv run python scripts/simulate_circuits.py --voice 03_modern_p_ceramic --instrument 30in
+uv run python scripts/simulate_circuits.py --voice 04_modern_p_ceramic --instrument 30in
 
-# Simulate all 12 voices:
+# Simulate all 14 voices:
 uv run python scripts/simulate_circuits.py --voice all --instrument 30in
 
 # Run via master pipeline:
-uv run python main.py --stage sim --voice 03_modern_p_ceramic
+uv run python main.py --stage sim --voice 04_modern_p_ceramic
 ```
 
 *(Note: `scripts/prep_nam_audio.py` is retained for users who wish to inspect or export intermediate standalone aperture audio `audio/<instrument>/aperture_<voice>.wav`).*
@@ -191,14 +194,14 @@ Trains a high-efficiency **NAM Architecture 2 (A2)** neural model on the input/o
 ```bash
 # Train NAM Architecture 2 (A2) model for Darkglass Anagram Block 1:
 # The input is the raw bass calibration sweep (v1_1_1.wav) and the target is the simulated output:
-nam train v1_1_1.wav audio/30in_emg_mmtw/out_03_modern_p_ceramic.wav ./models/30in_emg_mmtw/03_modern_p_ceramic.nam --architecture "A2"
+nam train v1_1_1.wav audio/30in_emg_mmtw/out_04_modern_p_ceramic.wav ./models/30in_emg_mmtw/04_modern_p_ceramic.nam --architecture "A2"
 
 # Run via the automated Passivizer trainer (defaults to studio reference goal ESR <= 0.0005 with 100 max epochs):
-uv run python main.py --stage train --instrument 30in --voice 03_modern_p_ceramic
+uv run python main.py --stage train --instrument 30in --voice 04_modern_p_ceramic
 
 # Customize goal ESR or disable early stopping:
-uv run python main.py --stage train --instrument 30in --voice 03_modern_p_ceramic --goal-esr 0.0002
-uv run python main.py --stage train --instrument 30in --voice 03_modern_p_ceramic --no-goal-esr --epochs 100
+uv run python main.py --stage train --instrument 30in --voice 04_modern_p_ceramic --goal-esr 0.0002
+uv run python main.py --stage train --instrument 30in --voice 04_modern_p_ceramic --no-goal-esr --epochs 100
 ```
 *(In modern versions of `neural-amp-modeler` and the official Google Colab trainer, `--architecture A2` is the default. Passivizer enables goal-driven early stopping by default (`--goal-esr 0.0005`, $\approx -33\text{ dB}$ ESR), halting training as soon as transparent studio reference fidelity is reached).*
 
@@ -281,7 +284,7 @@ passivizer/
 │   ├── prep_nam_audio.py                  # Aperture & scale tension pre-filtering for NAM
 │   ├── simulate_circuits.py               # Native Apple Silicon WAV SPICE circuit engine
 │   └── run_pipeline.py                    # Master end-to-end automated runner
-├── tests/                                 # Pytest test suite (47 tests)
+├── tests/                                 # Pytest test suite (75 tests)
 └── models/                                # Exported .nam neural models
 ```
 
@@ -292,15 +295,15 @@ passivizer/
 ### Completed Milestones
 - [x] **Electro-Acoustic Physical Modeling:** Magnetic aperture sinc filtering, spatial comb nulls, scale-length wave-speed scaling ($30''/32'' \to 34''/37''$), and differential string tension modeling.
 - [x] **Native WAV SPICE Simulator:** High-performance Apple Silicon engine (`scripts/simulate_circuits.py`) solving analytical nodal RLC equations and $\tanh$ soft-knee saturation directly on audio at >1500x speed.
-- [x] **12 Passive Voice Profiles & Transducers:** Single-coil, split-coil, series/parallel dual-coils, fanned multi-scale, and double-bass bridge piezo force transducers.
+- [x] **14 Voice Profiles & Transducers:** Modern active 2-band Jazz, vintage single-coil, split-coil, series/parallel dual-coils, active Music Man, fanned multi-scale, and double-bass bridge piezo force transducers.
 - [x] **Interactive Visualization Portal:** Polars + Altair frequency response portal with spec sheets and per-instrument interactive charts (`docs/frequency_responses.html`).
 - [x] **Automated NAM Training Pipeline:** End-to-end Architecture 2 (A2) neural model training targeting Darkglass Anagram Block 1.
-- [x] **Automated Test Suite:** Comprehensive 47-test pytest verification covering physical filters, nodal transfer functions, FIR DSP, and audio simulation.
+- [x] **Automated Test Suite:** Comprehensive 75-test pytest verification covering physical filters, nodal transfer functions, FIR DSP, and audio simulation.
 
 ### Upcoming Objectives
 - [ ] **Hardware Reference Calibration:** Dry-DI spectral matching and A/B verification against physical vintage instruments (1962 P-Bass, 1975 Jazz Bass, 1979 StingRay).
 - [ ] **In-Browser Audio Player:** Interactive audio preview player embedded directly into the Altair documentation portal.
-- [ ] **Anagram Marketplace Native Block:** Develop a dedicated, all-in-one "Passivizer" custom block for the Darkglass Anagram Marketplace (`marketplace.anagram.shop`), featuring rotary voice switching across all 12 pickup configurations, automatic gain normalization, and interactive volume/cable load controls in a single native Block 1 module.
+- [ ] **Anagram Marketplace Native Block:** Develop a dedicated, all-in-one "Passivizer" custom block for the Darkglass Anagram Marketplace (`marketplace.anagram.shop`), featuring rotary voice switching across all 14 pickup configurations, automatic gain normalization, and interactive volume/cable load controls in a single native Block 1 module.
 
 ---
 

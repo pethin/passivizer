@@ -88,6 +88,54 @@
       color: #ffffff;
       box-shadow: 0 0 10px rgba(31, 111, 235, 0.4);
     }
+    .view-mode-bar {
+      margin-bottom: 16px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      background-color: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 16px;
+    }
+    .mode-toggle-group {
+      display: inline-flex;
+      background-color: var(--tag-bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 3px;
+      gap: 4px;
+    }
+    .mode-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      padding: 6px 14px;
+      border-radius: 4px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.15s ease;
+    }
+    .mode-btn:hover {
+      color: var(--text);
+      background-color: rgba(255, 255, 255, 0.05);
+    }
+    .mode-btn.active {
+      background-color: var(--btn-active);
+      color: #ffffff;
+      box-shadow: 0 0 8px rgba(31, 111, 235, 0.4);
+    }
+    .mode-hint {
+      font-size: 12px;
+      color: var(--text-muted);
+      font-style: italic;
+    }
     .meta-panel {
       background-color: var(--card-bg);
       border: 1px solid var(--border);
@@ -95,7 +143,7 @@
       padding: 16px 20px;
       margin-bottom: 20px;
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)) auto;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)) auto;
       gap: 16px;
       align-items: center;
     }
@@ -166,6 +214,22 @@
     <button class="tab-btn" data-id="34in_standard_p" onclick="selectInstrument('34in_standard_p')"><span>34" Standard P-Bass</span></button>
     </div>
 
+    <div class="view-mode-bar">
+      <div class="mode-toggle-group" role="tablist" aria-label="Response Mode">
+        <button class="mode-btn active" id="mode-btn-diff" onclick="selectMode('difference')" role="tab" aria-selected="true">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5"></path></svg>
+          <span>Input / Output Difference (&Delta;)</span>
+        </button>
+        <button class="mode-btn" id="mode-btn-output" onclick="selectMode('output')" role="tab" aria-selected="false">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>
+          <span>Output Voice (Target Profiles)</span>
+        </button>
+      </div>
+      <div class="mode-hint" id="mode-hint">
+        Displaying regularized differential transfer function (H_target / H_source) applied to transform 30" Short Scale MM (EMG MMTW) into each voice.
+      </div>
+    </div>
+
     <div class="meta-panel">
       <div class="meta-item">
         <div class="label">Source Instrument</div>
@@ -179,15 +243,19 @@
         <div class="label">Pickup Complement & Placement</div>
         <div class="value" id="meta-pickups">EMG MMTW Dual-Coil (Centerline) (@ 77.5mm) | EMG MMTW Single-Coil (Bridge Coil) (@ 66.1mm)</div>
       </div>
+      <div class="meta-item">
+        <div class="label">Response View</div>
+        <div class="value" id="meta-view-mode">Input / Output Difference (&Delta; Filter)</div>
+      </div>
       <div>
-        <a id="standalone-link" class="open-standalone-btn" href="./30in_emg_mmtw.html" target="_blank">
+        <a id="standalone-link" class="open-standalone-btn" href="./30in_emg_mmtw_diff.html" target="_blank">
           Open Standalone Chart ↗
         </a>
       </div>
     </div>
 
     <div class="chart-card">
-      <iframe id="chart-frame" src="./30in_emg_mmtw.html" title="Interactive Vega Frequency Response Chart"></iframe>
+      <iframe id="chart-frame" src="./30in_emg_mmtw_diff.html" title="Interactive Vega Frequency Response Chart"></iframe>
     </div>
   </div>
 
@@ -268,38 +336,78 @@
 };
     const baseUrlPrefix = "./";
     let currentId = "30in_emg_mmtw";
+    let currentMode = "difference";
 
-    function selectInstrument(id) {
-      if (!instruments[id]) return;
-      currentId = id;
-      const inst = instruments[id];
+    function getChartUrl(id, mode) {
+      const modeSuffix = (mode === 'difference' || mode === 'diff') ? '_diff.html' : '_output.html';
+      return `${baseUrlPrefix}${id}${modeSuffix}`;
+    }
+
+    function updateView() {
+      const inst = instruments[currentId];
+      if (!inst) return;
 
       // Update tab active classes
       document.querySelectorAll('.tab-btn').forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.id === id);
+        btn.classList.toggle('active', btn.dataset.id === currentId);
       });
 
-      // Update metadata panel
+      // Update mode toggle buttons
+      const isDiff = (currentMode === 'difference' || currentMode === 'diff');
+      document.getElementById('mode-btn-diff').classList.toggle('active', isDiff);
+      document.getElementById('mode-btn-output').classList.toggle('active', !isDiff);
+
+      // Update metadata & hint
+      const hintEl = document.getElementById('mode-hint');
+      const viewStatusEl = document.getElementById('meta-view-mode');
+      if (isDiff) {
+        hintEl.textContent = `Displaying regularized differential transfer function (H_target / H_source) applied to transform ${inst.name} into each voice.`;
+        if (viewStatusEl) viewStatusEl.textContent = 'Input / Output Difference (Δ Filter)';
+      } else {
+        hintEl.textContent = 'Displaying authentic target passive pickup RLC resonance curves, spatial aperture comb filtering, and loaded frequency responses.';
+        if (viewStatusEl) viewStatusEl.textContent = 'Output Voice (Target Profiles)';
+      }
+
       document.getElementById('meta-name').textContent = inst.name;
       document.getElementById('meta-scale').textContent = `${inst.scale_in}" scale (${inst.scale_m} m) | ${inst.speeds_str}`;
       document.getElementById('meta-pickups').textContent = inst.pickups_summary;
 
-      const standaloneUrl = `${baseUrlPrefix}${id}.html`;
-      document.getElementById('standalone-link').href = standaloneUrl;
-      document.getElementById('chart-frame').src = standaloneUrl;
+      const chartUrl = getChartUrl(currentId, currentMode);
+      document.getElementById('standalone-link').href = chartUrl;
+      document.getElementById('chart-frame').src = chartUrl;
 
       if (window.history.replaceState) {
-        window.history.replaceState(null, null, '#' + id);
+        window.history.replaceState(null, null, '#' + currentId + ':' + currentMode);
       }
+    }
+
+    function selectInstrument(id) {
+      if (!instruments[id]) return;
+      currentId = id;
+      updateView();
+    }
+
+    function selectMode(mode) {
+      currentMode = (mode === 'output') ? 'output' : 'difference';
+      updateView();
     }
 
     window.addEventListener('DOMContentLoaded', () => {
       const hash = window.location.hash.replace('#', '');
-      if (hash && instruments[hash]) {
-        selectInstrument(hash);
-      } else {
-        selectInstrument(currentId);
+      if (hash) {
+        const parts = hash.split(':');
+        const hashId = parts[0];
+        const hashMode = parts[1];
+        if (instruments[hashId]) {
+          currentId = hashId;
+        }
+        if (hashMode === 'output') {
+          currentMode = 'output';
+        } else if (hashMode === 'difference' || hashMode === 'diff') {
+          currentMode = 'difference';
+        }
       }
+      updateView();
     });
   </script>
 </body>

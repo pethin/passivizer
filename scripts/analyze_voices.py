@@ -45,6 +45,7 @@ from simulate_circuits import (
     CIRCUITS_DIR,
     parse_netlist,
     compute_circuit_transfer_functions,
+    compute_differential_circuit_transfer_functions,
 )
 
 NUM_POINTS = 600
@@ -53,8 +54,12 @@ F_MAX = 20000.0
 
 log_freqs = [F_MIN * (F_MAX / F_MIN) ** (i / (NUM_POINTS - 1)) for i in range(NUM_POINTS)]
 
-def build_voice_dataframe(voice_id, cfg, instrument="30in", src_scale=None):
-    """Calculates magnitude frequency response in dB for a voice using NumPy vector math and Polars."""
+def build_voice_dataframe(voice_id, cfg, instrument="30in", src_scale=None, mode="difference", include_mode_col=False):
+    """
+    Calculates magnitude frequency response in dB for a voice using NumPy vector math and Polars.
+    mode="output": Absolute acoustic aperture + loaded SPICE circuit frequency response of the target voice.
+    mode="difference": Regularized differential transfer function (H_target / H_source) applied to the source instrument.
+    """
     inst_selector = src_scale if src_scale is not None else instrument
     inst = load_instrument(inst_selector) if not isinstance(inst_selector, dict) else inst_selector
 
@@ -62,24 +67,7 @@ def build_voice_dataframe(voice_id, cfg, instrument="30in", src_scale=None):
     tgt = SCALES[tgt_scale]
     tgt_speeds = tgt["speeds"]
 
-    src_speeds = inst.get("string_wave_speeds")
-    if not src_speeds:
-        l_m = inst.get("scale_length_m", inst.get("scale_length_in", 34.0) * 0.0254)
-        src_speeds = [2.0 * l_m * f0 for f0 in [41.203, 55.0, 73.416, 97.999]]
-
-    src_pickup = get_source_pickup(inst, voice_id)
-    src_coils = resolve_pickup_coils(src_pickup, inst)
-    tgt_coils = resolve_voice_coils(cfg)
-
-    src_pos_eff = compute_effective_position(src_coils)
-    tgt_pos_eff = compute_effective_position(tgt_coils)
-
     freqs = np.asarray(log_freqs, dtype=np.float64)
-
-    src_string = get_instrument_string(inst)
-    tgt_string = get_voice_string(cfg)
-
-    # 1. Target Composite Acoustic + Electrical Pickup Superposition
     pickups = resolve_voice_pickups(cfg)
     cir_rel = cfg.get("circuit", f"circuits/{voice_id}.cir")
     cir_path = REPO_ROOT / cir_rel
@@ -87,120 +75,182 @@ def build_voice_dataframe(voice_id, cfg, instrument="30in", src_scale=None):
         cir_path = CIRCUITS_DIR / f"{voice_id}.cir"
 
     sensor_type = cfg.get("sensor_type", "magnetic")
-    is_identity = (sensor_type != "bridge_force") and is_voice_matching_source(inst, voice_id, cfg)
+    tgt_string = get_voice_string(cfg)
 
-    if cir_path.exists():
-        model = parse_netlist(cir_path)
-        circuit_curves = compute_circuit_transfer_functions(model, freqs)
-    else:
-        # Fallback to idealized 2nd-order biquad approximation
-        fc_hpf = cfg.get("hpf")
-        circuit_curves = []
-        for p in pickups:
-            fr_p = p.get("fr", cfg.get("fr", 3000.0))
-            Q_p = p.get("Q", cfg.get("Q", 1.5))
-            h_el = 1.0 / np.sqrt((1.0 - (freqs / fr_p) ** 2) ** 2 + (1.0 / Q_p ** 2) * (freqs / fr_p) ** 2)
-            if fc_hpf:
-                h_el = h_el * (freqs / np.sqrt(freqs ** 2 + fc_hpf ** 2))
-            circuit_curves.append(h_el)
-
-    h_src_acoustic = numpy_pickup_acoustic_response(freqs, src_coils, src_speeds)
-
-    src_components = src_pickup.get("components", []) if src_pickup.get("type") == "composite" else []
-    use_branch_matching = (len(src_components) == len(pickups) and len(pickups) > 1)
-
-    # 2. Branch Accumulation: Acoustic Transfer * Macro Tilt * Circuit Curve * Weight * Polarity
-    h_tgt_total = np.zeros_like(freqs)
-    for i, (p, c_curve) in enumerate(zip(pickups, circuit_curves)):
-        p_coils = p["coils"]
-        p_weight = p.get("weight", 1.0)
-        p_pol = p.get("polarity", 1.0)
-        tgt_pos_eff = compute_effective_position(p_coils)
-
-        if use_branch_matching:
-            comp_sub_id = src_components[i]["pickup"]
-            comp_sub_p = inst["pickups"][comp_sub_id]
-            b_src_coils = resolve_pickup_coils(comp_sub_p, inst)
-            b_src_pos_eff = compute_effective_position(b_src_coils)
-            b_src_acoustic = numpy_pickup_acoustic_response(freqs, b_src_coils, src_speeds)
+    if mode == "output":
+        # 1. Output Voice: Target acoustic aperture + loaded SPICE circuit + string + body bloom
+        if cir_path.exists():
+            model = parse_netlist(cir_path)
+            circuit_curves = compute_circuit_transfer_functions(model, freqs)
         else:
-            b_src_coils = src_coils
-            b_src_pos_eff = src_pos_eff
-            b_src_acoustic = h_src_acoustic
+            fc_hpf = cfg.get("hpf")
+            circuit_curves = []
+            for p in pickups:
+                fr_p = p.get("fr", cfg.get("fr", 3000.0))
+                Q_p = p.get("Q", cfg.get("Q", 1.5))
+                h_el = 1.0 / np.sqrt((1.0 - (freqs / fr_p) ** 2) ** 2 + (1.0 / Q_p ** 2) * (freqs / fr_p) ** 2)
+                if fc_hpf:
+                    h_el = h_el * (freqs / np.sqrt(freqs ** 2 + fc_hpf ** 2))
+                circuit_curves.append(h_el)
 
-        if sensor_type == "bridge_force":
-            # 1. Band-limited de-combing: active in 100 Hz - 1.8 kHz passband, smoothly tapering
-            # to 1.0 between 1.8 kHz and 3.2 kHz to eliminate high-frequency comb ripples
-            eps = 0.08
-            h_decomb_raw = b_src_acoustic / (b_src_acoustic ** 2 + eps)
-            mid_mask = (freqs >= 100.0) & (freqs <= 1000.0)
-            h_decomb_raw = h_decomb_raw / np.median(h_decomb_raw[mid_mask])
+        h_tgt_total = np.zeros_like(freqs)
+        for i, (p, c_curve) in enumerate(zip(pickups, circuit_curves)):
+            p_coils = p["coils"]
+            p_weight = p.get("weight", 1.0)
+            p_pol = p.get("polarity", 1.0)
 
-            f_taper_start = 1800.0
-            f_taper_end = 3200.0
-            t = np.clip((freqs - f_taper_start) / (f_taper_end - f_taper_start), 0.0, 1.0)
-            w = 0.5 * (1.0 + np.cos(np.pi * t))
-            h_decomb = w * h_decomb_raw + (1.0 - w) * 1.0
+            weight_fac = 1.0 if (cir_path.exists() and len(circuit_curves) > 1) else p_weight
+            if sensor_type == "bridge_force":
+                is_flatwound = "flat" in tgt_string.get("type", "")
+                f_damp = 4200.0 if is_flatwound else 3600.0
+                h_damp = 1.0 / np.sqrt((1.0 - (freqs / f_damp) ** 2) ** 2 + 2.0 * (freqs / f_damp) ** 2)
+                h_sub = np.maximum(freqs / np.sqrt(freqs ** 2 + 32.0 ** 2), 0.15)
+                h_tilt_raw = np.sqrt((1.0 + (freqs / 250.0) ** 2) / (1.0 + (freqs / 70.0) ** 2))
+                h_tilt = h_tilt_raw / np.max(h_tilt_raw)
+                branch = np.asarray(c_curve, dtype=np.float64) * h_damp * h_sub * h_tilt
+            else:
+                branch = np.asarray(c_curve, dtype=np.float64) * (weight_fac * p_pol)
 
-            # 2. Pure acoustic spruce wood damping (monotonically falling above 3.8-4.2 kHz)
-            is_flatwound = "flat" in src_string.get("type", "")
-            f_damp = 4200.0 if is_flatwound else 3600.0
-            h_damp = 1.0 / np.sqrt((1.0 - (freqs / f_damp) ** 2) ** 2 + 2.0 * (freqs / f_damp) ** 2)
+            h_tgt_total += branch
 
-            # 3. Subsonic rumble cut (32 Hz with -16.5 dB DC shelf floor to prevent cepstral zero)
-            h_sub = np.maximum(freqs / np.sqrt(freqs ** 2 + 32.0 ** 2), 0.15)
-            h_acoustic_transfer = h_decomb * h_damp * h_sub
-
-            # Leaky velocity-to-force integrator
-            h_tilt_raw = np.sqrt((1.0 + (freqs / 250.0) ** 2) / (1.0 + (freqs / 70.0) ** 2))
-            h_tilt = h_tilt_raw / np.max(h_tilt_raw)
-        elif is_identity:
-            h_acoustic_transfer = np.ones_like(freqs)
-            h_tilt = np.ones_like(freqs)
+        # Tension / Bloom for target instrument
+        if tgt_scale == "upright":
+            delta_bloom = float(tgt_string.get("bloom_db", 2.8))
+            g_bloom = 10.0 ** (max(delta_bloom, 0.5) / 20.0)
+            h_tension = np.sqrt((g_bloom ** 2 + (freqs / 100.0) ** 2) / (1.0 + (freqs / 100.0) ** 2))
         else:
-            h_tgt_acoustic = numpy_pickup_acoustic_response(freqs, p_coils, tgt_speeds)
-            h_src_macro = numpy_pickup_macro_aperture(freqs, b_src_coils, src_speeds)
-            h_ratio = h_tgt_acoustic / np.maximum(h_src_macro, 0.08)
-            h_acoustic_transfer = np.clip(h_ratio, 0.25, 2.5)
+            h_tension = np.ones_like(freqs)
 
-            delta_in = (tgt_pos_eff - b_src_pos_eff) / 0.0254
-            tilt_db = delta_in * 1.5
-            g_low = 10.0 ** (tilt_db / 20.0)
-            g_hi = 10.0 ** (-tilt_db / 20.0)
-            h_low_tilt = np.sqrt((g_low ** 2 + (freqs / 250.0) ** 2) / (1.0 + (freqs / 250.0) ** 2))
-            h_hi_tilt = np.sqrt((1.0 + g_hi ** 2 * (freqs / 2200.0) ** 2) / (1.0 + (freqs / 2200.0) ** 2))
-            h_tilt = h_low_tilt * h_hi_tilt
+        # String voicing for target instrument (relative to standard nickel roundwound)
+        if sensor_type != "bridge_force" and cfg.get("target_string") and cfg.get("target_string") != "roundwound_nickel_standard":
+            std_str = {"bloom_db": 0.0, "damping_factor": 1.0, "type": "roundwound_nickel"}
+            h_str = compute_differential_string_transfer(freqs, std_str, tgt_string)
+        else:
+            h_str = np.ones_like(freqs)
 
-        weight_fac = 1.0 if (cir_path.exists() and len(circuit_curves) > 1) else p_weight
-        branch_transfer = h_acoustic_transfer * h_tilt * np.asarray(c_curve, dtype=np.float64) * (weight_fac * p_pol)
-        h_tgt_total += branch_transfer
+        mag_raw = h_tgt_total * h_tension * h_str
 
-    # 3. Active Pickup Electrical Resonance Deconvolution
-    is_passive = (inst.get("electronics") == "passive")
-    h_elec_inv = np.ones_like(freqs) if (is_identity or is_passive) else resolve_pickup_electrical_deconvolution(freqs, src_pickup, inst)
-
-    # 4. Scale-Length Tension Filter
-    src_scale_in = inst.get("scale_length_in", 34.0)
-    if is_identity:
-        h_tension = np.ones_like(freqs)
-    elif tgt_scale == "upright":
-        delta_bloom = float(tgt_string.get("bloom_db", 2.8)) - float(src_string.get("bloom_db", 0.0))
-        g_bloom = 10.0 ** (max(delta_bloom, 0.5) / 20.0)
-        h_bloom = np.sqrt((g_bloom ** 2 + (freqs / 100.0) ** 2) / (1.0 + (freqs / 100.0) ** 2))
-        h_tension = h_bloom
-    elif tgt_scale == "34in" and src_scale_in != 34.0:
-        g_snap = 10.0 ** (1.8 / 20.0)
-        h_tension = np.sqrt((1.0 + g_snap ** 2 * (freqs / 2800.0) ** 2) / (1.0 + (freqs / 2800.0) ** 2))
     else:
-        h_tension = np.ones_like(freqs)
+        # 2. Input/Output Difference: H_diff = H_target / H_source
+        src_speeds = inst.get("string_wave_speeds")
+        if not src_speeds:
+            l_m = inst.get("scale_length_m", inst.get("scale_length_in", 34.0) * 0.0254)
+            src_speeds = [2.0 * l_m * f0 for f0 in [41.203, 55.0, 73.416, 97.999]]
 
-    # Differential string transfer for specialized target voicing strings (e.g. vintage flats, multiscale)
-    if sensor_type != "bridge_force" and cfg.get("target_string") and cfg.get("target_string") != "roundwound_nickel_standard":
-        h_str_diff = compute_differential_string_transfer(freqs, src_string, tgt_string)
-    else:
-        h_str_diff = np.ones_like(freqs)
+        src_pickup = get_source_pickup(inst, voice_id)
+        src_coils = resolve_pickup_coils(src_pickup, inst)
+        src_pos_eff = compute_effective_position(src_coils)
+        src_string = get_instrument_string(inst)
+        is_identity = (sensor_type != "bridge_force") and is_voice_matching_source(inst, voice_id, cfg)
+        is_passive = (inst.get("electronics") == "passive")
 
-    mag_raw = h_tgt_total * h_elec_inv * h_tension * h_str_diff
+        if is_passive and cir_path.exists():
+            src_cir_rel = src_pickup.get("circuit", "circuits/sources/source_standard_p.cir")
+            src_cir_path = REPO_ROOT / src_cir_rel
+            model = parse_netlist(cir_path)
+            if src_cir_path.exists():
+                src_model = parse_netlist(src_cir_path)
+                circuit_curves = compute_differential_circuit_transfer_functions(model, src_model, freqs=freqs)
+            else:
+                circuit_curves = compute_circuit_transfer_functions(model, freqs)
+        elif cir_path.exists():
+            model = parse_netlist(cir_path)
+            circuit_curves = compute_circuit_transfer_functions(model, freqs)
+        else:
+            fc_hpf = cfg.get("hpf")
+            circuit_curves = []
+            for p in pickups:
+                fr_p = p.get("fr", cfg.get("fr", 3000.0))
+                Q_p = p.get("Q", cfg.get("Q", 1.5))
+                h_el = 1.0 / np.sqrt((1.0 - (freqs / fr_p) ** 2) ** 2 + (1.0 / Q_p ** 2) * (freqs / fr_p) ** 2)
+                if fc_hpf:
+                    h_el = h_el * (freqs / np.sqrt(freqs ** 2 + fc_hpf ** 2))
+                circuit_curves.append(h_el)
+
+        h_src_acoustic = numpy_pickup_acoustic_response(freqs, src_coils, src_speeds)
+        src_components = src_pickup.get("components", []) if src_pickup.get("type") == "composite" else []
+        use_branch_matching = (len(src_components) == len(pickups) and len(pickups) > 1)
+
+        h_tgt_total = np.zeros_like(freqs)
+        for i, (p, c_curve) in enumerate(zip(pickups, circuit_curves)):
+            p_coils = p["coils"]
+            p_weight = p.get("weight", 1.0)
+            p_pol = p.get("polarity", 1.0)
+            tgt_pos_eff = compute_effective_position(p_coils)
+
+            if use_branch_matching:
+                comp_sub_id = src_components[i]["pickup"]
+                comp_sub_p = inst["pickups"][comp_sub_id]
+                b_src_coils = resolve_pickup_coils(comp_sub_p, inst)
+                b_src_pos_eff = compute_effective_position(b_src_coils)
+                b_src_acoustic = numpy_pickup_acoustic_response(freqs, b_src_coils, src_speeds)
+            else:
+                b_src_coils = src_coils
+                b_src_pos_eff = src_pos_eff
+                b_src_acoustic = h_src_acoustic
+
+            if sensor_type == "bridge_force":
+                eps = 0.08
+                h_decomb_raw = b_src_acoustic / (b_src_acoustic ** 2 + eps)
+                mid_mask = (freqs >= 100.0) & (freqs <= 1000.0)
+                h_decomb_raw = h_decomb_raw / np.median(h_decomb_raw[mid_mask])
+
+                f_taper_start = 1800.0
+                f_taper_end = 3200.0
+                t = np.clip((freqs - f_taper_start) / (f_taper_end - f_taper_start), 0.0, 1.0)
+                w = 0.5 * (1.0 + np.cos(np.pi * t))
+                h_decomb = w * h_decomb_raw + (1.0 - w) * 1.0
+
+                is_flatwound = "flat" in src_string.get("type", "")
+                f_damp = 4200.0 if is_flatwound else 3600.0
+                h_damp = 1.0 / np.sqrt((1.0 - (freqs / f_damp) ** 2) ** 2 + 2.0 * (freqs / f_damp) ** 2)
+                h_sub = np.maximum(freqs / np.sqrt(freqs ** 2 + 32.0 ** 2), 0.15)
+                h_acoustic_transfer = h_decomb * h_damp * h_sub
+
+                h_tilt_raw = np.sqrt((1.0 + (freqs / 250.0) ** 2) / (1.0 + (freqs / 70.0) ** 2))
+                h_tilt = h_tilt_raw / np.max(h_tilt_raw)
+            elif is_identity:
+                h_acoustic_transfer = np.ones_like(freqs)
+                h_tilt = np.ones_like(freqs)
+            else:
+                h_tgt_acoustic = numpy_pickup_acoustic_response(freqs, p_coils, tgt_speeds)
+                h_src_macro = numpy_pickup_macro_aperture(freqs, b_src_coils, src_speeds)
+                h_ratio = h_tgt_acoustic / np.maximum(h_src_macro, 0.08)
+                h_acoustic_transfer = np.clip(h_ratio, 0.25, 2.5)
+
+                delta_in = (tgt_pos_eff - b_src_pos_eff) / 0.0254
+                tilt_db = delta_in * 1.5
+                g_low = 10.0 ** (tilt_db / 20.0)
+                g_hi = 10.0 ** (-tilt_db / 20.0)
+                h_low_tilt = np.sqrt((g_low ** 2 + (freqs / 250.0) ** 2) / (1.0 + (freqs / 250.0) ** 2))
+                h_hi_tilt = np.sqrt((1.0 + g_hi ** 2 * (freqs / 2200.0) ** 2) / (1.0 + (freqs / 2200.0) ** 2))
+                h_tilt = h_low_tilt * h_hi_tilt
+
+            weight_fac = 1.0 if (cir_path.exists() and len(circuit_curves) > 1) else p_weight
+            branch_transfer = h_acoustic_transfer * h_tilt * np.asarray(c_curve, dtype=np.float64) * (weight_fac * p_pol)
+            h_tgt_total += branch_transfer
+
+        h_elec_inv = np.ones_like(freqs) if (is_identity or is_passive) else resolve_pickup_electrical_deconvolution(freqs, src_pickup, inst)
+        src_scale_in = inst.get("scale_length_in", 34.0)
+        if is_identity:
+            h_tension = np.ones_like(freqs)
+        elif tgt_scale == "upright":
+            delta_bloom = float(tgt_string.get("bloom_db", 2.8)) - float(src_string.get("bloom_db", 0.0))
+            g_bloom = 10.0 ** (max(delta_bloom, 0.5) / 20.0)
+            h_tension = np.sqrt((g_bloom ** 2 + (freqs / 100.0) ** 2) / (1.0 + (freqs / 100.0) ** 2))
+        elif tgt_scale == "34in" and src_scale_in != 34.0:
+            g_snap = 10.0 ** (1.8 / 20.0)
+            h_tension = np.sqrt((1.0 + g_snap ** 2 * (freqs / 2800.0) ** 2) / (1.0 + (freqs / 2800.0) ** 2))
+        else:
+            h_tension = np.ones_like(freqs)
+
+        if sensor_type != "bridge_force" and cfg.get("target_string") and cfg.get("target_string") != "roundwound_nickel_standard":
+            h_str_diff = compute_differential_string_transfer(freqs, src_string, tgt_string)
+        else:
+            h_str_diff = np.ones_like(freqs)
+
+        mag_raw = h_tgt_total * h_elec_inv * h_tension * h_str_diff
+
     if cfg.get("hpf") and cfg.get("hpf") >= 80.0:
         ref_idx = np.argmin(np.abs(freqs - 1000.0))
     elif cfg.get("sensor_type") == "bridge_force":
@@ -212,14 +262,18 @@ def build_voice_dataframe(voice_id, cfg, instrument="30in", src_scale=None):
     mag_norm = mag_raw / ref_val if ref_val > 0 else mag_raw
     mag_db = 20.0 * np.log10(np.clip(mag_norm, 1e-5, 20.0)) + cfg.get("gain_db", 0.0)
 
-    return pl.DataFrame({
+    data = {
         "frequency": log_freqs,
         "magnitude_db": mag_db.tolist(),
         "voice_id": voice_id,
         "voice_name": cfg.get("name", voice_id),
         "topology": cfg.get("topology", "Passive Pickup"),
         "description": cfg.get("description", ""),
-    })
+    }
+    if include_mode_col:
+        data["mode"] = "Output Voice" if mode == "output" else "Input/Output Difference"
+
+    return pl.DataFrame(data)
 
 def format_instrument_meta(inst):
     """Formats an instrument dictionary into metadata suitable for the portal."""
@@ -255,7 +309,7 @@ def format_instrument_meta(inst):
     }
 
 def build_portal_html(instruments_meta, default_id, base_url_prefix="./"):
-    """Constructs a responsive, dark-mode portal HTML string with iframe navigation."""
+    """Constructs a responsive, dark-mode portal HTML string with view switcher and iframe navigation."""
     meta_json = json.dumps(instruments_meta, indent=2)
 
     buttons_html = []
@@ -269,7 +323,7 @@ def build_portal_html(instruments_meta, default_id, base_url_prefix="./"):
     tabs_markup = "\n    ".join(buttons_html)
 
     default_meta = instruments_meta.get(default_id, next(iter(instruments_meta.values())))
-    default_standalone_url = f"{base_url_prefix}{default_id}.html"
+    default_standalone_url = f"{base_url_prefix}{default_id}_diff.html"
 
     html = f"""<!DOCTYPE html>
 <html lang="en">
@@ -361,6 +415,54 @@ def build_portal_html(instruments_meta, default_id, base_url_prefix="./"):
       color: #ffffff;
       box-shadow: 0 0 10px rgba(31, 111, 235, 0.4);
     }}
+    .view-mode-bar {{
+      margin-bottom: 16px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      background-color: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 16px;
+    }}
+    .mode-toggle-group {{
+      display: inline-flex;
+      background-color: var(--tag-bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 3px;
+      gap: 4px;
+    }}
+    .mode-btn {{
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      padding: 6px 14px;
+      border-radius: 4px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.15s ease;
+    }}
+    .mode-btn:hover {{
+      color: var(--text);
+      background-color: rgba(255, 255, 255, 0.05);
+    }}
+    .mode-btn.active {{
+      background-color: var(--btn-active);
+      color: #ffffff;
+      box-shadow: 0 0 8px rgba(31, 111, 235, 0.4);
+    }}
+    .mode-hint {{
+      font-size: 12px;
+      color: var(--text-muted);
+      font-style: italic;
+    }}
     .meta-panel {{
       background-color: var(--card-bg);
       border: 1px solid var(--border);
@@ -368,7 +470,7 @@ def build_portal_html(instruments_meta, default_id, base_url_prefix="./"):
       padding: 16px 20px;
       margin-bottom: 20px;
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)) auto;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)) auto;
       gap: 16px;
       align-items: center;
     }}
@@ -432,6 +534,22 @@ def build_portal_html(instruments_meta, default_id, base_url_prefix="./"):
     {tabs_markup}
     </div>
 
+    <div class="view-mode-bar">
+      <div class="mode-toggle-group" role="tablist" aria-label="Response Mode">
+        <button class="mode-btn active" id="mode-btn-diff" onclick="selectMode('difference')" role="tab" aria-selected="true">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5"></path></svg>
+          <span>Input / Output Difference (&Delta;)</span>
+        </button>
+        <button class="mode-btn" id="mode-btn-output" onclick="selectMode('output')" role="tab" aria-selected="false">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>
+          <span>Output Voice (Target Profiles)</span>
+        </button>
+      </div>
+      <div class="mode-hint" id="mode-hint">
+        Displaying regularized differential transfer function (H_target / H_source) applied to transform {default_meta["name"]} into each voice.
+      </div>
+    </div>
+
     <div class="meta-panel">
       <div class="meta-item">
         <div class="label">Source Instrument</div>
@@ -444,6 +562,10 @@ def build_portal_html(instruments_meta, default_id, base_url_prefix="./"):
       <div class="meta-item">
         <div class="label">Pickup Complement & Placement</div>
         <div class="value" id="meta-pickups">{default_meta["pickups_summary"]}</div>
+      </div>
+      <div class="meta-item">
+        <div class="label">Response View</div>
+        <div class="value" id="meta-view-mode">Input / Output Difference (&Delta; Filter)</div>
       </div>
       <div>
         <a id="standalone-link" class="open-standalone-btn" href="{default_standalone_url}" target="_blank">
@@ -461,38 +583,78 @@ def build_portal_html(instruments_meta, default_id, base_url_prefix="./"):
     const instruments = {meta_json};
     const baseUrlPrefix = "{base_url_prefix}";
     let currentId = "{default_id}";
+    let currentMode = "difference";
 
-    function selectInstrument(id) {{
-      if (!instruments[id]) return;
-      currentId = id;
-      const inst = instruments[id];
+    function getChartUrl(id, mode) {{
+      const modeSuffix = (mode === 'difference' || mode === 'diff') ? '_diff.html' : '_output.html';
+      return `${{baseUrlPrefix}}${{id}}${{modeSuffix}}`;
+    }}
+
+    function updateView() {{
+      const inst = instruments[currentId];
+      if (!inst) return;
 
       // Update tab active classes
       document.querySelectorAll('.tab-btn').forEach(btn => {{
-        btn.classList.toggle('active', btn.dataset.id === id);
+        btn.classList.toggle('active', btn.dataset.id === currentId);
       }});
 
-      // Update metadata panel
+      // Update mode toggle buttons
+      const isDiff = (currentMode === 'difference' || currentMode === 'diff');
+      document.getElementById('mode-btn-diff').classList.toggle('active', isDiff);
+      document.getElementById('mode-btn-output').classList.toggle('active', !isDiff);
+
+      // Update metadata & hint
+      const hintEl = document.getElementById('mode-hint');
+      const viewStatusEl = document.getElementById('meta-view-mode');
+      if (isDiff) {{
+        hintEl.textContent = `Displaying regularized differential transfer function (H_target / H_source) applied to transform ${{inst.name}} into each voice.`;
+        if (viewStatusEl) viewStatusEl.textContent = 'Input / Output Difference (Δ Filter)';
+      }} else {{
+        hintEl.textContent = 'Displaying authentic target passive pickup RLC resonance curves, spatial aperture comb filtering, and loaded frequency responses.';
+        if (viewStatusEl) viewStatusEl.textContent = 'Output Voice (Target Profiles)';
+      }}
+
       document.getElementById('meta-name').textContent = inst.name;
       document.getElementById('meta-scale').textContent = `${{inst.scale_in}}" scale (${{inst.scale_m}} m) | ${{inst.speeds_str}}`;
       document.getElementById('meta-pickups').textContent = inst.pickups_summary;
 
-      const standaloneUrl = `${{baseUrlPrefix}}${{id}}.html`;
-      document.getElementById('standalone-link').href = standaloneUrl;
-      document.getElementById('chart-frame').src = standaloneUrl;
+      const chartUrl = getChartUrl(currentId, currentMode);
+      document.getElementById('standalone-link').href = chartUrl;
+      document.getElementById('chart-frame').src = chartUrl;
 
       if (window.history.replaceState) {{
-        window.history.replaceState(null, null, '#' + id);
+        window.history.replaceState(null, null, '#' + currentId + ':' + currentMode);
       }}
+    }}
+
+    function selectInstrument(id) {{
+      if (!instruments[id]) return;
+      currentId = id;
+      updateView();
+    }}
+
+    function selectMode(mode) {{
+      currentMode = (mode === 'output') ? 'output' : 'difference';
+      updateView();
     }}
 
     window.addEventListener('DOMContentLoaded', () => {{
       const hash = window.location.hash.replace('#', '');
-      if (hash && instruments[hash]) {{
-        selectInstrument(hash);
-      }} else {{
-        selectInstrument(currentId);
+      if (hash) {{
+        const parts = hash.split(':');
+        const hashId = parts[0];
+        const hashMode = parts[1];
+        if (instruments[hashId]) {{
+          currentId = hashId;
+        }}
+        if (hashMode === 'output') {{
+          currentMode = 'output';
+        }} else if (hashMode === 'difference' || hashMode === 'diff') {{
+          currentMode = 'difference';
+        }}
       }}
+      updateView();
     }});
   </script>
 </body>
@@ -535,8 +697,14 @@ def generate_portal_pages(output_dir=None, default_id=None):
         root_portal_path.write_text(root_portal_html, encoding="utf-8")
         print(f"Saved master portal: {root_portal_path}")
 
-def generate_interactive_chart(instrument="30in", out_html=None):
-    """Calculates voice responses and renders an interactive Altair chart."""
+def generate_interactive_chart(instrument="30in", out_html=None, mode="unified"):
+    """
+    Calculates voice responses and renders an interactive Altair chart.
+    mode:
+      - 'unified': embeds both Output Voice and Input/Output Difference curves with interactive radio buttons.
+      - 'output': standalone chart strictly plotting the 12 target Output Voice curves.
+      - 'difference': standalone chart strictly plotting the Input/Output Difference curves for this instrument.
+    """
     inst = load_instrument(instrument) if not isinstance(instrument, dict) else instrument
     inst_id = inst.get("id", "custom_instrument")
     inst_name = inst.get("name", inst_id)
@@ -553,13 +721,47 @@ def generate_interactive_chart(instrument="30in", out_html=None):
     target_path = Path(target_path)
     target_path.parent.mkdir(parents=True, exist_ok=True)
 
-    print(f"Computing voice frequency responses using Polars (Source Instrument: {inst_name})...")
-    dfs = [build_voice_dataframe(vid, cfg, instrument=inst) for vid, cfg in VOICES.items()]
-    master_df = pl.concat(dfs)
+    print(f"Computing voice frequency responses (mode={mode}, instrument={inst_name})...")
+    voice_selection = alt.selection_point(fields=["voice_name"], bind="legend")
+
+    if mode == "output":
+        dfs = [build_voice_dataframe(vid, cfg, instrument=inst, mode="output") for vid, cfg in VOICES.items()]
+        master_df = pl.concat(dfs)
+        chart_title = "Passivizer Master Voices: Output Voice Frequency Responses"
+        chart_subtitle = f"Target Passive Acoustic Apertures & SPICE Loaded RLC Resonances (Reference: {inst_name})"
+        y_title = "Normalized Output Magnitude (dB)"
+        y_domain = [-30, 10]
+        params = [voice_selection]
+        filters = []
+    elif mode == "difference":
+        dfs = [build_voice_dataframe(vid, cfg, instrument=inst, mode="difference") for vid, cfg in VOICES.items()]
+        master_df = pl.concat(dfs)
+        chart_title = "Passivizer Master Voices: Input/Output Differential Transfer Functions"
+        chart_subtitle = f"Source: {inst_name} -> Target: 34\" Standard & 37\" Multi-Scale Datums (Δ Transfer Filter)"
+        y_title = "Differential Transfer Magnitude (dB)"
+        y_domain = [-28, 12]
+        params = [voice_selection]
+        filters = []
+    else:  # mode == "unified"
+        dfs_out = [build_voice_dataframe(vid, cfg, instrument=inst, mode="output", include_mode_col=True) for vid, cfg in VOICES.items()]
+        dfs_diff = [build_voice_dataframe(vid, cfg, instrument=inst, mode="difference", include_mode_col=True) for vid, cfg in VOICES.items()]
+        master_df = pl.concat(dfs_diff + dfs_out)
+        chart_title = "Passivizer Master Voices: Acoustic & Electrical Response Curves"
+        chart_subtitle = f"Interactive View ({inst_name}) — Switch between Input/Output Difference and Output Voice"
+        y_title = "Normalized Magnitude / Differential Gain (dB)"
+        y_domain = [-30, 12]
+        mode_selection = alt.selection_point(
+            fields=["mode"],
+            bind=alt.binding_radio(
+                options=["Input/Output Difference", "Output Voice"],
+                name="Display Mode: "
+            ),
+            value="Input/Output Difference",
+        )
+        params = [mode_selection, voice_selection]
+        filters = [mode_selection]
 
     print("Rendering interactive chart using Altair...")
-    selection = alt.selection_point(fields=["voice_name"], bind="legend")
-
     chart = (
         alt.Chart(master_df)
         .mark_line(strokeWidth=2.2)
@@ -577,8 +779,8 @@ def generate_interactive_chart(instrument="30in", out_html=None):
             ),
             y=alt.Y(
                 "magnitude_db:Q",
-                scale=alt.Scale(domain=[-28, 10]),
-                title="Normalized Magnitude (dB)",
+                scale=alt.Scale(domain=y_domain),
+                title=y_title,
                 axis=alt.Axis(grid=True, gridDash=[3, 3], gridColor="#333333")
             ),
             color=alt.Color(
@@ -586,8 +788,8 @@ def generate_interactive_chart(instrument="30in", out_html=None):
                 title="Passivizer Pickup Profile (Click to isolate)",
                 scale=alt.Scale(scheme="tableau20")
             ),
-            opacity=alt.condition(selection, alt.value(1.0), alt.value(0.12)),
-            strokeWidth=alt.condition(selection, alt.value(2.8), alt.value(1.0)),
+            opacity=alt.condition(voice_selection, alt.value(1.0), alt.value(0.12)),
+            strokeWidth=alt.condition(voice_selection, alt.value(2.8), alt.value(1.0)),
             tooltip=[
                 alt.Tooltip("voice_name:N", title="Pickup Configuration"),
                 alt.Tooltip("topology:N", title="Topology"),
@@ -596,21 +798,24 @@ def generate_interactive_chart(instrument="30in", out_html=None):
                 alt.Tooltip("magnitude_db:Q", title="Magnitude (dB)", format="+.1f")
             ]
         )
-        .add_params(selection)
-        .properties(
-            title=alt.TitleParams(
-                text="Passivizer Master Voices: Acoustic & Electrical Response Curves",
-                subtitle=f"Source: {inst_name} -> Target: 34\" Standard & 37\" Multi-Scale Datums",
-                fontSize=16,
-                subtitleFontSize=12,
-                anchor="start"
-            ),
-            width=920,
-            height=520
-        )
-        .configure_view(strokeWidth=0)
-        .interactive()
     )
+
+    for f in filters:
+        chart = chart.transform_filter(f)
+    for p in params:
+        chart = chart.add_params(p)
+
+    chart = chart.properties(
+        title=alt.TitleParams(
+            text=chart_title,
+            subtitle=chart_subtitle,
+            fontSize=16,
+            subtitleFontSize=12,
+            anchor="start"
+        ),
+        width=920,
+        height=520
+    ).configure_view(strokeWidth=0).interactive()
 
     chart.save(str(target_path))
     print(f"Saved interactive Altair visualization: {target_path}")
@@ -623,8 +828,17 @@ def generate_all_charts(output_dir=None):
     all_insts = load_all_instruments()
     generated = {}
     for inst_id, inst_cfg in all_insts.items():
+        # 1. Standalone Output Voice chart
+        out_output_file = out_dir / f"{inst_id}_output.html"
+        generate_interactive_chart(instrument=inst_cfg, out_html=out_output_file, mode="output")
+
+        # 2. Standalone Input/Output Difference chart
+        out_diff_file = out_dir / f"{inst_id}_diff.html"
+        generate_interactive_chart(instrument=inst_cfg, out_html=out_diff_file, mode="difference")
+
+        # 3. Main unified chart with interactive switcher
         out_file = out_dir / f"{inst_id}.html"
-        generate_interactive_chart(instrument=inst_cfg, out_html=out_file)
+        generate_interactive_chart(instrument=inst_cfg, out_html=out_file, mode="unified")
         generated[inst_id] = out_file
 
     generate_portal_pages(output_dir=out_dir)
@@ -636,6 +850,12 @@ def main():
         "--instrument", "-i",
         default="all",
         help="Source instrument configuration (ID, alias like 30in, 32in, path to .toml, or 'all' to generate all)"
+    )
+    parser.add_argument(
+        "--mode", "-m",
+        choices=["unified", "output", "difference"],
+        default="unified",
+        help="Chart mode: 'unified' (both with switcher), 'output' (target response), or 'difference' (transfer function)"
     )
     parser.add_argument(
         "--all",
@@ -653,7 +873,7 @@ def main():
         generate_all_charts(output_dir=args.out)
     else:
         inst = load_instrument(args.instrument)
-        target_file = generate_interactive_chart(instrument=inst, out_html=args.out)
+        target_file = generate_interactive_chart(instrument=inst, out_html=args.out, mode=args.mode)
         if args.out is None or (Path(args.out).resolve() == RESPONSES_DIR.resolve()):
             generate_portal_pages(output_dir=RESPONSES_DIR, default_id=inst.get("id"))
 

@@ -81,12 +81,19 @@ class CircuitModel:
         self.Rtone = 0.0
         self.Crick = 0.0
 
-        # Volume pot & treble bleed
+        # Volume pot & treble bleed (disabled by default unless specified in netlist)
         self.Rtop = 10.0
         self.Rbot = 500000.0
-        self.Ctb = 1.0e-9
-        self.Rtb_par = 150000.0
-        self.Rtb_ser = 20000.0
+        self.Ctb = 0.0
+        self.Rtb_par = 0.0
+        self.Rtb_ser = 0.0
+
+        # Active preamp buffer & EQ
+        self.has_active_buffer = False
+        self.preamp_type = "none"  # "sadowsky_2band", "stingray_2band", or "none"
+        self.R_preamp_in = 1.0e6
+        self.C_preamp_in = 25e-12
+        self.R_out = 100.0
 
         # Cable & pedalboard load
         self.Ccable = 750e-12
@@ -103,17 +110,37 @@ def parse_netlist(cir_path: Path) -> CircuitModel:
     has_bridge = False
     is_series = False
 
+    # Check filename for known active configurations
+    stem = cir_path.stem.lower()
+    if "01_modern_jazz" in stem:
+        model.has_active_buffer = True
+        model.preamp_type = "sadowsky_2band"
+    elif "08_stingray" in stem:
+        model.has_active_buffer = True
+        model.preamp_type = "stingray_2band"
+
     for line in lines:
-        line = line.strip()
-        if not line or line.startswith("*") or line.startswith("."):
+        line_clean = line.strip()
+        if not line_clean:
             continue
 
-        tokens = line.split()
+        line_lower = line_clean.lower()
+        if "sadowsky_2band" in line_lower or "sadowsky" in line_lower:
+            model.has_active_buffer = True
+            model.preamp_type = "sadowsky_2band"
+        elif "stingray_2band" in line_lower:
+            model.has_active_buffer = True
+            model.preamp_type = "stingray_2band"
+
+        if line_clean.startswith("*") or line_clean.startswith("."):
+            continue
+
+        tokens = line_clean.split()
         tag = tokens[0].upper()
 
         # Behavioral soft-knee compliance
         if tag.startswith("B_COMP"):
-            match = re.search(r"V\s*=\s*([0-9\.]+)\s*\*\s*tanh", line, re.IGNORECASE)
+            match = re.search(r"V\s*=\s*([0-9\.]+)\s*\*\s*tanh", line_clean, re.IGNORECASE)
             if match:
                 v = float(match.group(1))
                 if tag == "B_COMP_N":
@@ -178,6 +205,19 @@ def parse_netlist(cir_path: Path) -> CircuitModel:
         elif tag == "R_TB_SER":
             model.Rtb_ser = parse_spice_val(tokens[3])
 
+        # Active Preamp Buffer
+        elif tag in ["E_PREAMP", "E_BUF"]:
+            model.has_active_buffer = True
+        elif tag == "R_PREAMP_IN":
+            model.R_preamp_in = parse_spice_val(tokens[3])
+            model.has_active_buffer = True
+        elif tag == "C_PREAMP_IN":
+            model.C_preamp_in = parse_spice_val(tokens[3])
+            model.has_active_buffer = True
+        elif tag == "R_OUT":
+            model.R_out = parse_spice_val(tokens[3])
+            model.has_active_buffer = True
+
         # Cable
         elif tag == "C_CABLE":
             model.Ccable = parse_spice_val(tokens[3])
@@ -195,13 +235,118 @@ def parse_netlist(cir_path: Path) -> CircuitModel:
 
     return model
 
+def compute_active_preamp_eq(preamp_type: str, s):
+    """
+    Evaluates analog active preamp contour transfer function:
+    - Subsonic HPF: 10 Hz AC coupling pole
+    - Sadowsky 2-band boost: +3.5 dB @ 40 Hz shelf, +3.5 dB @ 4 kHz shelf
+    - StingRay 2-band boost: +1.8 dB @ 50 Hz shelf, +2.2 dB @ 4-7 kHz shelf
+    """
+    w_sub = 2.0 * math.pi * 10.0
+    h_sub = s / (s + w_sub)
+
+    if preamp_type == "sadowsky_2band":
+        wb = 2.0 * math.pi * 60.0
+        gb = 10.0 ** (3.5 / 20.0)
+        h_bass = (s + gb * wb) / (s + wb)
+
+        wt = 2.0 * math.pi * 3500.0
+        gt = 10.0 ** (3.5 / 20.0)
+        h_treble = (gt * s + wt) / (s + wt)
+
+        return h_sub * h_bass * h_treble
+
+    elif preamp_type == "stingray_2band":
+        wb = 2.0 * math.pi * 80.0
+        gb = 10.0 ** (1.8 / 20.0)
+        h_bass = (s + gb * wb) / (s + wb)
+
+        wt = 2.0 * math.pi * 4000.0
+        gt = 10.0 ** (2.2 / 20.0)
+        h_treble = (gt * s + wt) / (s + wt)
+
+        return h_sub * h_bass * h_treble
+
+    return 1.0 + 0j
+
 def compute_circuit_transfer_functions(model: CircuitModel, freqs=FREQS):
     """
     Computes closed-form nodal AC transfer functions across frequencies.
     Returns a list of magnitude curves:
       - Single-pickup: [mag_curve] (length 1)
       - Dual-pickup (parallel or series): [mag_neck, mag_bridge] (length 2)
+    Supports both passive high-Z harnesses and active buffered preamps.
     """
+    if model.has_active_buffer:
+        # Active Preamp Buffer: coils terminate into high-Z buffer, isolating them from cable capacitance.
+        # Op-amp buffer drives cable and Anagram pedalboard load through low-Z output stage.
+        if model.topology == "single":
+            mag_curve = []
+            for f in freqs:
+                w = 2.0 * math.pi * 1e-3 if f == 0.0 else 2.0 * math.pi * f
+                s = 1j * w
+
+                # Output stage: low-Z buffer driving cable & Anagram load
+                Z_cable_load = 1.0 / (1.0 / model.Ranagram + s * (model.Ccable + model.Canagram))
+                H_buf_to_out = Z_cable_load / (model.R_out + Z_cable_load)
+
+                # Preamp active contour
+                H_eq = compute_active_preamp_eq(model.preamp_type, s)
+
+                # Coils terminated into high-Z preamp input (R_preamp_in || C_preamp_in)
+                Y_preamp_in = 1.0 / model.R_preamp_in + s * model.C_preamp_in
+                if model.Ctone > 0:
+                    Y_tone = (s * model.Ctone) / (1.0 + s * model.Rtone * model.Ctone) if model.Rtone > 0 else s * model.Ctone
+                else:
+                    Y_tone = 0.0
+                Y_eff2 = Y_preamp_in + Y_tone
+
+                Y_branch = 1.0 / (model.Rdc + s * model.L) + 1.0 / model.Reddy
+                Y_shunt2 = s * model.Ccoil + Y_eff2
+                H_dyn_to_2 = Y_branch / (Y_branch + Y_shunt2)
+
+                H_total = H_dyn_to_2 * H_eq * H_buf_to_out
+                mag_curve.append(abs(H_total))
+            return [mag_curve]
+
+        elif model.topology == "parallel":
+            mag_n = []
+            mag_b = []
+            for f in freqs:
+                w = 2.0 * math.pi * 1e-3 if f == 0.0 else 2.0 * math.pi * f
+                s = 1j * w
+
+                # Output stage: low-Z buffer driving cable & Anagram load
+                Z_cable_load = 1.0 / (1.0 / model.Ranagram + s * (model.Ccable + model.Canagram))
+                H_buf_to_out = Z_cable_load / (model.R_out + Z_cable_load)
+
+                # Preamp active contour
+                H_eq = compute_active_preamp_eq(model.preamp_type, s)
+
+                # Coils terminated into high-Z preamp input
+                Y_preamp_in = 1.0 / model.R_preamp_in + s * model.C_preamp_in
+                if model.Ctone > 0:
+                    Y_tone = (s * model.Ctone) / (1.0 + s * model.Rtone * model.Ctone) if model.Rtone > 0 else s * model.Ctone
+                else:
+                    Y_tone = 0.0
+                Y_eff2 = Y_preamp_in + Y_tone
+
+                Y_br_n = 1.0 / (model.Rdc + s * model.L) + 1.0 / model.Reddy
+                Y_br_b = 1.0 / (model.Rdc_b + s * model.L_b) + 1.0 / model.Reddy_b
+                Y_shunt2 = s * (model.Ccoil + model.Ccoil_b) + Y_eff2
+                Y_total = Y_br_n + Y_br_b + Y_shunt2
+
+                H_n_to_2 = Y_br_n / Y_total
+                H_b_to_2 = Y_br_b / Y_total
+
+                H_n = H_n_to_2 * H_eq * H_buf_to_out
+                H_b = H_b_to_2 * H_eq * H_buf_to_out
+
+                mag_n.append(abs(H_n))
+                mag_b.append(abs(H_b))
+            return [mag_n, mag_b]
+
+    # Passive RLC Guitar Harness: Coils directly loaded by pots, cable capacitance, and Anagram load
     Rload = (model.Rbot * model.Ranagram) / (model.Rbot + model.Ranagram)
     Cload = model.Ccable + model.Canagram
 
@@ -229,9 +374,13 @@ def compute_circuit_transfer_functions(model: CircuitModel, freqs=FREQS):
 
             Y_shunt2 = s * model.Ccoil + Y_tone
 
-            # Treble bleed impedance
-            Z_tb = model.Rtb_ser + model.Rtb_par / (1.0 + s * model.Rtb_par * model.Ctb)
-            Z23_pot = (model.Rtop * Z_tb) / (model.Rtop + Z_tb)
+            # Treble bleed impedance (if configured)
+            if model.Ctb > 0 and model.Rtb_par > 0:
+                Z_tb = model.Rtb_ser + model.Rtb_par / (1.0 + s * model.Rtb_par * model.Ctb)
+                Z23_pot = (model.Rtop * Z_tb) / (model.Rtop + Z_tb)
+            else:
+                Z23_pot = model.Rtop
+
             Z_rick = 1.0 / (s * model.Crick) if model.Crick > 0 else 0.0
             Z23 = Z_rick + Z23_pot
 
@@ -262,8 +411,12 @@ def compute_circuit_transfer_functions(model: CircuitModel, freqs=FREQS):
 
             Y_shunt2 = s * (model.Ccoil + model.Ccoil_b) + Y_tone
 
-            Z_tb = model.Rtb_ser + model.Rtb_par / (1.0 + s * model.Rtb_par * model.Ctb)
-            Z23 = (model.Rtop * Z_tb) / (model.Rtop + Z_tb)
+            if model.Ctb > 0 and model.Rtb_par > 0:
+                Z_tb = model.Rtb_ser + model.Rtb_par / (1.0 + s * model.Rtb_par * model.Ctb)
+                Z23 = (model.Rtop * Z_tb) / (model.Rtop + Z_tb)
+            else:
+                Z23 = model.Rtop
+
             Zload = 1.0 / (1.0 / Rload + s * Cload)
 
             Y_eff2 = Y_shunt2 + 1.0 / (Z23 + Zload)
@@ -296,8 +449,12 @@ def compute_circuit_transfer_functions(model: CircuitModel, freqs=FREQS):
             else:
                 Y_tone = 0.0
 
-            Z_tb = model.Rtb_ser + model.Rtb_par / (1.0 + s * model.Rtb_par * model.Ctb)
-            Z23 = (model.Rtop * Z_tb) / (model.Rtop + Z_tb)
+            if model.Ctb > 0 and model.Rtb_par > 0:
+                Z_tb = model.Rtb_ser + model.Rtb_par / (1.0 + s * model.Rtb_par * model.Ctb)
+                Z23 = (model.Rtop * Z_tb) / (model.Rtop + Z_tb)
+            else:
+                Z23 = model.Rtop
+
             Zload = 1.0 / (1.0 / Rload + s * Cload)
             Y_out_load = 1.0 / (Z23 + Zload)
 
@@ -592,7 +749,7 @@ def simulate_voice(
     model = parse_netlist(cir_path)
 
     # Dynamic bridge compliance scaling based on source string pluck excursion
-    if voice_id == "12_upright_bridge_transducer":
+    if "upright_bridge_transducer" in voice_id:
         src_string = get_instrument_string(inst_cfg)
         excursion = float(src_string.get("pluck_excursion_factor", 1.0))
         if excursion > 0:
@@ -633,7 +790,7 @@ def simulate_voice(
 
 def main():
     parser = argparse.ArgumentParser(description="Passivizer Native Virtual Analog Circuit Simulator.")
-    parser.add_argument("--voice", "-v", default="03_modern_p_ceramic", help="Target voice to simulate (or 'all')")
+    parser.add_argument("--voice", "-v", default="04_modern_p_ceramic", help="Target voice to simulate (or 'all')")
     parser.add_argument(
         "--instrument", "-i",
         default="30in",

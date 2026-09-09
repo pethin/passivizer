@@ -14,7 +14,7 @@ The Darkglass Anagram allows up to 24 simultaneous blocks in series or parallel.
           ▼
 ┌────────────────────────────────────────────────────────┐
 │ Block 1: Passivizer Pickup Emulation (NAM Preamp)      │
-│   └── Neural Model: "03_modern_p_ceramic.nam" (A2)     │
+│   └── Neural Model: "04_modern_p_ceramic.nam" (A2)     │
 └────────────────────────────────────────────────────────┘
           │
           ▼
@@ -42,32 +42,35 @@ The Darkglass Anagram allows up to 24 simultaneous blocks in series or parallel.
 
 > [!IMPORTANT]
 > **Why Block 1?**
-> Overdrive, distortion, and preamp stages react directly to the input frequency envelope and pickup resonant peaks. By placing the Passivizer NAM model in Block 1, subsequent drive engines distort the *passive* resonant peak and roll-off, rather than distorting an unshaped wideband active signal.
+> Overdrive, distortion, and preamp stages react directly to the input frequency envelope and pickup resonant peaks. By placing the Passivizer NAM model in Block 1, subsequent drive engines distort the *passive* or *active vintage* resonant peak and roll-off, rather than distorting an unshaped wideband active signal.
 
 ---
 
 ## 2. Gain Staging & Volume Normalization
 
-Passive multi-coil instruments often present notable level disparities:
+Passive and active multi-coil instruments often present notable level disparities:
 * Splitting an MM humbucker to a single coil drops output level by $\sim 3\text{--}4\text{ dB}$.
 * Switching pickups into Series configuration produces an inductive voltage surge of $+4\text{ to }+6\text{ dB}$.
+* Active preamps provide $+3\text{ to }+5\text{ dB}$ of low/high shelving boost.
 
 In your presets, use the Block 1 output level trim to normalize all voices to an even target RMS level:
 
 | Profile ID | Pickup Configuration | Raw Offset | Recommended Block 1 Trim |
 | :--- | :--- | :--- | :--- |
-| **`01_jazz_bass_pair`** | Jazz Bass Pair (Parallel) | $-0.5\text{ dB}$ | $+0.5\text{ dB}$ |
-| **`02_jazz_bridge_60s`** | 60s Jazz Bridge Single-Coil | $-2.5\text{ dB}$ | $+2.5\text{ dB}$ (Compensates single-coil drop) |
-| **`03_modern_p_ceramic`** | Modern Split-Coil P (Ceramic) | $+1.5\text{ dB}$ | $0.0\text{ dB}$ (Reference Baseline) |
-| **`04_vintage_62_p_alnico`** | Vintage '62 Split-Coil P (Alnico V) | $+0.5\text{ dB}$ | $+1.0\text{ dB}$ |
-| **`05_p_bass_47nf_rolloff`** | Split-Coil P (47nF Tone Rolloff) | $-1.0\text{ dB}$ | $+1.0\text{ dB}$ |
-| **`06_pj_hybrid_parallel`** | P/J Hybrid (Parallel) | $+0.8\text{ dB}$ | $+0.5\text{ dB}$ |
-| **`07_stingray_mm_parallel`** | Music Man MM (Parallel Humbucker)| $0.0\text{ dB}$ | $+1.5\text{ dB}$ |
-| **`08_rickenbacker_bridge_hpf`**| Rickenbacker Bridge (4.7nF HPF) | $-1.5\text{ dB}$ | $+2.0\text{ dB}$ (Compensates series HPF cut) |
-| **`09_pmm_hybrid_series`** | P/MM Hybrid (Series Sum) | $+5.8\text{ dB}$ | $-4.0\text{ dB}$ (Prevents clipping downstream drives)|
-| **`10_mudbucker_ultra_series`**| Mudbucker Ultra Series | $+6.2\text{ dB}$ | $-4.5\text{ dB}$ (Controls high-inductance surge) |
-| **`11_dingwall_multiscale_bridge`**| Dingwall Multi-Scale Bridge | $+1.0\text{ dB}$ | $+0.5\text{ dB}$ |
-| **`12_upright_bridge_transducer`**| Upright Acoustic Bridge Transducer | $0.0\text{ dB}$ | $0.0\text{ dB}$ (Transparent unity acoustic baseline) |
+| **`01_modern_jazz_active`** | Modern Active Jazz (Sadowsky 2-Band) | $+2.0\text{ dB}$ | $-2.0\text{ dB}$ (Controls active boost) |
+| **`02_jazz_bass_pair`** | Vintage 60s Jazz Bass Pair (Parallel) | $-0.5\text{ dB}$ | $+0.5\text{ dB}$ |
+| **`03_jazz_bridge_60s`** | 60s Jazz Bridge Single-Coil | $-2.5\text{ dB}$ | $+2.5\text{ dB}$ (Compensates single-coil drop) |
+| **`04_modern_p_ceramic`** | Modern Split-Coil P (Ceramic 500k) | $+1.5\text{ dB}$ | $0.0\text{ dB}$ (Reference Baseline) |
+| **`05_vintage_62_p_alnico`** | Vintage '62 Split-Coil P (Alnico V 250k) | $+0.5\text{ dB}$ | $+1.0\text{ dB}$ |
+| **`06_p_bass_47nf_rolloff`** | Split-Coil P (47nF Tone Rolloff) | $-1.0\text{ dB}$ | $+1.0\text{ dB}$ |
+| **`07_modern_pj_active`** | Modern Active P/J (Sadowsky/Spector 2-Band) | $+2.0\text{ dB}$ | $-2.0\text{ dB}$ (Controls active boost) |
+| **`08_vintage_pj_passive`** | Vintage '80s Passive P/J (Dual-Volume) | $+0.5\text{ dB}$ | $+0.5\text{ dB}$ |
+| **`09_stingray_mm_parallel`** | Music Man MM (Active 2-Band Humbucker)| $+2.5\text{ dB}$ | $-1.5\text{ dB}$ (Controls active boost) |
+| **`10_rickenbacker_bridge_hpf`**| Rickenbacker Bridge (4.7nF HPF) | $-1.5\text{ dB}$ | $+2.0\text{ dB}$ (Compensates series HPF cut) |
+| **`11_pmm_hybrid_series`** | P/MM Hybrid (Series Sum 500k) | $+5.8\text{ dB}$ | $-4.0\text{ dB}$ (Prevents clipping downstream drives)|
+| **`12_mudbucker_ultra_series`**| Mudbucker Ultra Series | $+6.2\text{ dB}$ | $-4.5\text{ dB}$ (Controls high-inductance surge) |
+| **`13_dingwall_multiscale_bridge`**| Dingwall Multi-Scale Bridge | $+1.0\text{ dB}$ | $+0.5\text{ dB}$ |
+| **`14_upright_bridge_transducer`**| Upright Acoustic Bridge Transducer | $0.0\text{ dB}$ | $0.0\text{ dB}$ (Transparent unity acoustic baseline) |
 
 ---
 
@@ -75,25 +78,30 @@ In your presets, use the Block 1 output level trim to normalize all voices to an
 
 Group the pickup profiles into dedicated 3-button banks on the Anagram hardware:
 
-### Bank 1: Single-Coil & Split Foundations
-* **Footswitch A:** `01_jazz_bass_pair.nam` (Jazz Bass Pair)
-* **Footswitch B:** `03_modern_p_ceramic.nam` (Modern Split-Coil P)
-* **Footswitch C:** `02_jazz_bridge_60s.nam` (60s Jazz Bridge)
+### Bank 1: Modern & Vintage Jazz Foundations
+* **Footswitch A:** `01_modern_jazz_active.nam` (Modern Active Jazz - Sadowsky 2-Band)
+* **Footswitch B:** `02_jazz_bass_pair.nam` (Vintage 60s Jazz Bass Pair)
+* **Footswitch C:** `03_jazz_bridge_60s.nam` (60s Jazz Bridge)
 
-### Bank 2: Dual-Coil & Series Topologies
-* **Footswitch A:** `07_stingray_mm_parallel.nam` (Music Man Parallel Humbucker)
-* **Footswitch B:** `09_pmm_hybrid_series.nam` (P/MM Series Sum)
-* **Footswitch C:** `10_mudbucker_ultra_series.nam` (Mudbucker Series)
+### Bank 2: Precision Bass Foundations
+* **Footswitch A:** `04_modern_p_ceramic.nam` (Modern Split-Coil P - Boutique 500k)
+* **Footswitch B:** `05_vintage_62_p_alnico.nam` (Vintage '62 P Alnico V)
+* **Footswitch C:** `06_p_bass_47nf_rolloff.nam` (P-Bass 47nF Tone Rolloff / Motown Dub)
 
-### Bank 3: Vintage & Filtered Topologies
-* **Footswitch A:** `06_pj_hybrid_parallel.nam` (P/J Hybrid Parallel)
-* **Footswitch B:** `04_vintage_62_p_alnico.nam` (Vintage '62 P Alnico V)
-* **Footswitch C:** `08_rickenbacker_bridge_hpf.nam` (Rickenbacker 4.7nF HPF)
+### Bank 3: P/J Hybrid & Music Man Active
+* **Footswitch A:** `07_modern_pj_active.nam` (Modern Active P/J - Sadowsky/Spector 2-Band)
+* **Footswitch B:** `08_vintage_pj_passive.nam` (Vintage '80s Passive P/J)
+* **Footswitch C:** `09_stingray_mm_parallel.nam` (Music Man Active 2-Band Humbucker)
 
-### Bank 4: Modern & Acoustic Special Topologies
-* **Footswitch A:** `11_dingwall_multiscale_bridge.nam` (Dingwall Multi-Scale Bridge)
-* **Footswitch B:** `12_upright_bridge_transducer.nam` (Upright Acoustic Bridge Transducer)
-* **Footswitch C:** `05_p_bass_47nf_rolloff.nam` (P-Bass 47nF Tone Rolloff / Motown Dub)
+### Bank 4: Series & Vintage Grit
+* **Footswitch A:** `10_rickenbacker_bridge_hpf.nam` (Rickenbacker 4.7nF HPF)
+* **Footswitch B:** `11_pmm_hybrid_series.nam` (P/MM Series Sum)
+* **Footswitch C:** `12_mudbucker_ultra_series.nam` (Gibson Mudbucker Series)
+
+### Bank 5: Multi-Scale & Upright Acoustic
+* **Footswitch A:** `13_dingwall_multiscale_bridge.nam` (Dingwall Multi-Scale Bridge)
+* **Footswitch B:** `14_upright_bridge_transducer.nam` (Upright Acoustic Bridge Transducer)
+* **Footswitch C:** Direct Bypass / Mute
 
 ---
 
@@ -116,7 +124,7 @@ When targeting an authentic upright double bass tone from a fretless electric ba
                  │
                  ▼
 ┌────────────────────────────────────────────────────────┐
-│ Block 1: Passivizer NAM (`12_upright_bridge_transducer`)│
+│ Block 1: Passivizer NAM (`14_upright_bridge_transducer`)│
 │   • Mathematical de-combing of EMG spatial aperture   │
 │   • Leaky velocity-to-force integration (+6 dB/oct tilt)│
 │   • Non-linear soft-knee bridge compliance (tanh)      │
@@ -152,8 +160,6 @@ When targeting an authentic upright double bass tone from a fretless electric ba
 ## 6. Future Milestone: Native Anagram Marketplace Block
 
 While Passivizer currently deploys via the Anagram's stock Neural Amp Loader block, an upcoming roadmap goal is releasing an official **Anagram Marketplace Custom Block** (`marketplace.anagram.shop`):
-* **All-in-One Voice Selector:** Instant rotary switching across all 12 passive pickup topologies and acoustic transducers directly within a single block.
-* **Integrated Gain Normalization:** Automatically balances the $+5.8\text{ dB}$ series boost and $-2.5\text{ dB}$ single-coil level drop under the hood to ensure unity gain into Block 2.
-* **Dynamic Control Emulation:** Real-time on-screen controls for volume pot loading ($500\text{ k}\Omega$ vs. $250\text{ k}\Omega$), treble bleed networks, and cable capacitance ($750\text{ pF}$) loading.
-
-
+* **All-in-One Voice Selector:** Instant rotary switching across all 14 pickup topologies and acoustic transducers directly within a single block.
+* **Integrated Gain Normalization:** Automatically balances active boost, series boost, and single-coil level drop under the hood to ensure unity gain into Block 2.
+* **Dynamic Control Emulation:** Real-time on-screen controls for volume pot loading ($500\text{ k}\Omega$ vs. $250\text{ k}\Omega$), active preamp boost, treble bleed networks, and cable capacitance ($750\text{ pF}$) loading.
