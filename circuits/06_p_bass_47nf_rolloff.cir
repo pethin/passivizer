@@ -14,8 +14,9 @@ R_dc node1 node2 9.5k
 R_eddy in_dyn node2 110k
 C_coil node2 0 80p
 
-* 4. Tone Pot Rolled Off (0 Ohm resistance, direct 47nF shunted to ground)
-C_tone node2 0 47n
+* 4. Tone Pot Rolled Off (0 Ohm pot setting, 3.3 Ohm ESR + wiper contact floor)
+R_tone node2 node2_c 3.3
+C_tone node2_c 0 47n
 
 * 5. 250k Volume Pot (Volume @ 100%)
 R_pot_top node2 node3 10

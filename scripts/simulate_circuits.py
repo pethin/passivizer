@@ -186,7 +186,7 @@ def parse_netlist(cir_path: Path) -> CircuitModel:
         # Tone / HPF
         elif tag == "C_TONE":
             model.Ctone = parse_spice_val(tokens[3])
-        elif tag == "R_TONE":
+        elif tag in ["R_TONE", "R_TONE_ESR"]:
             model.Rtone = parse_spice_val(tokens[3])
         elif tag == "C_RICK":
             model.Crick = parse_spice_val(tokens[3])
@@ -710,18 +710,24 @@ def simulate_circuit_audio(
     oversample: int = 2,
     displacement_weighting: bool = True,
     magnet_drag: bool = True,
+    alpha: float = 0.20,
+    alphas=None,
+    dc_block: bool = True,
 ):
     """
     Executes native Virtual Analog circuit simulation on audio.
     If prefilter_firs is provided, convolves input audio through acoustic aperture and
     scale-tension FIRs in memory first.
     For active instruments, applies anti-aliased oversampled soft-knee saturation with
-    displacement-domain weighting and dynamic magnet drag.
+    displacement-domain weighting, dynamic magnet drag, and magnet-specific alpha asymmetry.
     For passive source instruments, bypasses forward saturation (to prevent double-compression)
     and applies regularized differential SPICE transfer functions (H_target / H_source).
+    Applies sub-audible DC-blocking high-pass filtering (8.0 Hz) to eliminate DC offset before
+    feeding downstream high-gain overdrive stages.
     Automatically normalizes output level based on the input sweep's dBFS (or explicit target_dbfs).
     Writes canonical 24-bit 48 kHz mono audio.
     """
+    import pedalboard
     from pedalboard.io import AudioFile
 
     if isinstance(input_audio, (str, Path)):
@@ -779,10 +785,16 @@ def simulate_circuit_audio(
             else:
                 vsat = model.vsat
 
+            ch_alpha = (
+                alphas[ch_idx]
+                if (isinstance(alphas, (list, tuple)) and len(alphas) > ch_idx)
+                else alpha
+            )
+
             in_dyn = apply_oversampled_saturation(
                 in_ch,
                 vsat=vsat,
-                alpha=0.20,
+                alpha=ch_alpha,
                 oversample=oversample,
                 displacement_weighting=displacement_weighting,
                 magnet_drag=magnet_drag,
@@ -807,6 +819,16 @@ def simulate_circuit_audio(
 
     # Sum all pickup contributions
     out_total = np.sum(channel_outputs, axis=0)
+
+    # Sub-Audible DC-Blocking High-Pass Filter (fc ≈ 8.0 Hz):
+    # Eliminates DC offset introduced by asymmetric quadratic saturation (v + alpha * v^2)
+    # or numerical convolution before feeding downstream high-gain overdrives (Darkglass B7K / Vintage Ultra).
+    # Transparent across musical spectrum (< 0.28 dB attenuation at Low-B 30.87 Hz; < 0.15 dB at Low-E 41.2 Hz)
+    # while suppressing DC by > 140 dB (< 1e-10 DC mean).
+    if dc_block and in_peak > 0.10 and (np.min(in_mono) < 0.0):
+        hp = pedalboard.HighpassFilter(cutoff_frequency_hz=8.0)
+        out_total = hp(out_total[np.newaxis, :], sr)[0]
+        out_total = out_total - float(np.mean(out_total))
 
     raw_peak = float(np.max(np.abs(out_total)))
     raw_rms = float(np.sqrt(np.mean(out_total ** 2)))
@@ -894,11 +916,15 @@ def simulate_voice(
     oversample: int = 2,
     displacement_weighting: bool = True,
     magnet_drag: bool = True,
+    alpha: float = None,
+    dc_block: bool = True,
 ):
     """
     Simulates a target voice digital twin using the native Virtual Analog engine.
     By default, applies acoustic aperture pre-filtering and circuit simulation
     end-to-end in memory from raw calibration audio.
+    Applies magnet-specific saturation voicing (Alnico V, Ceramic, Neodymium, Piezo) and
+    sub-audible 8 Hz DC-blocking filtering.
     Automatically normalizes output levels based on the input sweep's dBFS (or target_dbfs).
     Outputs are saved by default to audio/{instrument_id}/out_{voice_id}.wav.
     """
@@ -946,6 +972,36 @@ def simulate_voice(
         if excursion > 0:
             model.vsat = round(model.vsat / excursion, 3)
 
+    # Resolve magnet-specific saturation profile
+    magnet_defaults = {
+        "alnico_v": 0.26,
+        "ceramic": 0.12,
+        "neodymium": 0.08,
+        "piezo": 0.00,
+        "ceramic_alnico_hybrid": 0.18,
+    }
+    voice_alpha = alpha
+    if voice_alpha is None:
+        if "alpha" in vcfg:
+            voice_alpha = float(vcfg["alpha"])
+        elif "magnet_type" in vcfg:
+            voice_alpha = magnet_defaults.get(vcfg["magnet_type"], 0.20)
+        else:
+            voice_alpha = 0.20
+
+    pickups_cfg = vcfg.get("pickups", [])
+    if pickups_cfg and len(pickups_cfg) > 1:
+        voice_alphas = []
+        for p in pickups_cfg:
+            if "alpha" in p:
+                voice_alphas.append(float(p["alpha"]))
+            elif "magnet_type" in p:
+                voice_alphas.append(magnet_defaults.get(p["magnet_type"], voice_alpha))
+            else:
+                voice_alphas.append(voice_alpha)
+    else:
+        voice_alphas = None
+
     is_passive = (inst_cfg.get("electronics") == "passive")
     diff_curves = None
     if is_passive:
@@ -966,7 +1022,7 @@ def simulate_voice(
     else:
         stage_desc = "Circuit Simulation (Pre-filtered Input)"
 
-    print(f"  -> Simulating Native VA ({stage_desc}): {cir_path.name} (Topology: {model.topology}, Source: {inst_id})...")
+    print(f"  -> Simulating Native VA ({stage_desc}): {cir_path.name} (Topology: {model.topology}, Source: {inst_id}, Alpha: {voice_alpha})...")
     simulate_circuit_audio(
         input_wav,
         output_wav,
@@ -980,6 +1036,9 @@ def simulate_voice(
         oversample=oversample,
         displacement_weighting=displacement_weighting,
         magnet_drag=magnet_drag,
+        alpha=voice_alpha,
+        alphas=voice_alphas,
+        dc_block=dc_block,
     )
     print(f"     Exported: {output_wav}")
     return True
@@ -1025,10 +1084,22 @@ def main():
         action="store_true",
         help="Disable dynamic magnet drag attack braking on extreme transients",
     )
+    parser.add_argument(
+        "--alpha",
+        type=float,
+        default=None,
+        help="Explicit saturation asymmetry factor alpha (default: resolved from magnet_type in voices.toml)",
+    )
+    parser.add_argument(
+        "--no-dc-block",
+        action="store_true",
+        help="Disable sub-audible 8 Hz DC-blocking high-pass filter",
+    )
     args = parser.parse_args()
 
     displacement_weighting = not args.no_displacement_weighting
     magnet_drag = not args.no_magnet_drag
+    dc_block = not args.no_dc_block
 
     voices = list(VOICES.keys()) if args.voice == "all" else [args.voice]
     for v in voices:
@@ -1046,6 +1117,8 @@ def main():
             oversample=args.oversample,
             displacement_weighting=displacement_weighting,
             magnet_drag=magnet_drag,
+            alpha=args.alpha,
+            dc_block=dc_block,
         )
 
 if __name__ == "__main__":

@@ -301,9 +301,10 @@ passivizer/
 - [x] **14 Voice Profiles & Transducers:** Modern active 2-band Jazz, vintage single-coil, split-coil, series/parallel dual-coils, active Music Man, fanned multi-scale, and double-bass bridge piezo force transducers.
 - [x] **Interactive Visualization Portal:** Polars + Altair frequency response portal with spec sheets and per-instrument interactive charts (`docs/frequency_responses.html`).
 - [x] **Automated NAM Training Pipeline:** End-to-end Architecture 2 (A2) neural model training targeting Darkglass Anagram Block 1.
-- [x] **Automated Test Suite:** Comprehensive 78-test pytest verification covering physical filters, nodal transfer functions, FIR DSP, and audio simulation.
+- [x] **Automated Test Suite:** Comprehensive 81+ test pytest verification covering physical filters, nodal transfer functions, FIR DSP, and audio simulation.
 
 ### Upcoming Objectives
+- [ ] **Interactive A/B Audio Auditioning CLI:** Terminal and real-time audio auditioning tool (`scripts/preview_voices.py`) with seamless dry-to-wet switching, looping bass riffs, and instantaneous A/B comparison across pickup voices before neural training or pedalboard export.
 - [ ] **Hardware Reference Calibration:** Dry-DI spectral matching and A/B verification against physical vintage instruments (1962 P-Bass, 1975 Jazz Bass, 1979 StingRay).
 - [ ] **In-Browser Audio Player:** Interactive audio preview player embedded directly into the Altair documentation portal.
 - [ ] **Anagram Marketplace Native Block:** Develop a dedicated, all-in-one "Passivizer" custom block for the Darkglass Anagram Marketplace (`marketplace.anagram.shop`), featuring rotary voice switching across all 14 pickup configurations, automatic gain normalization, and interactive volume/cable load controls in a single native Block 1 module.

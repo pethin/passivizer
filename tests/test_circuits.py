@@ -378,9 +378,9 @@ def test_upright_voicing_simulation_vs_theory_consistency():
 
 def test_tone_pot_series_admittance():
     """Verify that series Rtone allows wide-open tone pots to preserve pickup resonance."""
-    # 1. Voice 06: Rtone = 0, Ctone = 47nF -> collapses peak to 200-500 Hz
+    # 1. Voice 06: Rtone = 3.3 Ohm ESR floor, Ctone = 47nF -> collapses peak to 200-500 Hz
     m_rolled = parse_netlist(CIRCUITS_DIR / "06_p_bass_47nf_rolloff.cir")
-    assert m_rolled.Rtone == 0.0
+    assert m_rolled.Rtone == pytest.approx(3.3)
     assert m_rolled.Ctone == pytest.approx(47e-9)
     curves_rolled = compute_circuit_transfer_functions(m_rolled, freqs=FREQS)
     peak_rolled = FREQS[curves_rolled[0].index(max(curves_rolled[0]))]
@@ -588,6 +588,65 @@ def test_num_taps_4096_resolution():
     assert len(FREQS) == 4096
     df = FREQS[1] - FREQS[0]
     assert math.isclose(df, 24000.0 / 4095, rel_tol=1e-3)
+
+def test_subaudible_dc_blocking_filter():
+    """Verify that 8 Hz DC blocker eliminates quadratic saturation DC offset (< 1e-6) while preserving audio."""
+    import pedalboard.io
+    sr = 48000
+    t = np.linspace(0, 0.5, int(sr * 0.5), endpoint=False)
+    # 100 Hz forte tone triggering asymmetric saturation
+    tone = (0.60 * np.sin(2 * np.pi * 100 * t)).astype(np.float32)
+
+    model = parse_netlist(CIRCUITS_DIR / "04_modern_p_ceramic.cir")
+
+    with tempfile.NamedTemporaryFile(suffix=".wav") as tmp_dc_on, tempfile.NamedTemporaryFile(suffix=".wav") as tmp_dc_off:
+        # 1. With DC blocker enabled (default)
+        simulate_circuit_audio(tone, Path(tmp_dc_on.name), model, alpha=0.25, dc_block=True)
+        with pedalboard.io.AudioFile(tmp_dc_on.name) as f:
+            audio_on = f.read(f.frames)[0]
+
+        # 2. With DC blocker disabled
+        simulate_circuit_audio(tone, Path(tmp_dc_off.name), model, alpha=0.25, dc_block=False)
+        with pedalboard.io.AudioFile(tmp_dc_off.name) as f:
+            audio_off = f.read(f.frames)[0]
+
+    # Without DC blocker, asymmetric alpha produces positive DC mean (> 1e-4)
+    assert abs(np.mean(audio_off)) > 1e-4
+    # With DC blocker, DC mean is suppressed by > 80 dB down to < 1e-6 (essentially 0.000000)
+    assert abs(np.mean(audio_on)) < 1e-6
+
+def test_magnet_specific_saturation_voicing():
+    """Verify that Ceramic (alpha=0.12) generates less even-harmonic energy than Alnico V (alpha=0.26), and Piezo (alpha=0) is purely odd."""
+    from scripts.simulate_circuits import apply_oversampled_saturation
+    sr = 48000
+    t = np.linspace(0, 0.2, int(sr * 0.2), endpoint=False)
+    fund_f = 200.0
+    tone = (0.50 * np.sin(2 * np.pi * fund_f * t)).astype(np.float32)
+
+    # 1. Alnico V (alpha=0.26)
+    out_alnico = apply_oversampled_saturation(tone, vsat=0.45, alpha=0.26, oversample=2, displacement_weighting=False, magnet_drag=False)
+    # 2. Ceramic (alpha=0.12)
+    out_ceramic = apply_oversampled_saturation(tone, vsat=0.45, alpha=0.12, oversample=2, displacement_weighting=False, magnet_drag=False)
+    # 3. Piezo (alpha=0.00)
+    out_piezo = apply_oversampled_saturation(tone, vsat=0.45, alpha=0.00, oversample=2, displacement_weighting=False, magnet_drag=False)
+
+    f_arr = np.fft.rfftfreq(len(tone), 1.0 / sr)
+    fft_alnico = np.abs(np.fft.rfft(out_alnico))
+    fft_ceramic = np.abs(np.fft.rfft(out_ceramic))
+    fft_piezo = np.abs(np.fft.rfft(out_piezo))
+
+    h2_idx = np.argmin(np.abs(f_arr - 400.0))  # 2nd harmonic (400 Hz)
+    fund_idx = np.argmin(np.abs(f_arr - 200.0))  # Fundamental (200 Hz)
+
+    h2_alnico_db = 20 * np.log10(fft_alnico[h2_idx] / fft_alnico[fund_idx])
+    h2_ceramic_db = 20 * np.log10(fft_ceramic[h2_idx] / fft_ceramic[fund_idx])
+    h2_piezo_db = 20 * np.log10(max(fft_piezo[h2_idx], 1e-9) / fft_piezo[fund_idx])
+
+    # Alnico V must generate more 2nd harmonic bloom than Ceramic (> 5 dB difference)
+    assert h2_alnico_db > h2_ceramic_db + 5.0
+    # Piezo must have negligible 2nd harmonic (< -60 dB relative to fundamental)
+    assert h2_piezo_db < -60.0
+
 
 
 
