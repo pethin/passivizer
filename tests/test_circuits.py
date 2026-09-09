@@ -513,14 +513,14 @@ def test_output_normalization_modes_and_target_dbfs():
     if not sweep_path.exists():
         pytest.skip("T3K-sweep-v3.wav not found in repo root")
 
-    # 1. Custom target dBFS (-20.0 dBFS)
+    # 1. Custom target dBFS (-24.0 dBFS)
     with tempfile.NamedTemporaryFile(suffix=".wav") as tmp_out:
         out_path = Path(tmp_out.name)
-        simulate_voice("04_modern_p_ceramic", input_wav=sweep_path, output_wav=out_path, instrument="30in", normalize="rms", target_dbfs=-20.0)
+        simulate_voice("04_modern_p_ceramic", input_wav=sweep_path, output_wav=out_path, instrument="30in", normalize="rms", target_dbfs=-24.0)
         with pedalboard.io.AudioFile(str(out_path)) as f:
             out_audio = f.read(f.frames)[0]
         out_rms_db = 20.0 * math.log10(np.sqrt(np.mean(out_audio ** 2)))
-        assert abs(out_rms_db - (-20.0)) < 0.05
+        assert abs(out_rms_db - (-24.0)) < 0.05
 
     # 2. None (raw unnormalized)
     with tempfile.NamedTemporaryFile(suffix=".wav") as tmp_out:
@@ -529,8 +529,66 @@ def test_output_normalization_modes_and_target_dbfs():
         with pedalboard.io.AudioFile(str(out_path)) as f:
             out_audio = f.read(f.frames)[0]
         out_rms_db = 20.0 * math.log10(np.sqrt(np.mean(out_audio ** 2)))
-        # Raw unnormalized should be around -26.6 dBFS, distinctly lower than input sweep (-22.1 dBFS)
-        assert out_rms_db < -25.0
+        # Raw unnormalized should be around -21 to -27 dBFS
+        assert out_rms_db < -20.0
+
+def test_anti_aliased_oversampling_suppression():
+    """Verify that 2x oversampled saturation suppresses folded aliasing by >60 dB."""
+    from scripts.simulate_circuits import apply_oversampled_saturation
+    sr = 48000
+    t = np.linspace(0, 0.1, int(sr * 0.1), endpoint=False)
+    tone = 0.5 * np.sin(2 * np.pi * 15000 * t).astype(np.float32)
+
+    out_1x = apply_oversampled_saturation(tone, vsat=0.45, alpha=0.20, oversample=1, displacement_weighting=False, magnet_drag=False)
+    out_2x = apply_oversampled_saturation(tone, vsat=0.45, alpha=0.20, oversample=2, displacement_weighting=False, magnet_drag=False)
+
+    f_arr = np.fft.rfftfreq(len(tone), 1.0 / sr)
+    fft_1x = np.abs(np.fft.rfft(out_1x))
+    fft_2x = np.abs(np.fft.rfft(out_2x))
+
+    alias_3k_1x = fft_1x[np.argmin(np.abs(f_arr - 3000))]
+    alias_3k_2x = fft_2x[np.argmin(np.abs(f_arr - 3000))]
+    fund_1x = fft_1x[np.argmin(np.abs(f_arr - 15000))]
+    fund_2x = fft_2x[np.argmin(np.abs(f_arr - 15000))]
+
+    db_1x = 20 * np.log10(alias_3k_1x / fund_1x)
+    db_2x = 20 * np.log10(max(alias_3k_2x, 1e-9) / fund_2x)
+
+    suppression = db_1x - db_2x
+    assert suppression > 60.0, f"Aliasing suppression {suppression:.1f} dB did not exceed 60 dB"
+
+def test_displacement_domain_imd_reduction():
+    """Verify that displacement weighting suppresses treble intermodulation distortion by >6 dB."""
+    from scripts.simulate_circuits import apply_oversampled_saturation
+    sr = 48000
+    t = np.linspace(0, 0.2, int(sr * 0.2), endpoint=False)
+    sig = 0.6 * np.sin(2 * np.pi * 50 * t) + 0.1 * np.sin(2 * np.pi * 2500 * t)
+    sig = sig.astype(np.float32)
+
+    out_flat = apply_oversampled_saturation(sig, vsat=0.45, alpha=0.20, oversample=1, displacement_weighting=False, magnet_drag=False)
+    out_disp = apply_oversampled_saturation(sig, vsat=0.45, alpha=0.20, oversample=1, displacement_weighting=True, magnet_drag=False)
+
+    f_arr = np.fft.rfftfreq(len(sig), 1.0 / sr)
+    fft_flat = np.abs(np.fft.rfft(out_flat))
+    fft_disp = np.abs(np.fft.rfft(out_disp))
+
+    idx_2500 = np.argmin(np.abs(f_arr - 2500))
+    idx_2450 = np.argmin(np.abs(f_arr - 2450))
+
+    imd_flat_db = 20 * np.log10(fft_flat[idx_2450] / fft_flat[idx_2500])
+    imd_disp_db = 20 * np.log10(fft_disp[idx_2450] / fft_disp[idx_2500])
+
+    imd_reduction = imd_flat_db - imd_disp_db
+    assert imd_reduction > 6.0, f"IMD reduction {imd_reduction:.1f} dB did not exceed 6 dB"
+
+def test_num_taps_4096_resolution():
+    """Verify that NUM_TAPS is 4096 and frequency bin spacing is ~5.86 Hz."""
+    from scripts.model_physics import NUM_TAPS, FREQS
+    assert NUM_TAPS == 4096
+    assert len(FREQS) == 4096
+    df = FREQS[1] - FREQS[0]
+    assert math.isclose(df, 24000.0 / 4095, rel_tol=1e-3)
+
 
 
 

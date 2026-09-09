@@ -14,7 +14,7 @@ from pathlib import Path
 import numpy as np
 
 FS = 48000
-NUM_TAPS = 2048
+NUM_TAPS = 4096
 NYQ = FS / 2.0
 FREQS = [i * (NYQ / (NUM_TAPS - 1)) for i in range(NUM_TAPS)]
 
@@ -33,7 +33,7 @@ def synthesize_minimum_phase_fir(magnitude_curve, num_taps=NUM_TAPS, normalize=T
     Vectorized with NumPy FFT, executing in < 0.1 ms.
     """
     mag = np.asarray(magnitude_curve, dtype=np.float64)
-    n_fft = 4096
+    n_fft = max(8192, 2 * num_taps)
     half = n_fft // 2
 
     # Linear interpolation of input magnitude curve to half + 1 points

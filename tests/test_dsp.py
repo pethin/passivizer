@@ -17,8 +17,8 @@ def test_fft_ifft_roundtrip():
 
 def test_synthesize_minimum_phase_fir():
     # Simple lowpass magnitude curve
-    mag_curve = [1.0 if i < 100 else 0.1 for i in range(2048)]
-    num_taps = 2048
+    mag_curve = [1.0 if i < 100 else 0.1 for i in range(4096)]
+    num_taps = 4096
     fir = synthesize_minimum_phase_fir(mag_curve, num_taps=num_taps)
     
     assert len(fir) == num_taps
@@ -28,8 +28,8 @@ def test_synthesize_minimum_phase_fir():
     assert math.isclose(max_peak, 0.99, rel_tol=1e-4)
     
     # Minimum phase causality: Energy should be concentrated at early taps
-    early_energy = sum(x ** 2 for x in fir[:256])
-    late_energy = sum(x ** 2 for x in fir[1024:])
+    early_energy = sum(x ** 2 for x in fir[:512])
+    late_energy = sum(x ** 2 for x in fir[2048:])
     assert early_energy > late_energy * 10
     
     # Tail should taper smoothly towards zero
