@@ -20,6 +20,7 @@ def test_load_all_default_instruments():
         "32in_fretless_pmm",
         "34in_standard_p",
         "34in_standard_jazz",
+        "34in_standard_pj",
         "34in_active_p",
         "34in_active_jazz",
         "34in_active_pj",
@@ -225,6 +226,20 @@ def test_standard_instruments_electrical_parameters():
     assert j_pair["resonant_frequency_hz"] == 3900.0
     assert j_pair["q_factor"] == 1.30
 
+    inst_pj = load_instrument("34in_standard_pj")
+    pj_p = inst_pj["pickups"]["p"]
+    assert pj_p["resonant_frequency_hz"] == 2800.0
+    assert pj_p["q_factor"] == 1.40
+
+    pj_j = inst_pj["pickups"]["j"]
+    assert pj_j["resonant_frequency_hz"] == 3200.0
+    assert pj_j["q_factor"] == 1.60
+
+    pj_pair = inst_pj["pickups"]["pair_parallel"]
+    assert pj_pair["resonant_frequency_hz"] == 2800.0
+    assert pj_pair["q_factor"] == 1.20
+
+
 def test_32in_pj_blend_parallel_definition():
     """Verify that both 32in P+TWX instruments define the parallel P/J mode (single-coil TWX)."""
     for iid in ["32in_custom_pmm", "32in_fretless_pmm"]:
@@ -308,6 +323,64 @@ def test_34in_active_pj_routing():
 
     # Shorthand alias check
     assert load_instrument("active_pj")["id"] == "34in_active_pj"
+
+def test_34in_standard_pj_routing():
+    inst = load_instrument("34in_standard_pj")
+    assert inst["id"] == "34in_standard_pj"
+    assert inst["scale_length_in"] == 34.0
+    assert inst["electronics"] == "passive"
+    assert "p" in inst["pickups"]
+    assert "j" in inst["pickups"]
+    assert "pair_parallel" in inst["pickups"]
+    assert inst["default_pickup"] == "pair_parallel"
+
+    # Split-P pickup
+    p_pickup = inst["pickups"]["p"]
+    assert p_pickup["type"] == "split_coil"
+    assert math.isclose(p_pickup["position_from_bridge_m"], 0.1250, abs_tol=1e-4)
+    assert p_pickup["circuit"] == "circuits/sources/source_standard_p.cir"
+    assert len(p_pickup["coils"]) == 2
+
+    # Jazz Bridge pickup
+    j_pickup = inst["pickups"]["j"]
+    assert j_pickup["type"] == "single_coil"
+    assert math.isclose(j_pickup["position_from_bridge_m"], 0.0635, abs_tol=1e-4)
+    assert j_pickup["circuit"] == "circuits/sources/source_standard_jazz_bridge.cir"
+    assert len(j_pickup["coils"]) == 1
+
+    # Parallel composite pair
+    pair = inst["pickups"]["pair_parallel"]
+    assert pair["type"] == "composite"
+    assert pair["circuit"] == "circuits/sources/source_standard_pj_pair.cir"
+    assert len(pair["components"]) == 2
+    assert pair["components"][0]["pickup"] == "p"
+    assert pair["components"][1]["pickup"] == "j"
+
+    # Shorthand aliases check
+    assert load_instrument("standard_pj")["id"] == "34in_standard_pj"
+    assert load_instrument("pj")["id"] == "34in_standard_pj"
+    assert load_instrument("34in_pj")["id"] == "34in_standard_pj"
+
+    # Routing checks: P voices
+    assert get_source_pickup(inst, "04_modern_p_ceramic")["id"] == "p"
+    assert get_source_pickup(inst, "05_vintage_62_p_alnico")["id"] == "p"
+    assert get_source_pickup(inst, "06_p_bass_47nf_rolloff")["id"] == "p"
+    assert get_source_pickup(inst, "12_mudbucker_ultra_series")["id"] == "p"
+    assert get_source_pickup(inst, "14_upright_bridge_transducer")["id"] == "p"
+
+    # Routing checks: Bridge voices
+    assert get_source_pickup(inst, "03_jazz_bridge_60s")["id"] == "j"
+    assert get_source_pickup(inst, "09_stingray_mm_parallel")["id"] == "j"
+    assert get_source_pickup(inst, "10_rickenbacker_bridge_hpf")["id"] == "j"
+    assert get_source_pickup(inst, "13_dingwall_multiscale_bridge")["id"] == "j"
+
+    # Routing checks: Parallel pair voices
+    assert get_source_pickup(inst, "01_modern_jazz_active")["id"] == "pair_parallel"
+    assert get_source_pickup(inst, "02_jazz_bass_pair")["id"] == "pair_parallel"
+    assert get_source_pickup(inst, "07_modern_pj_active")["id"] == "pair_parallel"
+    assert get_source_pickup(inst, "08_vintage_pj_passive")["id"] == "pair_parallel"
+    assert get_source_pickup(inst, "11_pmm_hybrid_series")["id"] == "pair_parallel"
+
 
 
 
