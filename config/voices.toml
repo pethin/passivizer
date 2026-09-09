@@ -118,6 +118,53 @@ coils = [
 ]
 
 # ------------------------------------------------------------------------------
+# 02b. JAZZ BASS PAIR (TONE 50% SWEET SPOT)
+# ------------------------------------------------------------------------------
+# Two narrow single-coils in parallel with tone pot rolled to 50% (50k wiper resistance
+# in series with 47nF capacitor), smoothing out the 2.7 kHz resonant peak while preserving
+# the iconic 60s Jazz Bass hollow vocal mid-growl.
+[voices.02b_jazz_bass_pair_tone50]
+name = "02b. Jazz Bass Pair (Tone 50%)"
+circuit = "circuits/02b_jazz_bass_pair_tone50.cir"
+topology = "Dual Single-Coil Parallel (Tone 50%)"
+description = "Dual single-coils in parallel with tone pot rolled to 50% (50k + 47nF sweet spot)"
+blend_mode = "parallel"
+magnet_type = "alnico_v"
+alpha = 0.25
+fr = 1700.0
+Q = 1.1
+gain_db = -0.5
+scale = "34in"
+coils = [
+    { strings = ["all"], position_from_bridge_m = 0.1556, aperture_width_in = 0.75, weight = 0.5 },
+    { strings = ["all"], position_from_bridge_m = 0.0635, aperture_width_in = 0.75, weight = 0.5 }
+]
+
+[[voices.02b_jazz_bass_pair_tone50.pickups]]
+name = "Jazz Single-Coil (Neck)"
+type = "single_coil"
+magnet_type = "alnico_v"
+alpha = 0.25
+fr = 3600.0
+Q = 1.5
+weight = 0.5
+coils = [
+    { strings = ["all"], position_from_bridge_m = 0.1556, aperture_width_in = 0.75, weight = 1.0 }
+]
+
+[[voices.02b_jazz_bass_pair_tone50.pickups]]
+name = "60s Jazz Single-Coil (Bridge)"
+type = "single_coil"
+magnet_type = "alnico_v"
+alpha = 0.28
+fr = 3200.0
+Q = 1.6
+weight = 0.5
+coils = [
+    { strings = ["all"], position_from_bridge_m = 0.0635, aperture_width_in = 0.75, weight = 1.0 }
+]
+
+# ------------------------------------------------------------------------------
 # 03. 60s JAZZ BRIDGE SINGLE-COIL
 # ------------------------------------------------------------------------------
 # Narrow single-coil placed in 60s position (2.50" / 63.5mm datum from bridge,

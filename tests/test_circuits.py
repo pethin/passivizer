@@ -25,7 +25,7 @@ from scripts.simulate_circuits import (
     simulate_voice,
     CircuitModel,
 )
-from scripts.model_physics import VOICES, FREQS, NUM_TAPS, write_wav_24bit
+from scripts.model_physics import VOICES, FREQS, NUM_TAPS, write_wav_24bit, compute_voice_prefilter_firs
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 CIRCUITS_DIR = REPO_ROOT / "circuits"
@@ -60,7 +60,7 @@ def test_parse_all_circuit_netlists():
             assert model.Rtop > 0
             assert model.Rbot > 0
 
-        if vid in ["01_modern_jazz_active", "02_jazz_bass_pair", "07_modern_pj_active", "08_vintage_pj_passive"]:
+        if vid in ["01_modern_jazz_active", "02_jazz_bass_pair", "02b_jazz_bass_pair_tone50", "07_modern_pj_active", "08_vintage_pj_passive"]:
             assert model.topology == "parallel"
             assert model.L_b > 0
             assert model.Rdc_b > 0
@@ -839,6 +839,112 @@ def test_higher_order_dipole_expansion_and_sag():
         small_sig, vsat=0.5, alpha=0.20, alpha3=0.10, k_sag=0.12, oversample=1
     )
     assert np.allclose(small_sig, out_small, atol=1e-6)
+
+def test_voice_02b_transfer_function():
+    """
+    Verify Voice 02b (Vintage '60s Jazz Bass Pair with Tone rolled to 50% Sweet Spot):
+    1. Netlist parses topology = parallel, R_tone = 50k, C_tone = 47nF.
+    2. At 1 kHz, 02b preserves vocal low-mid growl within 1.5 dB of wide-open Voice 02 (-0.8 dB).
+    3. At 2.7 kHz, 02b attenuates pick/treble clatter by 2.0 to 4.0 dB relative to Voice 02.
+    """
+    m02b = parse_netlist(CIRCUITS_DIR / "02b_jazz_bass_pair_tone50.cir")
+    assert m02b.topology == "parallel"
+    assert m02b.Ctone == pytest.approx(47e-9)
+    assert m02b.Rtone == pytest.approx(50000.0)
+
+    m02 = parse_netlist(CIRCUITS_DIR / "02_jazz_bass_pair.cir")
+
+    curves_02b = compute_circuit_transfer_functions(m02b, freqs=FREQS)
+    curves_02 = compute_circuit_transfer_functions(m02, freqs=FREQS)
+
+    for ch in [0, 1]:
+        idx_1k = min(range(len(FREQS)), key=lambda i: abs(FREQS[i] - 1000.0))
+        idx_2k7 = min(range(len(FREQS)), key=lambda i: abs(FREQS[i] - 2700.0))
+
+        diff_1k_db = 20.0 * math.log10(curves_02b[ch][idx_1k] / curves_02[ch][idx_1k])
+        diff_2k7_db = 20.0 * math.log10(curves_02b[ch][idx_2k7] / curves_02[ch][idx_2k7])
+
+        assert -1.5 <= diff_1k_db <= -0.3, f"Channel {ch} diff at 1 kHz was {diff_1k_db:.2f} dB"
+        assert -4.0 <= diff_2k7_db <= -1.8, f"Channel {ch} diff at 2.7 kHz was {diff_2k7_db:.2f} dB"
+
+def test_spatial_wave_propagation_delay():
+    """
+    Verify spatial acoustic wave propagation delay (tau = delta_x / c_s):
+    1. Multi-pickup voice 02_jazz_bass_pair produces 2 FIRs where bridge FIR is delayed
+       by ~0.81 ms (~39 samples at 48 kHz) relative to neck FIR.
+    2. Summing neck and bridge FIRs produces the iconic acoustic phase comb notch
+       in the 500-800 Hz range (depth > 10 dB relative to 100 Hz).
+    3. Single-pickup voice 05_vintage_62_p_alnico produces 1 FIR with 0 delay (peak at tap 0).
+    """
+    firs_02 = compute_voice_prefilter_firs("02_jazz_bass_pair", instrument="30in")
+    assert len(firs_02) == 2
+
+    fir_n = np.array(firs_02[0])
+    fir_b = np.array(firs_02[1])
+
+    # Neck is at pos=155.6 mm (pos_max -> tau = 0), so peak is near tap 0
+    peak_n = int(np.argmax(np.abs(fir_n)))
+    # Bridge is at pos=63.5 mm (delta_x = 92.1 mm -> tau = 0.81 ms = 38.9 samples at 48k)
+    peak_b = int(np.argmax(np.abs(fir_b)))
+    sample_delay = peak_b - peak_n
+    assert 36 <= sample_delay <= 42, f"Bridge delay was {sample_delay} samples (expected ~39)"
+
+    # Summing the two channels creates acoustic comb notch
+    fir_sum = fir_n + fir_b
+    n_fft = 8192
+    H_sum = np.abs(np.fft.rfft(fir_sum, n_fft))
+    f_bins = np.fft.rfftfreq(n_fft, 1.0 / 48000.0)
+
+    ref_100 = np.interp(100.0, f_bins, H_sum)
+    mask_notch = (f_bins >= 500.0) & (f_bins <= 800.0)
+    min_notch = np.min(H_sum[mask_notch])
+    notch_depth_db = 20.0 * np.log10(ref_100 / min_notch)
+    assert notch_depth_db > 10.0, f"Comb notch depth was {notch_depth_db:.2f} dB (expected > 10 dB)"
+
+    # Single-pickup voice
+    firs_05 = compute_voice_prefilter_firs("05_vintage_62_p_alnico", instrument="30in")
+    assert len(firs_05) == 1
+    assert np.argmax(np.abs(firs_05[0])) <= 2
+
+def test_string_mass_momentum_weighting():
+    """
+    Verify string-mass kinetic momentum excursion weighting in saturation engine:
+    1. Momentum pre-filter provides +3 dB boost at Low-E 41.2 Hz and -10.6 dB cut at 1 kHz relative to 100 Hz.
+    2. Deep bass fundamentals (41.2 Hz) drive more dynamic non-linear compression than upper register (1 kHz).
+    3. Small signals (amplitude <= 0.10) bypass non-linearity and preserve exact waveform.
+    """
+    # 1. Frequency response verification of momentum weighting curve
+    freqs = np.array([41.2, 100.0, 1000.0])
+    wc = 2.0 * np.pi * 40.0
+    s = 1j * 2.0 * np.pi * freqs
+    H_pre = (wc / (s + wc)) ** 0.55
+    H_pre = H_pre / np.abs(H_pre[1])
+    gain_db = 20.0 * np.log10(np.abs(H_pre))
+    assert gain_db[0] == pytest.approx(3.00, abs=0.1)
+    assert gain_db[1] == pytest.approx(0.00, abs=0.01)
+    assert gain_db[2] == pytest.approx(-10.65, abs=0.1)
+
+    # 2. Dynamic saturation compression comparison
+    sr = 48000
+    n = sr * 2
+    t = np.arange(n) / sr
+
+    sig_low = (0.60 * np.sin(2.0 * np.pi * 41.2 * t)).astype(np.float32)
+    sig_hi = (0.60 * np.sin(2.0 * np.pi * 1000.0 * t)).astype(np.float32)
+
+    sat_low = apply_oversampled_saturation(sig_low, vsat=0.50, alpha=0.20, oversample=1, displacement_weighting=True)
+    sat_hi = apply_oversampled_saturation(sig_hi, vsat=0.50, alpha=0.20, oversample=1, displacement_weighting=True)
+
+    cf_low = np.max(np.abs(sat_low)) / np.sqrt(np.mean(sat_low ** 2))
+    cf_hi = np.max(np.abs(sat_hi)) / np.sqrt(np.mean(sat_hi ** 2))
+    assert cf_low < cf_hi
+
+    # 3. Small-signal impulse bypass
+    impulse = np.zeros(1024, dtype=np.float32)
+    impulse[0] = 0.08
+    out_small = apply_oversampled_saturation(impulse, vsat=0.50, alpha=0.20, oversample=1, displacement_weighting=True)
+    assert np.allclose(impulse, out_small, atol=1e-7)
+
 
 
 

@@ -797,10 +797,9 @@ def apply_oversampled_saturation(
     if oversample <= 1:
         if displacement_weighting:
             freqs = np.fft.rfftfreq(n_sig, 1.0 / 48000.0)
-            w = 2.0 * np.pi * freqs
-            wc = 2.0 * np.pi * 300.0
-            s = 1j * w
-            H_pre = wc / (s + wc)
+            wc = 2.0 * np.pi * 40.0
+            s = 1j * 2.0 * np.pi * freqs
+            H_pre = (wc / (s + wc)) ** 0.55
             H_pre = H_pre / np.abs(np.interp(100.0, freqs, H_pre))
             H_de = 1.0 / H_pre
             x_disp = np.fft.irfft(np.fft.rfft(x) * H_pre, n_sig)
@@ -830,10 +829,9 @@ def apply_oversampled_saturation(
 
     if displacement_weighting:
         freqs_up = np.fft.rfftfreq(n_up, 1.0 / sr_up)
-        w_up = 2.0 * np.pi * freqs_up
-        wc = 2.0 * np.pi * 300.0
-        s_up = 1j * w_up
-        H_pre = wc / (s_up + wc)
+        wc = 2.0 * np.pi * 40.0
+        s_up = 1j * 2.0 * np.pi * freqs_up
+        H_pre = (wc / (s_up + wc)) ** 0.55
         H_pre = H_pre / np.abs(np.interp(100.0, freqs_up, H_pre))
         H_de = 1.0 / H_pre
         x_up_disp = np.fft.irfft(np.fft.rfft(x_up) * H_pre, n_up)

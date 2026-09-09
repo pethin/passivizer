@@ -1,4 +1,4 @@
-# Passivizer Master Voice Catalog (15 Pickup Configurations & Transducers)
+# Passivizer Master Voice Catalog (16 Pickup Configurations & Transducers)
 
 This catalog details the physical parameters, equivalent RLC circuit values, acoustic apertures, control harnesses, and electrical characteristics for the **Passivizer Digital Twin Profiles**.
 
@@ -10,6 +10,7 @@ This catalog details the physical parameters, equivalent RLC circuit values, aco
 | :- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
 | **01** | `01_modern_jazz_active` | Modern Active Jazz | Active 2-Band | Sadowsky 2-Band Preamp ($R_{\text{in}}=1\text{M}\Omega, R_{\text{out}}=100\,\Omega$) | $1.69\text{ H}$ (isolated) | $3.69\text{ k}\Omega$ | $7.8\text{ kHz}$ | Sadowsky-style active 2-band boost with isolated 60s J-pair ($92.1\text{ mm}$ aperture scoop), wideband hi-fi sparkle, punchy active bass and treble shelving. |
 | **02** | `02_jazz_bass_pair` | Vintage 60s J-Bass Pair | Dual Parallel | Vintage 60s $2\times 250\text{k}\Omega$ Vol ($125\text{k}\Omega$ net), $250\text{k}\Omega$ Tone, $47\text{nF}$ Cap | $1.69\text{ H}$ | $3.69\text{ k}\Omega$ | $2.7\text{ kHz}$ | Dual narrow single-coils in parallel; authentic 60s $92.1\text{ mm}$ ($3\frac{5}{8}''$) aperture scoop with natural woody low-mid resonance. |
+| **02b**| `02b_jazz_bass_pair_tone50`| Vintage 60s J-Bass Pair (Tone 50%)| Dual Parallel | Vintage 60s $2\times 250\text{k}\Omega$ Vol, $50\text{k}\Omega$ Tone Wiper, $47\text{nF}$ Cap | $1.69\text{ H}$ | $3.69\text{ k}\Omega$ | $1.7\text{ kHz}$ | Classic Jaco fingerstyle sweet spot (knob on 5); $50\text{ k}\Omega$ wiper gently damps treble clatter ($-2.8\text{ dB}$ at $2.7\text{ kHz}$) while preserving $1\text{ kHz}$ mid growl. |
 | **03** | `03_jazz_bridge_60s` | 60s J-Bass Bridge | Single Coil | Vintage $250\text{k}\Omega$ Vol, $250\text{k}\Omega$ Tone, $47\text{nF}$ Cap | $3.60\text{ H}$ | $7.80\text{ k}\Omega$ | $2.8\text{ kHz}$ | Narrow single-coil placed in 60s bridge position ($63.5\text{ mm}$ from bridge); focused midrange growl with articulate transient snap. |
 | **04** | `04_modern_p_ceramic` | Modern Split P | Single Split | Modern Boutique $500\text{k}\Omega$ Vol, $500\text{k}\Omega$ Tone, $22\text{nF}$ Cap, Treble Bleed | $4.80\text{ H}$ | $9.50\text{ k}\Omega$ | $2.4\text{ kHz}$ | Ceramic split-coil; modern boutique 500k harness preserves high-mid punch and pick attack clarity; hybrid treble bleed maintains presence when backed off. |
 | **05** | `05_vintage_62_p_alnico`| Vintage '62 P | Single Split | Vintage 1962 CTS $250\text{k}\Omega$ Vol, $250\text{k}\Omega$ Tone, $47\text{nF}$ Cap | $3.80\text{ H}$ | $10.50\text{ k}\Omega$ | $2.6\text{ kHz}$ | Alnico V split-coil; lower eddy damping, touch-sensitive dynamic response, woody organic bloom. |
@@ -37,11 +38,19 @@ This catalog details the physical parameters, equivalent RLC circuit values, aco
 * **32" Bass Setting:** ABCX Blend at **Center Detent (50/50)** (MMTWX in Single-Coil Mode - Push/Pull Down).
 
 ### 02. `02_jazz_bass_pair` (Vintage 60s Jazz Bass Pair)
-* **Archetype:** Standard 1960s Fender Jazz Bass Dual Single-Coil Pair
+* **Archetype:** Standard 1960s Fender Jazz Bass Dual Single-Coil Pair (Tone Wide Open)
 * **Pickup Architecture:** Dual parallel single coils (Neck: $3.20\text{ H}$; Bridge: $3.60\text{ H}$) spaced $92.1\text{ mm}$ ($3\frac{5}{8}''$) apart ($155.6\text{ mm}$ neck, $63.5\text{ mm}$ bridge)
 * **Control Harness:** Authentic vintage dual $250\text{k}\Omega$ volume pots in parallel ($125\text{k}\Omega$ net load resistance), single $250\text{k}\Omega$ tone pot, $47\text{ nF}$ capacitor, no treble bleed.
 * **Electrical Parameters:** Dual parallel SPICE branches; combined $L_{\text{eq}} = 1.69\text{ H}$, $R_{\text{dc}} = 3.69\text{ k}\Omega$, $R_{\text{eddy}} = 65\text{ k}\Omega$, $C_{\text{coil}} = 145\text{ pF}$. When loaded by $125\text{k}\Omega$ volume, $250\text{k}\Omega$ tone, and $750\text{ pF}$ cable, the composite loaded resonance sits at $2.7\text{ kHz}$.
 * **Acoustic Character:** Symmetrical dual-aperture phase cancellation produces a hollow mid-scoop at $1\text{ kHz}$ with classic woody low-mid resonance and open high-end.
+* **32" Bass Setting:** ABCX Blend at **Center Detent (50/50)** (MMTWX in Single-Coil Mode - Push/Pull Down).
+
+### 02b. `02b_jazz_bass_pair_tone50` (Vintage 60s Jazz Bass Pair - Tone @ 50% Sweet Spot)
+* **Archetype:** Standard 1960s Fender Jazz Bass Dual Single-Coil Pair (Tone Pot at Knob Position 5)
+* **Pickup Architecture:** Dual parallel single coils (Neck: $3.20\text{ H}$; Bridge: $3.60\text{ H}$) spaced $92.1\text{ mm}$ ($3\frac{5}{8}''$) apart ($155.6\text{ mm}$ neck, $63.5\text{ mm}$ bridge)
+* **Control Harness:** Authentic vintage dual $250\text{k}\Omega$ volume pots in parallel ($125\text{k}\Omega$ net load), single CTS $250\text{k}\Omega$ audio tone pot set to 50% physical rotation ($R_{\text{tone}} = 50\text{ k}\Omega$ wiper series resistance), $47\text{ nF}$ capacitor.
+* **Electrical Parameters:** Combined $L_{\text{eq}} = 1.69\text{ H}$, $R_{\text{dc}} = 3.69\text{ k}\Omega$, $R_{\text{tone}} = 50\text{ k}\Omega$, $C_{\text{tone}} = 47\text{ nF}$. Damped loaded peak at $1.7\text{ kHz}, Q = 1.1$.
+* **Acoustic Character:** The iconic Jaco Pastorius / Marcus Miller fingerstyle studio tone: gently softens metallic roundwound string clatter ($-2.8\text{ dB}$ at $2.7\text{ kHz}$) while preserving the punchy $1\text{ kHz}$ hollow throat and vocal growl without muddying the low-B/E fundamental.
 * **32" Bass Setting:** ABCX Blend at **Center Detent (50/50)** (MMTWX in Single-Coil Mode - Push/Pull Down).
 
 ### 03. `03_jazz_bridge_60s` (60s Jazz Bass Bridge Single-Coil)

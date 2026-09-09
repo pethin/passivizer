@@ -74,12 +74,14 @@ In instruments equipped with active onboard preamps (e.g., Sadowsky NYC 2-band, 
    * **Sadowsky 2-Band (Jazz & P/J):** $+4.0\text{ dB}$ Bass boost ($40\text{ Hz}$ shelf) and $+4.0\text{ dB}$ Treble boost ($4.0\text{ kHz}$ shelf).
    * **Music Man StingRay 2-Band:** $+5.0\text{ dB}$ Bass boost ($50\text{ Hz}$ shelf) and $+3.0\text{ dB}$ Treble boost ($7.0\text{ kHz}$ shelf).
 
-### B. Vintage Dual-Volume Harness (`02_jazz_bass_pair`, `08_vintage_pj_passive`)
+### B. Vintage Dual-Volume Harness (`02_jazz_bass_pair`, `02b_jazz_bass_pair_tone50`, `08_vintage_pj_passive`)
 * Standard Jazz Basses and passive P/Js utilize two separate $250\text{k}\Omega$ volume pots wired in parallel.
 * At $100\%$ volume, the two pots act as a combined resistive load:
   $$R_{\text{vol\_net}} = 250\text{ k}\Omega \parallel 250\text{ k}\Omega = 125\text{ k}\Omega$$
 * This heavy $125\text{ k}\Omega$ loading naturally damps the $Q$ factor of the pickup coils, producing the warm, woody, organic low-mid bloom characteristic of vintage 1960s Jazz Basses and 1980s P/Js.
-* Tone control is a single $250\text{k}\Omega$ pot with a $47\text{ nF}$ capacitor.
+* **Tone at 100% (`02_jazz_bass_pair`):** Full $250\text{ k}\Omega$ wiper series resistance isolates the $47\text{ nF}$ capacitor, leaving the loaded peak at $2.7\text{ kHz}$.
+* **Tone at 50% (`02b_jazz_bass_pair_tone50`):** CTS audio taper knob position "5" sets the series wiper resistance to $R_{\text{tone}} \approx 50\text{ k}\Omega$. Damps the $2.7\text{ kHz}$ treble peak by $-2.8\text{ dB}$ while preserving the $1\text{ kHz}$ hollow throat and vocal growl ($-0.8\text{ dB}$).
+* **Spatial Acoustic Propagation Delay:** Transverse string wave takes $\tau = (x_{\text{neck}} - x_{\text{bridge}}) / \bar{c_s} \approx 0.81\text{ ms}$ to travel between pickups, creating the iconic hollow acoustic phase comb cancellation at $600\text{--}800\text{ Hz}$.
 
 ### C. Vintage CTS 250k Split-P Harness (`05_vintage_62_p_alnico`, `05b_vintage_62_p_tone50`, `03_jazz_bridge_60s`)
 * Classic 1962 Fender Precision specification:

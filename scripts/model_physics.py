@@ -785,10 +785,14 @@ def compute_voice_prefilter_firs(voice_id, instrument="30in", src_scale=None, nu
     # For passive source instruments, electrical deconvolution is handled directly in the differential SPICE engine
     is_passive = (inst.get("electronics") == "passive")
     h_elec_inv = np.ones_like(freqs) if (is_identity or is_passive) else resolve_pickup_electrical_deconvolution_np(freqs, src_pickup, inst)
+    
+    positions = [compute_effective_position(p["coils"]) for p in pickups]
+    pos_max = max(positions) if positions else 0.0
+    c_mean = float(np.mean(tgt_speeds)) if tgt_speeds else 113.7
     raw_firs = []
     for i, p in enumerate(pickups):
         p_coils = p["coils"]
-        tgt_pos_eff = compute_effective_position(p_coils)
+        tgt_pos_eff = positions[i]
 
         if use_branch_matching:
             comp_sub_id = src_components[i]["pickup"]
@@ -858,6 +862,16 @@ def compute_voice_prefilter_firs(voice_id, instrument="30in", src_scale=None, nu
         h_scale_tension = np.ones_like(freqs) if is_identity else h_tension
         prefilter_curve = scale_fac * h_acoustic_transfer * h_elec_inv * h_tilt * h_scale_tension * h_str_diff
         fir_raw = synthesize_minimum_phase_fir(prefilter_curve, num_taps=num_taps, normalize=False)
+
+        # Spatial acoustic wave propagation delay for multi-pickup configurations
+        tau_i = (pos_max - positions[i]) / c_mean if len(pickups) > 1 else 0.0
+        if tau_i > 0.0:
+            n_fft_delay = 1 << (len(fir_raw) * 2 - 1).bit_length()
+            H_fir = np.fft.rfft(fir_raw, n_fft_delay)
+            f_bins = np.fft.rfftfreq(n_fft_delay, 1.0 / 48000.0)
+            H_delayed = H_fir * np.exp(-1j * 2.0 * np.pi * f_bins * tau_i)
+            fir_raw = np.fft.irfft(H_delayed, n_fft_delay)[:num_taps].tolist()
+
         raw_firs.append(fir_raw)
 
     global_peak = max(max(abs(x) for x in fir) for fir in raw_firs)

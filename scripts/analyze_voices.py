@@ -26,6 +26,7 @@ from model_physics import (
     VOICES,
     SCALES,
     INSTRUMENTS,
+    FREQS,
     load_instrument,
     load_all_instruments,
     get_source_pickup,
@@ -40,6 +41,8 @@ from model_physics import (
     get_instrument_string,
     get_voice_string,
     compute_differential_string_transfer,
+    compute_voice_prefilter_firs,
+    synthesize_minimum_phase_fir,
 )
 from simulate_circuits import (
     CIRCUITS_DIR,
@@ -83,37 +86,50 @@ def build_voice_dataframe(voice_id, cfg, instrument="30in", src_scale=None, mode
         if cir_path.exists():
             model = parse_netlist(cir_path)
             apply_magnet_properties_to_model(model, cfg)
-            circuit_curves = compute_circuit_transfer_functions(model, freqs)
+            circuit_curves = compute_circuit_transfer_functions(model, freqs=FREQS)
         else:
             fc_hpf = cfg.get("hpf")
             circuit_curves = []
+            f_lin = np.asarray(FREQS, dtype=np.float64)
             for p in pickups:
                 fr_p = p.get("fr", cfg.get("fr", 3000.0))
                 Q_p = p.get("Q", cfg.get("Q", 1.5))
-                h_el = 1.0 / np.sqrt((1.0 - (freqs / fr_p) ** 2) ** 2 + (1.0 / Q_p ** 2) * (freqs / fr_p) ** 2)
+                h_el = 1.0 / np.sqrt((1.0 - (f_lin / fr_p) ** 2) ** 2 + (1.0 / Q_p ** 2) * (f_lin / fr_p) ** 2)
                 if fc_hpf:
-                    h_el = h_el * (freqs / np.sqrt(freqs ** 2 + fc_hpf ** 2))
-                circuit_curves.append(h_el)
+                    h_el = h_el * (f_lin / np.sqrt(f_lin ** 2 + fc_hpf ** 2))
+                circuit_curves.append(h_el.tolist())
 
-        h_tgt_total = np.zeros_like(freqs)
+        positions = [compute_effective_position(p["coils"]) for p in pickups]
+        pos_max = max(positions) if positions else 0.0
+        c_mean = float(np.mean(tgt_speeds)) if tgt_speeds else 113.7
+
+        N = 8192
+        f_bins = np.fft.rfftfreq(N, 1.0 / 48000.0)
+        H_tot = np.zeros(N // 2 + 1, dtype=complex)
         for i, (p, c_curve) in enumerate(zip(pickups, circuit_curves)):
-            p_coils = p["coils"]
             p_weight = p.get("weight", 1.0)
             p_pol = p.get("polarity", 1.0)
-
             weight_fac = 1.0 if (cir_path.exists() and len(circuit_curves) > 1) else p_weight
             if sensor_type == "bridge_force":
+                f_lin = np.asarray(FREQS, dtype=np.float64)
                 is_flatwound = "flat" in tgt_string.get("type", "")
                 f_damp = 4200.0 if is_flatwound else 3600.0
-                h_damp = 1.0 / np.sqrt((1.0 - (freqs / f_damp) ** 2) ** 2 + 2.0 * (freqs / f_damp) ** 2)
-                h_sub = np.maximum(freqs / np.sqrt(freqs ** 2 + 32.0 ** 2), 0.15)
-                h_tilt_raw = np.sqrt((1.0 + (freqs / 250.0) ** 2) / (1.0 + (freqs / 70.0) ** 2))
+                h_damp = 1.0 / np.sqrt((1.0 - (f_lin / f_damp) ** 2) ** 2 + 2.0 * (f_lin / f_damp) ** 2)
+                h_sub = np.maximum(f_lin / np.sqrt(f_lin ** 2 + 32.0 ** 2), 0.15)
+                h_tilt_raw = np.sqrt((1.0 + (f_lin / 250.0) ** 2) / (1.0 + (f_lin / 70.0) ** 2))
                 h_tilt = h_tilt_raw / np.max(h_tilt_raw)
                 branch = np.asarray(c_curve, dtype=np.float64) * h_damp * h_sub * h_tilt
             else:
                 branch = np.asarray(c_curve, dtype=np.float64) * (weight_fac * p_pol)
 
-            h_tgt_total += branch
+            fir_b = synthesize_minimum_phase_fir(branch, num_taps=2048, normalize=False)
+            tau_i = (pos_max - positions[i]) / c_mean if len(pickups) > 1 else 0.0
+            H_b = np.fft.rfft(fir_b, N)
+            if tau_i > 0.0:
+                H_b = H_b * np.exp(-1j * 2.0 * np.pi * f_bins * tau_i)
+            H_tot += H_b
+
+        h_tgt_total = np.interp(freqs, f_bins, np.abs(H_tot))
 
         # Tension / Bloom for target instrument
         if tgt_scale == "upright":
@@ -134,17 +150,8 @@ def build_voice_dataframe(voice_id, cfg, instrument="30in", src_scale=None, mode
 
     else:
         # 2. Input/Output Difference: H_diff = H_target / H_source
-        src_speeds = inst.get("string_wave_speeds")
-        if not src_speeds:
-            l_m = inst.get("scale_length_m", inst.get("scale_length_in", 34.0) * 0.0254)
-            src_speeds = [2.0 * l_m * f0 for f0 in [41.203, 55.0, 73.416, 97.999]]
-
-        src_pickup = get_source_pickup(inst, voice_id)
-        src_coils = resolve_pickup_coils(src_pickup, inst)
-        src_pos_eff = compute_effective_position(src_coils)
-        src_string = get_instrument_string(inst)
-        is_identity = (sensor_type != "bridge_force") and is_voice_matching_source(inst, voice_id, cfg)
         is_passive = (inst.get("electronics") == "passive")
+        src_pickup = get_source_pickup(inst, voice_id)
 
         if is_passive and cir_path.exists():
             src_cir_rel = src_pickup.get("circuit", "circuits/sources/source_standard_p.cir")
@@ -154,107 +161,35 @@ def build_voice_dataframe(voice_id, cfg, instrument="30in", src_scale=None, mode
             if src_cir_path.exists():
                 src_model = parse_netlist(src_cir_path)
                 apply_magnet_properties_to_model(src_model, src_pickup)
-                circuit_curves = compute_differential_circuit_transfer_functions(model, src_model, freqs=freqs)
+                circuit_curves = compute_differential_circuit_transfer_functions(model, src_model, freqs=FREQS)
             else:
-                circuit_curves = compute_circuit_transfer_functions(model, freqs)
+                circuit_curves = compute_circuit_transfer_functions(model, freqs=FREQS)
         elif cir_path.exists():
             model = parse_netlist(cir_path)
             apply_magnet_properties_to_model(model, cfg)
-            circuit_curves = compute_circuit_transfer_functions(model, freqs)
+            circuit_curves = compute_circuit_transfer_functions(model, freqs=FREQS)
         else:
             fc_hpf = cfg.get("hpf")
             circuit_curves = []
+            f_lin = np.asarray(FREQS, dtype=np.float64)
             for p in pickups:
                 fr_p = p.get("fr", cfg.get("fr", 3000.0))
                 Q_p = p.get("Q", cfg.get("Q", 1.5))
-                h_el = 1.0 / np.sqrt((1.0 - (freqs / fr_p) ** 2) ** 2 + (1.0 / Q_p ** 2) * (freqs / fr_p) ** 2)
+                h_el = 1.0 / np.sqrt((1.0 - (f_lin / fr_p) ** 2) ** 2 + (1.0 / Q_p ** 2) * (f_lin / fr_p) ** 2)
                 if fc_hpf:
-                    h_el = h_el * (freqs / np.sqrt(freqs ** 2 + fc_hpf ** 2))
-                circuit_curves.append(h_el)
+                    h_el = h_el * (f_lin / np.sqrt(f_lin ** 2 + fc_hpf ** 2))
+                circuit_curves.append(h_el.tolist())
 
-        h_src_acoustic = numpy_pickup_acoustic_response(freqs, src_coils, src_speeds)
-        src_components = src_pickup.get("components", []) if src_pickup.get("type") == "composite" else []
-        use_branch_matching = (len(src_components) == len(pickups) and len(pickups) > 1)
-
-        h_tgt_total = np.zeros_like(freqs)
-        for i, (p, c_curve) in enumerate(zip(pickups, circuit_curves)):
-            p_coils = p["coils"]
-            p_weight = p.get("weight", 1.0)
-            p_pol = p.get("polarity", 1.0)
-            tgt_pos_eff = compute_effective_position(p_coils)
-
-            if use_branch_matching:
-                comp_sub_id = src_components[i]["pickup"]
-                comp_sub_p = inst["pickups"][comp_sub_id]
-                b_src_coils = resolve_pickup_coils(comp_sub_p, inst)
-                b_src_pos_eff = compute_effective_position(b_src_coils)
-                b_src_acoustic = numpy_pickup_acoustic_response(freqs, b_src_coils, src_speeds)
-            else:
-                b_src_coils = src_coils
-                b_src_pos_eff = src_pos_eff
-                b_src_acoustic = h_src_acoustic
-
-            if sensor_type == "bridge_force":
-                eps = 0.08
-                h_decomb_raw = b_src_acoustic / (b_src_acoustic ** 2 + eps)
-                mid_mask = (freqs >= 100.0) & (freqs <= 1000.0)
-                h_decomb_raw = h_decomb_raw / np.median(h_decomb_raw[mid_mask])
-
-                f_taper_start = 1800.0
-                f_taper_end = 3200.0
-                t = np.clip((freqs - f_taper_start) / (f_taper_end - f_taper_start), 0.0, 1.0)
-                w = 0.5 * (1.0 + np.cos(np.pi * t))
-                h_decomb = w * h_decomb_raw + (1.0 - w) * 1.0
-
-                is_flatwound = "flat" in src_string.get("type", "")
-                f_damp = 4200.0 if is_flatwound else 3600.0
-                h_damp = 1.0 / np.sqrt((1.0 - (freqs / f_damp) ** 2) ** 2 + 2.0 * (freqs / f_damp) ** 2)
-                h_sub = np.maximum(freqs / np.sqrt(freqs ** 2 + 32.0 ** 2), 0.15)
-                h_acoustic_transfer = h_decomb * h_damp * h_sub
-
-                h_tilt_raw = np.sqrt((1.0 + (freqs / 250.0) ** 2) / (1.0 + (freqs / 70.0) ** 2))
-                h_tilt = h_tilt_raw / np.max(h_tilt_raw)
-            elif is_identity:
-                h_acoustic_transfer = np.ones_like(freqs)
-                h_tilt = np.ones_like(freqs)
-            else:
-                h_tgt_acoustic = numpy_pickup_acoustic_response(freqs, p_coils, tgt_speeds)
-                h_src_macro = numpy_pickup_macro_aperture(freqs, b_src_coils, src_speeds)
-                h_ratio = h_tgt_acoustic / np.maximum(h_src_macro, 0.08)
-                h_acoustic_transfer = np.clip(h_ratio, 0.25, 2.5)
-
-                delta_in = (tgt_pos_eff - b_src_pos_eff) / 0.0254
-                tilt_db = delta_in * 1.5
-                g_low = 10.0 ** (tilt_db / 20.0)
-                g_hi = 10.0 ** (-tilt_db / 20.0)
-                h_low_tilt = np.sqrt((g_low ** 2 + (freqs / 250.0) ** 2) / (1.0 + (freqs / 250.0) ** 2))
-                h_hi_tilt = np.sqrt((1.0 + g_hi ** 2 * (freqs / 2200.0) ** 2) / (1.0 + (freqs / 2200.0) ** 2))
-                h_tilt = h_low_tilt * h_hi_tilt
-
-            weight_fac = 1.0 if (cir_path.exists() and len(circuit_curves) > 1) else p_weight
-            branch_transfer = h_acoustic_transfer * h_tilt * np.asarray(c_curve, dtype=np.float64) * (weight_fac * p_pol)
-            h_tgt_total += branch_transfer
-
-        h_elec_inv = np.ones_like(freqs) if (is_identity or is_passive) else resolve_pickup_electrical_deconvolution(freqs, src_pickup, inst)
-        src_scale_in = inst.get("scale_length_in", 34.0)
-        if is_identity:
-            h_tension = np.ones_like(freqs)
-        elif tgt_scale == "upright":
-            delta_bloom = float(tgt_string.get("bloom_db", 2.8)) - float(src_string.get("bloom_db", 0.0))
-            g_bloom = 10.0 ** (max(delta_bloom, 0.5) / 20.0)
-            h_tension = np.sqrt((g_bloom ** 2 + (freqs / 100.0) ** 2) / (1.0 + (freqs / 100.0) ** 2))
-        elif tgt_scale == "34in" and src_scale_in != 34.0:
-            g_snap = 10.0 ** (1.8 / 20.0)
-            h_tension = np.sqrt((1.0 + g_snap ** 2 * (freqs / 2800.0) ** 2) / (1.0 + (freqs / 2800.0) ** 2))
-        else:
-            h_tension = np.ones_like(freqs)
-
-        if sensor_type != "bridge_force" and cfg.get("target_string") and cfg.get("target_string") != "roundwound_nickel_standard":
-            h_str_diff = compute_differential_string_transfer(freqs, src_string, tgt_string)
-        else:
-            h_str_diff = np.ones_like(freqs)
-
-        mag_raw = h_tgt_total * h_elec_inv * h_tension * h_str_diff
+        # Multi-rate FFT evaluation matching native circuit simulator synthesis exactly
+        prefilter_firs = compute_voice_prefilter_firs(voice_id, instrument=inst, num_taps=2048)
+        N = 8192
+        f_bins = np.fft.rfftfreq(N, 1.0 / 48000.0)
+        H_tot = np.zeros(N // 2 + 1, dtype=complex)
+        for i in range(len(prefilter_firs)):
+            pf = np.array(prefilter_firs[i], dtype=np.float32)
+            cf = np.array(synthesize_minimum_phase_fir(circuit_curves[i], num_taps=2048, normalize=False), dtype=np.float32)
+            H_tot += np.fft.rfft(pf, N) * np.fft.rfft(cf, N)
+        mag_raw = np.interp(freqs, f_bins, np.abs(H_tot))
 
     if cfg.get("hpf") and cfg.get("hpf") >= 80.0:
         ref_idx = np.argmin(np.abs(freqs - 1000.0))

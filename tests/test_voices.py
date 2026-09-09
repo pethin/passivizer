@@ -4,6 +4,7 @@ from scripts.model_physics import VOICES, SCALES
 EXPECTED_VOICES = [
     "01_modern_jazz_active",
     "02_jazz_bass_pair",
+    "02b_jazz_bass_pair_tone50",
     "03_jazz_bridge_60s",
     "04_modern_p_ceramic",
     "05_vintage_62_p_alnico",
@@ -179,9 +180,9 @@ def test_scales_structure():
 def test_resolve_voices():
     from scripts.model_physics import resolve_voices
 
-    # "all" should return all 15 voices
+    # "all" should return all 16 voices
     all_voices = resolve_voices("all")
-    assert len(all_voices) == 15
+    assert len(all_voices) == 16
     assert all_voices == list(VOICES.keys())
 
     # Single voice
@@ -199,6 +200,14 @@ def test_resolve_voices():
     # Prefix shorthand matching
     shorthand = resolve_voices("01, 03")
     assert shorthand == ["01_modern_jazz_active", "03_jazz_bridge_60s"]
+
+    # Shorthand matching specific 02b
+    p2b = resolve_voices("02b")
+    assert p2b == ["02b_jazz_bass_pair_tone50"]
+
+    # Prefix 02 matches both 02 and 02b
+    p2_all = resolve_voices("02")
+    assert p2_all == ["02_jazz_bass_pair", "02b_jazz_bass_pair_tone50"]
 
     # Shorthand matching specific 05b
     p5b = resolve_voices("05b")
