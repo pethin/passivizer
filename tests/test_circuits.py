@@ -304,7 +304,7 @@ def test_sweep_audio_auto_detection():
 def test_circuit_simulation_vs_theory_consistency():
     """Verify that simulated impulse FFT matches analytical theory curve within 2.0 dB across 50-8000 Hz."""
     from scripts.analyze_voices import build_voice_dataframe
-    from scripts.simulate_circuits import compute_voice_prefilter_firs
+    from scripts.simulate_circuits import compute_voice_prefilter_firs, apply_magnet_properties_to_model
     import pedalboard.io
 
     inst_id = "30in_emg_mmtw"
@@ -317,6 +317,7 @@ def test_circuit_simulation_vs_theory_consistency():
         cfg = VOICES[voice_id]
         cir_path = CIRCUITS_DIR / f"{voice_id}.cir"
         model = parse_netlist(cir_path)
+        apply_magnet_properties_to_model(model, cfg)
         prefilter_firs = compute_voice_prefilter_firs(voice_id, instrument=inst_id)
 
         with tempfile.NamedTemporaryFile(suffix=".wav") as tmp_out:
@@ -344,7 +345,7 @@ def test_circuit_simulation_vs_theory_consistency():
 def test_upright_voicing_simulation_vs_theory_consistency():
     """Verify that 32in fretless upright acoustic transducer simulation matches theory across 20-5000 Hz."""
     from scripts.analyze_voices import build_voice_dataframe
-    from scripts.simulate_circuits import compute_voice_prefilter_firs
+    from scripts.simulate_circuits import compute_voice_prefilter_firs, apply_magnet_properties_to_model
     import pedalboard.io
 
     inst_id = "32in_fretless_pmm"
@@ -357,6 +358,7 @@ def test_upright_voicing_simulation_vs_theory_consistency():
     cfg = VOICES[voice_id]
     cir_path = CIRCUITS_DIR / f"{voice_id}.cir"
     model = parse_netlist(cir_path)
+    apply_magnet_properties_to_model(model, cfg)
     prefilter_firs = compute_voice_prefilter_firs(voice_id, instrument=inst_id)
 
     with tempfile.NamedTemporaryFile(suffix=".wav") as tmp_out:
@@ -1995,4 +1997,85 @@ def test_register_dependent_string_pull():
 
     # Low register has higher |x_low| so w_reg is higher, resulting in greater pull modulation
     assert diff_low > diff_high, f"Low register pull diff ({diff_low:.4f}) must exceed high register ({diff_high:.4f})"
+
+
+def test_solid_pole_eddy_skin_dispersion():
+    """Verify solid Alnico pole eddy skin-effect fractional dispersion (sqrt(omega)) roll-off vs flat Ceramic."""
+    from scripts.simulate_circuits import CircuitModel, compute_circuit_transfer_functions, compute_core_impedance, FREQS
+
+    f_arr = np.asarray(FREQS)
+
+    # 1. Direct impedance check: at DC, Z_skin is identically 0.0
+    z_skin_dc = compute_core_impedance(0.0, L=4.0, k_skin=0.10, omega_skin=2.0 * math.pi * 3200.0, Rdc=9000.0)
+    assert abs(z_skin_dc) == 0.0, "Skin impedance at DC must be exactly 0.0"
+
+    # 2. Circuit model: Alnico V (k_skin=0.10, f_skin=3200) vs Ceramic (k_skin=0.0)
+    m_alnico = CircuitModel()
+    m_alnico.k_skin = 0.10
+    m_alnico.f_skin = 3200.0
+
+    m_ceramic = CircuitModel()
+    m_ceramic.k_skin = 0.0
+    m_ceramic.f_skin = 0.0
+
+    h_alnico = np.asarray(compute_circuit_transfer_functions(m_alnico, freqs=FREQS)[0])
+    h_ceramic = np.asarray(compute_circuit_transfer_functions(m_ceramic, freqs=FREQS)[0])
+
+    diff_db = 20.0 * np.log10(np.maximum(h_alnico / h_ceramic, 1e-6))
+
+    # At low frequencies (50-200 Hz), diff must be negligible (< 0.01 dB)
+    low_mask = (f_arr >= 50.0) & (f_arr <= 200.0)
+    assert np.all(np.abs(diff_db[low_mask]) < 0.01), "Low frequency skin effect must be negligible"
+
+    # Above 2 kHz, Alnico exhibits fractional roll-off without peaking
+    idx_3k = np.argmin(np.abs(f_arr - 3000.0))
+    assert diff_db[idx_3k] <= 0.0, "Alnico skin effect must damp 3 kHz resonance"
+    assert np.all(diff_db <= 0.05), "Skin effect must never cause un-damped high-frequency resonance boost"
+
+
+def test_dynamic_reluctance_inductance_modulation():
+    """Verify dynamic reluctance inductance modulation (lambda_L) produces dynamic phase lag on forte attacks."""
+    from scripts.simulate_circuits import apply_oversampled_saturation
+
+    sr = 48000
+    t = np.linspace(0, 0.05, int(sr * 0.05), endpoint=False)
+
+    # 1. Small signal linearity (peak <= 0.10): must be bit-exact linear bypass
+    small_sig = (0.05 * np.sin(2.0 * np.pi * 200.0 * t)).astype(np.float32)
+    out_active = apply_oversampled_saturation(small_sig, vsat=0.5, lambda_L=0.0)
+    out_alnico = apply_oversampled_saturation(small_sig, vsat=0.5, lambda_L=0.05)
+    np.testing.assert_array_equal(out_active, small_sig)
+    np.testing.assert_array_equal(out_alnico, small_sig)
+
+    # 2. Large signal transient (peak = 0.70 > vsat = 0.50): lambda_L modulates transient clank
+    forte_sig = (0.70 * np.sin(2.0 * np.pi * 100.0 * t) + 0.30 * np.sin(2.0 * np.pi * 2500.0 * t)).astype(np.float32)
+    out_nolin = apply_oversampled_saturation(forte_sig, vsat=0.5, lambda_L=0.0)
+    out_mod = apply_oversampled_saturation(forte_sig, vsat=0.5, lambda_L=0.05)
+    diff = np.max(np.abs(out_mod - out_nolin))
+    assert diff > 1e-4, "Reluctance inductance modulation must engage on forte excursions"
+
+
+def test_electromechanical_back_emf_braking():
+    """Verify electromechanical back-EMF string braking (k_emf) compresses sharp transient peaks on passive pickups."""
+    from scripts.simulate_circuits import apply_oversampled_saturation
+
+    sr = 48000
+    t = np.linspace(0, 0.05, int(sr * 0.05), endpoint=False)
+
+    # 1. Small signal: bit-exact linear identity
+    small_sig = (0.08 * np.sin(2.0 * np.pi * 150.0 * t)).astype(np.float32)
+    out_no_emf = apply_oversampled_saturation(small_sig, vsat=0.5, k_emf=0.0)
+    out_emf = apply_oversampled_saturation(small_sig, vsat=0.5, k_emf=0.04)
+    np.testing.assert_array_equal(out_no_emf, small_sig)
+    np.testing.assert_array_equal(out_emf, small_sig)
+
+    # 2. Large transient spike: back-EMF decelerates string velocity, adding dynamic drag
+    forte_spike = (0.75 * np.sin(2.0 * np.pi * 80.0 * t) + 0.35 * np.sin(2.0 * np.pi * 3000.0 * t)).astype(np.float32)
+    out_no_emf = apply_oversampled_saturation(forte_spike, vsat=0.5, k_emf=0.0)
+    out_emf = apply_oversampled_saturation(forte_spike, vsat=0.5, k_emf=0.04)
+    diff = np.max(np.abs(out_emf - out_no_emf))
+    assert diff > 1e-4, "Back-EMF braking must dynamically engage on forte excursions"
+    rms_no_emf = np.sqrt(np.mean(out_no_emf ** 2))
+    rms_emf = np.sqrt(np.mean(out_emf ** 2))
+    assert rms_emf <= rms_no_emf, "Back-EMF damping must reduce or maintain total energy"
 

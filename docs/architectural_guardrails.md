@@ -118,6 +118,7 @@ Never bypass saturation with blanket conditionals (`is_passive or has_source_cir
 $$\Delta\alpha = \max(\alpha_{\text{tgt}} - \alpha_{\text{src}}, 0), \quad \Delta\alpha_3 = \max(\alpha_{3,\text{tgt}} - \alpha_{3,\text{src}}, 0), \quad \Delta\eta_{\text{hyst}} = \max(\eta_{\text{tgt}} - \eta_{\text{src}}, 0), \quad \Delta k_{\text{sag}} = \max(k_{\text{sag,tgt}} - k_{\text{sag,src}}, 0)$$
 $$\Delta k_{\text{eddy}} = \max(k_{\text{eddy,tgt}} - k_{\text{eddy,src}}, 0), \quad \Delta\kappa_{\text{orbit}} = \max(\kappa_{\text{orbit,tgt}} - \kappa_{\text{orbit,src}}, 0), \quad \Delta\beta_{\text{curv}} = \max(\beta_{\text{curv,tgt}} - \beta_{\text{curv,src}}, 0)$$
 $$\Delta k_{\text{pull}} = \max(k_{\text{pull,tgt}} - k_{\text{pull,src}}, 0), \quad \Delta\tau_{\text{touch}} = \max(\tau_{\text{touch,tgt}} - \tau_{\text{touch,src}}, 0), \quad \Delta\kappa_{\text{geom}} = \max(\kappa_{\text{geom,tgt}} - \kappa_{\text{geom,src}}, 0), \quad \Delta k_{\text{stein}} = \max(k_{\text{stein,tgt}} - k_{\text{stein,src}}, 0)$$
+$$\Delta k_{\text{emf}} = \max(k_{\text{emf,tgt}} - k_{\text{emf,src}}, 0), \quad \Delta\lambda_L = \max(\lambda_{L,\text{tgt}} - \lambda_{L,\text{src}}, 0)$$
 
 $$V_{\text{sat,eff}} = \begin{cases} V_{\text{sat,tgt}} & \text{if active source} \\ \frac{V_{\text{sat,tgt}}}{1.0 - \min\left(0.85, \frac{V_{\text{sat,tgt}}}{V_{\text{sat,src}}}\right) + 0.15} & \text{if passive source with } V_{\text{sat,tgt}} < V_{\text{sat,src}} \\ 10.0 & \text{otherwise} \end{cases}$$
 Engage softening if and only if $(\text{not is\_identity}) \land (\text{not is\_passive} \lor \text{is\_target\_more\_saturated})$. Bypass saturation on small signals ($\le 0.10$ peak) to preserve bit-exact test linearity.
@@ -151,6 +152,15 @@ $$\Delta x_{\text{max}} = \frac{2\pi f_{\text{slew}} V_{\text{sat}}}{f_s}, \quad
 - **Conformal clearance divergence:** $x_{\text{disp}} / (1 - \kappa_{\text{geom}} \tanh(x_{\text{disp}} / V_{\text{sat}}))$ modeling pole proximity growl and pushback without negative rail clipping.
 - **Dynamic Steinmetz core loss:** $\text{stein\_damping} = k_{\text{stein}} \cdot \text{excess} \cdot (|dx_{\text{high}}/dt| / V_{\text{sat}})^{0.6}$ softening harsh flux spikes on attack plucks.
 
+### 4.8 Dynamic Reluctance Inductance Modulation & Back-EMF String Braking
+- **Dynamic Reluctance Inductance Modulation ($\lambda_L$ "Vowel Quack"):**
+  Plucking a ferromagnetic string near a pickup pole momentarily compresses the magnetic air gap, decreasing magnetic reluctance ($\mathcal{R}_{\text{gap}} \propto g$) and dynamically increasing instantaneous coil inductance $L(t) = L_0 (1 + \Delta\lambda_L \cdot \text{excess} \cdot \tanh(|x[n]| / V_{\text{sat}}))$. This dynamically shifts the pickup resonance $f_r(t)$ downward on hard pick/finger plucks before recovering during sustain. In the recursive state formulation:
+  $$\text{ind\_mod} = -\Delta\lambda_L \cdot \text{excess} \cdot \tanh\left(\frac{|x[n]|}{V_{\text{sat}}}\right) \cdot (x_{\text{high}}[n] - x_{\text{high}}[n-1])$$
+- **Electromechanical Back-EMF String Braking ($k_{\text{emf}}$):**
+  Induced coil current circulating through the pickup circuit creates an opposing Lenz Lorentz force acting back on the physical string ($\mathbf{F}_{\text{EMF}} \propto i_{\text{coil}}(t)$), providing instantaneous electromechanical braking on extreme high-frequency attack clank transients:
+  $$\text{emf\_damping} = \Delta k_{\text{emf}} \cdot \text{excess} \cdot \tanh\left(\frac{|x_{\text{high}}[n]|}{V_{\text{sat}}}\right)$$
+  $$\text{drag}_{\text{high}} = 1.0 - (k_{\text{sag}} + k_{\text{eddy}} + \text{pull\_damping} + \text{stein\_damping} + \text{emf\_damping}) \cdot \text{excess}$$
+
 ---
 
 ## 5. Complex Electrical Impedance & Inter-Coil Transmission Modeling
@@ -173,6 +183,12 @@ $$\gamma_{\text{dist}} = k_{\text{dist}} \sqrt{\frac{s}{\omega_{\text{dist}}}}, 
 
 ### 5.5 Interactive Potentiometer Wiper Division & Cable Loading
 Model Volume and Tone pot wiper positions ($P_{\text{vol}}, P_{\text{tone}} \in [0, 1]$). Rolling volume down splits $R_{\text{vol}}$ into series $R_{\text{top}}$ and shunt $R_{\text{bot}}$, interacting with cable capacitance $C_{\text{cable}}$; rolling tone down reduces series resistance into $C_{\text{tone}}$. Exactly preserves netlist defaults when $P_{\text{vol}} = 1.0, P_{\text{tone}} = 1.0$.
+
+### 5.6 Solid Alnico Pole Eddy Skin-Effect Fractional Dispersion ($Z_{\text{skin}}(s)$)
+In pickups with solid conducting metallic pole pieces (e.g. Alnico rod magnets in Fender Jazz and Precision basses), eddy currents circulating inside the cylindrical magnet volume force high-frequency magnetic flux to the cylinder periphery. This classical skin effect increases the series AC resistance of the inductive branch proportionally to $\sqrt{\omega}$:
+$$Z_{\text{skin}}(s) = R_{\text{dc}} \cdot k_{\text{skin}} \cdot \left(\sqrt{1 + \frac{s}{\omega_{\text{skin}}}} - 1\right), \quad \omega_{\text{skin}} = 2\pi f_{\text{skin}}$$
+- **Exact DC Transparency:** At DC ($s = 0$), $Z_{\text{skin}}(0) \equiv 0$, guaranteeing exact bit-exact preservation of measured DC coil resistance $R_{\text{dc}}$ and $0.00\text{ dB}$ DC transfer matching.
+- **High-Frequency Loss:** At high frequencies ($f \gg f_{\text{skin}}$), $Z_{\text{skin}}(s) \to R_{\text{dc}} \cdot k_{\text{skin}} \cdot \sqrt{s / \omega_{\text{skin}}}$, introducing the authentic $45^\circ$ phase angle and $\sqrt{\omega}$ loss that gently softens top-end hash without inducing un-damped resonant peaking or Gibbs truncation ripples.
 
 ---
 
