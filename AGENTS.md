@@ -77,7 +77,10 @@ allomorph/
 │   ├── prep_nam_audio.py     # Standalone/legacy aperture pre-filter exporter
 │   ├── simulate_circuits.py  # Native WAV SPICE simulator (in-memory aperture + circuit sim)
 │   └── run_pipeline.py       # Master end-to-end automated runner
-└── tests/                    # Pytest test suite (test_circuits, test_physics, test_guardrails)
+├── tests/                    # Pytest test suite (test_circuits, test_physics, test_guardrails)
+└── tone3000/                 # Tone3000 storefront packs, artwork, and documentation
+    ├── assets/               # Production-ready vector SVG and 1024x1024 JPG artwork
+    └── docs/                 # Standardized storefront product descriptions and catalog
 ```
 
 ---
