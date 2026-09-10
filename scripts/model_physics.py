@@ -1,5 +1,5 @@
 """
-Passivizer - Physical & Acoustic Modeling Engine
+Allomorph - Physical & Acoustic Modeling Engine
 Computes magnetic aperture sinc windows, dual-coil humbucker comb filtering,
 scale-length wave-speed conversions, and string tension filters using NumPy.
 Synthesizes minimum-phase causal FIR filters for NAM audio pre-filtering.

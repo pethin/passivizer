@@ -1,4 +1,4 @@
-* Passivizer Source Netlist: Dingwall FD3n Multi-Scale Bridge
+* Allomorph Source Netlist: Dingwall FD3n Multi-Scale Bridge
 * Physical Spec: Dingwall FD3n Neodymium Dual-Coil in Parallel (2.3H L, 4.4k Rdc, 150k Reddy, 120pF Ccoil)
 * Electronics: Factory 500k Volume Pot, 500k Tone Pot (100% Wide Open, 47nF Cap), 750pF Cable
 .options plotwinsize=0 numdgt=7

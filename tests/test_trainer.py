@@ -1,5 +1,5 @@
 """
-Tests for Passivizer NAM Architecture 2 local trainer.
+Tests for Allomorph NAM Architecture 2 local trainer.
 """
 
 import json

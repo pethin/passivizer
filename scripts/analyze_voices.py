@@ -1,7 +1,7 @@
 """
-Passivizer - Interactive Visualizer & Frequency Analyzer
+Allomorph - Interactive Visualizer & Frequency Analyzer
 Uses Polars and Altair to model, analyze, and render interactive frequency
-response curves for all 10 Master Voices (30" / 32" EMG -> 34" / 37" Multi-Scale).
+response curves for all Master Voices across source bass instruments.
 """
 
 import argparse
@@ -303,7 +303,7 @@ def build_portal_html(instruments_meta, default_id, base_url_prefix="./"):
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Passivizer | Frequency Response Suite</title>
+  <title>Allomorph | Frequency Response Suite</title>
   <style>
     :root {{
       --bg: #0d1117;
@@ -499,7 +499,7 @@ def build_portal_html(instruments_meta, default_id, base_url_prefix="./"):
 <body>
   <div class="container">
     <div class="header">
-      <h1>Passivizer Frequency Response Suite <span class="badge">Acoustic + SPICE VA</span></h1>
+      <h1>Allomorph Frequency Response Suite <span class="badge">Acoustic + SPICE VA</span></h1>
       <div class="subtitle">Virtual analog acoustic aperture deconvolution & passive pickup circuit twins for Darkglass Anagram & Neural Amp Modeler.</div>
     </div>
 
@@ -722,7 +722,7 @@ def render_chart_to_file(
             ),
             color=alt.Color(
                 "voice_name:N",
-                title="Passivizer Pickup Profile (Click to isolate)",
+                title="Allomorph Pickup Profile (Click to isolate)",
                 scale=alt.Scale(scheme="tableau20")
             ),
             opacity=alt.condition(voice_selection, alt.value(1.0), alt.value(0.12)),
@@ -786,14 +786,14 @@ def generate_interactive_chart(instrument="30in", out_html=None, mode="unified")
     if mode == "output":
         dfs = [build_voice_dataframe(vid, cfg, instrument=inst, mode="output") for vid, cfg in VOICES.items()]
         master_df = pl.concat(dfs)
-        chart_title = "Passivizer Master Voices: Output Voice Frequency Responses"
+        chart_title = "Allomorph Master Voices: Output Voice Frequency Responses"
         chart_subtitle = f"Target Passive Acoustic Apertures & SPICE Loaded RLC Resonances (Reference: {inst_name})"
         y_title = "Normalized Output Magnitude (dB)"
         y_domain = [-30, 10]
     elif mode == "difference":
         dfs = [build_voice_dataframe(vid, cfg, instrument=inst, mode="difference") for vid, cfg in VOICES.items()]
         master_df = pl.concat(dfs)
-        chart_title = "Passivizer Master Voices: Input/Output Differential Transfer Functions"
+        chart_title = "Allomorph Master Voices: Input/Output Differential Transfer Functions"
         chart_subtitle = f"Source: {inst_name} -> Target: 34\" Standard & 37\" Multi-Scale Datums (Δ Transfer Filter)"
         y_title = "Differential Transfer Magnitude (dB)"
         y_domain = [-28, 15]
@@ -801,7 +801,7 @@ def generate_interactive_chart(instrument="30in", out_html=None, mode="unified")
         dfs_out = [build_voice_dataframe(vid, cfg, instrument=inst, mode="output", include_mode_col=True) for vid, cfg in VOICES.items()]
         dfs_diff = [build_voice_dataframe(vid, cfg, instrument=inst, mode="difference", include_mode_col=True) for vid, cfg in VOICES.items()]
         master_df = pl.concat(dfs_diff + dfs_out)
-        chart_title = "Passivizer Master Voices: Acoustic & Electrical Response Curves"
+        chart_title = "Allomorph Master Voices: Acoustic & Electrical Response Curves"
         chart_subtitle = f"Interactive View ({inst_name}) — Switch between Input/Output Difference and Output Voice"
         y_title = "Normalized Magnitude / Differential Gain (dB)"
         y_domain = [-30, 15]
@@ -829,7 +829,7 @@ def generate_all_charts(output_dir=None):
         render_chart_to_file(
             master_df_out,
             target_path=out_output_file,
-            chart_title="Passivizer Master Voices: Output Voice Frequency Responses",
+            chart_title="Allomorph Master Voices: Output Voice Frequency Responses",
             chart_subtitle=f"Target Passive Acoustic Apertures & SPICE Loaded RLC Resonances (Reference: {inst_name})",
             y_title="Normalized Output Magnitude (dB)",
             y_domain=[-30, 10],
@@ -845,7 +845,7 @@ def generate_all_charts(output_dir=None):
         render_chart_to_file(
             master_df_diff,
             target_path=out_diff_file,
-            chart_title="Passivizer Master Voices: Input/Output Differential Transfer Functions",
+            chart_title="Allomorph Master Voices: Input/Output Differential Transfer Functions",
             chart_subtitle=f"Source: {inst_name} -> Target: 34\" Standard & 37\" Multi-Scale Datums (Δ Transfer Filter)",
             y_title="Differential Transfer Magnitude (dB)",
             y_domain=[-28, 15],
@@ -861,7 +861,7 @@ def generate_all_charts(output_dir=None):
         render_chart_to_file(
             master_df_unified,
             target_path=out_file,
-            chart_title="Passivizer Master Voices: Acoustic & Electrical Response Curves",
+            chart_title="Allomorph Master Voices: Acoustic & Electrical Response Curves",
             chart_subtitle=f"Interactive View ({inst_name}) — Switch between Input/Output Difference and Output Voice",
             y_title="Normalized Magnitude / Differential Gain (dB)",
             y_domain=[-30, 15],
@@ -873,7 +873,7 @@ def generate_all_charts(output_dir=None):
     return generated
 
 def main():
-    parser = argparse.ArgumentParser(description="Generate interactive Altair visualization of Passivizer voices.")
+    parser = argparse.ArgumentParser(description="Generate interactive Altair visualization of Allomorph voices.")
     parser.add_argument(
         "--instrument", "-i",
         default="all",

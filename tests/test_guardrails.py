@@ -1,5 +1,5 @@
 """
-Passivizer Architectural Guardrails Automated Invariant Test Suite.
+Allomorph Architectural Guardrails Automated Invariant Test Suite.
 
 Programmatically verifies that all core physical modeling and numerical invariants
 specified in AGENTS.md and docs/architectural_guardrails.md are strictly upheld:

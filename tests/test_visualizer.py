@@ -30,7 +30,7 @@ def test_generate_interactive_chart():
         assert out_html.exists()
         content = out_html.read_text(encoding="utf-8")
         assert "vega" in content.lower()
-        assert "Passivizer Master Voices" in content
+        assert "Allomorph Master Voices" in content
 
 def test_circuit_simulation_integration():
     """Verify that build_voice_dataframe accurately incorporates the exact .cir netlist transfer functions."""
@@ -75,18 +75,18 @@ def test_generate_all_charts():
             # Check standalone output voice chart
             out_chart = out_dir / f"{inst_id}_output.html"
             assert out_chart.exists()
-            assert "Passivizer Master Voices: Output Voice Frequency Responses" in out_chart.read_text(encoding="utf-8")
+            assert "Allomorph Master Voices: Output Voice Frequency Responses" in out_chart.read_text(encoding="utf-8")
 
             # Check standalone difference chart
             diff_chart = out_dir / f"{inst_id}_diff.html"
             assert diff_chart.exists()
-            assert "Passivizer Master Voices: Input/Output Differential Transfer Functions" in diff_chart.read_text(encoding="utf-8")
+            assert "Allomorph Master Voices: Input/Output Differential Transfer Functions" in diff_chart.read_text(encoding="utf-8")
 
         # Check index portal in output directory
         index_path = out_dir / "index.html"
         assert index_path.exists()
         portal_content = index_path.read_text(encoding="utf-8")
-        assert "Passivizer Frequency Response Suite" in portal_content
+        assert "Allomorph Frequency Response Suite" in portal_content
         assert "tab-btn" in portal_content
         assert "iframe" in portal_content
         assert "mode-btn-output" in portal_content

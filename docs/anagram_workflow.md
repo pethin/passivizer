@@ -1,19 +1,19 @@
 # Darkglass Anagram Integration & Routing Architecture
 
-This document provides a reference for deploying **Passivizer** IRs and NAM models onto the **Darkglass Anagram** pedalboard.
+This document provides a reference for deploying **Allomorph** IRs and NAM models onto the **Darkglass Anagram** pedalboard.
 
 ---
 
 ## 1. Optimal Block Layout
 
-The Darkglass Anagram allows up to 24 simultaneous blocks in series or parallel. To maintain authentic passive circuit loading behavior, the Passivizer model should always occupy **Block 1 (immediately following the hardware input stage)**:
+The Darkglass Anagram allows up to 24 simultaneous blocks in series or parallel. To maintain authentic passive circuit loading behavior, the Allomorph model should always occupy **Block 1 (immediately following the hardware input stage)**:
 
 ```
 [Hardware 1/4" Input]
           │
           ▼
 ┌────────────────────────────────────────────────────────┐
-│ Block 1: Passivizer Pickup Emulation (NAM Preamp)      │
+│ Block 1: Allomorph Pickup Emulation (NAM Preamp)      │
 │   └── Neural Model: "04_modern_p_ceramic.nam" (A2)     │
 └────────────────────────────────────────────────────────┘
           │
@@ -42,13 +42,13 @@ The Darkglass Anagram allows up to 24 simultaneous blocks in series or parallel.
 
 > [!IMPORTANT]
 > **Why Block 1?**
-> Overdrive, distortion, and preamp stages react directly to the input frequency envelope and pickup resonant peaks. By placing the Passivizer NAM model in Block 1, subsequent drive engines distort the *passive* or *active vintage* resonant peak and roll-off, rather than distorting an unshaped wideband active signal.
+> Overdrive, distortion, and preamp stages react directly to the input frequency envelope and pickup resonant peaks. By placing the Allomorph NAM model in Block 1, subsequent drive engines distort the *passive* or *active vintage* resonant peak and roll-off, rather than distorting an unshaped wideband active signal.
 
 ---
 
 ## 2. Hardware Input Gain Staging & Headroom Calibration
 
-Active 18V EMG pickups provide immense dynamic headroom, delivering up to $+14\text{ dBu}$ of peak voltage on aggressive slap or heavy finger plucks. To preserve 100% linear conversion before neural processing in **Block 1 (Passivizer NAM)**:
+Active 18V EMG pickups provide immense dynamic headroom, delivering up to $+14\text{ dBu}$ of peak voltage on aggressive slap or heavy finger plucks. To preserve 100% linear conversion before neural processing in **Block 1 (Allomorph NAM)**:
 
 1. **Adjust the Anagram Global Input Level / Pad:**
    * Navigate to the Anagram global I/O settings.
@@ -145,14 +145,14 @@ Group the pickup profiles into dedicated 3-button banks on the Anagram hardware:
 
 ## 5. Acoustic Upright Dual-Stage Architecture (Block 1 NAM + Block 3 3 Sigma IR)
 
-When targeting an authentic upright double bass tone from a fretless electric bass (such as the 32" Fretless strung with **La Bella Low Tension Flats**), Passivizer splits the acoustic transformation into two specialized stages:
+When targeting an authentic upright double bass tone from a fretless electric bass (such as the 32" Fretless strung with **La Bella Low Tension Flats**), Allomorph splits the acoustic transformation into two specialized stages:
 
 ```
 [32" Fretless Bass w/ La Bella LTF]
                  │
                  ▼
 ┌────────────────────────────────────────────────────────┐
-│ Block 1: Passivizer NAM (`14_upright_bridge_transducer`)│
+│ Block 1: Allomorph NAM (`14_upright_bridge_transducer`)│
 │   • Mathematical de-combing of EMG spatial aperture   │
 │   • Leaky velocity-to-force integration (+6 dB/oct tilt)│
 │   • Non-linear soft-knee bridge compliance (tanh)      │
@@ -179,15 +179,15 @@ When targeting an authentic upright double bass tone from a fretless electric ba
 
 ### Why Both Blocks Are Necessary:
 1. **An IR is Linear Time-Invariant (LTI):** It cannot deconvolve magnetic pickup comb notches, nor can it replicate the non-linear mechanical rocking of a double bass bridge under pizzicato attack. Feeding electric magnetic pickups straight into an acoustic IR sounds like an electric bass inside a hollow box.
-2. **Block 1 Converts Pickup Physics:** Passivizer's NAM model transforms the magnetic velocity-sensing signal into a mechanical bridge force sensor, complete with dynamic compliance compression.
+2. **Block 1 Converts Pickup Physics:** Allomorph's NAM model transforms the magnetic velocity-sensing signal into a mechanical bridge force sensor, complete with dynamic compliance compression.
 3. **Block 3 Radiates the Soundboard:** The 3 Sigma IR receives the exact force signal it was designed for, radiating it through a spruce top and resonant double-bass body.
-4. **Anti-Double-Damping:** Because the 32" fretless is strung with La Bella Low Tension Flats, Passivizer's differential string engine automatically adjusts its acoustic damping curve, preventing the dull, muffled tone that occurs when a static acoustic low-pass filter is applied to already-dark flatwound strings.
+4. **Anti-Double-Damping:** Because the 32" fretless is strung with La Bella Low Tension Flats, Allomorph's differential string engine automatically adjusts its acoustic damping curve, preventing the dull, muffled tone that occurs when a static acoustic low-pass filter is applied to already-dark flatwound strings.
 
 ---
 
 ## 6. Future Milestone: Native Anagram Marketplace Block
 
-While Passivizer currently deploys via the Anagram's stock Neural Amp Loader block, an upcoming roadmap goal is releasing an official **Anagram Marketplace Custom Block** (`marketplace.anagram.shop`):
+While Allomorph currently deploys via the Anagram's stock Neural Amp Loader block, an upcoming roadmap goal is releasing an official **Anagram Marketplace Custom Block** (`marketplace.anagram.shop`):
 * **All-in-One Voice Selector:** Instant rotary switching across all 21 pickup topologies and acoustic transducers directly within a single block.
 * **Integrated Gain Normalization:** Automatically balances active boost, series boost, and single-coil level drop under the hood to ensure unity gain into Block 2.
 * **Dynamic Control Emulation:** Real-time on-screen controls for volume pot loading ($500\text{ k}\Omega$ vs. $250\text{ k}\Omega$), active preamp boost, treble bleed networks, and cable capacitance ($750\text{ pF}$) loading.

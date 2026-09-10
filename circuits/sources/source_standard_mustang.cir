@@ -1,4 +1,4 @@
-* Passivizer Source Netlist: Standard 30" Fender Mustang Bass
+* Allomorph Source Netlist: Standard 30" Fender Mustang Bass
 * Physical Spec: Vintage Alnico V Split-Coil Mustang (9.2k Rdc, 3.4H L, 160k Reddy, 55pF Ccoil)
 * Electronics: Stock 250k Audio Volume Pot, 250k Tone Pot (100% Wide Open, 47nF Cap), 750pF Cable
 .options plotwinsize=0 numdgt=7

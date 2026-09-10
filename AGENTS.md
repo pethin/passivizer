@@ -1,6 +1,6 @@
-# Passivizer - Agent Development Guidelines
+# Allomorph - Agent Development Guidelines
 
-Welcome to **Passivizer**. This repository houses an analog digital twin and modeling pipeline designed to transform active, wideband 18V EMG bass pickups into authentic high-impedance passive pickup configurations (P-Bass, Jazz Bass, StingRay, Rickenbacker, P/J, P/MM) tailored for the **Darkglass Anagram** pedalboard, Neural Amp Modeler (NAM), and DAW plugin hosts.
+Welcome to **Allomorph**. This repository houses an analog digital twin and universal modeling pipeline designed to transform active, passive, and acoustic bass pickup and transducer configurations (P-Bass, Jazz Bass, StingRay, Rickenbacker, P/J, P/MM, upright bass piezos) into authentic high-impedance passive and active target voicings tailored for the **Darkglass Anagram** pedalboard, Neural Amp Modeler (NAM), and DAW plugin hosts.
 
 ---
 
@@ -41,15 +41,15 @@ When contributing to or maintaining this repository, strictly adhere to these ar
 ## 3. Repository Layout
 
 ```
-passivizer/
+allomorph/
 ├── AGENTS.md                 # Antigravity project rules and context (this file)
 ├── pyproject.toml            # Project metadata (polars, altair, pedalboard)
 ├── README.md                 # Comprehensive architecture, CLI usage, roadmap
 ├── main.py                   # Main CLI entrypoint delegation
 ├── audio/                    # Generated 24-bit audio digital twins (audio/<instrument>/)
 ├── circuits/                 # Standalone SPICE circuit netlists (.cir)
-│   ├── sources/              # Active and commercial source instrument netlists
-│   └── ... (01 through 14)
+│   ├── sources/              # Active, passive, and commercial source instrument netlists
+│   └── ... (01 through 16)
 ├── config/                   # Modular TOML configuration files
 │   ├── instruments/          # Source bass definitions (scale, pickups, routing)
 │   ├── scales.toml           # Standard scale wave speeds
@@ -77,9 +77,9 @@ passivizer/
 
 ## 4. Signal Flow on Darkglass Anagram
 
-The models produced by Passivizer are loaded into **Block 1** (as a high-impedance passive pickup front-end before preamp and drive):
+The models produced by Allomorph are loaded into **Block 1** (as a high-impedance passive/transducer front-end before preamp and drive):
 ```
-[Bass: 18V EMG] -> [Block 1: Passivizer NAM] -> [Block 2: Darkglass Preamp/Drive] -> [Block 3: Cab IR Loader] -> [FOH/Audio Interface]
+[Bass: Active / Passive / Piezo] -> [Block 1: Allomorph NAM] -> [Block 2: Darkglass Preamp/Drive] -> [Block 3: Cab IR Loader] -> [FOH/Audio Interface]
 ```
 - **Block 1 (NAM Preamp):** Load trained `.nam` neural model (feather/nano architecture) capturing full RLC resonance, eddy currents, and non-linear magnetic feel.
 - **Block 2 (Darkglass Preamp/Drive):** Microtubes B7K, Vintage Ultra, or Alpha·Omega for bass saturation.

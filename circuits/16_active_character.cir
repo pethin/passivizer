@@ -1,4 +1,4 @@
-* Passivizer Netlist 16: Active Character (Modern Active Buffer)
+* Allomorph Netlist 16: Active Character (Modern Active Buffer)
 * Target: Studio High-Impedance Active Buffer Twin (Cable Isolation & Wideband Sparkle)
 .options plotwinsize=0 numdgt=7
 

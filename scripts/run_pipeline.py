@@ -1,5 +1,5 @@
 """
-Passivizer - Master Automation Pipeline Runner (SPICE -> NAM)
+Allomorph - Master Automation Pipeline Runner (SPICE -> NAM)
 Coordinates:
 1. Interactive Frequency Visualization (Polars + Altair -> docs/frequency_responses.html)
 2. Acoustic Pre-Filtering (prep_nam_audio.py: aperture, placement, and scale tension)
@@ -194,7 +194,7 @@ def run_training(instrument="30in", voice="04_modern_p_ceramic", input_wav=None,
         print(f"Notice: Model training exited with code {res.returncode}")
 
 def list_instruments():
-    print("Available Passivizer Source Instruments:")
+    print("Available Allomorph Source Instruments:")
     for iid, cfg in INSTRUMENTS.items():
         print(f"  - {iid}: {cfg.get('name', iid)} ({cfg.get('scale_length_in', 34.0)}\")")
         pickups = cfg.get("pickups", {})
@@ -202,7 +202,7 @@ def list_instruments():
             print(f"      * [{pid}] {pcfg.get('name', pid)}: pos={pcfg.get('position_from_bridge_m', 0)*1000:.1f}mm, w={pcfg.get('aperture_width_in', 0):.2f}\", d={pcfg.get('coil_spacing_in', 0):.2f}\"")
 
 def list_voices():
-    print("Available Passivizer Target Pickup Voices (SPICE Digital Twins):")
+    print("Available Allomorph Target Pickup Voices (SPICE Digital Twins):")
     for vid, cfg in VOICES.items():
         print(f"  - {vid}: {cfg.get('name', vid)} ({cfg.get('topology', '')})")
         coils = resolve_voice_coils(cfg)
@@ -216,7 +216,7 @@ def list_voices():
             print(f"      Circuit: {cfg.get('circuit', '')} | Coils={len(coils)} (Eff pos={eff_pos*1000:.1f}mm) | fr={cfg.get('fr', 0)}Hz (Q={cfg.get('Q', 0)})")
 
 def main():
-    parser = argparse.ArgumentParser(description="Passivizer SPICE -> NAM Automation Pipeline")
+    parser = argparse.ArgumentParser(description="Allomorph SPICE -> NAM Automation Pipeline")
     parser.add_argument(
         "--instrument", "-i",
         default="30in",
@@ -320,7 +320,7 @@ def main():
     samples_str = str(args.max_samples) if args.max_samples is not None else "full"
 
     print("========================================")
-    print("  PASSIVIZER SPICE -> NAM PIPELINE")
+    print("  ALLOMORPH SPICE -> NAM PIPELINE")
     print(f"  Instrument:  {args.instrument}")
     print(f"  Stage:       {args.stage}")
     print(f"  Backend:     {args.backend}")

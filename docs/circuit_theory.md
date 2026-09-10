@@ -1,6 +1,6 @@
 # Circuit Theory & Electrical Modeling
 
-This document details the electrical equations, component parameters, and physical phenomena modeled in **Passivizer** to recreate authentic passive bass pickups and vintage/modern active preamps from active EMG X-Series signals.
+This document details the electrical equations, component parameters, and physical phenomena modeled in **Allomorph** to recreate authentic passive bass pickups and vintage/modern active preamps from active EMG X-Series signals.
 
 ---
 
@@ -55,7 +55,7 @@ Where:
 
 ## 2. Onboard Control Harnesses & Loading Topologies
 
-Passivizer does not assume a generic volume/tone harness for all instruments. Each voice utilizes its authentic manufacturer and era-specific harness:
+Allomorph does not assume a generic volume/tone harness for all instruments. Each voice utilizes its authentic manufacturer and era-specific harness:
 
 ### A. Active Preamp Buffer Topologies (`01_modern_jazz_active`, `07_modern_pj_active`, `09_stingray_mm_parallel`)
 In instruments equipped with active onboard preamps (e.g., Sadowsky NYC 2-band, Spector 2-band, Music Man 2-band), an internal discrete JFET or op-amp buffer stage directly interfaces with the pickup coils:
@@ -142,7 +142,7 @@ $$Y_{\text{cable}}(s) = s C_{\text{cable}} + \omega C_{\text{cable}} \tan \delta
 
 At DC ($\omega = 0$), $G_{\text{cable}} = 0$, guaranteeing strictly zero DC attenuation ($0.00\text{ dB}$ transfer ratio) in adherence to Architectural Guardrail §5.9. Across the resonant peak ($f_r \approx 2\text{--}3\text{ kHz}$), $G_{\text{cable}}$ introduces a gentle $0.1\text{--}0.3\text{ dB}$ softening of high-Q peaks, preventing artificial metallic harshness while preserving genuine high-frequency clarity. Active buffered pickups isolate the coils from this loss network entirely.
 
-All Passivizer passive SPICE netlists incorporate this complete load network to guarantee zero tonal discrepancy between simulated DAW pipelines and hardware pedalboard operation.
+All Allomorph passive SPICE netlists incorporate this complete load network to guarantee zero tonal discrepancy between simulated DAW pipelines and hardware pedalboard operation.
 
 ---
 
@@ -181,7 +181,7 @@ Passive Source:         [V_string] ──► [H_source(s)] ──► [Track] ─
 ```
 
 ### The Regularized Differential Transfer Function
-To prevent double-filtering (which would cause a disastrous $-24\text{ dB/octave}$ cutoff), Passivizer uses an analytical differential transfer function:
+To prevent double-filtering (which would cause a disastrous $-24\text{ dB/octave}$ cutoff), Allomorph uses an analytical differential transfer function:
 
 $$|H_{\text{diff}}(f)| = \frac{|H_{\text{target}}(f)| \cdot |H_{\text{source}}(f)|}{|H_{\text{source}}(f)|^2 + \epsilon^2}$$
 
@@ -200,7 +200,7 @@ This magnetic skin effect expels magnetic flux from the core's center into the o
 1. An effective reduction in inductance $L(f)$ above $1\text{--}3\text{ kHz}$ (typically $6\text{--}10\%$ drop for conductive Alnico alloys).
 2. Frequency-dependent resistive eddy damping ($R_{\text{eddy}} \propto \sqrt{f}$).
 
-Passivizer models this phenomenon using a physical **Foster 2-stage ladder network**:
+Allomorph models this phenomenon using a physical **Foster 2-stage ladder network**:
 
 ```
            ┌─── L_core ───┐
@@ -220,7 +220,7 @@ Where:
 
 Ferromagnetic core materials exhibit touch-sensitive sustain bloom and micro-hysteresis due to the pinning of magnetic domain walls at grain boundaries and material defects.
 
-Passivizer simulates rate-independent minor hysteresis loops in the string displacement domain at $96\text{ kHz}$ oversampling:
+Allomorph simulates rate-independent minor hysteresis loops in the string displacement domain at $96\text{ kHz}$ oversampling:
 
 $$\Delta[n] = |x[n] - z[n-1]|$$
 $$\text{coupling}[n] = \frac{\Delta[n]}{\Delta[n] + r}$$
@@ -253,7 +253,7 @@ $$v_{\text{geom}}(t) = x_{\text{disp}}(t) + \alpha \cdot x_{\text{disp}}(t)^2 + 
 ### B. Dynamic Lenz-Law Core Flux Sag ($k_{\text{sag}}$)
 Under explosive pluck transients, the rapid rate of change of magnetic flux ($d\Phi/dt$) induces counter-electromotive eddy currents within conductive magnet alloys according to Lenz's Law. These circulating counter-currents momentarily oppose and depress the net core flux during the initial pluck attack:
 
-Passivizer models this using a dual-time-constant envelope detector coupled to a 1-pole register crossover ($f_c = 750\text{ Hz}$):
+Allomorph models this using a dual-time-constant envelope detector coupled to a 1-pole register crossover ($f_c = 750\text{ Hz}$):
 $$\tau_{\text{att}} = 6\text{ ms} \implies \alpha_{\text{att}} = 1 - e^{-1 / (f_s \cdot \tau_{\text{att}})}$$
 $$\tau_{\text{rel}} = 45\text{ ms} \implies \alpha_{\text{rel}} = 1 - e^{-1 / (f_s \cdot \tau_{\text{rel}})}$$
 
@@ -324,7 +324,7 @@ Where:
 
 ## 12. Distributed Inter-Winding Transmission Line Admittance
 
-A high-inductance pickup coil ($> 5,000\text{ turns}$ of fine copper wire) is a distributed transmission line with distributed inter-winding capacitance and series resistance. Passivizer replaces lumped parallel capacitance ($s C_{\text{coil}}$) with the hyperbolic transmission factor:
+A high-inductance pickup coil ($> 5,000\text{ turns}$ of fine copper wire) is a distributed transmission line with distributed inter-winding capacitance and series resistance. Allomorph replaces lumped parallel capacitance ($s C_{\text{coil}}$) with the hyperbolic transmission factor:
 
 $$\gamma_{\text{dist}} = k_{\text{dist}} \sqrt{\frac{s}{\omega_{\text{dist}}}}, \quad \omega_{\text{dist}} = 2\pi \cdot 10000.0\text{ rad/s}$$
 $$Y_{\text{coil}}(s) = (s C_{\text{coil}} + G_{\text{coil}}) \cdot \frac{\tanh(\gamma_{\text{dist}})}{\gamma_{\text{dist}}}$$
@@ -357,7 +357,7 @@ Where:
 
 ## 14. Interactive Potentiometer Wiper Division & Cable Loading ($P_{\text{vol}}, P_{\text{tone}}$)
 
-Unlike simplified digital models that apply a static volume multiplier, Passivizer dynamically solves the complete resistive/capacitive wiper divider:
+Unlike simplified digital models that apply a static volume multiplier, Allomorph dynamically solves the complete resistive/capacitive wiper divider:
 
 ```
 [Pickup Coils] ── Lug 3 (Vol In) ──[ R_top ]──┬── Lug 2 (Vol Out) ──► [Cable + Anagram]
@@ -434,7 +434,7 @@ Physical pickups exert a static magnetic attraction on ferromagnetic strings ("S
 1. Localized velocity damping on positive excursions.
 2. Attack pitch sag (transient frequency drop during the first $20\text{--}40\text{ ms}$).
 
-Passivizer dynamically weights string pull by the register excursion ratio:
+Allomorph dynamically weights string pull by the register excursion ratio:
 
 $$w_{\text{reg}} = 0.70 + 0.60 \cdot \frac{|x_{\text{low}}[n]|}{\max(|x_{\text{low}}[n]| + |x_{\text{high}}[n]|, 10^{-6})}$$
 $$\text{pull\_damping} = k_{\text{pull}} \cdot w_{\text{reg}} \cdot \text{excess}[n] \cdot \tanh\left(\frac{\max(x[n], 0)}{V_{\text{sat}}}\right)$$
@@ -463,7 +463,7 @@ $$\text{wobble} = \beta_{\text{curv}} \cdot \tanh\left(\frac{x[n]^2}{V_{\text{sa
 Models instantaneous resonant wobble as high string amplitude modulates core magnetization state.
 
 ### B. 2D Elliptical String Orbit Precession Bloom ($\kappa_{\text{orbit}}$)
-Plucked strings oscillate in 2D elliptical orbital planes rather than simple 1D transverse lines. This orbital precession modulates pickup proximity at twice the fundamental frequency ($2f_0$). Passivizer simulates this via analytic Hilbert transform quadrature projection:
+Plucked strings oscillate in 2D elliptical orbital planes rather than simple 1D transverse lines. This orbital precession modulates pickup proximity at twice the fundamental frequency ($2f_0$). Allomorph simulates this via analytic Hilbert transform quadrature projection:
 $$x_{\text{quad}} = x \cdot \mathcal{H}\{x\}$$
 $$x_{\text{out}} = x + \kappa_{\text{orbit}} \cdot \tanh\left(\frac{|x|}{V_{\text{sat}}}\right) \cdot x_{\text{quad}}$$
 Generates warm, organic second-harmonic octave bloom without introducing DC offset.
@@ -484,7 +484,7 @@ Smoothly caps ultrasonic flux acceleration without hard-clipping harshness.
 
 ## 22. Passive RLC-Shaped Johnson-Nyquist Thermal Noise Dither ($-108\text{ dBFS}$)
 
-Real high-impedance passive pickups generate thermal Johnson noise ($e_n = \sqrt{4 k_B T R \Delta f}$) shaped by the passive RLC resonant network. To prevent neural network zero-gating pops and activation chatter on hardware pedalboard DACs (Darkglass Anagram), Passivizer injects calibrated $-108\text{ dBFS}$ colored thermal dither:
+Real high-impedance passive pickups generate thermal Johnson noise ($e_n = \sqrt{4 k_B T R \Delta f}$) shaped by the passive RLC resonant network. To prevent neural network zero-gating pops and activation chatter on hardware pedalboard DACs (Darkglass Anagram), Allomorph injects calibrated $-108\text{ dBFS}$ colored thermal dither:
 
 1. White Gaussian noise is generated: $w[n] \sim \mathcal{N}(0, 1)$.
 2. Convolved with a 512-tap minimum-phase FIR shaped to the target pickup's specific RLC impedance curve.
@@ -498,7 +498,7 @@ Real high-impedance passive pickups generate thermal Johnson noise ($e_n = \sqrt
 
 Non-linear quadratic asymmetry terms ($v + \alpha v^2$) naturally generate a small positive DC offset. Left unaddressed, DC bias shifts downstream neural network operating points and produces large thump pops when feeding high-gain Darkglass drive stages (Microtubes B7K, Alpha·Omega).
 
-Passivizer applies a specialized sub-audible high-pass filter ($f_c = 8.0\text{ Hz}$):
+Allomorph applies a specialized sub-audible high-pass filter ($f_c = 8.0\text{ Hz}$):
 * Suppresses DC offset by $>140\text{ dB}$ ($< 10^{-10}$ DC mean).
 * Transparent across the entire bass playing register: $< 0.28\text{ dB}$ attenuation at Low B ($30.87\text{ Hz}$) and $< 0.15\text{ dB}$ at Low E ($41.20\text{ Hz}$).
 * **Gibbs Truncation Prevention:** Active preamps must feature flat, finite DC transmission ($H_{\text{preamp}}(0) \ge 1.0$). Sub-audible AC-coupling differentiators ($s / (s + \omega_{\text{sub}})$) are strictly excluded from active preamp transfer models, eliminating periodic Gibbs truncation ripples ($\Delta f = f_s / N = 23.4\text{ Hz}$) between $20\text{ Hz}$ and $300\text{ Hz}$.
@@ -507,7 +507,7 @@ Passivizer applies a specialized sub-audible high-pass filter ($f_c = 8.0\text{ 
 
 ## 24. Differential Non-Linear Metallurgy Softening Matrix
 
-When converting between different pickup metallurgies (e.g. Active EMG $\to$ Vintage Alnico V, or Ceramic $\to$ Alnico II), Passivizer evaluates dynamic softening **differentially**:
+When converting between different pickup metallurgies (e.g. Active EMG $\to$ Vintage Alnico V, or Ceramic $\to$ Alnico II), Allomorph evaluates dynamic softening **differentially**:
 
 $$\Delta\alpha = \max(\alpha_{\text{tgt}} - \alpha_{\text{src}}, 0), \quad \Delta\alpha_3 = \max(\alpha_{3,\text{tgt}} - \alpha_{3,\text{src}}, 0)$$
 $$\Delta\eta_{\text{hyst}} = \max(\eta_{\text{tgt}} - \eta_{\text{src}}, 0), \quad \Delta k_{\text{sag}} = \max(k_{\text{sag,tgt}} - k_{\text{sag,src}}, 0)$$
@@ -529,7 +529,7 @@ This guarantees that:
 
 ## 25. Comprehensive Magnet Metallurgy Reference Table
 
-The following table summarizes all 15 electrical, magnetic, and dynamic parameters across the standard pickup metallurgy profiles implemented in Passivizer:
+The following table summarizes all 15 electrical, magnetic, and dynamic parameters across the standard pickup metallurgy profiles implemented in Allomorph:
 
 | Metallurgy Parameter | Symbol | Alnico V | Alnico II | Ceramic | Hybrid | Neodymium | Piezo | Active Buffer | Physical Phenomenon |
 | :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :--- |

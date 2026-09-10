@@ -1,4 +1,4 @@
-* Passivizer Netlist 05d: Vintage '50s Split-P (100nF ToneStyler)
+* Allomorph Netlist 05d: Vintage '50s Split-P (100nF ToneStyler)
 * Target: Vintage Alnico V Split-Coil with 100nF (0.1uF) ToneStyler pure capacitive shunt (Deep Sub-Bass Rolloff)
 .options plotwinsize=0 numdgt=7
 

@@ -1,36 +1,35 @@
-# Passivizer
+# Allomorph
 
-**Passivizer** is an analog modeling and digital twin pipeline that transforms active, wideband, low-impedance bass pickup signals—specifically **EMG X-Series (18V)**—into accurate emulations of high-impedance **passive pickup circuits**.
+**Allomorph** is an analog modeling and digital twin pipeline that transforms bass pickup and transducer signals—across active, passive, and acoustic piezo topologies—into authentic digital twin voices of iconic high-impedance **passive pickup circuits, active preamps, and acoustic instruments**.
 
-Designed specifically for NAM-capable pedalboards like the **Darkglass Anagram**, HeadRush, hardware IR loaders, and DAW plugin hosts, Passivizer produces both:
+Designed specifically for NAM-capable pedalboards like the **Darkglass Anagram**, HeadRush, hardware IR loaders, and DAW plugin hosts, Allomorph produces both:
 1. **Minimum-Phase Impulse Responses (IRs):** High-precision 48 kHz / 24-bit FIR filters for fast, zero-latency pickup re-voicing on standard IR loaders.
 2. **Neural Amp Modeler (NAM) Profiles:** Nano/Feather/A2 neural captures trained on native WAV SPICE circuit simulations to capture dynamic magnetic saturation, eddy-current damping, volume pot loading, and treble-bleed interactions.
 
 ---
 
-## The Philosophy: Why "Active to Passive"?
+## The Philosophy: Universal Transducer Transformation
 
 In modern bass signal chains, trying to convert a passive bass to sound active with digital EQ/IRs runs into fundamental mathematical limits: high-frequency content has already been attenuated by the passive coil's 12 dB/octave low-pass filter. Boosting those missing frequencies elevates noise and introduces comb-filtering artifacts.
 
-**Passivizer flips this relationship:**
-* **Source (EMG X-Series @ 18V):** Delivers a flat, wideband (20 Hz – 20+ kHz), high-headroom, low-noise signal with near-zero inductive peaking.
-* **Target (Passive Circuit):** Fundamentally subtractive, resonant, and capacitive. 
-
-Because the active source delivers an unclipped, full-bandwidth signal, Passivizer can carve out the exact physical and electrical transfer function of any passive pickup without boosting background hiss or running into phase smearing.
+**Allomorph provides bidirectional, universal transformation:**
+* **Active Sources (e.g. EMG X-Series @ 18V):** Deliver a flat, wideband (20 Hz – 20+ kHz), high-headroom, low-noise signal with near-zero inductive peaking, allowing Allomorph to carve out the exact physical and electrical transfer function of any vintage passive pickup without boosting background hiss.
+* **Passive Sources (e.g. Precision, Jazz, Mustang):** Re-voiced through true differential circuit deconvolution ($H_{\text{diff}} = H_{\text{tgt}} / H_{\text{src}}$), morphing physical vintage coils into modern active buffers, hot overwound humbuckers, or alternate scale placements.
+* **Acoustic & Piezo Transducers:** Bridge force transducers and body cavity resonances faithfully emulated without artificial magnetic assumptions.
 
 ---
 
 ## Why Not Just an Impulse Response (IR)?
 
-While an Impulse Response (IR) or FIR filter can reproduce a static frequency curve, physical passive guitar and bass pickups are fundamentally **non-linear, dynamic, reactive electro-mechanical transducers**. Relying solely on a linear IR misses the core physical behavior and tactile response of a real instrument:
+While an Impulse Response (IR) or FIR filter can reproduce a static frequency curve, physical guitar and bass pickups and transducers are fundamentally **non-linear, dynamic, reactive electro-mechanical systems**. Relying solely on a linear IR misses the core physical behavior and tactile response of a real instrument:
 
 1. **Linear Time-Invariance (LTI) vs. Analog Dynamic "Give":**
    * An IR is strictly linear and time-invariant: plucking pianissimo ($pp$) or digging in with aggressive slap or heavy pick strokes ($ff$) produces the identical transfer function.
-   * Real passive magnetic pickups exhibit dynamic core excursion non-linearities and flux compression when strings swing close to the pole pieces. Passivizer models this dynamic non-linearity via vector soft-knee saturation ($V_{\text{sat}} \cdot \tanh(v / V_{\text{sat}})$), reproducing the $1.5\text{--}2.5\text{ dB}$ of tactile compression, bloom, and dynamic "give" experienced when digging into real copper coils.
+   * Real passive magnetic pickups exhibit dynamic core excursion non-linearities and flux compression when strings swing close to the pole pieces. Allomorph models this dynamic non-linearity via vector soft-knee saturation ($V_{\text{sat}} \cdot \tanh(v / V_{\text{sat}})$), reproducing the $1.5\text{--}2.5\text{ dB}$ of tactile compression, bloom, and dynamic "give" experienced when digging into real copper coils.
 
 2. **Pre-Conditioning Downstream Distortion Stages:**
-   * In a digital modeler like the **Darkglass Anagram**, Passivizer sits in **Block 1**, directly feeding high-gain preamps and overdrives (Microtubes B7K, Vintage Ultra, Alpha·Omega).
-   * A linear IR passes high-headroom active transients through uncompressed, causing subsequent overdrive stages to clip on artificial, brittle spikes. A Passivizer neural model pre-conditions the signal with true passive saturation and impedance damping, ensuring downstream distortion blocks saturate smoothly and musically.
+   * In a digital modeler like the **Darkglass Anagram**, Allomorph sits in **Block 1**, directly feeding high-gain preamps and overdrives (Microtubes B7K, Vintage Ultra, Alpha·Omega).
+   * A linear IR passes high-headroom active transients through uncompressed, causing subsequent overdrive stages to clip on artificial, brittle spikes. An Allomorph neural model pre-conditions the signal with true passive saturation and impedance damping, ensuring downstream distortion blocks saturate smoothly and musically.
 
 3. **Eddy Currents & Time-Domain Energy Storage:**
    * Metal components (pole pieces, baseplates, covers) generate circulating eddy currents that produce frequency-dependent damping ($R_{\text{eddy}}$) and subtle phase lag during rapid string transients.
@@ -40,13 +39,13 @@ While an Impulse Response (IR) or FIR filter can reproduce a static frequency cu
    * Instruments with multiple coils or pickups (Jazz Bass pairs, P/J, StingRay dual coils) feature complex spatial cancellation patterns that vary with string amplitude and string displacement. NAM neural models capture compound phase interactions and harmonic cancellation across the full frequency spectrum without comb-filtering artifacts or phase smearing.
 
 > [!NOTE]
-> Passivizer *can* synthesize zero-latency minimum-phase FIR impulse responses for ultra-lightweight linear filtering. However, its flagship pipeline trains lightweight **NAM neural models** (Architecture 2 / Nano/Feather) to preserve the full dynamic touch sensitivity, bloom, and analog feel of physical passive circuits.
+> Allomorph *can* synthesize zero-latency minimum-phase FIR impulse responses for ultra-lightweight linear filtering. However, its flagship pipeline trains lightweight **NAM neural models** (Architecture 2 / Nano/Feather) to preserve the full dynamic touch sensitivity, bloom, and analog feel of physical passive circuits.
 
 ---
 
 ## The Ideal Source Instrument: Single-Pickup Architecture (34" Scale)
 
-While Passivizer supports multi-pickup and active-blend source instruments, the **optimal hardware platform** for driving all 14 digital twin voicings is a **single-pickup, zero-control bass**.
+While Allomorph supports multi-pickup and active-blend source instruments, the **optimal hardware platform** for driving all 14 digital twin voicings is a **single-pickup, zero-control bass**.
 By installing a single active EMG pickup wired straight to the output jack, you establish an uncompromising reference baseline:
 
 ```
@@ -54,7 +53,7 @@ By installing a single active EMG pickup wired straight to the output jack, you 
 ```
 
 ### 1. The Single-Pickup Philosophy: Total Decoupling & Zero Comb Nulls
-* **No Comb-Filtering Nulls to Invert:** Humbuckers with dual coils under the same string introduce physical phase cancellation notches ($f = v / 2d \approx 2.5\text{ kHz}$) that cannot be cleanly inverted in DSP without boosting noise. A single line of sensing per string provides a clean, notch-free transfer function that allows Passivizer to synthesize any target aperture or dual-coil comb filter effortlessly.
+* **No Comb-Filtering Nulls to Invert:** Humbuckers with dual coils under the same string introduce physical phase cancellation notches ($f = v / 2d \approx 2.5\text{ kHz}$) that cannot be cleanly inverted in DSP without boosting noise. A single line of sensing per string provides a clean, notch-free transfer function that allows Allomorph to synthesize any target aperture or dual-coil comb filter effortlessly.
 * **Total Preset Decoupling:** Eliminates the "hand-foot desync" problem. You never have to adjust physical knobs or flip coil switches to match patch changes on your pedalboard; stepping on a Darkglass Anagram footswitch transforms the tone entirely in software.
 
 ### 2. Recommended Pickup: EMG PX or EMG 35P4X (18V)
@@ -80,7 +79,7 @@ This median position achieves a **Reverse-P Dual-Datum Alignment**:
 * **Why this position outclasses all others:** 
   1. The low E and A strings are physically sampled right where a Music Man StingRay senses, ensuring tight sub-bass, punchy low-mids, and zero flub.
   2. The high D and G strings are physically sampled within $5\text{ mm}$ of an authentic 1962 Fender P-Bass, ensuring rich fundamental bloom and eliminating high-register "plinkiness."
-  3. Because the pickup is equidistant between bridge single-coils ($63.5\text{ mm}$) and neck split-coils ($125.0\text{ mm}$), the DSP acoustic tilt adjustments in Passivizer are kept to an absolute minimum ($\le 1.8\text{ dB}$ in either direction).
+  3. Because the pickup is equidistant between bridge single-coils ($63.5\text{ mm}$) and neck split-coils ($125.0\text{ mm}$), the DSP acoustic tilt adjustments in Allomorph are kept to an absolute minimum ($\le 1.8\text{ dB}$ in either direction).
 
 ### 4. Zero-Control Electrical Wiring (Direct-to-Jack)
 * **Wiring:** Connect the EMG pickup signal wire directly to the stereo 1/4" output jack Tip, battery negative to Ring (for automatic power switching on cable insertion), and pickup/battery ground to Sleeve.
@@ -91,7 +90,7 @@ This median position achieves a **Reverse-P Dual-Datum Alignment**:
 
 ## Modeling Architecture
 
-Passivizer models the complete electro-acoustic path in four distinct layers:
+Allomorph models the complete electro-acoustic path in four distinct layers:
 
 ```
 [String Vibration]
@@ -120,7 +119,7 @@ Passivizer models the complete electro-acoustic path in four distinct layers:
 ```
 
 ### Scale-Length & Multi-Scale Transformation
-Passivizer converts the lower tension and warm low-mid "bloom" of **30" short-scale** and **32" medium-scale** instruments into the focused, piano-like authority of full-scale and fanned-fret instruments:
+Allomorph converts the lower tension and warm low-mid "bloom" of **30" short-scale** and **32" medium-scale** instruments into the focused, piano-like authority of full-scale and fanned-fret instruments:
 * **Wave-Speed Scaling ($\kappa_v$):** Up-shifts aperture and comb-filter null frequencies by $+13.3\%$ (for 34") and $+23.3\%$ (for 37" multi-scale).
 * **String Tension Filtering:** Tightens tubby $180\text{--}250\text{ Hz}$ boom while adding laser-tight sub-bass ($40\text{--}80\text{ Hz}$) and metallic Dingwall-style clank ($2.5\text{--}3.8\text{ kHz}$).
 * **Spatial Placement Tracking:** Relocates pickups from short-scale bridge datums to standard 34" and 37" sweet spots.
@@ -129,7 +128,7 @@ Passivizer converts the lower tension and warm low-mid "bloom" of **30" short-sc
 
 ### Target Voice Catalog (21 Master Configurations & Acoustic Transducers)
 
-Passivizer includes pre-configured physical and electrical parameters for **21 distinct pickup topologies, active buffers, and transducers** including active 2-band preamps, Stellartone ToneStyler discrete capacitive switching, fanned-fret multi-scale, and upright double bass (see [`docs/voice_catalog.md`](file:///Users/peter/Projects/pethin/passivizer/docs/voice_catalog.md) for full engineering specifications):
+Allomorph includes pre-configured physical and electrical parameters for **21 distinct pickup topologies, active buffers, and transducers** including active 2-band preamps, Stellartone ToneStyler discrete capacitive switching, fanned-fret multi-scale, and upright double bass (see [`docs/voice_catalog.md`](file:///Users/peter/Projects/pethin/passivizer/docs/voice_catalog.md) for full engineering specifications):
 
 | # | Profile ID | Pickup Type | Topology | Harness / Controls | $L_{\text{eq}}$ | $f_r$ (Peak) | Circuit & Acoustic Character |
 | :- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
@@ -159,7 +158,7 @@ Passivizer includes pre-configured physical and electrical parameters for **21 d
 
 ## SPICE $\to$ NAM Pipeline & CLI Usage
 
-Passivizer models acoustic aperture and scale tension in Python, executes the passive circuit digital twin directly using its native WAV SPICE simulator, and trains lightweight NAM (`.nam`) neural captures for Block 1 of the Darkglass Anagram:
+Allomorph models acoustic aperture and scale tension in Python, executes the passive circuit digital twin directly using its native WAV SPICE simulator, and trains lightweight NAM (`.nam`) neural captures for Block 1 of the Darkglass Anagram:
 
 ### 1. Interactive Acoustic & Electrical Visualizer (`scripts/analyze_voices.py`)
 Renders interactive frequency response curves in Altair (Vega-Lite), comparing all 21 target configurations against any source instrument. Outputs are organized into per-instrument standalone charts and a unified interactive portal:
@@ -180,7 +179,7 @@ Directly streams raw NAM calibration audio (`T3K-sweep-v3.wav` / `v3_0_0.wav` / 
 2. **Dynamic Non-Linear Compliance:** Soft-knee saturation ($V_{\text{sat}} \cdot \tanh(v / V_{\text{sat}})$), Lenz flux sag, Dahl hysteresis, back-EMF, and dynamic reluctance quack.
 3. **Passive Pickup Circuit Twin:** Exact closed-form nodal AC transfer functions, eddy-current damping, authentic volume/tone pot dividers, active preamp buffers, hybrid treble bleed, cable capacitance ($750\text{ pF}$), and pedalboard load ($1\text{ M}\Omega \parallel 30\text{ pF}$).
 
-Passivizer features a built-in **WAV SPICE simulator** running natively on Apple Silicon (`arm64`). By evaluating exact analytical nodal equations and vector non-linearities directly in memory on the audio waveform, it eliminates external SPICE dependencies (such as LTspice or ngspice) and intermediate disk writes, executing in ~0.8s per voice (>1500x faster than traditional transient SPICE engines):
+Allomorph features a built-in **WAV SPICE simulator** running natively on Apple Silicon (`arm64`). By evaluating exact analytical nodal equations and vector non-linearities directly in memory on the audio waveform, it eliminates external SPICE dependencies (such as LTspice or ngspice) and intermediate disk writes, executing in ~0.8s per voice (>1500x faster than traditional transient SPICE engines):
 
 ```bash
 # Run unified WAV SPICE simulation from raw audio for a specific voice (~0.8s):
@@ -206,14 +205,14 @@ Trains a high-efficiency **NAM Architecture 2 (A2)** neural model on the input/o
 # The input is the raw bass calibration sweep (T3K-sweep-v3.wav) and the target is the simulated output:
 nam train T3K-sweep-v3.wav audio/30in_emg_mmtw/out_04_modern_p_ceramic.wav ./models/30in_emg_mmtw/04_modern_p_ceramic.nam --architecture "A2"
 
-# Run via the automated Passivizer trainer (defaults to studio reference goal ESR <= 0.0005 with 100 max epochs):
+# Run via the automated Allomorph trainer (defaults to studio reference goal ESR <= 0.0005 with 100 max epochs):
 uv run python main.py --stage train --instrument 30in --voice 04_modern_p_ceramic
 
 # Customize goal ESR or disable early stopping:
 uv run python main.py --stage train --instrument 30in --voice 04_modern_p_ceramic --goal-esr 0.0002
 uv run python main.py --stage train --instrument 30in --voice 04_modern_p_ceramic --no-goal-esr --epochs 100
 ```
-*(In modern versions of `neural-amp-modeler` and the official Google Colab trainer, `--architecture A2` is the default. Passivizer enables goal-driven early stopping by default (`--goal-esr 0.0005`, $\approx -33\text{ dB}$ ESR), halting training as soon as transparent studio reference fidelity is reached).*
+*(In modern versions of `neural-amp-modeler` and the official Google Colab trainer, `--architecture A2` is the default. Allomorph enables goal-driven early stopping by default (`--goal-esr 0.0005`, $\approx -33\text{ dB}$ ESR), halting training as soon as transparent studio reference fidelity is reached).*
 
 ### 4. Master Automation Runner (`scripts/run_pipeline.py` & `main.py`)
 Execute the entire pipeline or specific stages with a single command:
@@ -237,22 +236,22 @@ uv run python scripts/simulate_circuits.py --instrument 30in --voice all --norma
 
 ---
 
-## Signal Flow on the Darkglass Anagram
+### Signal Flow on the Darkglass Anagram
 
 ```
-[Bass: EMG PX / MMTWX @ 18V]
+[Bass: Active / Passive / Piezo]
              │
              ▼
-[Block 1: Passivizer NAM Preamp]
-    └── Model: "07_stingray_mm_parallel.nam" (Nano/Feather neural capture)
+[Block 1: Allomorph NAM Preamp]
+     └── Model: "07_stingray_mm_parallel.nam" (Nano/Feather neural capture)
              │
              ▼
 [Block 2: Darkglass Preamp / Drive]
-    └── Microtubes B7K, Vintage Ultra, or Alpha·Omega
+     └── Microtubes B7K, Vintage Ultra, or Alpha·Omega
              │
              ▼
 [Block 3: Speaker Cabinet IR Loader]
-    └── Ampeg 8x10, Darkglass 4x10, or custom speaker cab impulse
+     └── Ampeg 8x10, Darkglass 4x10, or custom speaker cab impulse
              │
              ▼
 [Output to FOH / Audio Interface]
@@ -263,7 +262,7 @@ uv run python scripts/simulate_circuits.py --instrument 30in --voice all --norma
 ## Project Structure
 
 ```
-passivizer/
+allomorph/
 ├── README.md                              # Project vision, theory, architecture, and CLI guide
 ├── docs/                                  # In-depth technical guides
 │   ├── architectural_guardrails.md        # Master mathematical reference handbook & derivations
@@ -274,7 +273,7 @@ passivizer/
 │   ├── aperture_math.md                   # Magnetic aperture sinc, multi-string & scale physics
 │   └── anagram_workflow.md                # Darkglass Anagram Block 1 routing & gain staging
 ├── circuits/                              # Standalone SPICE netlists (.cir)
-│   ├── sources/                           # Active and commercial source instrument netlists
+│   ├── sources/                           # Active, passive, and commercial source instrument netlists
 │   ├── 01_modern_jazz_active.cir          # Sadowsky active 2-band isolated Jazz pair
 │   ├── 02_jazz_bass_pair.cir              # Dual single-coils in parallel (tone open)
 │   ├── 02b_jazz_bass_pair_22nf.cir        # Vintage J-pair with 22nF ToneStyler
@@ -331,7 +330,7 @@ passivizer/
 - [ ] **Interactive A/B Audio Auditioning CLI:** Terminal and real-time audio auditioning tool (`scripts/preview_voices.py`) with seamless dry-to-wet switching, looping bass riffs, and instantaneous A/B comparison across pickup voices before neural training or pedalboard export.
 - [ ] **Hardware Reference Calibration:** Dry-DI spectral matching and A/B verification against physical vintage instruments (1962 P-Bass, 1975 Jazz Bass, 1979 StingRay).
 - [ ] **In-Browser Audio Player:** Interactive audio preview player embedded directly into the Altair documentation portal.
-- [ ] **Anagram Marketplace Native Block:** Develop a dedicated, all-in-one "Passivizer" custom block for the Darkglass Anagram Marketplace (`marketplace.anagram.shop`), featuring rotary voice switching across all 21 pickup configurations, automatic gain normalization, and interactive volume/cable load controls in a single native Block 1 module.
+- [ ] **Anagram Marketplace Native Block:** Develop a dedicated, all-in-one "Allomorph" custom block for the Darkglass Anagram Marketplace (`marketplace.anagram.shop`), featuring rotary voice switching across all 21 pickup configurations, automatic gain normalization, and interactive volume/cable load controls in a single native Block 1 module.
 
 ---
 
@@ -341,7 +340,7 @@ This project and its distributed assets are licensed under the [PolyForm Noncomm
 
 ### Scope & Permissions
 - **Permitted Uses:** Free to use, study, modify, and distribute for personal study, experimentation, sound design, and noncommercial music production.
-- **Coverage:** This license applies to all source code, SPICE netlists, configuration schemas, compiled/trained neural models (`.nam`), and synthesized impulse responses (`.wav`) generated by or distributed with Passivizer.
+- **Coverage:** This license applies to all source code, SPICE netlists, configuration schemas, compiled/trained neural models (`.nam`), and synthesized impulse responses (`.wav`) generated by or distributed with Allomorph.
 - **Commercial Restrictions:** Commercial use, sale, bundling into commercial plugins/pedalboards, or monetization of the software, neural profiles, or impulse responses is strictly prohibited without prior written permission and a commercial license from the author.
 - **Commercial Licensing Inquiries:** Contact **Peter Nguyen** (<peter@phn.dev>).
 

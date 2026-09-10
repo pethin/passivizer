@@ -1,4 +1,4 @@
-# Passivizer - Native Virtual Analog (VA) Circuit Simulation Engine
+# Allomorph - Native Virtual Analog (VA) Circuit Simulation Engine
 
 This document provides a comprehensive technical reference for the native Virtual Analog (VA) circuit simulation engine implemented in [`scripts/simulate_circuits.py`](file:///Users/peter/Projects/pethin/passivizer/scripts/simulate_circuits.py). The engine replaces external SPICE dependencies (LTspice, ngspice) with an analytical nodal solver and state-space non-linear magnetic emulator optimized for Apple Silicon (`arm64`), executing at $>1500\times$ real-time speed.
 
@@ -129,7 +129,7 @@ For active configurations (Voices `01`, `07`, `09`, `09b`), the engine evaluates
 
 ## 3. True Differential Deconvolution & Source Netlists
 
-To convert an active instrument into an authentic passive digital twin without coloring the source bass, Passivizer uses **true differential deconvolution**:
+To convert an active instrument into an authentic passive digital twin without coloring the source bass, Allomorph uses **true differential deconvolution**:
 
 $$H_{\text{diff}}(\omega) = \frac{H_{\text{target}}(\omega)}{H_{\text{source}}(\omega)}$$
 
@@ -152,7 +152,7 @@ Source instruments are represented by exact standalone SPICE netlists:
 
 ## 4. Virtual Analog Non-Linear Magnetic Dynamics Pipeline
 
-Passivizer's non-linear magnetic feel engine emulates the electromechanical and metallurgical interactions of strings vibrating in strong permanent magnetic fields.
+Allomorph's non-linear magnetic feel engine emulates the electromechanical and metallurgical interactions of strings vibrating in strong permanent magnetic fields.
 
 ### 4.1 Two-Stage Lenz-Law Envelope Detector & Velocity Drag
 A two-stage recursive envelope follower tracks instantaneous string kinetic energy:
@@ -206,7 +206,7 @@ $$x_{\text{hyst}}[n] = (1 - \eta_{\text{hyst}}) x[n] + \eta_{\text{hyst}} z[n]$$
 This produces touch-sensitive sustain bloom and micro-phase lag without DC offset.
 
 ### 4.4 2D Orbital Precession & Second-Harmonic Bloom ($\kappa_{\text{orbit}}$)
-Plucked strings oscillate in 2D elliptical orbits around the pole piece. Passivizer synthesizes the orthogonal quadrature component via the Hilbert transform $\mathcal{H}\{x\}$:
+Plucked strings oscillate in 2D elliptical orbits around the pole piece. Allomorph synthesizes the orthogonal quadrature component via the Hilbert transform $\mathcal{H}\{x\}$:
 
 $$x_{\text{quad}}[n] = x[n] \cdot \mathcal{H}\{x[n]\}$$
 $$x_{\text{orbit}}[n] = x[n] + \kappa_{\text{orbit}} \cdot \tanh\left(\frac{|x[n]|}{V_{\text{sat}}}\right) \cdot x_{\text{quad}}[n]$$
@@ -261,7 +261,7 @@ When blending multiple pickups (e.g. Jazz Bass pairs, P/J, P/MM), simple linear 
 ### 6.1 Sub-Audible 8.0 Hz DC-Blocking Filter
 Asymmetric quadratic saturation ($v + \alpha v^2$) naturally generates a subtle DC offset. While inaudible, DC offsets cause downstream high-gain overdrives (Darkglass Microtubes B7K, Vintage Ultra) to bias asymmetrically and clip prematurely.
 
-Passivizer applies an ultra-clean $8.0\text{ Hz}$ high-pass filter:
+Allomorph applies an ultra-clean $8.0\text{ Hz}$ high-pass filter:
 * Suppresses DC by $>140\text{ dB}$ ($<10^{-10}$ DC mean offset).
 * Zero musical coloration: $<0.28\text{ dB}$ attenuation at Low-B ($30.87\text{ Hz}$); $<0.15\text{ dB}$ at Low-E ($41.20\text{ Hz}$).
 

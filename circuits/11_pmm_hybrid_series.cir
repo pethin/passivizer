@@ -1,4 +1,4 @@
-* Passivizer Netlist 11: P/MM Hybrid (Series Sum)
+* Allomorph Netlist 11: P/MM Hybrid (Series Sum)
 * Target: Split-P + MM Dual-Coil in Series (7.2H Inductive Sum, 500k V/T Harness, 2.0 kHz Peak)
 .options plotwinsize=0 numdgt=7
 

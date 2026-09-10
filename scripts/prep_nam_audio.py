@@ -1,5 +1,5 @@
 """
-Passivizer - Scale-Length & Acoustic Aperture Pre-Filter for NAM Training
+Allomorph - Scale-Length & Acoustic Aperture Pre-Filter for NAM Training
 Pre-filters NAM calibration audio (e.g. T3K-sweep-v3.wav) through the physical
 acoustic aperture, dual-coil spacing, placement delta, and scale tension filters.
 The resulting audio is placed in audio/<instrument>/aperture_<voice>.wav to drive SPICE simulation.

@@ -1,4 +1,4 @@
-* Passivizer Source Netlist: Standard 34" Fender Jazz Bass (Solo Bridge)
+* Allomorph Source Netlist: Standard 34" Fender Jazz Bass (Solo Bridge)
 * Physical Spec: Vintage Alnico V Bridge Single-Coil (7.8k Rdc, 3.6H L, 125k Reddy, 70pF Ccoil)
 * Electronics: Stock 250k Audio Volume Pot, 250k Tone Pot (100% Wide Open, 47nF Cap), 750pF Cable
 .options plotwinsize=0 numdgt=7

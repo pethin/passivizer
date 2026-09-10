@@ -1,4 +1,4 @@
-* Passivizer Netlist 14: Upright Acoustic Bridge Transducer
+* Allomorph Netlist 14: Upright Acoustic Bridge Transducer
 * Target: Direct bridge force sensor (Underwood / David Gage Realist style)
 * Captures dynamic bridge rocking compliance, piezo source capacitance, and subsonic decoupling
 .options plotwinsize=0 numdgt=7

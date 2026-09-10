@@ -1,6 +1,6 @@
 # Magnetic Aperture & Spatial Comb-Filtering Math
 
-This document details the spatial, mechanical, and string-vibration physics modeled in **Passivizer** to recreate physical pickup geometry.
+This document details the spatial, mechanical, and string-vibration physics modeled in **Allomorph** to recreate physical pickup geometry.
 
 ---
 
@@ -29,7 +29,7 @@ $$f_{\text{null}} = \frac{v}{w}$$
 
 ---
 
-## 2. Multi-String Wave Speed Problem & The Passivizer Solution
+## 2. Multi-String Wave Speed Problem & The Allomorph Solution
 
 In simple scripts like `precifier`, wave speed is assumed constant based on the open E string:
 $$v_E = 2 \cdot L \cdot f_0 = 2 \cdot (34 \times 0.0254) \cdot 41.20 \approx 71.07\text{ m/s}$$
@@ -52,7 +52,7 @@ For a standard 34" 4-string bass (standard gauge .045 – .105):
 > If an IR uses a single wave speed ($v_E = 71\text{ m/s}$), it forces a deep notch at $2.8\text{ kHz}$. While correct for the open E string, this creates an artificial, hollow notch on the D and G strings where the real notch is well above $5\text{ kHz}$.
 
 ### The Continuous Wave-Speed Continuum Formulation
-Rather than constraining models to fixed 4-string standard tunings ($E, A, D, G$), Passivizer employs a continuous, log-spaced wave-speed continuum $v(f_0) = 2 \cdot L(f_0) \cdot f_0$ spanning the entire physical operating register of the electric bass ($f_0 \in [30.87\text{ Hz}, 100.00\text{ Hz}]$, from Low B through High G):
+Rather than constraining models to fixed 4-string standard tunings ($E, A, D, G$), Allomorph employs a continuous, log-spaced wave-speed continuum $v(f_0) = 2 \cdot L(f_0) \cdot f_0$ spanning the entire physical operating register of the electric bass ($f_0 \in [30.87\text{ Hz}, 100.00\text{ Hz}]$, from Low B through High G):
 
 $$H_{\text{composite}}(f) = \frac{1}{N} \sum_{i=1}^N \left| \text{sinc}\left(\frac{f \cdot w}{v_{\text{disp}}(f_{0,i})}\right) \right|, \quad N = 24$$
 
@@ -115,7 +115,7 @@ In an idealized 1D string model, the cosine comb pattern repeats indefinitely at
 
 ## 4. Scale-Length Transformation & Multi-Scale Physics (30"/32" $\to$ 34" / 37")
 
-When translating a **30" short-scale** or **32" medium-scale** source bass into standard **34"** or **34"–37" multi-scale (Dingwall-style)** tones, Passivizer models three physical phenomena:
+When translating a **30" short-scale** or **32" medium-scale** source bass into standard **34"** or **34"–37" multi-scale (Dingwall-style)** tones, Allomorph models three physical phenomena:
 
 ### A. Wave-Speed Scaling Ratio ($\kappa_v$)
 Wave speed scales directly with vibrating length for any given pitch:
@@ -139,12 +139,12 @@ In contrast, full-scale 34" and 37" multi-scale basses exhibit massive tension (
 * **Controlled, clean low-mids** without muddiness.
 * **Aggressive, percussive metallic clank** ($2.5\text{--}3.8\text{ kHz}$) that stays coherent under heavy Darkglass drive engines.
 
-Passivizer models this acoustic transformation with a multi-band tension transfer filter:
+Allomorph models this acoustic transformation with a multi-band tension transfer filter:
 * **For 34" Conversion:** $-2.0\text{ dB}$ dip @ $210\text{ Hz}$ ($Q=1.2$) $+$ $+1.8\text{ dB}$ high shelf @ $2.8\text{ kHz}$.
 * **For Multi-Scale (Dingwall) Conversion:** $+1.5\text{ dB}$ sub focus @ $75\text{ Hz}$, $-3.5\text{ dB}$ de-mud @ $220\text{ Hz}$, $+3.5\text{ dB}$ metallic clank peak @ $3.2\text{ kHz}$, and $+2.0\text{ dB}$ top-end air @ $5\text{ kHz}$.
 
 ### C. Angled Multi-Scale Pickup Geometry
-On fanned-fret instruments like the Dingwall NG2/NG3, pickups are mounted parallel to the fanned bridge saddles. This ensures that the sensing point relative to the scale line ($x / L$) remains uniform across all strings, eliminating the flubby low-end of straight pickups on low B and E strings while maintaining smooth treble on the G string. Passivizer compensates for this geometric alignment across string channels.
+On fanned-fret instruments like the Dingwall NG2/NG3, pickups are mounted parallel to the fanned bridge saddles. This ensures that the sensing point relative to the scale line ($x / L$) remains uniform across all strings, eliminating the flubby low-end of straight pickups on low B and E strings while maintaining smooth treble on the G string. Allomorph compensates for this geometric alignment across string channels.
 
 ### D. Scale-Normalized Spatial Bridge Proximity Tilt ($\Delta\eta$)
 String standing-wave vibrational modes obey $y_n(x) \propto \sin(n\pi x / L) = \sin(n\pi \eta)$, where $\eta = x / L$ is the fractional distance along the vibrating string length from the bridge saddle.
@@ -159,7 +159,7 @@ $$\Delta x_{\text{norm\_in}} = \Delta\eta \times 34.0''$$
 $$\text{tilt}_{\text{dB}} = \Delta x_{\text{norm\_in}} \times 1.5\text{ dB/in}$$
 
 #### The Dual-Band Shelving Tilt Filter:
-To apply this tilt organically without phase kinks or infinite high-frequency divergence, Passivizer implements complementary 1st-order low and high shelving filters:
+To apply this tilt organically without phase kinks or infinite high-frequency divergence, Allomorph implements complementary 1st-order low and high shelving filters:
 
 $$g_{\text{low}} = 10^{\text{tilt}_{\text{dB}} / 20.0}, \quad g_{\text{hi}} = 10^{-\text{tilt}_{\text{dB}} / 20.0}$$
 
@@ -203,7 +203,7 @@ Because the EMG ABCX active blend potentiometer buffers each pickup input with d
 $$H_{\text{blend, elec}}(f) = \frac{\sum_i w_i \cdot H_{\text{elec}, i}(f)}{\sum_i w_i}$$
 
 ### Biquad Anti-Resonance Equalizer ($H_{\text{anti}}$)
-To eliminate the internal active resonant peak without causing high-frequency noise explosion or distorting the low-end gain structure during FIR normalization, Passivizer uses a 2nd-order biquad anti-resonance notch filter ($Q_{\text{target}} = 1.00$):
+To eliminate the internal active resonant peak without causing high-frequency noise explosion or distorting the low-end gain structure during FIR normalization, Allomorph uses a 2nd-order biquad anti-resonance notch filter ($Q_{\text{target}} = 1.00$):
 
 $$|H_{\text{anti}}(f)| = \frac{\sqrt{\left(1 - \left(\frac{f}{f_r}\right)^2\right)^2 + \left(\frac{f}{Q_{\text{src}} \cdot f_r}\right)^2}}{\sqrt{\left(1 - \left(\frac{f}{f_r}\right)^2\right)^2 + \left(\frac{f}{Q_{\text{target}} \cdot f_r}\right)^2}}$$
 
@@ -221,17 +221,17 @@ Unlike magnetic pickups that sense string velocity across a spatial aperture ($H
 ### A. Regularized Spatial De-Combing ($H_{\text{decomb}}$)
 Magnetic pickups impart spatial comb-filtering nulls $H_{\text{comb}}(f) = \left|\sin\left(\frac{2\pi f x}{v}\right)\right|$ governed by distance $x$ from the bridge. In contrast, an acoustic bridge pickup sits directly at the bridge termination point ($x \approx 0\text{ mm}$), where no spatial comb cancellations occur within the audible audio band.
 
-To deconvolve the magnetic comb filter of the source instrument without introducing infinite gain at the null points or upper-frequency noise flare, Passivizer applies regularized spatial inversion:
+To deconvolve the magnetic comb filter of the source instrument without introducing infinite gain at the null points or upper-frequency noise flare, Allomorph applies regularized spatial inversion:
 $$H_{\text{decomb}}(f) = \frac{H_{\text{src, acoustic}}(f)}{H_{\text{src, acoustic}}^2(f) + \epsilon_{\text{reg}}}, \quad \epsilon_{\text{reg}} = 0.08$$
 The decombed response is normalized relative to its median value across the $100\text{--}1,000\text{ Hz}$ core passband, restoring smooth low-register string dynamics.
 
 ### B. Soundboard & Bridge Wood Damping ($H_{\text{damp}}$)
-Carved spruce and maple double bass tops absorb string vibration rapidly above the mid-treble register. Passivizer models acoustic wood dissipation with a 2nd-order critically damped low-pass filter ($Q = 0.707$):
+Carved spruce and maple double bass tops absorb string vibration rapidly above the mid-treble register. Allomorph models acoustic wood dissipation with a 2nd-order critically damped low-pass filter ($Q = 0.707$):
 $$|H_{\text{damp}}(f)| = \frac{1}{\sqrt{\left(1 - \left(\frac{f}{f_d}\right)^2\right)^2 + 2\left(\frac{f}{f_d}\right)^2}}, \quad f_d = 4,200\text{ Hz}$$
 This smoothly attenuates electric fret click, metallic string whistle, and upper electromagnetic hash, imparting a warm, woody acoustic decay.
 
 ### C. Subsonic Stage Rumble Cut with Cepstral Regularization ($H_{\text{sub}}$)
-Stage handling, bow scrapes, and floor vibrations produce strong sub-audible excursions. Passivizer applies a high-pass filter at $32\text{ Hz}$ with a bounded $-16.5\text{ dB}$ floor:
+Stage handling, bow scrapes, and floor vibrations produce strong sub-audible excursions. Allomorph applies a high-pass filter at $32\text{ Hz}$ with a bounded $-16.5\text{ dB}$ floor:
 $$H_{\text{sub}}(f) = \max\left(\frac{f}{\sqrt{f^2 + f_{\text{sub}}^2}}, 0.15\right), \quad f_{\text{sub}} = 32\text{ Hz}$$
 The $0.15$ lower bound ensures that the discrete log-magnitude spectrum $\ln |H(f)|$ does not plunge to $-\infty$ at DC ($f=0$). This eliminates unphysical cepstral Gibbs ringing that would otherwise notch the $30\text{--}40\text{ Hz}$ low B fundamental during minimum-phase FIR synthesis.
 
@@ -241,7 +241,7 @@ $$H_{\text{tilt}}(f) = \frac{\sqrt{1 + \left(\frac{f}{250\text{ Hz}}\right)^2}}{
 Normalized by peak gain, this imparts a gentle $+6\text{ dB/octave}$ mechanical force transition between $70\text{ Hz}$ and $250\text{ Hz}$, delivering the signature percussive "thump" of a plucked acoustic bass.
 
 ### E. Resonant Body Bloom ($41.5''$ 3/4 Double Bass)
-A 3/4 double bass features a $41.5''$ ($105.4\text{ cm}$) vibrating string length and a massive resonant air cavity. Passivizer synthesizes this acoustic body bloom with:
+A 3/4 double bass features a $41.5''$ ($105.4\text{ cm}$) vibrating string length and a massive resonant air cavity. Allomorph synthesizes this acoustic body bloom with:
 $$H_{\text{bloom}}(f) = \frac{\sqrt{g_{\text{bloom}}^2 + \left(\frac{f}{100\text{ Hz}}\right)^2}}{\sqrt{1 + \left(\frac{f}{100\text{ Hz}}\right)^2}}, \quad g_{\text{bloom}} = 10^{\Delta \text{bloom} / 20.0}$$
 where $\Delta \text{bloom} = \text{bloom}_{\text{target}} - \text{bloom}_{\text{source}}$, delivering the deep, resonant low-end bloom characteristic of a full-size upright acoustic instrument.
 
@@ -249,7 +249,7 @@ where $\Delta \text{bloom} = \text{bloom}_{\text{target}} - \text{bloom}_{\text{
 
 ## 7. Dual-Sided String Physics & Differential Mechanical Transfer
 
-Passivizer models string behavior as a **differential transfer function** between the physical strings on the player's source instrument ($S_{\text{src}}$) and the authentic goal strings of the target voicing ($S_{\text{tgt}}$):
+Allomorph models string behavior as a **differential transfer function** between the physical strings on the player's source instrument ($S_{\text{src}}$) and the authentic goal strings of the target voicing ($S_{\text{tgt}}$):
 
 $$H_{\text{string\_transfer}}(f) = \frac{H_{\text{string, target}}(f)}{H_{\text{string, source}}(f)}$$
 
@@ -273,7 +273,7 @@ When an electric bass is strung with flatwounds (such as **La Bella Low Tension 
 This automatically preserves the natural woody clarity and fingerboard mwah of flatwounds on fretless basses, while still applying full acoustic damping when fed by clanky roundwound strings.
 
 ### B. Dynamic Bridge Compliance & Excursion Scaling ($V_{\text{sat}}$)
-Low-tension strings (e.g. La Bella LTF $\sim 132\text{ lbs}$) exhibit larger physical displacement under pizzicato plucking than high-tension strings ($\sim 160\text{--}190\text{ lbs}$). Passivizer dynamically scales the soft-knee bridge compliance saturation threshold:
+Low-tension strings (e.g. La Bella LTF $\sim 132\text{ lbs}$) exhibit larger physical displacement under pizzicato plucking than high-tension strings ($\sim 160\text{--}190\text{ lbs}$). Allomorph dynamically scales the soft-knee bridge compliance saturation threshold:
 $$V_{\text{sat, eff}} = \frac{V_{\text{sat, base}}}{\text{pluck\_excursion\_factor}_{\text{src}}}$$
 For the 32" Fretless ($1.25\times$ excursion), $V_{\text{sat}}$ scales from $0.42\text{ V}$ down to $0.336\text{ V}$, faithfully capturing the increased mechanical bridge rocking and natural acoustic compression.
 
@@ -293,7 +293,7 @@ Pickup magnetic pole pieces feature two fundamentally distinct spatial sensing g
 ```
 
 ### A. 2D Cylindrical Rod Poles (`pole_type = "rod"`)
-Cylindrical Alnico or steel rod magnets (radius $r_p = w_m / 2$) integrate string vibration over a circular 2D disc. The exact spatial window is governed by the first-order Bessel function of the first kind $J_1(k r_p) / (k r_p)$. Passivizer computes this using the algebraic $C^\infty$ approximation:
+Cylindrical Alnico or steel rod magnets (radius $r_p = w_m / 2$) integrate string vibration over a circular 2D disc. The exact spatial window is governed by the first-order Bessel function of the first kind $J_1(k r_p) / (k r_p)$. Allomorph computes this using the algebraic $C^\infty$ approximation:
 
 $$k = \frac{2\pi f}{v_{\text{disp}}(f)}$$
 $$H_{\text{rod}}(f) = \frac{1}{\sqrt{1 + 0.25 \cdot (k \cdot r_p)^2}}$$
@@ -377,8 +377,8 @@ $$\tau_i = \frac{x_{\text{max}} - x_i}{\bar{c}}, \quad \bar{c} = 2 \cdot L \cdot
 ### The Gibbs Truncation Ripple Problem with Circular FFT Rotation:
 Applying this delay in the frequency domain via circular phase rotation ($H(f) \cdot e^{-j 2\pi f \tau_i}$) on minimum-phase FIR filters concentrates the impulse peak at tap 0. Because continuous-time sinc interpolation wraps the negative-time non-causal sinc tail around to the end of the circular buffer, slicing the buffer back to $N$ taps discards this wrapped tail, convolving the frequency spectrum with a Dirichlet kernel and generating periodic Gibbs truncation ripples ($\Delta f = 1/\tau_i \approx 1.2\text{ kHz}$) across the high frequencies ($8\text{--}20\text{ kHz}$).
 
-### The Passivizer Causal Discrete Solution:
-To eliminate Gibbs truncation ripples with $100\%$ mathematical rigor, Passivizer applies spatial propagation delays strictly via **causal integer sample shifts**:
+### The Allomorph Causal Discrete Solution:
+To eliminate Gibbs truncation ripples with $100\%$ mathematical rigor, Allomorph applies spatial propagation delays strictly via **causal integer sample shifts**:
 
 $$\text{delay\_samples} = \left\lfloor \tau_i \cdot f_s + 0.5 \right\rfloor$$
 $$\text{fir}_{\text{delayed}} = [0]^{\text{delay\_samples}} + \text{fir}[:N - \text{delay\_samples}]$$

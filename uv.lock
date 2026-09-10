@@ -91,6 +91,35 @@ wheels = [
 ]
 
 [[package]]
+name = "allomorph"
+version = "0.1.0"
+source = { virtual = "." }
+dependencies = [
+    { name = "altair" },
+    { name = "neural-amp-modeler" },
+    { name = "numpy" },
+    { name = "pedalboard" },
+    { name = "polars" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "pytest" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "altair", specifier = ">=5.5.0" },
+    { name = "neural-amp-modeler", specifier = ">=0.13.0" },
+    { name = "numpy", specifier = ">=2.5.3" },
+    { name = "pedalboard", specifier = ">=0.9.0" },
+    { name = "polars", specifier = ">=1.20.0" },
+]
+
+[package.metadata.requires-dev]
+dev = [{ name = "pytest", specifier = ">=9.1.1" }]
+
+[[package]]
 name = "altair"
 version = "6.2.2"
 source = { registry = "https://pypi.org/simple" }
@@ -1343,35 +1372,6 @@ sdist = { url = "https://files.pythonhosted.org/packages/7d/fa/3944b40b07da9ce89
 wheels = [
     { url = "https://files.pythonhosted.org/packages/63/34/ba1c580383c9eada3711951fef0795c80b829a078d72188184bcab9dd527/packaging-26.3-py3-none-any.whl", hash = "sha256:d7193f7c8e4e93f444fde0262bf90af30e16fa0ad0ad44cb553c87339b23cd1c", size = 129956, upload-time = "2026-08-04T18:15:27.159Z" },
 ]
-
-[[package]]
-name = "passivizer"
-version = "0.1.0"
-source = { virtual = "." }
-dependencies = [
-    { name = "altair" },
-    { name = "neural-amp-modeler" },
-    { name = "numpy" },
-    { name = "pedalboard" },
-    { name = "polars" },
-]
-
-[package.dev-dependencies]
-dev = [
-    { name = "pytest" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "altair", specifier = ">=5.5.0" },
-    { name = "neural-amp-modeler", specifier = ">=0.13.0" },
-    { name = "numpy", specifier = ">=2.5.3" },
-    { name = "pedalboard", specifier = ">=0.9.0" },
-    { name = "polars", specifier = ">=1.20.0" },
-]
-
-[package.metadata.requires-dev]
-dev = [{ name = "pytest", specifier = ">=9.1.1" }]
 
 [[package]]
 name = "pedalboard"

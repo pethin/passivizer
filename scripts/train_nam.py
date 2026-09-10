@@ -1,5 +1,5 @@
 """
-Passivizer - Neural Amp Modeler (NAM) Architecture 2 (A2) Local Trainer
+Allomorph - Neural Amp Modeler (NAM) Architecture 2 (A2) Local Trainer
 Trains a high-fidelity analog twin neural model using Apple Silicon Metal (MPS) GPU acceleration.
 Includes full source instrument, scale length, and pickup routing metadata in the exported .nam container.
 """
@@ -114,7 +114,7 @@ def train_voice(
         threshold_esr = goal_esr
 
     print(f"\n========================================")
-    print(f"  PASSIVIZER NAM LOCAL A2 TRAINER")
+    print(f"  ALLOMORPH NAM LOCAL A2 TRAINER")
     print(f"  Source Bass: {inst_name} ({inst_id}, {scale_length_in}\")")
     print(f"  Source PU:   {src_pickup_name} (pos={src_pos_mm:.1f}mm)")
     print(f"  Target Voice:{voice} ({voice_name})")
@@ -133,7 +133,7 @@ def train_voice(
     model_title = f"{voice_name} [{inst_name}]"
     user_metadata = UserMetadata(
         name=model_title,
-        modeled_by="Passivizer (Peter Nguyen <peter@phn.dev>)",
+        modeled_by="Allomorph (Peter Nguyen <peter@phn.dev>)",
         gear_make=inst_name,
         gear_model=f"{src_pickup_name} -> {voice_name}",
         gear_type="preamp",
@@ -230,7 +230,7 @@ def train_voice(
         return False
 
 def main():
-    parser = argparse.ArgumentParser(description="Passivizer NAM Architecture 2 Local Trainer")
+    parser = argparse.ArgumentParser(description="Allomorph NAM Architecture 2 Local Trainer")
     parser.add_argument(
         "--instrument", "-i",
         default="30in",

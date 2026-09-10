@@ -1,5 +1,5 @@
 """
-Passivizer - Native Apple Silicon Virtual Analog (VA) Circuit Simulation Engine
+Allomorph - Native Apple Silicon Virtual Analog (VA) Circuit Simulation Engine
 
 Provides a high-performance, exact analytical circuit solver that replaces
 external SPICE dependencies (LTspice, ngspice). Directly parses .cir netlists,
@@ -339,7 +339,7 @@ class CircuitModel:
 
 @functools.lru_cache(maxsize=128)
 def _parse_netlist_cached(cir_path_str: str) -> CircuitModel:
-    """Internal cached parser for a Passivizer .cir netlist."""
+    """Internal cached parser for an Allomorph .cir netlist."""
     cir_path = Path(cir_path_str)
     model = CircuitModel()
     with open(cir_path, "r", encoding="utf-8") as f:
@@ -531,7 +531,7 @@ def _parse_netlist_cached(cir_path_str: str) -> CircuitModel:
     return model
 
 def parse_netlist(cir_path: Path) -> CircuitModel:
-    """Parses a Passivizer .cir netlist into a CircuitModel (LRU-cached with shallow copy)."""
+    """Parses an Allomorph .cir netlist into a CircuitModel (LRU-cached with shallow copy)."""
     p = Path(cir_path).resolve()
     cached = _parse_netlist_cached(str(p))
     return copy.copy(cached)
@@ -2338,7 +2338,7 @@ def _simulate_voice_task(task_args):
     return simulate_voice(v, **kwargs)
 
 def main():
-    parser = argparse.ArgumentParser(description="Passivizer Native Virtual Analog Circuit Simulator.")
+    parser = argparse.ArgumentParser(description="Allomorph Native Virtual Analog Circuit Simulator.")
     parser.add_argument("--voice", "-v", default="04_modern_p_ceramic", help="Target voice to simulate (or 'all')")
     parser.add_argument(
         "--instrument", "-i",

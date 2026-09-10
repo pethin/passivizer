@@ -1,5 +1,5 @@
 """
-Passivizer - Tests for Native Virtual Analog Circuit Simulator
+Allomorph - Tests for Native Virtual Analog Circuit Simulator
 Validates netlist parsing, analytical transfer function math,
 soft-knee compliance, and 24-bit audio digital twin synthesis.
 """

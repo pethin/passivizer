@@ -1,12 +1,12 @@
-# Passivizer - Architectural Guardrails & Mathematical Modeling Handbook
+# Allomorph - Architectural Guardrails & Mathematical Modeling Handbook
 
-This document provides the definitive mathematical specifications, physical equations, circuit theorems, and numerical derivations underlying the Passivizer modeling pipeline. It serves as the primary technical reference companion to `AGENTS.md`.
+This document provides the definitive mathematical specifications, physical equations, circuit theorems, and numerical derivations underlying the Allomorph modeling pipeline. It serves as the primary technical reference companion to `AGENTS.md`.
 
 ---
 
-## Maintenance & Compaction Architecture
+## 0. Meta-Architecture & Invariant Hierarchy
 
-To preserve fast agent reasoning and prevent LLM context exhaustion, Passivizer maintains a strict two-tier architecture:
+To preserve fast agent reasoning and prevent LLM context exhaustion, Allomorph maintains a strict two-tier architecture:
 1. **`AGENTS.md` (Normative Core):** Contains only high-level rules, negative constraints ("Never do X"), and boundary conditions kept under **$18\text{ KB}$**.
 2. **`docs/architectural_guardrails.md` (Unabridged Handbook):** Contains all extensive LaTeX equations, matrix derivations, parameter mappings, and physics proofs.
 3. **`tests/test_guardrails.py` (Executable Invariants):** Programmatically enforces all rules on every test run.

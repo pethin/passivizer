@@ -1,4 +1,4 @@
-* Passivizer Netlist 10: Rickenbacker 4003 Bridge (4.7nF HPF)
+* Allomorph Netlist 10: Rickenbacker 4003 Bridge (4.7nF HPF)
 * Target: High-Output Single-Coil with Vintage 4.7nF Series HPF & Factory 330k V/T Harness
 .options plotwinsize=0 numdgt=7
 
