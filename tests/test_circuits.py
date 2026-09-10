@@ -1774,14 +1774,113 @@ def test_transient_magnetic_slew_limiting():
     assert np.all(diffs <= max_delta + 1e-6), "Slew limiter must strictly bound maximum step delta"
 
 
+def test_nonlinear_magnetic_string_pull_dynamics():
+    """Verify nonlinear magnetic string pull produces attack pitch sag and damping on forte strikes, preserving linearity on small signals."""
+    from scripts.simulate_circuits import _lenz_velocity_drag_core
+
+    sr = 48000
+    vsat = 0.4
+    k_pull = 0.04
+    k_sag = 0.05
+
+    # 1. Small signal (amplitude 0.05 << vsat): must be completely linear and identical regardless of k_pull
+    t = np.linspace(0, 0.05, int(sr * 0.05), endpoint=False)
+    small_x = (0.05 * np.sin(2.0 * np.pi * 440.0 * t)).astype(np.float64)
+    small_env = np.full_like(small_x, 0.05)
+
+    out_small_nopull = _lenz_velocity_drag_core(small_x, small_env, vsat, k_sag=k_sag, alpha_c=0.1, k_eddy=0.0, beta_curv=0.0, k_pull=0.0)
+    out_small_pull = _lenz_velocity_drag_core(small_x, small_env, vsat, k_sag=k_sag, alpha_c=0.1, k_eddy=0.0, beta_curv=0.0, k_pull=k_pull)
+    assert np.allclose(out_small_nopull, out_small_pull, atol=1e-6), "Small signals must not experience magnetic string pull"
+
+    # 2. Forte signal (amplitude 0.9 >> vsat): magnetic string pull must damp upper harmonics and induce pitch sag
+    forte_x = (0.9 * np.sin(2.0 * np.pi * 440.0 * t) + 0.3 * np.sin(2.0 * np.pi * 1320.0 * t)).astype(np.float64)
+    forte_env = np.full_like(forte_x, 0.9)
+
+    out_forte_nopull = _lenz_velocity_drag_core(forte_x, forte_env, vsat, k_sag=k_sag, alpha_c=0.1, k_eddy=0.0, beta_curv=0.0, k_pull=0.0)
+    out_forte_pull = _lenz_velocity_drag_core(forte_x, forte_env, vsat, k_sag=k_sag, alpha_c=0.1, k_eddy=0.0, beta_curv=0.0, k_pull=k_pull)
+
+    # Output with pull must differ on forte attack, demonstrating physical interaction
+    diff = out_forte_pull - out_forte_nopull
+    assert np.max(np.abs(diff)) > 1e-4, "Nonlinear magnetic pull must modulate signal on forte excursions"
 
 
+def test_excursion_dependent_touch_spectral_tilt():
+    """Verify displacement-domain touch spectral tilt dynamically expands high-end brightness on forte strikes."""
+    from scripts.simulate_circuits import apply_oversampled_saturation
+
+    sr = 48000
+    vsat = 0.4
+    tau_touch = 0.18
+
+    # 1. Forte transient signal (amplitude 0.85 >> vsat)
+    t = np.linspace(0, 0.1, int(sr * 0.1), endpoint=False)
+    forte_in = (0.85 * np.sin(2.0 * np.pi * 200.0 * t)).astype(np.float32)
+
+    out_notilt = apply_oversampled_saturation(forte_in, vsat=vsat, tau_touch=0.0)
+    out_tilt = apply_oversampled_saturation(forte_in, vsat=vsat, tau_touch=tau_touch)
+
+    # High frequencies (> 1 kHz) should have higher energy with touch spectral tilt engaged
+    fft_notilt = np.abs(np.fft.rfft(out_notilt))
+    fft_tilt = np.abs(np.fft.rfft(out_tilt))
+    freqs = np.fft.rfftfreq(len(forte_in), 1.0 / sr)
+    hf_mask = (freqs > 1000.0) & (freqs < 8000.0)
+
+    hf_energy_notilt = np.sum(fft_notilt[hf_mask] ** 2)
+    hf_energy_tilt = np.sum(fft_tilt[hf_mask] ** 2)
+    assert hf_energy_tilt > hf_energy_notilt, "Touch spectral tilt must increase harmonic excitation on forte strikes"
+
+    # 2. Quiet signal (amplitude 0.05 << vsat): linear small-signal bypass
+    quiet_in = (0.05 * np.sin(2.0 * np.pi * 200.0 * t)).astype(np.float32)
+    out_quiet_notilt = apply_oversampled_saturation(quiet_in, vsat=vsat, tau_touch=0.0)
+    out_quiet_tilt = apply_oversampled_saturation(quiet_in, vsat=vsat, tau_touch=tau_touch)
+    assert np.allclose(out_quiet_notilt, out_quiet_tilt, atol=1e-5), "Small signals must be identical"
 
 
+def test_complex_magnetic_permeability_dispersion():
+    """Verify causal Jordan complex permeability dispersion provides midrange core loss and preserves differential identity."""
+    from scripts.simulate_circuits import compute_core_impedance, compute_differential_circuit_transfer_functions, parse_netlist, CIRCUITS_DIR
+
+    omega = 2.0 * np.pi * np.array([400.0, 800.0, 1200.0, 2400.0], dtype=np.float64)
+    s = 1j * omega
+
+    # 1. Complex core impedance with chi_mu > 0
+    Z_ideal = compute_core_impedance(s, L=5.0, R_core=25000.0, chi_mu=0.0)
+    Z_dispersive = compute_core_impedance(s, L=5.0, R_core=25000.0, chi_mu=0.04)
+
+    # Real part (resistive loss) must be enhanced by Jordan relaxation
+    assert np.all(np.real(Z_dispersive) > np.real(Z_ideal)), "Complex permeability must add core relaxation losses"
+    assert not np.any(np.isnan(Z_dispersive))
+
+    # 2. Differential transfer function of matching model must be exact identity (0.00 dB)
+    m1 = parse_netlist(CIRCUITS_DIR / "05_vintage_62_p_alnico.cir")
+    m2 = parse_netlist(CIRCUITS_DIR / "05_vintage_62_p_alnico.cir")
+    m1.chi_mu = 0.04
+    m2.chi_mu = 0.04
+    diff_curves = compute_differential_circuit_transfer_functions(m1, m2, freqs=FREQS)
+    for curve in diff_curves:
+        assert np.allclose(curve, 1.0, atol=1e-4), "Matching complex permeability models must yield exact 0.00 dB identity"
 
 
+def test_distributed_coil_transmission_line():
+    """Verify distributed coil admittance softens the lumped LC cliff and preserves high-end sheen."""
+    from scripts.simulate_circuits import compute_circuit_transfer_functions, parse_netlist, CIRCUITS_DIR
 
+    m = parse_netlist(CIRCUITS_DIR / "04_modern_p_ceramic.cir")
 
+    # 1. Lumped model (k_dist = 0.0)
+    m.k_dist = 0.0
+    lumped_curve = np.asarray(compute_circuit_transfer_functions(m, freqs=FREQS)[0])
 
+    # 2. Distributed transmission line model (k_dist = 0.035)
+    m.k_dist = 0.035
+    dist_curve = np.asarray(compute_circuit_transfer_functions(m, freqs=FREQS)[0])
 
+    assert not np.any(np.isnan(dist_curve)), "Distributed curve must not contain NaNs"
+    assert np.all(dist_curve > 0.0), "Distributed curve must be strictly positive"
 
+    # In the high-frequency band (8 kHz to 18 kHz), distributed factor smooths the impedance
+    freqs_arr = np.asarray(FREQS)
+    hf_idx = np.where((freqs_arr >= 8000.0) & (freqs_arr <= 18000.0))[0]
+    # Ratio between distributed and lumped should be smooth and bounded within +/- 3 dB
+    ratio_db = 20.0 * np.log10(dist_curve[hf_idx] / lumped_curve[hf_idx])
+    assert np.all(np.abs(ratio_db) < 3.0), "Distributed transmission factor must be bounded and physically realistic"

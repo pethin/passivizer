@@ -73,6 +73,10 @@ MAGNET_PROPERTIES = {
         "kappa_orbit": 0.06,
         "k_body": 0.08,
         "beta_curv": 0.035,
+        "k_pull": 0.040,
+        "tau_touch": 0.045,
+        "chi_mu": 0.035,
+        "k_dist": 0.18,
     },
     "alnico_ii": {
         "k_core": 0.10,
@@ -86,6 +90,10 @@ MAGNET_PROPERTIES = {
         "kappa_orbit": 0.07,
         "k_body": 0.10,
         "beta_curv": 0.050,
+        "k_pull": 0.025,
+        "tau_touch": 0.035,
+        "chi_mu": 0.050,
+        "k_dist": 0.22,
     },
     "ceramic": {
         "k_core": 0.02,
@@ -99,6 +107,10 @@ MAGNET_PROPERTIES = {
         "kappa_orbit": 0.02,
         "k_body": 0.03,
         "beta_curv": 0.010,
+        "k_pull": 0.015,
+        "tau_touch": 0.025,
+        "chi_mu": 0.010,
+        "k_dist": 0.12,
     },
     "ceramic_alnico_hybrid": {
         "k_core": 0.05,
@@ -112,6 +124,10 @@ MAGNET_PROPERTIES = {
         "kappa_orbit": 0.04,
         "k_body": 0.05,
         "beta_curv": 0.020,
+        "k_pull": 0.025,
+        "tau_touch": 0.035,
+        "chi_mu": 0.020,
+        "k_dist": 0.15,
     },
     "neodymium": {
         "k_core": 0.01,
@@ -125,6 +141,10 @@ MAGNET_PROPERTIES = {
         "kappa_orbit": 0.01,
         "k_body": 0.01,
         "beta_curv": 0.005,
+        "k_pull": 0.010,
+        "tau_touch": 0.015,
+        "chi_mu": 0.005,
+        "k_dist": 0.10,
     },
     "piezo": {
         "k_core": 0.00,
@@ -138,6 +158,10 @@ MAGNET_PROPERTIES = {
         "kappa_orbit": 0.00,
         "k_body": 0.00,
         "beta_curv": 0.000,
+        "k_pull": 0.000,
+        "tau_touch": 0.000,
+        "chi_mu": 0.000,
+        "k_dist": 0.00,
     },
     "active": {
         "k_core": 0.00,
@@ -151,6 +175,10 @@ MAGNET_PROPERTIES = {
         "kappa_orbit": 0.00,
         "k_body": 0.00,
         "beta_curv": 0.000,
+        "k_pull": 0.000,
+        "tau_touch": 0.000,
+        "chi_mu": 0.000,
+        "k_dist": 0.00,
     },
 }
 MAGNET_PROPERTIES["hybrid"] = MAGNET_PROPERTIES["ceramic_alnico_hybrid"]
@@ -216,6 +244,16 @@ class CircuitModel:
         # Inter-coil mutual inductive & capacitive coupling for multi-pickup configurations
         self.k_mutual = 0.0
         self.C_mutual = 0.0
+
+        # Complex magnetic permeability dispersion (Jordan after-effect)
+        self.chi_mu = 0.0
+        self.chi_mu_b = 0.0
+        self.omega_mu = 2.0 * math.pi * 1200.0
+
+        # Distributed inter-winding transmission line capacitance
+        self.k_dist = 0.0
+        self.k_dist_b = 0.0
+        self.omega_dist = 2.0 * math.pi * 10000.0
 
 @functools.lru_cache(maxsize=128)
 def _parse_netlist_cached(cir_path_str: str) -> CircuitModel:
@@ -390,20 +428,34 @@ def parse_netlist(cir_path: Path) -> CircuitModel:
     cached = _parse_netlist_cached(str(p))
     return copy.copy(cached)
 
-def compute_core_impedance(s, L: float, L_core: float = 0.0, R_core: float = 0.0):
+def compute_core_impedance(
+    s,
+    L: float,
+    L_core: float = 0.0,
+    R_core: float = 0.0,
+    chi_mu: float = 0.0,
+    omega_mu: float = 2.0 * math.pi * 1200.0,
+):
     """
-    Computes Foster 2-stage ladder impedance of the coil inductor:
-    Z_L(s) = s * L_inf + (s * L_core * R_core) / (s * L_core + R_core)
+    Computes Foster 2-stage ladder impedance of the coil inductor with
+    Jordan after-effect complex magnetic permeability dispersion:
+    mu_rel(s) = 1.0 - chi_mu * ln(1.0 + s / omega_mu)
+    Z_L(s) = mu_rel(s) * [s * L_inf + (s * L_core * R_core) / (s * L_core + R_core)]
     where L_inf = max(L - L_core, 0.0).
-    Captures high-frequency magnetic flux expulsion from conductive pole pieces (skin effect)
-    and eddy damping losses.
+    Captures high-frequency magnetic flux expulsion from conductive pole pieces (skin effect),
+    complex permeability dispersion, and eddy damping losses.
     """
+    if chi_mu > 0.0:
+        mu_rel = 1.0 - chi_mu * np.log(1.0 + s / omega_mu)
+    else:
+        mu_rel = 1.0
+
     if L_core <= 0.0 or R_core <= 0.0:
-        return s * L
+        return s * L * mu_rel
     L_inf = max(L - L_core, 0.0)
     num = s * L_core * R_core
     den = s * L_core + R_core
-    return s * L_inf + (num / den)
+    return (s * L_inf + (num / den)) * mu_rel
 
 def apply_magnet_properties_to_model(
     model: CircuitModel,
@@ -411,7 +463,8 @@ def apply_magnet_properties_to_model(
     eddy_diffusion: bool = True,
 ):
     """
-    Applies Foster 2-stage core eddy diffusion parameters (L_core, R_core)
+    Applies Foster 2-stage core eddy diffusion parameters (L_core, R_core),
+    complex permeability dispersion (chi_mu), and distributed winding factor (k_dist)
     to the CircuitModel based on authentic magnet metallurgy if not explicitly
     specified in the SPICE netlist.
     """
@@ -420,6 +473,10 @@ def apply_magnet_properties_to_model(
         model.R_core = 0.0
         model.L_core_b = 0.0
         model.R_core_b = 0.0
+        model.chi_mu = 0.0
+        model.chi_mu_b = 0.0
+        model.k_dist = 0.0
+        model.k_dist_b = 0.0
         return
 
     pickups = vcfg.get("pickups", [])
@@ -440,11 +497,21 @@ def apply_magnet_properties_to_model(
         f_c = props_n["f_core"]
         model.R_core = 2.0 * math.pi * f_c * model.L_core if f_c > 0.0 else 0.0
 
+    if getattr(model, "chi_mu", 0.0) <= 0.0 and props_n.get("chi_mu", 0.0) > 0.0:
+        model.chi_mu = props_n["chi_mu"]
+    if getattr(model, "k_dist", 0.0) <= 0.0 and props_n.get("k_dist", 0.0) > 0.0:
+        model.k_dist = props_n["k_dist"]
+
     if model.topology in ["parallel", "series"]:
         if model.L_core_b <= 0.0 and props_b.get("k_core", 0.0) > 0.0:
             model.L_core_b = props_b["k_core"] * model.L_b
             f_cb = props_b["f_core"]
             model.R_core_b = 2.0 * math.pi * f_cb * model.L_core_b if f_cb > 0.0 else 0.0
+
+        if getattr(model, "chi_mu_b", 0.0) <= 0.0 and props_b.get("chi_mu", 0.0) > 0.0:
+            model.chi_mu_b = props_b["chi_mu"]
+        if getattr(model, "k_dist_b", 0.0) <= 0.0 and props_b.get("k_dist", 0.0) > 0.0:
+            model.k_dist_b = props_b["k_dist"]
 
 def compute_active_preamp_eq(preamp_type: str, s):
     """
@@ -511,6 +578,32 @@ def compute_circuit_transfer_functions(model: CircuitModel, freqs=FREQS):
     k_m = getattr(model, "k_mutual", 0.0)
     c_m = getattr(model, "C_mutual", 0.0)
 
+    chi_mu = getattr(model, "chi_mu", 0.0)
+    chi_mu_b = getattr(model, "chi_mu_b", 0.0)
+    omega_mu = getattr(model, "omega_mu", 2.0 * math.pi * 1200.0)
+
+    k_dist = getattr(model, "k_dist", 0.0)
+    k_dist_b = getattr(model, "k_dist_b", 0.0)
+    omega_dist = getattr(model, "omega_dist", 2.0 * math.pi * 10000.0)
+
+    if k_dist > 0.0:
+        gamma_dist = k_dist * np.sqrt(s / omega_dist)
+        dist_factor = np.where(np.abs(gamma_dist) < 1e-5, 1.0, np.tanh(gamma_dist) / gamma_dist)
+    else:
+        dist_factor = 1.0
+
+    if k_dist_b > 0.0:
+        gamma_dist_b = k_dist_b * np.sqrt(s / omega_dist)
+        dist_factor_b = np.where(np.abs(gamma_dist_b) < 1e-5, 1.0, np.tanh(gamma_dist_b) / gamma_dist_b)
+    else:
+        dist_factor_b = 1.0
+
+    tan_d_coil = getattr(model, "tan_delta_coil", 0.025)
+    G_coil = w * model.Ccoil * tan_d_coil if tan_d_coil > 0.0 else 0.0
+    G_coil_b = w * model.Ccoil_b * tan_d_coil if tan_d_coil > 0.0 else 0.0
+    Y_c_n = (s * model.Ccoil + G_coil) * dist_factor
+    Y_c_b = (s * model.Ccoil_b + G_coil_b) * dist_factor_b
+
     if model.has_active_buffer:
         # Active Preamp Buffer: coils terminate into high-Z buffer, isolating them from cable capacitance.
         # Op-amp buffer drives cable and Anagram pedalboard load through low-Z output stage.
@@ -524,22 +617,18 @@ def compute_circuit_transfer_functions(model: CircuitModel, freqs=FREQS):
         Y_preamp_in = 1.0 / model.R_preamp_in + s * model.C_preamp_in
         Y_eff2 = Y_preamp_in + Y_tone
 
-        tan_d_coil = getattr(model, "tan_delta_coil", 0.025)
-        G_coil = w * model.Ccoil * tan_d_coil if tan_d_coil > 0.0 else 0.0
-        G_coil_b = w * model.Ccoil_b * tan_d_coil if tan_d_coil > 0.0 else 0.0
-
         if model.topology == "single":
-            Z_L = compute_core_impedance(s, model.L, model.L_core, model.R_core)
+            Z_L = compute_core_impedance(s, model.L, model.L_core, model.R_core, chi_mu=chi_mu, omega_mu=omega_mu)
             Y_branch = 1.0 / (model.Rdc + Z_L) + 1.0 / model.Reddy
-            Y_shunt2 = s * model.Ccoil + G_coil + Y_eff2
+            Y_shunt2 = Y_c_n + Y_eff2
             H_dyn_to_2 = Y_branch / (Y_branch + Y_shunt2)
 
             H_total = H_dyn_to_2 * H_eq * H_buf_to_out
             return [np.abs(H_total).tolist()]
 
         elif model.topology == "parallel":
-            Z_L = compute_core_impedance(s, model.L, model.L_core, model.R_core)
-            Z_L_b = compute_core_impedance(s, model.L_b, model.L_core_b, model.R_core_b)
+            Z_L = compute_core_impedance(s, model.L, model.L_core, model.R_core, chi_mu=chi_mu, omega_mu=omega_mu)
+            Z_L_b = compute_core_impedance(s, model.L_b, model.L_core_b, model.R_core_b, chi_mu=chi_mu_b, omega_mu=omega_mu)
             Y_br_n = 1.0 / (model.Rdc + Z_L) + 1.0 / model.Reddy
             Y_br_b = 1.0 / (model.Rdc_b + Z_L_b) + 1.0 / model.Reddy_b
 
@@ -550,7 +639,7 @@ def compute_circuit_transfer_functions(model: CircuitModel, freqs=FREQS):
             if r_pot_b > 0.0:
                 Y_br_b = 1.0 / (1.0 / Y_br_b + r_pot_b)
 
-            Y_shunt2 = s * (model.Ccoil + model.Ccoil_b) + (G_coil + G_coil_b) + Y_eff2
+            Y_shunt2 = Y_c_n + Y_c_b + Y_eff2
 
             if k_m > 0.0 or c_m > 0.0:
                 M = k_m * np.sqrt(model.L * model.L_b) if k_m > 0.0 else 0.0
@@ -585,14 +674,10 @@ def compute_circuit_transfer_functions(model: CircuitModel, freqs=FREQS):
     else:
         Z23_pot = model.Rtop
 
-    tan_d_coil = getattr(model, "tan_delta_coil", 0.025)
-    G_coil = w * model.Ccoil * tan_d_coil if tan_d_coil > 0.0 else 0.0
-    G_coil_b = w * model.Ccoil_b * tan_d_coil if tan_d_coil > 0.0 else 0.0
-
     if model.topology == "single":
-        Z_L = compute_core_impedance(s, model.L, model.L_core, model.R_core)
+        Z_L = compute_core_impedance(s, model.L, model.L_core, model.R_core, chi_mu=chi_mu, omega_mu=omega_mu)
         Y_branch = 1.0 / (model.Rdc + Z_L) + 1.0 / model.Reddy
-        Y_shunt2 = s * model.Ccoil + G_coil + Y_tone
+        Y_shunt2 = Y_c_n + Y_tone
 
         Z_rick = 1.0 / (s * model.Crick) if model.Crick > 0 else 0.0
         Z23 = Z_rick + Z23_pot
@@ -604,8 +689,8 @@ def compute_circuit_transfer_functions(model: CircuitModel, freqs=FREQS):
         return [H_total.tolist()]
 
     elif model.topology == "parallel":
-        Z_L = compute_core_impedance(s, model.L, model.L_core, model.R_core)
-        Z_L_b = compute_core_impedance(s, model.L_b, model.L_core_b, model.R_core_b)
+        Z_L = compute_core_impedance(s, model.L, model.L_core, model.R_core, chi_mu=chi_mu, omega_mu=omega_mu)
+        Z_L_b = compute_core_impedance(s, model.L_b, model.L_core_b, model.R_core_b, chi_mu=chi_mu_b, omega_mu=omega_mu)
         Y_br_n = 1.0 / (model.Rdc + Z_L) + 1.0 / model.Reddy
         Y_br_b = 1.0 / (model.Rdc_b + Z_L_b) + 1.0 / model.Reddy_b
 
@@ -616,7 +701,7 @@ def compute_circuit_transfer_functions(model: CircuitModel, freqs=FREQS):
         if r_pot_b > 0.0:
             Y_br_b = 1.0 / (1.0 / Y_br_b + r_pot_b)
 
-        Y_shunt2 = s * (model.Ccoil + model.Ccoil_b) + (G_coil + G_coil_b) + Y_tone
+        Y_shunt2 = Y_c_n + Y_c_b + Y_tone
         Z23 = Z23_pot
 
         Y_out_branch = 1.0 / (Z23 + Zload)
@@ -642,12 +727,12 @@ def compute_circuit_transfer_functions(model: CircuitModel, freqs=FREQS):
         return [np.abs(H_n_to_2 * H_2_to_3).tolist(), np.abs(H_b_to_2 * H_2_to_3).tolist()]
 
     elif model.topology == "series":
-        Z_L = compute_core_impedance(s, model.L, model.L_core, model.R_core)
-        Z_L_b = compute_core_impedance(s, model.L_b, model.L_core_b, model.R_core_b)
+        Z_L = compute_core_impedance(s, model.L, model.L_core, model.R_core, chi_mu=chi_mu, omega_mu=omega_mu)
+        Z_L_b = compute_core_impedance(s, model.L_b, model.L_core_b, model.R_core_b, chi_mu=chi_mu_b, omega_mu=omega_mu)
         Y_br_n = 1.0 / (model.Rdc + Z_L) + 1.0 / model.Reddy
         Y_br_b = 1.0 / (model.Rdc_b + Z_L_b) + 1.0 / model.Reddy_b
-        Y_cn = s * model.Ccoil + G_coil
-        Y_cb = s * model.Ccoil_b + G_coil_b
+        Y_cn = Y_c_n
+        Y_cb = Y_c_b
         Y_2b = Y_br_b + Y_cb
 
         Z23 = Z23_pot
@@ -835,6 +920,7 @@ if _HAS_NUMBA:
         alpha_c: float,
         k_eddy: float = 0.0,
         beta_curv: float = 0.0,
+        k_pull: float = 0.0,
     ) -> np.ndarray:
         n = len(x_arr)
         out = np.empty(n, dtype=np.float64)
@@ -850,7 +936,8 @@ if _HAS_NUMBA:
                 if excess > 1.0:
                     excess = 1.0
                 eddy_factor = k_eddy * excess * math.tanh(abs(x_high) / vsat)
-                drag_high = 1.0 - (k_sag + eddy_factor) * excess
+                pull_damping = k_pull * excess * math.tanh(max(val, 0.0) / vsat)
+                drag_high = 1.0 - (k_sag + eddy_factor + pull_damping) * excess
                 drag_low = 1.0 - 0.25 * k_sag * excess
             else:
                 drag_high = 1.0
@@ -860,9 +947,15 @@ if _HAS_NUMBA:
                 wobble = beta_curv * math.tanh((val / vsat) ** 2) * (x_high - x_high_prev)
             else:
                 wobble = 0.0
+
+            if k_pull > 0.0 and vsat > 0.0 and e > vsat:
+                pitch_sag = -k_pull * excess * (x_high - x_high_prev)
+            else:
+                pitch_sag = 0.0
+
             x_high_prev = x_high
 
-            out[i] = drag_low * x_low_prev + drag_high * (x_high + wobble)
+            out[i] = drag_low * x_low_prev + drag_high * (x_high + wobble + pitch_sag)
         return out
 
     @njit(fastmath=True)
@@ -915,6 +1008,7 @@ else:
         alpha_c: float,
         k_eddy: float = 0.0,
         beta_curv: float = 0.0,
+        k_pull: float = 0.0,
     ) -> np.ndarray:
         n = len(x_arr)
         out = np.empty(n, dtype=np.float64)
@@ -930,7 +1024,8 @@ else:
                 if excess > 1.0:
                     excess = 1.0
                 eddy_factor = k_eddy * excess * math.tanh(abs(x_high) / vsat)
-                drag_high = 1.0 - (k_sag + eddy_factor) * excess
+                pull_damping = k_pull * excess * math.tanh(max(val, 0.0) / vsat)
+                drag_high = 1.0 - (k_sag + eddy_factor + pull_damping) * excess
                 drag_low = 1.0 - 0.25 * k_sag * excess
             else:
                 drag_high = 1.0
@@ -940,9 +1035,15 @@ else:
                 wobble = beta_curv * math.tanh((val / vsat) ** 2) * (x_high - x_high_prev)
             else:
                 wobble = 0.0
+
+            if k_pull > 0.0 and vsat > 0.0 and e > vsat:
+                pitch_sag = -k_pull * excess * (x_high - x_high_prev)
+            else:
+                pitch_sag = 0.0
+
             x_high_prev = x_high
 
-            out[i] = drag_low * x_low_prev + drag_high * (x_high + wobble)
+            out[i] = drag_low * x_low_prev + drag_high * (x_high + wobble + pitch_sag)
         return out
 
     def _slew_limit_core(x_arr: np.ndarray, max_delta: float) -> np.ndarray:
@@ -1011,6 +1112,8 @@ def apply_oversampled_saturation(
     k_eddy: float = 0.0,
     kappa_orbit: float = 0.0,
     beta_curv: float = 0.0,
+    k_pull: float = 0.0,
+    tau_touch: float = 0.0,
     slew_limit: bool = True,
     f_slew: float = 16000.0,
     oversample: int = 2,
@@ -1023,11 +1126,13 @@ def apply_oversampled_saturation(
     2. Dynamic eddy-current transient core de-Qing (k_eddy flux-rate damping).
     3. Elliptical string orbit quadrature second-harmonic bloom (kappa_orbit 2f0 precession).
     4. Dynamic core inductance curvature (beta_curv excursion-dependent resonant peak wobble).
-    5. Transient magnetic slew-rate soft-limiting (f_slew Barkhausen domain-wall damping).
-    6. Higher-order magnetic dipole field expansion (v + alpha * v^2 + alpha3 * v^3).
-    7. Dahl magnetic domain-wall pinning hysteresis in displacement domain (sustain bloom).
-    8. Displacement-domain pre/de-emphasis excursion weighting (suppressing treble IMD hash).
-    9. Multi-rate anti-aliased oversampling (2x or 4x) suppressing ultrasonic harmonic foldback by >100 dB.
+    5. Nonlinear magnetic string pull dynamics (k_pull localized damping & attack pitch sag).
+    6. Excursion-dependent dynamic spectral tilt (tau_touch touch-sensitive attack brightness).
+    7. Transient magnetic slew-rate soft-limiting (f_slew Barkhausen domain-wall damping).
+    8. Higher-order magnetic dipole field expansion (v + alpha * v^2 + alpha3 * v^3).
+    9. Dahl magnetic domain-wall pinning hysteresis in displacement domain (sustain bloom).
+    10. Displacement-domain pre/de-emphasis excursion weighting (suppressing treble IMD hash).
+    11. Multi-rate anti-aliased oversampling (2x or 4x) suppressing ultrasonic harmonic foldback by >100 dB.
     For small-signal linear excitations (e.g. test impulses <= 0.10 peak), bypasses non-linearity
     to preserve 100% exact mathematical impulse response linearity.
     Optimized with single-pass frequency-domain weighting and decimation.
@@ -1044,9 +1149,9 @@ def apply_oversampled_saturation(
         v_asym = x + alpha * (x ** 2) + alpha3 * (x ** 3)
         return (vsat * np.tanh(v_asym / vsat)).astype(np.float32)
 
-    # 1. Dynamic Lenz-Law Core Flux Sag on forte peak excursions (velocity-proportional high-frequency damping)
-    # and dynamic core inductance curvature wobble
-    if magnet_drag and vsat > 0 and (k_sag > 0.0 or k_eddy > 0.0 or beta_curv > 0.0):
+    # 1. Dynamic Lenz-Law Core Flux Sag on forte peak excursions (velocity-proportional high-frequency damping),
+    # dynamic core inductance curvature wobble, and localized magnetic string pull damping / pitch sag
+    if magnet_drag and vsat > 0 and (k_sag > 0.0 or k_eddy > 0.0 or beta_curv > 0.0 or k_pull > 0.0):
         tau_att = 0.006  # 6 ms fast attack on string strike
         tau_rel = 0.045  # 45 ms smooth domain relaxation release
         alpha_att = 1.0 - math.exp(-1.0 / (48000.0 * tau_att))
@@ -1054,7 +1159,7 @@ def apply_oversampled_saturation(
         env = _lenz_envelope_core(x, alpha_att, alpha_rel)
         # 1-pole crossover at 750 Hz separating punchy bass fundamental from transient string clank
         alpha_c = 1.0 - math.exp(-2.0 * math.pi * 750.0 / 48000.0)
-        x = _lenz_velocity_drag_core(x, env, vsat, k_sag, alpha_c, k_eddy, beta_curv)
+        x = _lenz_velocity_drag_core(x, env, vsat, k_sag, alpha_c, k_eddy, beta_curv, k_pull)
 
     if oversample <= 1:
         if displacement_weighting:
@@ -1067,6 +1172,11 @@ def apply_oversampled_saturation(
             x_disp = np.fft.irfft(np.fft.rfft(x) * H_pre, n_sig)
             scale = max_in / max(np.max(np.abs(x_disp)), 1e-9)
             x_disp = x_disp * scale
+            if tau_touch > 0.0:
+                H_hp = s / (s + 2.0 * np.pi * 400.0)
+                x_hp = np.fft.irfft(np.fft.rfft(x_disp) * H_hp, n_sig)
+                touch_mod = tau_touch * np.tanh(np.abs(x_disp) / vsat) * x_hp
+                x_disp = x_disp + touch_mod
             if eta_hyst > 0.0:
                 x_disp = apply_dahl_hysteresis(x_disp, eta=eta_hyst)
             if kappa_orbit > 0.0:
@@ -1115,6 +1225,11 @@ def apply_oversampled_saturation(
         x_up_disp = np.fft.irfft(X_up * H_pre, n_up) * float(m)
         scale = max_in / max(np.max(np.abs(x_up_disp)), 1e-9)
         x_up_disp = x_up_disp * scale
+        if tau_touch > 0.0:
+            H_hp = s_up / (s_up + 2.0 * np.pi * 400.0)
+            x_up_hp = np.fft.irfft(X_up * H_pre * H_hp, n_up) * float(m)
+            touch_mod = tau_touch * np.tanh(np.abs(x_up_disp) / vsat) * (x_up_hp * scale)
+            x_up_disp = x_up_disp + touch_mod
         if eta_hyst > 0.0:
             x_up_disp = apply_dahl_hysteresis(x_up_disp, eta=eta_hyst)
         if kappa_orbit > 0.0:
@@ -1172,6 +1287,10 @@ def simulate_circuit_audio(
     kappa_orbits=None,
     beta_curv: float = 0.0,
     beta_curvs=None,
+    k_pull: float = 0.0,
+    k_pulls=None,
+    tau_touch: float = 0.0,
+    tau_touches=None,
     slew_limit: bool = True,
     f_slew: float = 16000.0,
     is_identity: bool = False,
@@ -1306,6 +1425,16 @@ def simulate_circuit_audio(
                 if (isinstance(beta_curvs, (list, tuple)) and len(beta_curvs) > ch_idx)
                 else beta_curv
             )
+            ch_pull = (
+                k_pulls[ch_idx]
+                if (isinstance(k_pulls, (list, tuple)) and len(k_pulls) > ch_idx)
+                else k_pull
+            )
+            ch_touch = (
+                tau_touches[ch_idx]
+                if (isinstance(tau_touches, (list, tuple)) and len(tau_touches) > ch_idx)
+                else tau_touch
+            )
 
             if (
                 ch_vsat >= 10.0
@@ -1316,6 +1445,8 @@ def simulate_circuit_audio(
                 and ch_eddy <= 0.001
                 and ch_orbit <= 0.001
                 and ch_beta <= 0.001
+                and ch_pull <= 0.001
+                and ch_touch <= 0.001
             ):
                 in_dyn = in_ch.copy().astype(np.float32)
             else:
@@ -1329,6 +1460,8 @@ def simulate_circuit_audio(
                     k_eddy=ch_eddy,
                     kappa_orbit=ch_orbit,
                     beta_curv=ch_beta,
+                    k_pull=ch_pull,
+                    tau_touch=ch_touch,
                     slew_limit=slew_limit,
                     f_slew=f_slew,
                     oversample=oversample,
@@ -1509,6 +1642,8 @@ def simulate_voice(
     k_eddy: float = None,
     kappa_orbit: float = None,
     beta_curv: float = None,
+    k_pull: float = None,
+    tau_touch: float = None,
     slew_limit: bool = True,
     f_slew: float = 16000.0,
     noise_dither: bool = True,
@@ -1627,6 +1762,20 @@ def simulate_voice(
         else:
             voice_beta = global_props.get("beta_curv", 0.0)
 
+    voice_pull = k_pull
+    if voice_pull is None:
+        if "k_pull" in vcfg:
+            voice_pull = float(vcfg["k_pull"])
+        else:
+            voice_pull = global_props.get("k_pull", 0.0)
+
+    voice_touch = tau_touch
+    if voice_touch is None:
+        if "tau_touch" in vcfg:
+            voice_touch = float(vcfg["tau_touch"])
+        else:
+            voice_touch = global_props.get("tau_touch", 0.0)
+
     pickups_cfg = vcfg.get("pickups", [])
     if pickups_cfg and len(pickups_cfg) > 1:
         voice_alphas = []
@@ -1636,6 +1785,8 @@ def simulate_voice(
         voice_k_eddys = []
         voice_kappa_orbits = []
         voice_beta_curvs = []
+        voice_k_pulls = []
+        voice_tau_touches = []
         for p in pickups_cfg:
             p_mag = p.get("magnet_type", mag_type_global)
             p_props = MAGNET_PROPERTIES.get(p_mag, MAGNET_PROPERTIES["alnico_v"])
@@ -1646,6 +1797,8 @@ def simulate_voice(
             voice_k_eddys.append(float(p["k_eddy"]) if "k_eddy" in p else p_props["k_eddy"])
             voice_kappa_orbits.append(float(p["kappa_orbit"]) if "kappa_orbit" in p else p_props["kappa_orbit"])
             voice_beta_curvs.append(float(p["beta_curv"]) if "beta_curv" in p else p_props.get("beta_curv", 0.0))
+            voice_k_pulls.append(float(p["k_pull"]) if "k_pull" in p else p_props.get("k_pull", 0.0))
+            voice_tau_touches.append(float(p["tau_touch"]) if "tau_touch" in p else p_props.get("tau_touch", 0.0))
     else:
         voice_alphas = None
         voice_alpha3s = None
@@ -1654,6 +1807,8 @@ def simulate_voice(
         voice_k_eddys = None
         voice_kappa_orbits = None
         voice_beta_curvs = None
+        voice_k_pulls = None
+        voice_tau_touches = None
 
     is_passive = (inst_cfg.get("electronics") == "passive")
     is_identity = is_voice_matching_source(inst_cfg, voice_id, vcfg)
@@ -1694,6 +1849,8 @@ def simulate_voice(
     src_eddy = src_props["k_eddy"]
     src_orbit = src_props["kappa_orbit"]
     src_beta = src_props.get("beta_curv", 0.0)
+    src_pull = src_props.get("k_pull", 0.0)
+    src_touch = src_props.get("tau_touch", 0.0)
     src_vsat = src_props.get("vsat", 0.50)
 
     tgt_vsat = model.vsat
@@ -1704,6 +1861,8 @@ def simulate_voice(
     diff_eddy = max(voice_eddy - src_eddy, 0.0)
     diff_orbit = max(voice_orbit - src_orbit, 0.0)
     diff_beta = max(voice_beta - src_beta, 0.0)
+    diff_pull = max(voice_pull - src_pull, 0.0)
+    diff_touch = max(voice_touch - src_touch, 0.0)
 
     if not is_passive:
         eff_vsat = tgt_vsat
@@ -1721,6 +1880,8 @@ def simulate_voice(
         eff_k_eddys = []
         eff_kappa_orbits = []
         eff_beta_curvs = []
+        eff_k_pulls = []
+        eff_tau_touches = []
         eff_vsats = []
         for i in range(len(voice_alphas)):
             ch_a = max(voice_alphas[i] - src_alpha, 0.0)
@@ -1730,6 +1891,8 @@ def simulate_voice(
             ch_eddy = max(voice_k_eddys[i] - src_eddy, 0.0)
             ch_orbit = max(voice_kappa_orbits[i] - src_orbit, 0.0)
             ch_beta = max(voice_beta_curvs[i] - src_beta, 0.0) if voice_beta_curvs else diff_beta
+            ch_pull = max(voice_k_pulls[i] - src_pull, 0.0) if voice_k_pulls else diff_pull
+            ch_touch = max(voice_tau_touches[i] - src_touch, 0.0) if voice_tau_touches else diff_touch
             eff_alphas.append(ch_a)
             eff_alpha3s.append(ch_a3)
             eff_eta_hysts.append(ch_eta)
@@ -1737,6 +1900,8 @@ def simulate_voice(
             eff_k_eddys.append(ch_eddy)
             eff_kappa_orbits.append(ch_orbit)
             eff_beta_curvs.append(ch_beta)
+            eff_k_pulls.append(ch_pull)
+            eff_tau_touches.append(ch_touch)
 
             ch_tgt_vsat = model.vsat_n if i == 0 else model.vsat_b
             if not is_passive:
@@ -1758,6 +1923,8 @@ def simulate_voice(
         eff_k_eddys = None
         eff_kappa_orbits = None
         eff_beta_curvs = None
+        eff_k_pulls = None
+        eff_tau_touches = None
         eff_vsats = None
         check_alpha = diff_alpha
         check_eta = diff_eta
@@ -1771,6 +1938,8 @@ def simulate_voice(
         or (diff_eddy > 0.01)
         or (diff_orbit > 0.01)
         or (diff_beta > 0.005)
+        or (diff_pull > 0.005)
+        or (diff_touch > 0.005)
         or (check_vsat < src_vsat - 0.03)
     )
 
@@ -1793,7 +1962,7 @@ def simulate_voice(
     else:
         stage_desc = "Circuit Simulation (Pre-filtered Input)"
 
-    print(f"  -> Simulating Native VA ({stage_desc}): {cir_path.name} (Topology: {model.topology}, Source: {inst_id}, Soften: {should_soften}, Alpha: {diff_alpha:.2f}, Alpha3: {diff_alpha3:.2f}, Eta: {diff_eta:.2f}, Sag: {diff_sag:.2f}, Eddy: {diff_eddy:.2f}, Orbit: {diff_orbit:.2f}, Beta: {diff_beta:.3f}, Vsat: {eff_vsat:.2f})...")
+    print(f"  -> Simulating Native VA ({stage_desc}): {cir_path.name} (Topology: {model.topology}, Source: {inst_id}, Soften: {should_soften}, Alpha: {diff_alpha:.2f}, Alpha3: {diff_alpha3:.2f}, Eta: {diff_eta:.2f}, Sag: {diff_sag:.2f}, Eddy: {diff_eddy:.2f}, Orbit: {diff_orbit:.2f}, Beta: {diff_beta:.3f}, Pull: {diff_pull:.3f}, Touch: {diff_touch:.3f}, Vsat: {eff_vsat:.2f})...")
     simulate_circuit_audio(
         input_wav,
         output_wav,
@@ -1823,6 +1992,10 @@ def simulate_voice(
         kappa_orbits=eff_kappa_orbits,
         beta_curv=diff_beta,
         beta_curvs=eff_beta_curvs,
+        k_pull=diff_pull,
+        k_pulls=eff_k_pulls,
+        tau_touch=diff_touch,
+        tau_touches=eff_tau_touches,
         slew_limit=slew_limit,
         f_slew=f_slew,
         noise_dither=noise_dither,
@@ -1916,6 +2089,23 @@ def main():
         help="Explicit dynamic core inductance curvature factor beta_curv (default: resolved from magnet_type in voices.toml)",
     )
     parser.add_argument(
+        "--k-pull",
+        type=float,
+        default=None,
+        help="Explicit nonlinear magnetic string pull factor k_pull (default: resolved from magnet_type in voices.toml)",
+    )
+    parser.add_argument(
+        "--tau-touch",
+        type=float,
+        default=None,
+        help="Explicit dynamic touch spectral tilt factor tau_touch (default: resolved from magnet_type in voices.toml)",
+    )
+    parser.add_argument(
+        "--no-spectral-tilt",
+        action="store_true",
+        help="Disable dynamic excursion-dependent touch spectral tilt",
+    )
+    parser.add_argument(
         "--no-slew-limit",
         action="store_true",
         help="Disable transient magnetic slew-rate limiting",
@@ -1967,6 +2157,7 @@ def main():
     eta_hyst = 0.0 if args.no_hysteresis else args.eta_hyst
     noise_dither = not args.no_dither
     slew_limit = not args.no_slew_limit
+    tau_touch = 0.0 if args.no_spectral_tilt else args.tau_touch
 
     voices = resolve_voices(args.voice)
     in_path = Path(args.input) if args.input else None
@@ -1991,6 +2182,8 @@ def main():
         k_eddy=args.k_eddy,
         kappa_orbit=args.kappa_orbit,
         beta_curv=args.beta_curv,
+        k_pull=args.k_pull,
+        tau_touch=tau_touch,
         slew_limit=slew_limit,
         f_slew=args.f_slew,
         noise_dither=noise_dither,
