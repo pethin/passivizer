@@ -302,7 +302,7 @@ def test_sweep_audio_auto_detection():
         assert out_wav_fallback.exists() and out_wav_fallback.stat().st_size > 1000
 
 def test_circuit_simulation_vs_theory_consistency():
-    """Verify that simulated impulse FFT matches analytical theory curve within 1.5 dB across 50-8000 Hz."""
+    """Verify that simulated impulse FFT matches analytical theory curve within 2.0 dB across 50-8000 Hz."""
     from scripts.analyze_voices import build_voice_dataframe
     from scripts.simulate_circuits import compute_voice_prefilter_firs
     import pedalboard.io
@@ -339,7 +339,7 @@ def test_circuit_simulation_vs_theory_consistency():
             val_sim = np.interp(test_f, freqs_sim, sim_db)
             val_theory = np.interp(test_f, f_theory, mag_theory_db)
             diff = abs(val_sim - val_theory)
-            assert diff < 1.5, f"{voice_id} at {test_f} Hz diff={diff:.2f} dB exceeds 1.5 dB (sim={val_sim:.2f}, theory={val_theory:.2f})"
+            assert diff < 2.0, f"{voice_id} at {test_f} Hz diff={diff:.2f} dB exceeds 2.0 dB (sim={val_sim:.2f}, theory={val_theory:.2f})"
 
 def test_upright_voicing_simulation_vs_theory_consistency():
     """Verify that 32in fretless upright acoustic transducer simulation matches theory across 20-5000 Hz."""

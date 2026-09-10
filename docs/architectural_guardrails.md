@@ -28,21 +28,26 @@ $$f_{\text{start}} = \frac{v}{d}, \quad f_{\text{end}} = 1.8 \cdot \frac{v}{d}, 
 The transition begins right after the constructive peak ($f_{\text{start}}$), smoothly blending into incoherent power summation. Always engage coherence decay for any non-zero sample delay:
 $$\text{has\_spatial\_delay} = (\text{len}(\text{channels}) > 1 \land \Delta\text{samples} > 0)$$
 
-### 1.3 Sidewinder Architecture
+### 1.3 Spatial Arrival Delays & Causal Sample Shifting
+When synthesizing multi-pickup branch FIR filters with spatial propagation delay differences ($\tau_i = \Delta x_i / \bar{c}$), apply delays strictly via causal discrete sample shifting:
+$$\text{delay\_samples} = \lfloor \tau_i \cdot f_s + 0.5 \rfloor, \quad \text{fir} = [0]^{\text{delay\_samples}} + \text{fir}[:N - \text{delay\_samples}]$$
+Never implement fractional arrival delays on causal minimum-phase FIR filters via circular FFT phase rotation ($H(f) \cdot e^{-j 2\pi f \tau_i}$). Because the minimum-phase impulse response peak is concentrated at tap 0, continuous-time sinc interpolation wraps the negative-time non-causal sinc tail around to the end of the circular buffer. Slicing the buffer back to $N$ taps discards this wrapped tail, convolving the frequency spectrum with a Dirichlet kernel and injecting artificial periodic Gibbs truncation ripples ($\Delta f = 1/\tau_i$) across the high frequencies ($8\text{--}20\text{ kHz}$).
+
+### 1.4 Sidewinder Architecture
 If coils feed a single central row of pole pieces under the string ($\Delta x = 0$, e.g. Gibson EB Mudbucker), configure a single coil entry with effective center position ($x = x_{\text{center}}$) and expanded aperture width ($w \approx 1.25''$), never a multi-coil spaced array.
 
-### 1.4 Scale-Normalized Fractional Coordinates ($\eta = x / L$)
+### 1.5 Scale-Normalized Fractional Coordinates ($\eta = x / L$)
 Never subtract raw millimeters across different scale lengths. Calculate displacement using fractional coordinates normalized to standard 34" equivalent inches:
 $$\eta_{\text{tgt}} = \frac{x_{\text{tgt}}}{L_{\text{tgt}}}, \quad \eta_{\text{src}} = \frac{x_{\text{src}}}{L_{\text{src}}}, \quad \Delta x_{\text{in}} = (\eta_{\text{tgt}} - \eta_{\text{src}}) \times 34.0''$$
 
-### 1.5 Dynamic Target Scale Resolution & Tension Snap
+### 1.6 Dynamic Target Scale Resolution & Tension Snap
 Dynamically resolve effective target scale length ($L_{\text{tgt}} = 37.0''$ for multiscale, $34.0''$ otherwise) and apply proportional tension snap whenever $L_{\text{src}} < L_{\text{tgt}}$:
 $$\text{snap\_db} = \min\left(3.5\text{ dB}, 1.8 \cdot \frac{L_{\text{tgt}} - L_{\text{src}}}{4.0''}\right)$$
 
-### 1.6 Continuous Wave-Speed Continuum ($f_0 \in [30.87, 100]\text{ Hz}$)
+### 1.7 Continuous Wave-Speed Continuum ($f_0 \in [30.87, 100]\text{ Hz}$)
 Never constrain acoustic spatial filtering to 4 discrete open-string wave speeds or note-name strings (`["E", "A"]`). Integrate acoustic aperture responses ($H_{\text{composite}}$) across a continuous, log-spaced distribution ($N \ge 24$ points, uniform $1/N$ weight) spanning Low B ($30.87\text{ Hz}$) to open G ($100.00\text{ Hz}$). Route continuum points geometrically via register halves (`[1, 2]` treble vs `[3, 4]` bass), never note names. Derive string stiffness $B_s(f_0)$ logarithmically and calculate mean propagation delay using register centroid $\bar{f}_0 = 66.9045\text{ Hz}$ ($\bar{c} = 2 L \bar{f}_0$).
 
-### 1.7 Longitudinal Wave Transmission & Core Percussion ($H_{\text{long}}(f)$)
+### 1.8 Longitudinal Wave Transmission & Core Percussion ($H_{\text{long}}(f)$)
 Plucking an electric bass string excites longitudinal compression waves propagating through the steel core wire ($c_L \approx 5100\text{ m/s}$), producing a distinct resonant clank at $f_L = c_L / (2L) \approx 2.7\text{--}3.3\text{ kHz}$. When target voicing string has higher longitudinal coupling than source ($\Delta k_{\text{long}} = \max(k_{\text{long,tgt}} - k_{\text{long,src}}, 0) > 0$):
 $$H_{\text{long}}(f) = 1.0 + \Delta k_{\text{long}} \cdot \frac{f / f_L}{Q_L \sqrt{(1 - (f/f_L)^2)^2 + (f / (Q_L f_L))^2}} \cdot e^{-(f/6000.0)^2}, \quad Q_L = 8.0$$
 Returns exact $1.0000$ ($0.00\text{ dB}$) when source matches target.

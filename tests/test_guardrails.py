@@ -71,6 +71,31 @@ def test_guardrail_zero_gibbs_ripples_in_differential_curves():
             )
 
 
+def test_guardrail_zero_high_frequency_gibbs_ripples():
+    """Guardrail 5.1.2: Multi-pickup spatial arrival delays must use causal integer sample shifting
+    rather than circular FFT phase rotations to prevent high-frequency (8-20 kHz) Gibbs truncation ripples."""
+    active_sources = ["34in_active_stingray", "30in_emg_mmtw"]
+    test_voices = ["01_modern_jazz_active", "07_modern_pj_active", "02_jazz_bass_pair"]
+
+    for inst_id in active_sources:
+        inst = load_instrument(inst_id)
+        for voice_id in test_voices:
+            df = build_voice_dataframe(voice_id, VOICES[voice_id], instrument=inst, mode="difference")
+            sub_df = df.filter((df["frequency"] >= 8000.0) & (df["frequency"] <= 20000.0))
+            mags = sub_df["magnitude_db"].to_numpy()
+
+            diffs = np.diff(mags)
+            sign_flips = sum(
+                1 for i in range(len(diffs) - 1)
+                if (diffs[i] > 1e-4 and diffs[i + 1] < -1e-4) or (diffs[i] < -1e-4 and diffs[i + 1] > 1e-4)
+            )
+
+            assert sign_flips <= 1, (
+                f"{inst_id} -> {voice_id} had {sign_flips} slope sign flips between 8 kHz and 20 kHz. "
+                "Periodic Gibbs truncation ripples are present in high frequencies."
+            )
+
+
 def test_guardrail_identity_model_flatness():
     """Guardrail 5.3.1: Pairing an instrument with its matching target voice must evaluate
     to exact 0.00 dB identity across all frequency bins."""

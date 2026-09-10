@@ -1249,11 +1249,9 @@ def compute_voice_prefilter_firs(voice_id, instrument="30in", src_scale=None, nu
             tau_i = 0.0
 
         if tau_i > 0.0:
-            n_fft_delay = 1 << (len(fir_raw) * 2 - 1).bit_length()
-            H_fir = np.fft.rfft(fir_raw, n_fft_delay)
-            f_bins = np.fft.rfftfreq(n_fft_delay, 1.0 / 48000.0)
-            H_delayed = H_fir * np.exp(-1j * 2.0 * np.pi * f_bins * tau_i)
-            fir_raw = np.fft.irfft(H_delayed, n_fft_delay)[:num_taps].tolist()
+            delay_samples = int(round(tau_i * 48000.0))
+            if 0 < delay_samples < num_taps:
+                fir_raw = [0.0] * delay_samples + fir_raw[:num_taps - delay_samples]
 
         raw_firs.append(fir_raw)
 
