@@ -621,3 +621,84 @@ coils = [
     { strings = ["all"], position_from_bridge_m = 0.0050, aperture_width_in = 0.25, weight = 1.0 }
 ]
 
+# ------------------------------------------------------------------------------
+# 15. PASSIVE CHARACTER (DYNAMIC METALLURGY / NO EQ)
+# ------------------------------------------------------------------------------
+# Pure passive pickup dynamic feel and magnetic non-linearities without any linear EQ filtering
+# (0.00 dB flat frequency response). Imparts authentic Alnico V magnetic compression,
+# Dahl hysteresis, Lenz velocity drag, attack pitch sag, eddy current de-Qing,
+# back-EMF string braking, and dynamic reluctance modulation ("vowel quack") to active
+# basses while preserving 100% of the player's onboard EQ filters and blend controls.
+[voices.15_passive_character]
+name = "15. Passive Character (No EQ)"
+circuit = "circuits/15_passive_character.cir"
+topology = "Passive Dynamic Twin (No EQ)"
+description = "Pure passive pickup dynamic feel and magnetic non-linearities without EQ; preserves active bass onboard filters and blend controls"
+blend_mode = "direct"
+magnet_type = "alnico_v"
+alpha = 0.26
+alpha3 = 0.10
+eta_hyst = 0.06
+k_sag = 0.08
+vsat = 0.50
+k_eddy = 0.16
+kappa_orbit = 0.06
+k_body = 0.08
+beta_curv = 0.035
+k_pull = 0.040
+tau_touch = 0.045
+chi_mu = 0.035
+k_dist = 0.18
+kappa_geom = 0.20
+k_stein = 0.030
+k_emf = 0.04
+lambda_L = 0.05
+fr = 2500.0
+Q = 1.4
+gain_db = 0.0
+scale = "34in"
+no_eq = true
+coils = [
+    { strings = ["all"], position_from_bridge_m = 0.0950, aperture_width_in = 0.75, weight = 1.0 }
+]
+
+# ------------------------------------------------------------------------------
+# 16. ACTIVE CHARACTER (MODERN ACTIVE BUFFER)
+# ------------------------------------------------------------------------------
+# Studio active buffer digital twin isolating high-impedance coils from cable capacitance
+# (750pF). Delivers wideband hi-fi sparkle, punchy transient headroom, and zero cable loading
+# for passive basses without active EQ coloring or synthetic boost shelves.
+[voices.16_active_character]
+name = "16. Active Character (Modern Active Buffer)"
+circuit = "circuits/16_active_character.cir"
+topology = "Single-Coil Active Buffer"
+description = "Studio active buffer digital twin isolating coils from cable capacitance; delivers wideband hi-fi sparkle, punchy transient headroom, and zero cable loading for passive basses without active EQ coloring"
+blend_mode = "direct"
+magnet_type = "active"
+alpha = 0.00
+alpha3 = 0.00
+eta_hyst = 0.00
+k_sag = 0.00
+vsat = 1.20
+k_eddy = 0.00
+kappa_orbit = 0.00
+k_body = 0.00
+beta_curv = 0.000
+k_pull = 0.000
+tau_touch = 0.000
+chi_mu = 0.000
+k_dist = 0.00
+kappa_geom = 0.00
+k_stein = 0.000
+k_emf = 0.00
+lambda_L = 0.00
+fr = 5200.0
+Q = 1.6
+gain_db = 0.0
+scale = "34in"
+preserve_aperture = true
+coils = [
+    { strings = ["all"], position_from_bridge_m = 0.0950, aperture_width_in = 0.75, weight = 1.0 }
+]
+
+

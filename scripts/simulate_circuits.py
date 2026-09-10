@@ -268,6 +268,9 @@ class CircuitModel:
         self.C_preamp_in = 25e-12
         self.R_out = 100.0
 
+        # Transparent zero-EQ mode
+        self.no_eq = False
+
         # Cable & pedalboard load
         self.Ccable = 750e-12
         self.tan_delta = 0.025
@@ -354,6 +357,11 @@ def _parse_netlist_cached(cir_path_str: str) -> CircuitModel:
     elif "stingray" in stem:
         model.has_active_buffer = True
         model.preamp_type = "stingray_2band"
+    elif "16_active_character" in stem or "active_character" in stem:
+        model.has_active_buffer = True
+        model.preamp_type = "none"
+    elif "15_passive_character" in stem or "passive_character" in stem:
+        model.no_eq = True
 
     for line in lines:
         line_clean = line.strip()
@@ -361,12 +369,17 @@ def _parse_netlist_cached(cir_path_str: str) -> CircuitModel:
             continue
 
         line_lower = line_clean.lower()
-        if "sadowsky_2band" in line_lower or "sadowsky" in line_lower:
+        if "mode: no_eq" in line_lower or "no_eq" in line_lower:
+            model.no_eq = True
+        elif "sadowsky_2band" in line_lower or "sadowsky" in line_lower:
             model.has_active_buffer = True
             model.preamp_type = "sadowsky_2band"
         elif "stingray_2band" in line_lower:
             model.has_active_buffer = True
             model.preamp_type = "stingray_2band"
+        elif "preamp voicing: none" in line_lower or "flat buffer" in line_lower:
+            model.has_active_buffer = True
+            model.preamp_type = "none"
 
         if line_clean.startswith("*") or line_clean.startswith("."):
             continue
@@ -667,6 +680,9 @@ def compute_circuit_transfer_functions(model: CircuitModel, freqs=FREQS):
     Supports both passive high-Z harnesses and active buffered preamps.
     """
     f = np.asarray(freqs, dtype=np.float64)
+    if getattr(model, "no_eq", False):
+        return [np.ones_like(f).tolist()]
+
     w = np.where(f == 0.0, 2.0 * np.pi * 1e-3, 2.0 * np.pi * f)
     s = 1j * w
 
@@ -886,6 +902,8 @@ def compute_differential_circuit_transfer_functions(
     src_curves = compute_circuit_transfer_functions(source_model, freqs=freqs)
 
     f_arr = np.asarray(freqs, dtype=np.float64)
+    if getattr(target_model, "no_eq", False):
+        return [np.ones_like(f_arr).tolist()]
 
     diff_curves = []
     for ch_idx, tgt_c in enumerate(tgt_curves):
@@ -2086,7 +2104,9 @@ def simulate_voice(
     src_cir_path = (REPO_ROOT / src_cir_rel) if src_cir_rel else None
 
     diff_curves = None
-    if src_cir_path and src_cir_path.exists():
+    if vcfg.get("no_eq", False) or getattr(model, "no_eq", False) or (voice_id == "16_active_character" and not is_passive):
+        diff_curves = [np.ones(len(FREQS), dtype=np.float64).tolist()]
+    elif src_cir_path and src_cir_path.exists():
         src_model = parse_netlist(src_cir_path)
         apply_magnet_properties_to_model(src_model, src_pickup, eddy_diffusion=eddy_diffusion)
         diff_curves = compute_differential_circuit_transfer_functions(model, src_model, freqs=FREQS)

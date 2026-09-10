@@ -27,6 +27,9 @@ This catalog details the physical parameters, equivalent RLC circuit values, aco
 | **12** | `12_mudbucker_ultra_series`| Overwound Series| Ultra Series | Gibson $500\text{k}\Omega$ Vol, $500\text{k}\Omega$ Tone, $22\text{nF}$ Cap | $14.40\text{ H}$| $27.90\text{ k}\Omega$ | $1.2\text{ kHz}$ | Extreme dual-coil series network; subterranean low-end focus, steep natural top-end rolloff. |
 | **13** | `13_dingwall_multiscale_bridge`| Multi-Scale MM | Angled Parallel | Dingwall $500\text{k}\Omega$ Vol, $500\text{k}\Omega$ Tone, $47\text{nF}$ Cap | $2.30\text{ H}$| $4.40\text{ k}\Omega$ | $3.4\text{ kHz}$ | 34"-37" fanned-fret bridge position ($48.0\text{ mm}$) with high-tension wave speeds and FD3 parallel dual-coil resonance. |
 | **14** | `14_upright_bridge_transducer`| Upright Transducer | Bridge Force | Direct $100\text{ M}\Omega$ Buffer, $15\text{ nF}$ Subsonic Rumble Cap | — | — | $4.5\text{ kHz}$ | Direct bridge force sensor with velocity-to-force leaky integration; woody double-bass bloom. |
+| **15** | `15_passive_character` | Passive Dynamic Twin | Dynamic Twin | Transparent ($0.00\text{ dB}$ flat linear transfer) | $3.60\text{ H}$ | $8.20\text{ k}\Omega$ | Flat (0 dB) | Pure passive pickup dynamic feel and magnetic non-linearities without EQ; preserves active bass onboard filters and blend controls. |
+| **16** | `16_active_character` | Modern Active Buffer | Active Buffer | Studio Active Buffer ($R_{\text{in}}=1\text{M}\Omega, R_{\text{out}}=100\,\Omega$) | $3.20\text{ H}$ (isolated) | $7.20\text{ k}\Omega$ | $8.2\text{ kHz}$ | Studio active buffer isolating high-Z coils from cable capacitance ($750\text{ pF}$); wideband sparkle, punchy transient headroom, zero cable drag. |
+
 
 ---
 
@@ -194,6 +197,20 @@ This catalog details the physical parameters, equivalent RLC circuit values, aco
 * **Acoustic Character:** Eliminates magnetic pickup comb filtering; delivers smooth, woody double-bass pizzicato bloom with deep sub-bass body resonance.
 * **32" Fretless Setting:** ABCX Blend to **Upright Blend** (85% PCSX + 15% MMTWX Single - Push/Pull Down: J Mode). Pair with **3 Sigma Upright Bass IR** in Anagram Block 3.
 
+### 15. `15_passive_character` (Passive Character - No EQ)
+* **Archetype:** Pure Passive Pickup Dynamic Twin (No Linear EQ)
+* **Design Rationale:** For active bass players who want to preserve 100% of their onboard active 2-band/3-band EQ filters, midrange sweep, and pickup blend controls, while transforming sterile, stiff active pickups with authentic high-impedance passive dynamic feel.
+* **Linear Transfer Function:** Bit-exact $0.00\text{ dB}$ flat response across all frequencies ($20\text{ Hz}\text{--}20\text{ kHz}$). Zero aperture comb filtering, zero RLC resonance shift, zero high-frequency rolloff.
+* **Non-Linear Dynamics:** Engages full Alnico V magnetic compliance ($V_{\text{sat}} = 0.50$), Dahl hysteresis ($\eta = 0.06$), Lenz velocity drag and attack pitch sag ($k_{\text{sag}} = 0.08, k_{\text{pull}} = 0.04$), dynamic eddy current de-Qing ($k_{\text{eddy}} = 0.16$), electromechanical back-EMF string braking ($k_{\text{emf}} = 0.04$), dynamic reluctance modulation ("vowel quack", $\lambda_L = 0.05$), and calibrated $-108\text{ dBFS}$ thermal noise dither.
+* **Bypass Invariant:** When evaluated on passive source basses, the non-linear engine automatically detects matching/higher source saturation and bypasses processing.
+
+### 16. `16_active_character` (Modern Active Buffer)
+* **Archetype:** Studio Pure High-Impedance Active Buffer Twin (Cable Isolation & Wideband Sparkle)
+* **Design Rationale:** For passive bass players (Precision, Jazz, PJ) who want the crystalline sparkle, ultra-fast transient punch, and wideband extension of an active bass without synthetic bass/treble shelving boosts.
+* **Pickup & Aperture Model:** Preserves the instrument's natural physical pickup placement and aperture ($H_{\text{prefilter}}(f) \equiv 1.0$).
+* **Electrical Physics:** Simulates an onboard $1\text{ M}\Omega$ active buffer stage ($R_{\text{in}} = 1.0\text{ M}\Omega, C_{\text{in}} = 25\text{ pF}, R_{\text{out}} = 100\,\Omega$). The differential SPICE engine deconvolves the heavy $750\text{ pF}$ instrument cable loading and $250\text{k}\Omega$ potentiometer damping, raising the effective resonant peak into the air band ($7.5\text{--}9.0\text{ kHz}$) and restoring crystalline pick articulation and low-end definition.
+* **Dynamic Headroom:** Clean active headroom ($V_{\text{sat}} = 1.20$), zero magnetic saturation, and fast uncompressed attack.
+
 ---
 
 ## Geometry & Displacement Mapping (30" EMG MM $\to$ 32" Target Datums)
@@ -235,3 +252,6 @@ When running Passivizer from a **30" short-scale bass with a single 18V EMG MM p
 | **`12_mudbucker_ultra_series`**| Deep Series Center | $92.5\text{ mm}$ | $+15.0\text{ mm}\ (+0.59'')$ | Extreme $14.4\text{ H}$ low-frequency foundation |
 | **`13_dingwall_multiscale_bridge`**| Angled Sweet Spot | $48.0\text{ mm}$ | $-29.5\text{ mm}\ (-1.16'')$ | High string wave speed, metallic clank |
 | **`14_upright_bridge_transducer`**| Bridge Transducer Datum | $5.0\text{ mm}$ | $-72.5\text{ mm}\ (-2.85'')$ | Bridge force integration, de-comb, body bloom |
+| **`15_passive_character`** | Unchanged Source Datum | $x_{\text{source}}$ | $0.0\text{ mm}\ (0.00'')$ | Zero aperture filtering, zero linear EQ, pure passive dynamics |
+| **`16_active_character`** | Unchanged Source Datum | $x_{\text{source}}$ | $0.0\text{ mm}\ (0.00'')$ | Preserved aperture, active buffer cable isolation |
+

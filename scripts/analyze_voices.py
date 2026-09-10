@@ -84,6 +84,19 @@ def build_voice_dataframe(voice_id, cfg, instrument="30in", src_scale=None, mode
     is_passive = (inst.get("electronics") == "passive")
     is_identity = (mode != "output") and is_voice_matching_source(inst, voice_id, cfg)
 
+    if cfg.get("no_eq", False) or (mode == "difference" and voice_id == "16_active_character" and not is_passive):
+        data = {
+            "frequency": log_freqs,
+            "magnitude_db": [0.0] * len(log_freqs),
+            "voice_id": voice_id,
+            "voice_name": cfg.get("name", voice_id),
+            "topology": cfg.get("topology", "Active Dynamic Twin"),
+            "description": cfg.get("description", ""),
+        }
+        if include_mode_col:
+            data["mode"] = "Output Voice" if mode == "output" else "Input/Output Difference"
+        return pl.DataFrame(data)
+
     if mode == "output":
         # 1. Output Voice: Target acoustic aperture + loaded SPICE circuit + string + body bloom
         if cir_path.exists():

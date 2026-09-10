@@ -214,3 +214,64 @@ def test_resolve_voices():
         "09_stingray_mm_parallel",
         "09b_stingray_mm_series",
     ]
+
+    # Shorthand matching 15 and 16
+    p15 = resolve_voices("15")
+    assert p15 == ["15_passive_character"]
+    p16 = resolve_voices("16")
+    assert p16 == ["16_active_character"]
+
+
+def test_passive_character_no_eq_flatness():
+    """Validates that 15_passive_character performs zero linear EQ filtering."""
+    import numpy as np
+    from scripts.model_physics import compute_voice_prefilter_firs, NUM_TAPS
+    from scripts.analyze_voices import build_voice_dataframe
+    from scripts.simulate_circuits import parse_netlist, compute_circuit_transfer_functions, FREQS, REPO_ROOT
+
+    # 1. Prefilter FIR must be an exact unit impulse
+    firs = compute_voice_prefilter_firs("15_passive_character", instrument="30in_emg_mmtw")
+    assert len(firs) == 1
+    fir = np.array(firs[0])
+    assert fir[0] == 1.0
+    assert np.all(fir[1:] == 0.0)
+
+    # 2. Circuit transfer function must be identically 1.0 across all frequencies
+    cfg = VOICES["15_passive_character"]
+    model = parse_netlist(REPO_ROOT / cfg["circuit"])
+    assert getattr(model, "no_eq", False) is True
+    curves = compute_circuit_transfer_functions(model, freqs=FREQS)
+    assert len(curves) == 1
+    assert np.all(np.array(curves[0]) == 1.0)
+
+    # 3. Dataframes in both modes must be bit-exact 0.00 dB
+    df_diff = build_voice_dataframe("15_passive_character", cfg, instrument="30in_emg_mmtw", mode="difference")
+    mags_diff = df_diff["magnitude_db"].to_numpy()
+    assert np.all(mags_diff == 0.0)
+
+    df_out = build_voice_dataframe("15_passive_character", cfg, instrument="30in_emg_mmtw", mode="output")
+    mags_out = df_out["magnitude_db"].to_numpy()
+    assert np.all(mags_out == 0.0)
+
+
+def test_active_character_buffer_properties():
+    """Validates that 16_active_character preserves aperture and acts as an uncolored active buffer."""
+    import numpy as np
+    from scripts.model_physics import compute_voice_prefilter_firs
+    from scripts.simulate_circuits import parse_netlist, compute_circuit_transfer_functions, FREQS, REPO_ROOT
+
+    # 1. Prefilter FIR preserves physical aperture (unit impulse)
+    firs = compute_voice_prefilter_firs("16_active_character", instrument="34in_standard_p")
+    assert len(firs) == 1
+    fir = np.array(firs[0])
+    assert fir[0] == 1.0
+    assert np.all(fir[1:] == 0.0)
+
+    # 2. Netlist models active buffer with flat contour
+    cfg = VOICES["16_active_character"]
+    model = parse_netlist(REPO_ROOT / cfg["circuit"])
+    assert model.has_active_buffer is True
+    assert model.preamp_type == "none"
+    assert model.R_out == 100.0
+    assert model.R_preamp_in >= 1.0e6
+

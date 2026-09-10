@@ -1230,6 +1230,10 @@ def compute_voice_prefilter_firs(voice_id, instrument="30in", src_scale=None, nu
     [fir_pickup_0, fir_pickup_1, ...], enabling independent channel excitation in SPICE.
     """
     cfg = VOICES[voice_id]
+    if cfg.get("no_eq", False) or cfg.get("preserve_aperture", False):
+        impulse = [1.0] + [0.0] * (num_taps - 1)
+        return [impulse]
+
     target_scale_key = cfg.get("scale", "34in")
     tgt = SCALES[target_scale_key]
     tgt_speeds = tgt["speeds"]

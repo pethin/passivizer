@@ -2079,3 +2079,47 @@ def test_electromechanical_back_emf_braking():
     rms_emf = np.sqrt(np.mean(out_emf ** 2))
     assert rms_emf <= rms_no_emf, "Back-EMF damping must reduce or maintain total energy"
 
+
+def test_passive_character_simulation_active_vs_passive():
+    """Verify 15_passive_character applies passive dynamics to active basses and bypasses on passive basses."""
+    from scripts.model_physics import load_instrument, VOICES
+    from scripts.simulate_circuits import parse_netlist, MAGNET_PROPERTIES, REPO_ROOT
+
+    # 1. On active bass (30in_emg_mmtw, 34in_active_soapbar, 34in_active_stingray):
+    inst_active = load_instrument("30in_emg_mmtw")
+    assert inst_active["electronics"] == "active"
+    vcfg = VOICES["15_passive_character"]
+    src_props = MAGNET_PROPERTIES["active"]
+    diff_alpha = max(vcfg["alpha"] - src_props["alpha"], 0.0)
+    assert diff_alpha > 0.20, "Passive character must provide positive differential softening on active bass"
+
+    # 2. On passive bass (34in_standard_p):
+    inst_passive = load_instrument("34in_standard_p")
+    assert inst_passive["electronics"] == "passive"
+    p_mag = inst_passive["pickups"]["split_p"]["magnet_type"]
+    src_pas_props = MAGNET_PROPERTIES[p_mag]
+    diff_alpha_pas = max(vcfg["alpha"] - src_pas_props["alpha"], 0.0)
+    assert diff_alpha_pas == 0.0, "Passive character must produce zero differential softening on passive Alnico bass"
+
+
+def test_active_character_differential_cable_isolation():
+    """Verify 16_active_character deconvolves passive cable loading when evaluating from a passive bass."""
+    from scripts.model_physics import FREQS
+    from scripts.simulate_circuits import parse_netlist, compute_differential_circuit_transfer_functions, REPO_ROOT
+
+    tgt_model = parse_netlist(REPO_ROOT / "circuits" / "16_active_character.cir")
+    src_model = parse_netlist(REPO_ROOT / "circuits" / "sources" / "source_standard_p.cir")
+
+    diff_curves = compute_differential_circuit_transfer_functions(tgt_model, src_model, freqs=FREQS)
+    assert len(diff_curves) == 1
+    h_diff = np.array(diff_curves[0])
+
+    # At 100 Hz, both circuits have flat DC/low-frequency transmission
+    idx_100 = np.argmin(np.abs(np.array(FREQS) - 100.0))
+    assert 0.90 <= h_diff[idx_100] <= 1.15
+
+    # At 8 kHz, passive circuit has heavy cable loading, active buffer is isolated
+    idx_8k = np.argmin(np.abs(np.array(FREQS) - 8000.0))
+    assert h_diff[idx_8k] > 1.0, "Active buffer must deconvolve passive cable loading at 8 kHz"
+
+
