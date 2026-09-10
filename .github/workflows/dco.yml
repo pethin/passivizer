@@ -1,0 +1,76 @@
+name: "DCO / CLA Sign-Off Check"
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+# Explicitly grant only read-only access to repository contents
+permissions:
+  contents: read
+
+jobs:
+  dco-check:
+    name: "Verify CLA Sign-off"
+    runs-on: ubuntu-latest
+    steps:
+      # Pinned to immutable commit SHA to prevent supply-chain tampering
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+
+      - name: Verify Signed-off-by on all PR commits
+        # Pass GitHub context values strictly through environment variables
+        # NEVER interpolate ${{ github.* }} directly in inline shell scripts (prevents script injection)
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          set -euo pipefail
+
+          # 1. Sanitize base reference (enforce valid git ref characters)
+          if [[ ! "$BASE_REF" =~ ^[a-zA-Z0-9._/-]+$ ]]; then
+            printf 'Error: Invalid base ref format: %s\n' "$BASE_REF" >&2
+            exit 1
+          fi
+
+          printf 'Validating DCO / CLA sign-off between origin/%s and HEAD...\n' "$BASE_REF"
+
+          MISSING=0
+          # 2. Extract commit SHAs safely using double-dash separator
+          COMMITS=$(git rev-list --no-merges "origin/$BASE_REF..HEAD" --)
+
+          if [ -z "$COMMITS" ]; then
+            printf 'No new commits to inspect.\n'
+            exit 0
+          fi
+
+          for commit in $COMMITS; do
+            # Validate commit hash format
+            if [[ ! "$commit" =~ ^[0-9a-f]{40}$ ]]; then
+              printf 'Error: Malformed commit SHA: %s\n' "$commit" >&2
+              exit 1
+            fi
+
+            # 3. Stream commit body directly through pipe to grep (avoids shell expansion / argument injection)
+            if ! git log -1 --format=%B "$commit" -- | grep -qE '^[Ss]igned-off-by: [^<]+ <[^@>]+@[^>]+>'; then
+              printf '❌ Commit %s is missing "Signed-off-by:"\n' "$commit"
+              printf '   Subject: %s\n' "$(git log -1 --format=%s "$commit" --)"
+              printf '   Author:  %s\n' "$(git log -1 --format='%an <%ae>' "$commit" --)"
+              MISSING=$((MISSING + 1))
+            else
+              printf '✅ Commit %s is signed off.\n' "$commit"
+            fi
+          done
+
+          if [ "$MISSING" -gt 0 ]; then
+            printf '\n==========================================================================\n'
+            printf 'ERROR: %d commit(s) missing DCO / CLA sign-off.\n' "$MISSING"
+            printf 'Allomorph requires all commits to agree to CLA.md via "Signed-off-by:".\n\n'
+            printf 'To fix this on your local branch, run:\n'
+            printf '  git rebase --signoff origin/%s\n' "$BASE_REF"
+            printf '  git push --force-with-lease\n'
+            printf '==========================================================================\n'
+            exit 1
+          fi
+
+          printf '\nAll commits have valid DCO / CLA sign-off!\n'
