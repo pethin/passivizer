@@ -567,13 +567,9 @@ def apply_magnet_properties_to_model(
 def compute_active_preamp_eq(preamp_type: str, s):
     """
     Evaluates analog active preamp contour transfer function:
-    - Subsonic HPF: 10 Hz AC coupling pole
-    - Sadowsky 2-band boost: +3.5 dB @ 40 Hz shelf, +3.5 dB @ 4 kHz shelf
-    - StingRay 2-band boost: +1.8 dB @ 50 Hz shelf, +2.2 dB @ 4-7 kHz shelf
+    - Sadowsky 2-band boost: +3.5 dB @ 60 Hz shelf, +3.5 dB @ 3.5 kHz shelf
+    - StingRay 2-band boost: +1.8 dB @ 80 Hz shelf, +2.2 dB @ 4 kHz shelf
     """
-    w_sub = 2.0 * math.pi * 10.0
-    h_sub = s / (s + w_sub)
-
     if preamp_type == "sadowsky_2band":
         wb = 2.0 * math.pi * 60.0
         gb = 10.0 ** (3.5 / 20.0)
@@ -583,7 +579,7 @@ def compute_active_preamp_eq(preamp_type: str, s):
         gt = 10.0 ** (3.5 / 20.0)
         h_treble = (gt * s + wt) / (s + wt)
 
-        return h_sub * h_bass * h_treble
+        return h_bass * h_treble
 
     elif preamp_type == "stingray_2band":
         wb = 2.0 * math.pi * 80.0
@@ -594,7 +590,7 @@ def compute_active_preamp_eq(preamp_type: str, s):
         gt = 10.0 ** (2.2 / 20.0)
         h_treble = (gt * s + wt) / (s + wt)
 
-        return h_sub * h_bass * h_treble
+        return h_bass * h_treble
 
     return 1.0 + 0j
 
