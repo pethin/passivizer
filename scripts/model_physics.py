@@ -116,6 +116,9 @@ def load_scales(config_path=None):
             "name": scfg.get("name", sid),
             "scale_m": scfg.get("scale_length_m", scfg.get("scale_length_in", 34.0) * 0.0254),
             "scale_length_in": scfg.get("scale_length_in", 34.0),
+            "scale_min_in": scfg.get("scale_min_in"),
+            "scale_max_in": scfg.get("scale_max_in"),
+            "is_multiscale": scfg.get("is_multiscale", False),
             "speeds": scfg.get("string_wave_speeds", [])
         }
     return scales
@@ -162,9 +165,17 @@ def load_instrument(identifier_or_path):
         "multiscale_dingwall": "37in_multiscale_dingwall",
         "dingwall": "37in_multiscale_dingwall",
         "combustion": "37in_multiscale_dingwall",
+        "ng": "37in_multiscale_dingwall",
+        "dingwall_ng": "37in_multiscale_dingwall",
+        "ng2": "37in_multiscale_dingwall",
+        "ng3": "37in_multiscale_dingwall",
+        "37in_dingwall_ng": "37in_multiscale_dingwall",
         "34in_dingwall_sp1": "34in_dingwall_sp1",
+        "35in_dingwall_sp1": "34in_dingwall_sp1",
         "dingwall_sp1": "34in_dingwall_sp1",
-        "sp1": "34in_dingwall_sp1"
+        "sp1": "34in_dingwall_sp1",
+        "super_p": "34in_dingwall_sp1",
+        "dingwall_super_p": "34in_dingwall_sp1"
     }
     raw = str(identifier_or_path).strip()
     key = aliases.get(raw, raw)
@@ -621,13 +632,13 @@ def is_voice_matching_source(instrument, voice_id, voice_cfg=None):
     inst = load_instrument(instrument) if not isinstance(instrument, dict) else instrument
     vcfg = voice_cfg or VOICES.get(voice_id, {})
 
-    src_scale_m = inst.get("scale_length_m", inst.get("scale_length_in", 34.0) * 0.0254)
+    src_range = resolve_scale_range(inst)
     tgt_scale = vcfg.get("scale", "34in")
     tgt_scale_info = SCALES.get(tgt_scale, {})
-    tgt_scale_m = tgt_scale_info.get("scale_m", tgt_scale_info.get("scale_length_m", 0.8636))
+    tgt_range = resolve_scale_range(tgt_scale_info)
 
-    # Scale match based on physical vibrating length (within 1.2 cm)
-    if abs(src_scale_m - tgt_scale_m) > 0.012:
+    # Scale match based on physical vibrating length range (within 1.2 cm)
+    if abs(src_range[0] - tgt_range[0]) > 0.012 or abs(src_range[1] - tgt_range[1]) > 0.012:
         return False
 
     src_p = get_source_pickup(inst, voice_id)
@@ -681,39 +692,93 @@ def get_inharmonicity_for_f0(f0: float) -> float:
     b_s = float(np.interp(log_f0, log_anchors, INHARMONICITY_ANCHORS_BS))
     return b_s
 
-def generate_wave_speed_continuum(scale_length_m: float = 0.8636, num_points: int = 24):
+def resolve_scale_range(inst_or_scale):
+    """
+    Resolves the vibrating scale length range (scale_min_m, scale_max_m) in meters.
+    Returns (L, L) for standard single-scale instruments, or (min_m, max_m) for multi-scale.
+    """
+    if inst_or_scale is None:
+        return (0.8636, 0.8636)
+
+    if isinstance(inst_or_scale, (tuple, list)):
+        if len(inst_or_scale) == 2 and all(float(v) <= 5.0 for v in inst_or_scale):
+            return (float(min(inst_or_scale)), float(max(inst_or_scale)))
+        elif any(float(v) > 10.0 for v in inst_or_scale):
+            return (0.8636, 0.8636)
+
+    if isinstance(inst_or_scale, (int, float)):
+        val = float(inst_or_scale)
+        val_m = val * 0.0254 if val > 5.0 else val
+        return (val_m, val_m)
+
+    if isinstance(inst_or_scale, str):
+        if inst_or_scale in SCALES:
+            s_info = SCALES[inst_or_scale]
+            if s_info.get("is_multiscale"):
+                min_m = s_info.get("scale_min_in", 34.0) * 0.0254
+                max_m = s_info.get("scale_max_in", 37.0) * 0.0254
+                return (min_m, max_m)
+            l_m = s_info.get("scale_m", s_info.get("scale_length_m", 0.8636))
+            return (l_m, l_m)
+        try:
+            inst = load_instrument(inst_or_scale)
+            return resolve_scale_range(inst)
+        except Exception:
+            return (0.8636, 0.8636)
+
+    if isinstance(inst_or_scale, dict):
+        if inst_or_scale.get("is_multiscale"):
+            min_in = inst_or_scale.get("scale_min_in")
+            max_in = inst_or_scale.get("scale_max_in", inst_or_scale.get("scale_length_in", 37.0))
+            if min_in is not None and max_in is not None:
+                return (float(min_in) * 0.0254, float(max_in) * 0.0254)
+        l_in = inst_or_scale.get("scale_length_in")
+        l_m = inst_or_scale.get("scale_length_m", float(l_in) * 0.0254 if l_in else 0.8636)
+        return (l_m, l_m)
+
+    return (0.8636, 0.8636)
+
+def generate_wave_speed_continuum(scale_length_m=0.8636, num_points: int = 24):
     """
     Generates a dense, continuous log-spaced continuum of wave speeds spanning
-    the full operating register of an electric bass for a given scale length:
-    v(f0) = 2 * L * f0
-    From f_min = 27.5 Hz (Low A / Low B, covering Drop A, Drop C, Drop D, Standard E)
-    to f_max = 105.0 Hz (covering open strings up through G on 4- and 5-string basses).
-
-    Returns a list of dicts:
-      [
-        {
-          "f0": float,
-          "v0": float,
-          "register": "lower" if i < num_points // 2 else "upper",
-          "weight": float,
-        },
-        ...
-      ]
-    Ensures complete invariance to tunings, string counts (4/5/6-string), and string gauges.
+    the full operating register of an electric bass for a given scale length or multi-scale range:
+    v(f0) = 2 * L(f0) * f0
+    From f_min = 30.87 Hz (Low B) to f_max = 100.00 Hz (High G).
+    On multi-scale instruments, L(f0) smoothly interpolates from L_max at Low B to L_min at High G.
     """
     f_min = 30.87
     f_max = 100.00
     log_f = np.linspace(np.log2(f_min), np.log2(f_max), num_points)
     f0_arr = 2.0 ** log_f
-    v0_arr = 2.0 * float(scale_length_m) * f0_arr
+
+    if isinstance(scale_length_m, (tuple, list)) and len(scale_length_m) == 2:
+        l_min_m = float(min(scale_length_m))
+        l_max_m = float(max(scale_length_m))
+    elif isinstance(scale_length_m, dict) or (isinstance(scale_length_m, str) and scale_length_m in SCALES):
+        l_min_m, l_max_m = resolve_scale_range(scale_length_m)
+    else:
+        l_min_m = float(scale_length_m)
+        l_max_m = float(scale_length_m)
+
+    if abs(l_max_m - l_min_m) > 1e-4:
+        # Multi-scale fanned fretboard:
+        # Lowest frequency (f_min = 30.87 Hz, Low B) has longest scale (l_max_m);
+        # Highest frequency (f_max = 100.0 Hz, High G) has shortest scale (l_min_m).
+        t = (log_f - np.log2(f_min)) / (np.log2(f_max) - np.log2(f_min))
+        l_arr = l_max_m - t * (l_max_m - l_min_m)
+    else:
+        l_arr = np.full_like(f0_arr, l_max_m)
+
+    v0_arr = 2.0 * l_arr * f0_arr
 
     continuum = []
     half = num_points // 2
-    for i, (f0, v0) in enumerate(zip(f0_arr, v0_arr)):
+    for i, (f0, v0, l_eff) in enumerate(zip(f0_arr, v0_arr, l_arr)):
         reg = "lower" if i < half else "upper"
         continuum.append({
             "f0": float(f0),
             "v0": float(v0),
+            "scale_m": float(l_eff),
             "register": reg,
             "weight": 1.0 / num_points,
         })
@@ -721,8 +786,11 @@ def generate_wave_speed_continuum(scale_length_m: float = 0.8636, num_points: in
 
 def resolve_scale_length(string_speeds, scale_length_m=None):
     """Resolves the effective vibrating scale length in meters."""
-    if scale_length_m is not None and scale_length_m > 0:
-        return scale_length_m
+    if scale_length_m is not None:
+        if isinstance(scale_length_m, (tuple, list)) and len(scale_length_m) == 2:
+            return float(sum(scale_length_m)) / 2.0
+        if isinstance(scale_length_m, (int, float)) and scale_length_m > 0:
+            return float(scale_length_m)
     for s_info in SCALES.values():
         speeds = s_info.get("speeds", [])
         if len(speeds) == len(string_speeds) and np.allclose(speeds, string_speeds, rtol=0.005):
@@ -835,10 +903,12 @@ def numpy_pickup_acoustic_response(freqs, coils, scale_length_m: float = None, s
 
     # Handle argument flexibility if callers pass (freqs, coils, string_speeds)
     if isinstance(scale_length_m, (list, tuple, np.ndarray)):
-        string_speeds = scale_length_m
-        scale_length_m = 0.8636
+        if len(scale_length_m) > 0 and any(float(v) > 10.0 for v in scale_length_m):
+            string_speeds = scale_length_m
+            scale_length_m = None
 
-    l_eff = float(scale_length_m) if (scale_length_m is not None and not isinstance(scale_length_m, (list, tuple, np.ndarray)) and scale_length_m > 0) else 0.8636
+    scale_range = resolve_scale_range(scale_length_m)
+    l_eff = (scale_range[0] + scale_range[1]) / 2.0
 
     if string_speeds is not None and len(string_speeds) > 0 and len(string_speeds) != 24:
         continuum = []
@@ -856,9 +926,9 @@ def numpy_pickup_acoustic_response(freqs, coils, scale_length_m: float = None, s
                     reg = "lower" if s_idx < half else "upper"
             else:
                 reg = "lower" if s_idx < half else "upper"
-            continuum.append({"f0": f0, "v0": float(v), "register": reg, "weight": 1.0 / n_str})
+            continuum.append({"f0": f0, "v0": float(v), "scale_m": l_eff, "register": reg, "weight": 1.0 / n_str})
     else:
-        continuum = generate_wave_speed_continuum(l_eff, num_points=24)
+        continuum = generate_wave_speed_continuum(scale_range, num_points=24)
 
     acc = np.zeros_like(f, dtype=np.float64)
     total_pt_weight = 0.0
@@ -868,8 +938,9 @@ def numpy_pickup_acoustic_response(freqs, coils, scale_length_m: float = None, s
         v = pt["v0"]
         pt_reg = pt["register"]
         pt_weight = pt.get("weight", 1.0)
+        pt_scale_m = pt.get("scale_m", l_eff)
 
-        v_disp = compute_dispersive_wave_speed(f, v, f0=f0, scale_length_m=l_eff)
+        v_disp = compute_dispersive_wave_speed(f, v, f0=f0, scale_length_m=pt_scale_m)
 
         # Select coils that match this continuum point's register
         active = []
@@ -939,15 +1010,17 @@ def numpy_pickup_macro_aperture(freqs, coils, scale_length_m: float = None, stri
     w_m = w_in * 0.0254
 
     if isinstance(scale_length_m, (list, tuple, np.ndarray)):
-        string_speeds = scale_length_m
-        scale_length_m = 0.8636
+        if len(scale_length_m) > 0 and any(float(v) > 10.0 for v in scale_length_m):
+            string_speeds = scale_length_m
+            scale_length_m = None
 
-    l_eff = float(scale_length_m) if (scale_length_m is not None and not isinstance(scale_length_m, (list, tuple, np.ndarray)) and scale_length_m > 0) else 0.8636
+    scale_range = resolve_scale_range(scale_length_m)
+    l_eff = (scale_range[0] + scale_range[1]) / 2.0
 
     if string_speeds is not None and len(string_speeds) > 0 and len(string_speeds) != 24:
-        continuum = [{"f0": max(v / (2.0 * l_eff), 15.0), "v0": float(v), "weight": 1.0 / len(string_speeds)} for v in string_speeds]
+        continuum = [{"f0": max(v / (2.0 * l_eff), 15.0), "v0": float(v), "scale_m": l_eff, "weight": 1.0 / len(string_speeds)} for v in string_speeds]
     else:
-        continuum = generate_wave_speed_continuum(l_eff, num_points=24)
+        continuum = generate_wave_speed_continuum(scale_range, num_points=24)
 
     acc = np.zeros_like(f, dtype=np.float64)
     total_w = 0.0
@@ -955,7 +1028,8 @@ def numpy_pickup_macro_aperture(freqs, coils, scale_length_m: float = None, stri
         f0 = pt["f0"]
         v = pt["v0"]
         weight = pt.get("weight", 1.0)
-        v_disp = compute_dispersive_wave_speed(f, v, f0=f0, scale_length_m=l_eff)
+        pt_scale_m = pt.get("scale_m", l_eff)
+        v_disp = compute_dispersive_wave_speed(f, v, f0=f0, scale_length_m=pt_scale_m)
         acc += weight * (1.0 / np.sqrt(1.0 + (1.0 / 3.0) * (np.pi * w_m * f / v_disp) ** 2))
         total_w += weight
     return acc / total_w if total_w > 0 else acc
@@ -1090,9 +1164,12 @@ def compute_voice_prefilter_firs(voice_id, instrument="30in", src_scale=None, nu
     inst_selector = src_scale if src_scale is not None else instrument
     inst = load_instrument(inst_selector) if not isinstance(inst_selector, dict) else inst_selector
 
-    src_scale_in = inst.get("scale_length_in", 34.0)
-    src_scale_m = inst.get("scale_length_m", src_scale_in * 0.0254)
-    tgt_scale_m = tgt.get("scale_m", tgt.get("scale_length_m", 0.8636))
+    src_scale_range = resolve_scale_range(inst)
+    tgt_scale_range = resolve_scale_range(tgt if target_scale_key in SCALES else target_scale_key)
+    src_scale_m = (src_scale_range[0] + src_scale_range[1]) / 2.0
+    tgt_scale_m = (tgt_scale_range[0] + tgt_scale_range[1]) / 2.0
+    src_scale_in = src_scale_m / 0.0254
+    tgt_scale_in = tgt_scale_m / 0.0254
 
     src_pickup = get_source_pickup(inst, voice_id)
     src_coils = resolve_pickup_coils(src_pickup, inst)
@@ -1100,30 +1177,31 @@ def compute_voice_prefilter_firs(voice_id, instrument="30in", src_scale=None, nu
 
     freqs = np.asarray(FREQS, dtype=np.float64)
 
-    h_src_acoustic = numpy_pickup_acoustic_response(freqs, src_coils, scale_length_m=src_scale_m)
+    h_src_acoustic = numpy_pickup_acoustic_response(freqs, src_coils, scale_length_m=src_scale_range)
 
     src_string = get_instrument_string(inst)
     tgt_string = get_voice_string(cfg)
 
+    sensor_type = cfg.get("sensor_type", "magnetic")
+    pickups = resolve_voice_pickups(cfg)
+    is_identity = (sensor_type != "bridge_force") and is_voice_matching_source(inst, voice_id, cfg)
+
     # Scale-Length Tension & Body Bloom Filter
-    tgt_scale_in = 37.0 if target_scale_key in ["multiscale", "37in"] else 34.0
-    if target_scale_key == "upright":
+    if is_identity:
+        h_tension = np.ones_like(freqs)
+    elif target_scale_key == "upright":
         # Upright string physics & body bloom: deep fundamental, woody low-mids
         # Modulated by differential bloom between target double-bass strings and source instrument strings
         delta_bloom = float(tgt_string.get("bloom_db", 2.8)) - float(src_string.get("bloom_db", 0.0))
         g_bloom = 10.0 ** (max(delta_bloom, 0.5) / 20.0)
         h_bloom = np.sqrt((g_bloom ** 2 + (freqs / 100.0) ** 2) / (1.0 + (freqs / 100.0) ** 2))
         h_tension = h_bloom
-    elif src_scale_in < tgt_scale_in:
+    elif src_scale_in < tgt_scale_in - 0.2:
         snap_db = min(3.5, 1.8 * (tgt_scale_in - src_scale_in) / 4.0)
         g_snap = 10.0 ** (snap_db / 20.0)
         h_tension = np.sqrt((1.0 + g_snap ** 2 * (freqs / 2800.0) ** 2) / (1.0 + (freqs / 2800.0) ** 2))
     else:
         h_tension = np.ones_like(freqs)
-
-    sensor_type = cfg.get("sensor_type", "magnetic")
-    pickups = resolve_voice_pickups(cfg)
-    is_identity = (sensor_type != "bridge_force") and is_voice_matching_source(inst, voice_id, cfg)
 
     cir_rel = cfg.get("circuit")
     cir_path = (REPO_ROOT / cir_rel) if cir_rel else None
@@ -1151,7 +1229,7 @@ def compute_voice_prefilter_firs(voice_id, instrument="30in", src_scale=None, nu
             comp_sub_p = inst["pickups"][comp_sub_id]
             b_src_coils = resolve_pickup_coils(comp_sub_p, inst)
             b_src_pos_eff = compute_effective_position(b_src_coils)
-            b_src_acoustic = numpy_pickup_acoustic_response(freqs, b_src_coils, scale_length_m=src_scale_m)
+            b_src_acoustic = numpy_pickup_acoustic_response(freqs, b_src_coils, scale_length_m=src_scale_range)
         else:
             b_src_coils = src_coils
             b_src_pos_eff = src_pos_eff
@@ -1192,8 +1270,8 @@ def compute_voice_prefilter_firs(voice_id, instrument="30in", src_scale=None, nu
             h_acoustic_transfer = np.ones_like(freqs)
             h_tilt = np.ones_like(freqs)
         else:
-            h_tgt_acoustic = numpy_pickup_acoustic_response(freqs, p_coils, scale_length_m=tgt_scale_m)
-            h_src_macro = numpy_pickup_macro_aperture(freqs, b_src_coils, scale_length_m=src_scale_m)
+            h_tgt_acoustic = numpy_pickup_acoustic_response(freqs, p_coils, scale_length_m=tgt_scale_range)
+            h_src_macro = numpy_pickup_macro_aperture(freqs, b_src_coils, scale_length_m=src_scale_range)
             eps = 0.01
             h_quotient = (h_tgt_acoustic * h_src_macro) / (h_src_macro ** 2 + eps ** 2)
             q_db = 20.0 * np.log10(np.maximum(h_quotient, 1e-6))
@@ -1278,9 +1356,12 @@ def compute_aperture_prefilter_fir(voice_id, instrument="30in", src_scale=None, 
     inst_selector = src_scale if src_scale is not None else instrument
     inst = load_instrument(inst_selector) if not isinstance(inst_selector, dict) else inst_selector
 
-    src_scale_in = inst.get("scale_length_in", 34.0)
-    src_scale_m = inst.get("scale_length_m", src_scale_in * 0.0254)
-    tgt_scale_m = tgt.get("scale_m", tgt.get("scale_length_m", 0.8636))
+    src_scale_range = resolve_scale_range(inst)
+    tgt_scale_range = resolve_scale_range(tgt if target_scale_key in SCALES else target_scale_key)
+    src_scale_m = (src_scale_range[0] + src_scale_range[1]) / 2.0
+    tgt_scale_m = (tgt_scale_range[0] + tgt_scale_range[1]) / 2.0
+    src_scale_in = src_scale_m / 0.0254
+    tgt_scale_in = tgt_scale_m / 0.0254
 
     src_pickup = get_source_pickup(inst, voice_id)
     src_coils = resolve_pickup_coils(src_pickup, inst)
@@ -1291,7 +1372,7 @@ def compute_aperture_prefilter_fir(voice_id, instrument="30in", src_scale=None, 
 
     freqs = np.asarray(FREQS, dtype=np.float64)
 
-    h_src_acoustic = numpy_pickup_acoustic_response(freqs, src_coils, scale_length_m=src_scale_m)
+    h_src_acoustic = numpy_pickup_acoustic_response(freqs, src_coils, scale_length_m=src_scale_range)
 
     src_string = get_instrument_string(inst)
     tgt_string = get_voice_string(cfg)
@@ -1328,8 +1409,8 @@ def compute_aperture_prefilter_fir(voice_id, instrument="30in", src_scale=None, 
         h_acoustic_transfer = np.ones_like(freqs)
         h_tilt = np.ones_like(freqs)
     else:
-        h_tgt_acoustic = numpy_pickup_acoustic_response(freqs, tgt_coils, scale_length_m=tgt_scale_m)
-        h_src_macro = numpy_pickup_macro_aperture(freqs, src_coils, scale_length_m=src_scale_m)
+        h_tgt_acoustic = numpy_pickup_acoustic_response(freqs, tgt_coils, scale_length_m=tgt_scale_range)
+        h_src_macro = numpy_pickup_macro_aperture(freqs, src_coils, scale_length_m=src_scale_range)
         eps = 0.01
         h_quotient = (h_tgt_acoustic * h_src_macro) / (h_src_macro ** 2 + eps ** 2)
         q_db = 20.0 * np.log10(np.maximum(h_quotient, 1e-6))
@@ -1351,8 +1432,6 @@ def compute_aperture_prefilter_fir(voice_id, instrument="30in", src_scale=None, 
         h_hi_tilt = np.sqrt((1.0 + g_hi ** 2 * (freqs / 2200.0) ** 2) / (1.0 + (freqs / 2200.0) ** 2))
         h_tilt = h_low_tilt * h_hi_tilt
 
-    src_scale_in = inst.get("scale_length_in", 34.0)
-    tgt_scale_in = 37.0 if target_scale_key in ["multiscale", "37in"] else 34.0
     if is_identity:
         h_tension = np.ones_like(freqs)
     elif target_scale_key == "upright":
@@ -1361,7 +1440,7 @@ def compute_aperture_prefilter_fir(voice_id, instrument="30in", src_scale=None, 
         g_bloom = 10.0 ** (max(delta_bloom, 0.5) / 20.0)
         h_bloom = np.sqrt((g_bloom ** 2 + (freqs / 100.0) ** 2) / (1.0 + (freqs / 100.0) ** 2))
         h_tension = h_bloom
-    elif src_scale_in < tgt_scale_in:
+    elif src_scale_in < tgt_scale_in - 0.2:
         snap_db = min(3.5, 1.8 * (tgt_scale_in - src_scale_in) / 4.0)
         g_snap = 10.0 ** (snap_db / 20.0)
         h_tension = np.sqrt((1.0 + g_snap ** 2 * (freqs / 2800.0) ** 2) / (1.0 + (freqs / 2800.0) ** 2))

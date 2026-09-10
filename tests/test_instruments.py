@@ -448,6 +448,14 @@ def test_37in_multiscale_dingwall_routing():
     # Aliases
     assert load_instrument("dingwall")["id"] == "37in_multiscale_dingwall"
     assert load_instrument("combustion")["id"] == "37in_multiscale_dingwall"
+    assert load_instrument("ng")["id"] == "37in_multiscale_dingwall"
+    assert load_instrument("dingwall_ng")["id"] == "37in_multiscale_dingwall"
+    assert load_instrument("ng2")["id"] == "37in_multiscale_dingwall"
+    assert load_instrument("ng3")["id"] == "37in_multiscale_dingwall"
+    assert load_instrument("37in_dingwall_ng")["id"] == "37in_multiscale_dingwall"
+    assert inst.get("is_multiscale") is True
+    assert inst.get("scale_min_in") == 34.0
+    assert inst.get("scale_max_in") == 37.0
 
     # Voice 13 maps to bridge
     assert get_source_pickup(inst, "13_dingwall_multiscale_bridge")["id"] == "bridge"
@@ -458,6 +466,9 @@ def test_34in_dingwall_sp1_routing():
     inst = load_instrument("34in_dingwall_sp1")
     assert inst["id"] == "34in_dingwall_sp1"
     assert inst["scale_length_in"] == 35.0
+    assert inst.get("is_multiscale") is True
+    assert inst.get("scale_min_in") == 32.0
+    assert inst.get("scale_max_in") == 35.0
     assert inst["electronics"] == "passive"
     assert len(inst["string_wave_speeds"]) == 5
     assert inst["strings"]["gauge"] == "45-130"
@@ -480,6 +491,9 @@ def test_34in_dingwall_sp1_routing():
     # Aliases
     assert load_instrument("sp1")["id"] == "34in_dingwall_sp1"
     assert load_instrument("dingwall_sp1")["id"] == "34in_dingwall_sp1"
+    assert load_instrument("35in_dingwall_sp1")["id"] == "34in_dingwall_sp1"
+    assert load_instrument("super_p")["id"] == "34in_dingwall_sp1"
+    assert load_instrument("dingwall_super_p")["id"] == "34in_dingwall_sp1"
 
     # Routing
     assert get_source_pickup(inst, "05_vintage_62_p_alnico")["id"] == "p"

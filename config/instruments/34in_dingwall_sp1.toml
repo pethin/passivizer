@@ -21,6 +21,9 @@ id = "34in_dingwall_sp1"
 name = "Dingwall SP1 5-String (32\"-35\" Super P)"
 scale_length_in = 35.0
 scale_length_m = 0.889
+scale_min_in = 32.0
+scale_max_in = 35.0
+is_multiscale = true
 electronics = "passive"
 
 # String wave speeds for 32"-35" Super multi-scale (B0, E1, A1, D2, G2)

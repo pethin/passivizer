@@ -17,6 +17,9 @@ id = "37in_multiscale_dingwall"
 name = "37\" Multi-Scale Dingwall 5-String (FD3n)"
 scale_length_in = 37.0
 scale_length_m = 0.9398
+scale_min_in = 34.0
+scale_max_in = 37.0
+is_multiscale = true
 electronics = "active"
 
 # String wave speeds for 34"-37" 5-string multi-scale (B0, E1, A1, D2, G2)

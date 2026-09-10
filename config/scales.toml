@@ -57,6 +57,9 @@ string_wave_speeds = [71.16, 95.00, 126.81, 169.27]
 name = "34\"-37\" Multi-Scale (Fanned Fret)"
 scale_length_in = 37.0
 scale_length_m = 0.9398
+scale_min_in = 34.0
+scale_max_in = 37.0
+is_multiscale = true
 string_wave_speeds = [77.44, 98.50, 131.00, 169.27]
 
 # ------------------------------------------------------------------------------
@@ -68,6 +71,9 @@ string_wave_speeds = [77.44, 98.50, 131.00, 169.27]
 name = "32\"-35\" Super Multi-Scale (Fanned Fret)"
 scale_length_in = 35.0
 scale_length_m = 0.889
+scale_min_in = 32.0
+scale_max_in = 35.0
+is_multiscale = true
 string_wave_speeds = [54.88, 71.69, 93.60, 122.14, 159.31]
 
 
