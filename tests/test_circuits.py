@@ -291,15 +291,15 @@ def test_sweep_audio_auto_detection():
     with tempfile.TemporaryDirectory() as tmpdir:
         out_wav = Path(tmpdir) / "auto_sweep_out.wav"
         # Test with input_wav=None
-        res = simulate_voice("04_modern_p_ceramic", input_wav=None, output_wav=out_wav, instrument="30in")
+        res = simulate_voice("04_modern_p_ceramic", input_wav=None, output_wav=out_wav, instrument="30in", max_samples=4800)
         assert res is True
-        assert out_wav.exists()
+        assert out_wav.exists() and out_wav.stat().st_size > 1000
 
         # Test with input_wav pointing to missing file (fallback behavior to T3K-sweep-v3.wav)
         out_wav_fallback = Path(tmpdir) / "fallback_sweep_out.wav"
-        res_fallback = simulate_voice("04_modern_p_ceramic", input_wav="missing_sweep.wav", output_wav=out_wav_fallback, instrument="30in")
+        res_fallback = simulate_voice("04_modern_p_ceramic", input_wav="missing_sweep.wav", output_wav=out_wav_fallback, instrument="30in", max_samples=4800)
         assert res_fallback is True
-        assert out_wav_fallback.exists()
+        assert out_wav_fallback.exists() and out_wav_fallback.stat().st_size > 1000
 
 def test_circuit_simulation_vs_theory_consistency():
     """Verify that simulated impulse FFT matches analytical theory curve within 1.5 dB across 50-8000 Hz."""
@@ -430,6 +430,41 @@ def test_passive_identity_differential_flatness():
     h_mod_db = 20.0 * np.log10(h_mod / h_mod[0])
     assert 0.4 <= np.max(h_mod_db[passband_mask]) <= 2.0
 
+def test_active_source_differential_deconvolution_and_identity():
+    """Verify that commercial active sources (StingRay, Dingwall) have valid source circuits,
+    yield exact 0.0 dB on identity, and properly deconvolve active preamps on cross-voicings."""
+    from scripts.simulate_circuits import compute_differential_circuit_transfer_functions
+
+    # 1. Source netlist existence & parsing
+    m_src_ray = parse_netlist(CIRCUITS_DIR / "sources" / "source_active_stingray.cir")
+    assert m_src_ray.has_active_buffer is True
+    assert m_src_ray.preamp_type == "stingray_2band"
+
+    m_src_ding = parse_netlist(CIRCUITS_DIR / "sources" / "source_dingwall_fd3n.cir")
+    assert m_src_ding.L == 2.3
+    assert m_src_ding.Rtop == 10
+    assert m_src_ding.Rbot == 500000.0
+
+    # 2. Mathematical identity flatness (exact 0.00 dB everywhere, including DC and 20 kHz)
+    m_tgt_ray = parse_netlist(CIRCUITS_DIR / "09_stingray_mm_parallel.cir")
+    diff_ray = compute_differential_circuit_transfer_functions(m_tgt_ray, m_src_ray, freqs=FREQS)
+    assert np.all(np.array(diff_ray[0]) == 1.0)
+
+    m_tgt_ding = parse_netlist(CIRCUITS_DIR / "13_dingwall_multiscale_bridge.cir")
+    diff_ding = compute_differential_circuit_transfer_functions(m_tgt_ding, m_src_ding, freqs=FREQS)
+    assert np.all(np.array(diff_ding[0]) == 1.0)
+
+    # 3. Cross-deconvolution: Active StingRay -> Vintage '62 P-Bass
+    m_tgt_p = parse_netlist(CIRCUITS_DIR / "05_vintage_62_p_alnico.cir")
+    diff_cross = compute_differential_circuit_transfer_functions(m_tgt_p, m_src_ray, freqs=FREQS)
+    h_cross = np.asarray(diff_cross[0])
+    f_arr = np.asarray(FREQS)
+    # The StingRay has a +2.2 dB active treble boost around 5-7 kHz.
+    # When converting to a darker vintage P-bass, high frequencies must be rolled off (< -10 dB @ 8 kHz)
+    idx_8k = np.argmin(np.abs(f_arr - 8000.0))
+    cross_db_8k = 20.0 * np.log10(h_cross[idx_8k])
+    assert cross_db_8k < -10.0, f"Expected active treble shelf deconvolution (< -10 dB), got {cross_db_8k:.2f} dB"
+
 def test_passive_saturation_bypassed():
     """Verify that forward tanh saturation is bypassed when is_passive is True."""
     import pedalboard.io
@@ -475,29 +510,32 @@ def test_wiener_clamping_prevents_noise_explosion():
 def test_passive_source_simulation_runs():
     """Verify end-to-end simulate_voice runs for passive source instruments."""
     with tempfile.NamedTemporaryFile(suffix=".wav") as tmp1, tempfile.NamedTemporaryFile(suffix=".wav") as tmp2:
-        res1 = simulate_voice("05_vintage_62_p_alnico", output_wav=Path(tmp1.name), instrument="34in_standard_p")
+        res1 = simulate_voice("05_vintage_62_p_alnico", output_wav=Path(tmp1.name), instrument="34in_standard_p", max_samples=4800)
         assert res1 is True
         assert os.path.exists(tmp1.name) and os.path.getsize(tmp1.name) > 1000
 
-        res2 = simulate_voice("02_jazz_bass_pair", output_wav=Path(tmp2.name), instrument="34in_standard_jazz")
+        res2 = simulate_voice("02_jazz_bass_pair", output_wav=Path(tmp2.name), instrument="34in_standard_jazz", max_samples=4800)
         assert res2 is True
         assert os.path.exists(tmp2.name) and os.path.getsize(tmp2.name) > 1000
 
 def test_auto_output_level_normalization_to_input_sweep():
     """Verify that simulated output automatically normalizes its RMS to match the input sweep dBFS."""
     import pedalboard.io
-    sweep_path = REPO_ROOT / "T3K-sweep-v3.wav"
-    if not sweep_path.exists():
-        pytest.skip("T3K-sweep-v3.wav not found in repo root")
+    sr = 48000
+    t = np.linspace(0, 1.0, sr, endpoint=False)
+    in_signal = (0.5 * np.sin(2 * np.pi * 150 * t) + 0.3 * np.sin(2 * np.pi * 800 * t)).astype(np.float32)
 
-    with pedalboard.io.AudioFile(str(sweep_path)) as f:
-        in_audio = f.read(f.frames)[0]
-    in_rms = float(np.sqrt(np.mean(in_audio ** 2)))
-    in_rms_db = 20.0 * math.log10(in_rms)
+    with tempfile.TemporaryDirectory() as td:
+        in_path = Path(td) / "test_in.wav"
+        out_path = Path(td) / "test_out.wav"
+        write_wav_24bit(str(in_path), in_signal, sample_rate=sr)
 
-    with tempfile.NamedTemporaryFile(suffix=".wav") as tmp_out:
-        out_path = Path(tmp_out.name)
-        res = simulate_voice("04_modern_p_ceramic", input_wav=sweep_path, output_wav=out_path, instrument="30in", normalize="auto")
+        with pedalboard.io.AudioFile(str(in_path)) as f:
+            in_audio = f.read(f.frames)[0]
+        in_rms = float(np.sqrt(np.mean(in_audio ** 2)))
+        in_rms_db = 20.0 * math.log10(in_rms)
+
+        res = simulate_voice("04_modern_p_ceramic", input_wav=in_path, output_wav=out_path, instrument="30in", normalize="auto")
         assert res is True
 
         with pedalboard.io.AudioFile(str(out_path)) as f:
@@ -515,28 +553,29 @@ def test_auto_output_level_normalization_to_input_sweep():
 def test_output_normalization_modes_and_target_dbfs():
     """Verify custom target_dbfs override and normalize modes (rms, peak, none)."""
     import pedalboard.io
-    sweep_path = REPO_ROOT / "T3K-sweep-v3.wav"
-    if not sweep_path.exists():
-        pytest.skip("T3K-sweep-v3.wav not found in repo root")
+    sr = 48000
+    t = np.linspace(0, 1.0, sr, endpoint=False)
+    in_signal = (0.5 * np.sin(2 * np.pi * 150 * t) + 0.3 * np.sin(2 * np.pi * 800 * t)).astype(np.float32)
 
-    # 1. Custom target dBFS (-24.0 dBFS)
-    with tempfile.NamedTemporaryFile(suffix=".wav") as tmp_out:
-        out_path = Path(tmp_out.name)
-        simulate_voice("04_modern_p_ceramic", input_wav=sweep_path, output_wav=out_path, instrument="30in", normalize="rms", target_dbfs=-24.0)
+    with tempfile.TemporaryDirectory() as td:
+        in_path = Path(td) / "test_in.wav"
+        write_wav_24bit(str(in_path), in_signal, sample_rate=sr)
+
+        # 1. Custom target dBFS (-24.0 dBFS)
+        out_path = Path(td) / "out_24.wav"
+        simulate_voice("04_modern_p_ceramic", input_wav=in_path, output_wav=out_path, instrument="30in", normalize="rms", target_dbfs=-24.0)
         with pedalboard.io.AudioFile(str(out_path)) as f:
             out_audio = f.read(f.frames)[0]
         out_rms_db = 20.0 * math.log10(np.sqrt(np.mean(out_audio ** 2)))
         assert abs(out_rms_db - (-24.0)) < 0.05
 
-    # 2. None (raw unnormalized)
-    with tempfile.NamedTemporaryFile(suffix=".wav") as tmp_out:
-        out_path = Path(tmp_out.name)
-        simulate_voice("04_modern_p_ceramic", input_wav=sweep_path, output_wav=out_path, instrument="30in", normalize="none")
-        with pedalboard.io.AudioFile(str(out_path)) as f:
+        # 2. None (raw unnormalized)
+        out_none = Path(td) / "out_none.wav"
+        simulate_voice("04_modern_p_ceramic", input_wav=in_path, output_wav=out_none, instrument="30in", normalize="none")
+        with pedalboard.io.AudioFile(str(out_none)) as f:
             out_audio = f.read(f.frames)[0]
-        out_rms_db = 20.0 * math.log10(np.sqrt(np.mean(out_audio ** 2)))
-        # Raw unnormalized should be around -21 to -27 dBFS
-        assert out_rms_db < -20.0
+        out_rms_none = 20.0 * math.log10(np.sqrt(np.mean(out_audio ** 2)))
+        assert out_rms_none < -5.0
 
 def test_anti_aliased_oversampling_suppression():
     """Verify that 2x oversampled saturation suppresses folded aliasing by >60 dB."""

@@ -12,13 +12,16 @@ Passivizer organizes instrument models, target voices, and physical scale wave s
 config/
 ├── instruments/              # Physical source instruments (the bass in the player's hands)
 │   ├── 30in_emg_mmtw.toml    # 30" Short scale with EMG MMTW dual-mode pickup
+│   ├── 30in_mustang_pj.toml  # 30" Short scale Fender Mustang Bass PJ (passive split-P + single J)
 │   ├── 32in_custom_pmm.toml  # 32" Medium scale with Reverse PX + MMTWX + ABCX active blend
-│   ├── 32in_fretless_pmm.toml # 32" Fretless Medium scale with Reverse PX + MMTWX
-│   ├── 34in_active_p.toml    # 34" Standard scale Active Precision Bass (EMG PX)
-│   ├── 34in_active_jazz.toml # 34" Standard scale Active Jazz Bass (EMG JX pair)
-│   ├── 34in_active_pj.toml   # 34" Standard scale Active P/J Bass (EMG PX + JX)
+│   ├── 32in_fretless_pmm.toml # 32" Fretless Medium scale with PCSX + MMTWX
 │   ├── 34in_standard_p.toml  # 34" Standard Fender Precision Bass (passive datum)
-│   └── 34in_standard_jazz.toml # 34" Standard Fender Jazz Bass (passive datum)
+│   ├── 34in_standard_jazz.toml # 34" Standard Fender Jazz Bass (passive datum)
+│   ├── 34in_standard_pj.toml # 34" Standard P/J Bass (Fender PJ / Yamaha BB style)
+│   ├── 34in_active_stingray.toml # 34" Standard Active StingRay (Music Man MM)
+│   ├── 34in_active_soapbar.toml  # 34" Standard Active Dual-Soapbar (Ibanez SR / Yamaha TRBX)
+│   ├── 34in_dingwall_sp1.toml    # 32"-35" Dingwall SP1 5-String (Dual-P + FD3n)
+│   └── 37in_multiscale_dingwall.toml # 34"-37" Multi-Scale Dingwall 5-String Combustion / NG (FD3n)
 ├── scales.toml               # Physical scale lengths, wave speeds, and string dispersion
 └── voices.toml               # Master target passive pickup voices & SPICE netlist links
 ```

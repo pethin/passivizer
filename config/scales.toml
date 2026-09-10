@@ -60,6 +60,19 @@ scale_length_m = 0.9398
 string_wave_speeds = [77.44, 98.50, 131.00, 169.27]
 
 # ------------------------------------------------------------------------------
+# 32"-35" Super Multi-Scale (e.g. Dingwall Super P / Super J / SP1 5-String)
+# Character: Compact fanned fret; 35.0" low B string, 32.0" high G string.
+# Balanced string tension with vintage ergonomic comfort.
+# ------------------------------------------------------------------------------
+[scales.multiscale_super]
+name = "32\"-35\" Super Multi-Scale (Fanned Fret)"
+scale_length_in = 35.0
+scale_length_m = 0.889
+string_wave_speeds = [54.88, 71.69, 93.60, 122.14, 159.31]
+
+
+
+# ------------------------------------------------------------------------------
 # 41.5" Upright Acoustic Bass (Standard 3/4 Scale)
 # Character: High wave speed, long acoustic sustain, massive wood fundamental,
 # fast harmonic decay, and organic pizzicato attack envelope.

@@ -1,0 +1,30 @@
+* Passivizer Source Netlist: Dingwall FD3n Multi-Scale Bridge
+* Physical Spec: Dingwall FD3n Neodymium Dual-Coil in Parallel (2.3H L, 4.4k Rdc, 150k Reddy, 120pF Ccoil)
+* Electronics: Factory 500k Volume Pot, 500k Tone Pot (100% Wide Open, 47nF Cap), 750pF Cable
+.options plotwinsize=0 numdgt=7
+
+* 1. Audio Source
+V_in in 0 wavefile="T3K-sweep-v3.wav"
+
+* 2. Pickup Coils (Dingwall FD3 Dual Coils in Parallel)
+L_coil in node1 2.3
+R_dc node1 node2 4.4k
+R_eddy in node2 150k
+C_coil node2 0 120p
+
+* 3. Dingwall Factory Passive Tone Pot (500k Audio with 47nF Capacitor)
+R_tone node2 tone_mid 500k
+C_tone tone_mid 0 47n
+
+* 4. Dingwall Factory 500k Volume Pot (Volume @ 100%)
+R_pot_top node2 node3 10
+R_pot_bot node3 0 500k
+
+* 5. Instrument Cable Load (15-ft cable ~750pF)
+C_cable node3 0 750p
+
+* 6. Darkglass Anagram Input Stage (1 M-Ohm || 30pF)
+R_anagram node3 0 1Meg
+C_anagram node3 0 30p
+
+.end

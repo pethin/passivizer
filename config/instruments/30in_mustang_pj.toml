@@ -1,0 +1,124 @@
+# ==============================================================================
+# PASSIVIZER SOURCE INSTRUMENT CONFIGURATION
+# 30" Short Scale Fender Mustang Bass PJ (Player Series / Vintera / CV)
+# ==============================================================================
+# Physical Datums:
+#   - Scale Length: 30.0" (762.0mm total, 381.0mm 12th fret to bridge saddle)
+#   - Split-P Neck Pickup: Centerline 155.0mm from bridge saddle (226.0mm from 12th fret)
+#       - E/A half (forward towards neck): 167.0mm from bridge (214.0mm from 12th fret)
+#       - D/G half (rearward towards bridge): 143.0mm from bridge (238.0mm from 12th fret)
+#       - Aperture width: 1.00" (25.4mm) per coil half
+#   - Jazz Bridge Single-Coil: Centerline 55.0mm from bridge saddle (326.0mm from 12th fret)
+#       - Aperture width: 0.75" (19.05mm)
+#   - Parallel Summing (P + J): Acoustic centroid 105.0mm from bridge saddle
+# Electronics:
+#   - Passive high-impedance circuit: 250k volume pot, 250k tone pot (47nF cap), 3-way toggle.
+#   - P loaded resonance: 2.80 kHz, Q = 1.40 under 750pF cable load.
+#   - J loaded resonance: 3.20 kHz, Q = 1.60 under 750pF cable load.
+#   - Parallel loaded resonance: 2.80 kHz, Q = 1.20 under 750pF cable load.
+
+id = "30in_mustang_pj"
+name = "30\" Mustang Bass PJ (Short Scale)"
+scale_length_in = 30.0
+scale_length_m = 0.762
+electronics = "passive"
+
+# String wave speeds: v = 2 * L * f0 (for E1=41.2Hz, A1=55.0Hz, D2=73.4Hz, G2=98.0Hz)
+string_wave_speeds = [62.79, 83.82, 111.89, 149.35]
+
+default_pickup = "pair_parallel"
+
+# ------------------------------------------------------------------------------
+# Physical Strings Configuration (Source Instrument Setup)
+# ------------------------------------------------------------------------------
+# Strung with short-scale nickel roundwounds (D"Addario EXL160S .050-.105 / Fender 5250XL).
+[strings]
+preset = "roundwound_nickel_standard"
+brand = "D'Addario"
+model = "EXL160S"
+gauge = "50-105"
+core = "hex"
+wrap = "nickel_round"
+tension_lbs = 145.0
+
+# ------------------------------------------------------------------------------
+# 1. SPLIT-COIL PRECISION PICKUP (Neck Solo - Toggle Up)
+# ------------------------------------------------------------------------------
+[pickups.p]
+name = "Mustang PJ Split-P (Neck)"
+position_from_bridge_m = 0.1550  # Centerline 155.0mm
+aperture_width_in = 1.00         # 1.00" aperture per split half
+coil_spacing_in = 0.0
+type = "split_coil"
+circuit = "circuits/sources/source_standard_p.cir"
+magnet_type = "alnico_v"
+resonant_frequency_hz = 2800.0
+q_factor = 1.40
+coils = [
+    # E/A strings see forward coil half (deeper fundamental)
+    { strings = ["E", "A"], position_from_bridge_m = 0.1670, aperture_width_in = 1.00, weight = 1.0 },
+    # D/G strings see rearward coil half (snappy transient bite)
+    { strings = ["D", "G"], position_from_bridge_m = 0.1430, aperture_width_in = 1.00, weight = 1.0 }
+]
+
+# ------------------------------------------------------------------------------
+# 2. SINGLE-COIL JAZZ PICKUP (Bridge Solo - Toggle Down)
+# ------------------------------------------------------------------------------
+[pickups.j]
+name = "Mustang PJ Single-Coil J (Bridge)"
+position_from_bridge_m = 0.0550  # 55.0mm from bridge
+aperture_width_in = 0.75
+coil_spacing_in = 0.0
+type = "single_coil"
+circuit = "circuits/sources/source_standard_jazz_bridge.cir"
+magnet_type = "alnico_v"
+resonant_frequency_hz = 3200.0
+q_factor = 1.60
+coils = [
+    { strings = ["all"], position_from_bridge_m = 0.0550, aperture_width_in = 0.75, weight = 1.0 }
+]
+
+# ------------------------------------------------------------------------------
+# 3. MUSTANG P + J PARALLEL (Toggle Middle)
+# ------------------------------------------------------------------------------
+[pickups.pair_parallel]
+name = "Mustang P + J Parallel"
+position_from_bridge_m = 0.1050  # Centroid 105.0mm
+aperture_width_in = 0.85
+coil_spacing_in = 0.0
+type = "composite"
+circuit = "circuits/sources/source_standard_pj_pair.cir"
+magnet_type = "alnico_v"
+resonant_frequency_hz = 2800.0
+q_factor = 1.20
+components = [
+    { pickup = "p", weight = 0.5 },
+    { pickup = "j", weight = 0.5 }
+]
+
+# ------------------------------------------------------------------------------
+# 4. SMART VOICE MAPPING
+# ------------------------------------------------------------------------------
+# Directs the player to select the closest 3-way toggle position on the Mustang PJ:
+#   - Toggle Up (Split-P Solo): Precision Bass, Mudbucker, Upright
+#   - Toggle Down (J-Bridge Solo): 60s Jazz Bridge, StingRay, Rickenbacker, Dingwall Bridge
+#   - Toggle Middle (P + J Parallel): Jazz Bass Pair, Modern P/J, Vintage P/J, P/MM
+
+[pickup_mapping]
+"01_modern_jazz_active" = "pair_parallel"
+"02_jazz_bass_pair" = "pair_parallel"
+"02b_jazz_bass_pair_22nf" = "pair_parallel"
+"03_jazz_bridge_60s" = "j"
+"04_modern_p_ceramic" = "p"
+"05_vintage_62_p_alnico" = "p"
+"05b_vintage_62_p_22nf" = "p"
+"05c_vintage_62_p_47nf" = "p"
+"05d_vintage_50s_p_100nf" = "p"
+"07_modern_pj_active" = "pair_parallel"
+"08_vintage_pj_passive" = "pair_parallel"
+"09_stingray_mm_parallel" = "j"
+"10_rickenbacker_bridge_hpf" = "j"
+"11_pmm_hybrid_series" = "pair_parallel"
+"12_mudbucker_ultra_series" = "p"
+"13_dingwall_multiscale_bridge" = "j"
+"14_upright_bridge_transducer" = "p"

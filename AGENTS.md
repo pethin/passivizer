@@ -150,6 +150,26 @@ To ensure high-fidelity modeling and prevent regressions, all agents and contrib
   $$h_{\text{db}} = 20 \log_{10}(\max(h_{\text{diff}}, 10^{-6}))$$
   Because passive circuits naturally have DC transfer gain $\le 1.0$ ($0.0\text{ dB}$), attenuation ($h_{\text{db}} \le 0$) remains strictly untouched everywhere. The soft-knee limiter and high-frequency cosine taper only engage when true positive boost ($h_{\text{db}} > \text{thresh}$) occurs at high frequencies or sharp resonant peaks, ensuring authentic physical rolloff cutoffs (750 Hz for 22nF, 450 Hz for 47nF, 240 Hz for 100nF) form cleanly and distinctly.
 
+### 5.10 Strict Positive Threshold ($\Delta\text{samples} > 0$) for Inter-Pickup Spatial Coherence Decay
+- **Anti-Pattern:** Using arbitrary non-zero sample delay thresholds like `delta_samples > 5` to gate acoustic inter-pickup spatial coherence decay.
+- **Why It Fails:** At $f_s = 48\text{ kHz}$, 5 samples corresponds to $\Delta\tau = 0.104\text{ ms}$, which has a fundamental cancellation null at $f_{\text{notch}} = \frac{1}{2\Delta\tau} = 4.8\text{ kHz}$ and a secondary null at $14.4\text{ kHz}$. Pickups with tight spatial spacing (e.g. dual-blade soapbars or neck/bridge blend combinations) can have delays $\le 5$ samples. Skipping coherence decay when `delta_samples <= 5` falls into an unregularized raw coherent phasor sum ($2|\cos(\pi f \Delta\tau)|$), producing deep, unphysical mathematical comb notches plunging to $-35\text{ to } -40\text{ dB}$ in the musical clank region.
+- **Mandated Practice:** Always trigger spatial coherence decay for any non-zero delay:
+  $$\text{has\_spatial\_delay} = (\text{len}(\text{channels}) > 1 \text{ and } \Delta\text{samples} > 0)$$
+  This guarantees that spatial coherence decay ($\gamma(f)$) smoothly transitions into incoherent power summation above $f_{\text{notch}}$, bounding the fundamental mid-scoop to an authentic physical depth (~$-12\text{ to } -15\text{ dB}$) and completely suppressing higher-order harmonic cancellation teeth.
+
+### 5.11 True Differential Circuit Deconvolution vs. Ad-Hoc Identity Bypasses Across Active and Passive Datums
+- **Anti-Pattern:** Using ad-hoc identity bypass conditionals (e.g. `if is_identity and not is_passive: circuit_curves = [ones]`) instead of genuine differential circuit deconvolution ($H_{\text{diff}} = H_{\text{target}} / H_{\text{source}}$), or treating all active instruments as unvoiced generic EMGs without explicit SPICE source netlists.
+- **Why It Fails:** Commercial active instruments (e.g. 34" Active Music Man StingRay, 37" Multi-Scale Dingwall) possess distinct physical pickup coils and onboard active buffer/EQ circuits. Omitting their source circuit netlists (`source_active_stingray.cir`, `source_dingwall_fd3n.cir`) and patching identity matches with `if is_identity: return 1.0` leaves cross-instrument transformations completely broken: converting an active StingRay into a Vintage '62 P-Bass mistakenly cascades the P-Bass circuit *on top* of the StingRay's active 2-band preamp (+1.8 dB bass, +2.2 dB treble shelf) without deconvolving it! Furthermore, standard Wiener regularization quotients ($(H_{\text{tgt}} \cdot H_{\text{src}}) / (H_{\text{src}}^2 + \epsilon^2)$ with $\epsilon = 0.05$) crash to $-104\text{ dB}$ at DC when source models have subsonic highpass filters ($s \to 0$).
+- **Mandated Practice:**
+  1. Always define explicit SPICE source circuit netlists in `circuits/sources/` for commercial active instruments with onboard preamps/harnesses, linking them in `config/instruments/*.toml`.
+  2. In `compute_differential_circuit_transfer_functions`, directly evaluate model equality:
+     $$\text{if } \text{allclose}(H_{\text{tgt}}, H_{\text{src}}): \quad H_{\text{diff}} \equiv 1.000 \quad (0.00\text{ dB})$$
+     guaranteeing mathematical identity across all frequencies without denominator or Wiener distortion.
+  3. In both `analyze_voices.py` and `simulate_circuits.py`, universally evaluate differential transfer functions whenever `src_cir_path` is present:
+     $$H_{\text{diff}} = \frac{H_{\text{target}}}{H_{\text{source}}}$$
+     naturally deconvolving source pickup coils and onboard preamps on cross-instrument voicings, and achieving natural $0.00\text{ dB}$ identity on matching voices without ad-hoc bypass branches.
+  4. Ensure all source instruments declare valid string presets existing in `config/strings.toml` (e.g. `roundwound_stainless_clank`).
+
 ---
 
 ## 6. Architectural Guardrails: High-Performance Audio DSP & SIMD Engineering
@@ -185,5 +205,26 @@ To maintain the native Virtual Analog simulation engine's $>1500\times$ real-tim
 - **Anti-Pattern:** Running batch simulations across all 16 target voices sequentially in a single Python thread.
 - **Why It Fails:** Audio circuit simulation is CPU-bound and embarrassingly parallel. Single-threaded execution leaves multi-core CPUs (e.g. Apple Silicon M-series chips with 8–16 cores) mostly idle while users wait 7+ minutes for a batch run.
 - **Mandated Practice:** Expose parallel process execution using `concurrent.futures.ProcessPoolExecutor` with `--jobs` / `-j` CLI flags (defaulting to `min(4, os.cpu_count())`). Drops full 16-voice batch simulation time from **$7+\text{ minutes}$ down to $80\text{ seconds}$**.
+
+### 6.6 Vectorize Analytical Circuit Transfer Functions with NumPy SIMD ($s = j\omega$)
+- **Anti-Pattern:** Evaluating analytical nodal AC equations (Foster 2-stage core ladders, tone shunt admittances, active preamp boost filters) with scalar point-by-point Python loops (`for f in freqs:`).
+- **Why It Fails:** Iterating 500 to 1,000 frequency bins in pure Python evaluates millions of scalar mathematical operations and temporary object allocations, bottlenecking circuit curve evaluations ($184\text{ ms} \to 15\text{ ms}$ for 25 netlists; over 5.2 million calls to `compute_core_impedance` during full catalog analysis).
+- **Mandated Practice:** Formulate all nodal impedances, admittances, and voltage divider ratios directly on complex NumPy frequency vectors ($s = 1j \cdot \omega$). Yields a **$12.2\times$ raw speedup** while maintaining bit-exact ($10^{-12}$) numerical precision.
+
+### 6.7 In-Memory LRU Caching of SPICE Netlists and Circuit Models
+- **Anti-Pattern:** Re-reading and re-parsing identical `.cir` text files from disk using regex on every voice evaluation or dataframe build.
+- **Why It Fails:** Disk I/O and text tokenization repeated across 11 source instruments, 17 target voices, and multiple analysis modes generates hundreds of redundant disk operations and object constructions.
+- **Mandated Practice:** Wrap SPICE netlist parsing with `@functools.lru_cache(maxsize=128)` and return defensive shallow copies (`copy.copy(cached)`). Guarantees zero disk reads on repeated queries while allowing callers to independently mutate core eddy diffusion parameters without cross-talk.
+
+### 6.8 Decouple Invariant Target Voice Analysis from Source-Dependent Differential Curves
+- **Anti-Pattern:** Re-evaluating target output voice curves (`mode="output"`) inside nested instrument loops.
+- **Why It Fails:** Target voice responses (acoustic aperture sinc filters, loaded RLC circuit peaks, target string voicings) are completely independent of the source instrument. Recomputing them across $N_{\text{inst}}$ instruments in both output and unified modes incurs $2 N_{\text{inst}} \times N_{\text{voices}}$ redundant evaluations (374 redundant dataframe builds across 11 instruments).
+- **Mandated Practice:** Precompute the global target output voice master dataframe **once** globally. Compute the source-to-target difference dataframes **once** per instrument, and synthesize unified multi-mode visualizations by combining them in memory with `pl.lit(...).alias("mode")`. Reduces dataframe builds by **73%** ($748 \to 204$).
+
+### 6.9 Frame-Bounded Audio Processing (`max_samples`) for Unit Tests and Previews
+- **Anti-Pattern:** Processing the full 95-second 48 kHz calibration sweep ($4.56\text{M}$ samples; $9.12\text{M}$ at 2x oversampling) in unit tests that only verify sweep auto-detection, fallback handling, or RMS level normalization.
+- **Why It Fails:** Running 7 full 95-second simulations in the test suite wastes over 21 seconds executing millions of ODE state solver steps and large FFTs on identical sweep frames.
+- **Mandated Practice:** Support bounded frame processing via `max_samples: int = None` in `simulate_circuit_audio` and `simulate_voice`. Use bounded prefixes (e.g. 4,800 samples = 0.1s for auto-detection; 48,000 samples = 1.0s with active signal for RMS/peak normalization) in unit tests, dropping test execution from **$21.8\text{s}$ down to $0.15\text{s}$** (~$145\times$ speedup) without sacrificing end-to-end signal pipeline verification.
+
 
 

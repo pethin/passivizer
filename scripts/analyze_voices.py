@@ -80,6 +80,8 @@ def build_voice_dataframe(voice_id, cfg, instrument="30in", src_scale=None, mode
 
     sensor_type = cfg.get("sensor_type", "magnetic")
     tgt_string = get_voice_string(cfg)
+    is_passive = (inst.get("electronics") == "passive")
+    is_identity = (mode != "output") and is_voice_matching_source(inst, voice_id, cfg)
 
     if mode == "output":
         # 1. Output Voice: Target acoustic aperture + loaded SPICE circuit + string + body bloom
@@ -138,20 +140,19 @@ def build_voice_dataframe(voice_id, cfg, instrument="30in", src_scale=None, mode
 
     else:
         # 2. Input/Output Difference: H_diff = H_target / H_source
-        is_passive = (inst.get("electronics") == "passive")
         src_pickup = get_source_pickup(inst, voice_id)
 
-        if is_passive and cir_path.exists():
-            src_cir_rel = src_pickup.get("circuit", "circuits/sources/source_standard_p.cir")
-            src_cir_path = REPO_ROOT / src_cir_rel
+        src_cir_rel = src_pickup.get("circuit")
+        if not src_cir_rel and is_passive:
+            src_cir_rel = "circuits/sources/source_standard_p.cir"
+        src_cir_path = (REPO_ROOT / src_cir_rel) if src_cir_rel else None
+
+        if src_cir_path and src_cir_path.exists() and cir_path.exists():
             model = parse_netlist(cir_path)
             apply_magnet_properties_to_model(model, cfg)
-            if src_cir_path.exists():
-                src_model = parse_netlist(src_cir_path)
-                apply_magnet_properties_to_model(src_model, src_pickup)
-                circuit_curves = compute_differential_circuit_transfer_functions(model, src_model, freqs=FREQS)
-            else:
-                circuit_curves = compute_circuit_transfer_functions(model, freqs=FREQS)
+            src_model = parse_netlist(src_cir_path)
+            apply_magnet_properties_to_model(src_model, src_pickup)
+            circuit_curves = compute_differential_circuit_transfer_functions(model, src_model, freqs=FREQS)
         elif cir_path.exists():
             model = parse_netlist(cir_path)
             apply_magnet_properties_to_model(model, cfg)
@@ -181,7 +182,7 @@ def build_voice_dataframe(voice_id, cfg, instrument="30in", src_scale=None, mode
         H_channels = np.array(H_channels)
         peaks = [int(np.argmax(np.abs(fir))) for fir in prefilter_firs]
         delta_samples = max(peaks) - min(peaks) if len(peaks) > 1 else 0
-        has_spatial_delay = (len(prefilter_firs) > 1 and delta_samples > 5)
+        has_spatial_delay = (len(prefilter_firs) > 1 and delta_samples > 0)
 
         if has_spatial_delay:
             # Acoustic inter-pickup spatial coherence decay:
@@ -214,7 +215,8 @@ def build_voice_dataframe(voice_id, cfg, instrument="30in", src_scale=None, mode
 
     ref_val = mag_raw[ref_idx]
     mag_norm = mag_raw / ref_val if ref_val > 0 else mag_raw
-    mag_db = 20.0 * np.log10(np.clip(mag_norm, 1e-5, 20.0)) + cfg.get("gain_db", 0.0)
+    gain_offset = 0.0 if is_identity else cfg.get("gain_db", 0.0)
+    mag_db = 20.0 * np.log10(np.clip(mag_norm, 1e-5, 20.0)) + gain_offset
 
     data = {
         "frequency": log_freqs,
@@ -651,59 +653,24 @@ def generate_portal_pages(output_dir=None, default_id=None):
         root_portal_path.write_text(root_portal_html, encoding="utf-8")
         print(f"Saved master portal: {root_portal_path}")
 
-def generate_interactive_chart(instrument="30in", out_html=None, mode="unified"):
-    """
-    Calculates voice responses and renders an interactive Altair chart.
-    mode:
-      - 'unified': embeds both Output Voice and Input/Output Difference curves with interactive radio buttons.
-      - 'output': standalone chart strictly plotting the 12 target Output Voice curves.
-      - 'difference': standalone chart strictly plotting the Input/Output Difference curves for this instrument.
-    """
-    inst = load_instrument(instrument) if not isinstance(instrument, dict) else instrument
-    inst_id = inst.get("id", "custom_instrument")
-    inst_name = inst.get("name", inst_id)
-
-    if out_html is None:
-        target_path = RESPONSES_DIR / f"{inst_id}.html"
-    else:
-        p = Path(out_html)
-        if p.is_dir() or (not p.suffix and not p.exists()):
-            target_path = p / f"{inst_id}.html"
-        else:
-            target_path = p
-
-    target_path = Path(target_path)
-    target_path.parent.mkdir(parents=True, exist_ok=True)
-
-    print(f"Computing voice frequency responses (mode={mode}, instrument={inst_name})...")
+def render_chart_to_file(
+    master_df: pl.DataFrame,
+    target_path: Path,
+    chart_title: str,
+    chart_subtitle: str,
+    y_title: str,
+    y_domain: list,
+    mode: str = "unified",
+):
+    """Renders a Polars master dataframe into an interactive Altair chart HTML file."""
     voice_selection = alt.selection_point(fields=["voice_name"], bind="legend")
-
     if mode == "output":
-        dfs = [build_voice_dataframe(vid, cfg, instrument=inst, mode="output") for vid, cfg in VOICES.items()]
-        master_df = pl.concat(dfs)
-        chart_title = "Passivizer Master Voices: Output Voice Frequency Responses"
-        chart_subtitle = f"Target Passive Acoustic Apertures & SPICE Loaded RLC Resonances (Reference: {inst_name})"
-        y_title = "Normalized Output Magnitude (dB)"
-        y_domain = [-30, 10]
         params = [voice_selection]
         filters = []
     elif mode == "difference":
-        dfs = [build_voice_dataframe(vid, cfg, instrument=inst, mode="difference") for vid, cfg in VOICES.items()]
-        master_df = pl.concat(dfs)
-        chart_title = "Passivizer Master Voices: Input/Output Differential Transfer Functions"
-        chart_subtitle = f"Source: {inst_name} -> Target: 34\" Standard & 37\" Multi-Scale Datums (Δ Transfer Filter)"
-        y_title = "Differential Transfer Magnitude (dB)"
-        y_domain = [-28, 15]
         params = [voice_selection]
         filters = []
-    else:  # mode == "unified"
-        dfs_out = [build_voice_dataframe(vid, cfg, instrument=inst, mode="output", include_mode_col=True) for vid, cfg in VOICES.items()]
-        dfs_diff = [build_voice_dataframe(vid, cfg, instrument=inst, mode="difference", include_mode_col=True) for vid, cfg in VOICES.items()]
-        master_df = pl.concat(dfs_diff + dfs_out)
-        chart_title = "Passivizer Master Voices: Acoustic & Electrical Response Curves"
-        chart_subtitle = f"Interactive View ({inst_name}) — Switch between Input/Output Difference and Output Voice"
-        y_title = "Normalized Magnitude / Differential Gain (dB)"
-        y_domain = [-30, 15]
+    else:  # unified
         mode_selection = alt.selection_point(
             fields=["mode"],
             bind=alt.binding_radio(
@@ -715,7 +682,6 @@ def generate_interactive_chart(instrument="30in", out_html=None, mode="unified")
         params = [mode_selection, voice_selection]
         filters = [mode_selection]
 
-    print("Rendering interactive chart using Altair...")
     chart = (
         alt.Chart(master_df)
         .mark_line(strokeWidth=2.2)
@@ -775,24 +741,115 @@ def generate_interactive_chart(instrument="30in", out_html=None, mode="unified")
     print(f"Saved interactive Altair visualization: {target_path}")
     return target_path
 
+def generate_interactive_chart(instrument="30in", out_html=None, mode="unified"):
+    """
+    Calculates voice responses and renders an interactive Altair chart.
+    mode:
+      - 'unified': embeds both Output Voice and Input/Output Difference curves with interactive radio buttons.
+      - 'output': standalone chart strictly plotting the 12 target Output Voice curves.
+      - 'difference': standalone chart strictly plotting the Input/Output Difference curves for this instrument.
+    """
+    inst = load_instrument(instrument) if not isinstance(instrument, dict) else instrument
+    inst_id = inst.get("id", "custom_instrument")
+    inst_name = inst.get("name", inst_id)
+
+    if out_html is None:
+        target_path = RESPONSES_DIR / f"{inst_id}.html"
+    else:
+        p = Path(out_html)
+        if p.is_dir() or (not p.suffix and not p.exists()):
+            target_path = p / f"{inst_id}.html"
+        else:
+            target_path = p
+
+    target_path = Path(target_path)
+    target_path.parent.mkdir(parents=True, exist_ok=True)
+
+    print(f"Computing voice frequency responses (mode={mode}, instrument={inst_name})...")
+    if mode == "output":
+        dfs = [build_voice_dataframe(vid, cfg, instrument=inst, mode="output") for vid, cfg in VOICES.items()]
+        master_df = pl.concat(dfs)
+        chart_title = "Passivizer Master Voices: Output Voice Frequency Responses"
+        chart_subtitle = f"Target Passive Acoustic Apertures & SPICE Loaded RLC Resonances (Reference: {inst_name})"
+        y_title = "Normalized Output Magnitude (dB)"
+        y_domain = [-30, 10]
+    elif mode == "difference":
+        dfs = [build_voice_dataframe(vid, cfg, instrument=inst, mode="difference") for vid, cfg in VOICES.items()]
+        master_df = pl.concat(dfs)
+        chart_title = "Passivizer Master Voices: Input/Output Differential Transfer Functions"
+        chart_subtitle = f"Source: {inst_name} -> Target: 34\" Standard & 37\" Multi-Scale Datums (Δ Transfer Filter)"
+        y_title = "Differential Transfer Magnitude (dB)"
+        y_domain = [-28, 15]
+    else:  # mode == "unified"
+        dfs_out = [build_voice_dataframe(vid, cfg, instrument=inst, mode="output", include_mode_col=True) for vid, cfg in VOICES.items()]
+        dfs_diff = [build_voice_dataframe(vid, cfg, instrument=inst, mode="difference", include_mode_col=True) for vid, cfg in VOICES.items()]
+        master_df = pl.concat(dfs_diff + dfs_out)
+        chart_title = "Passivizer Master Voices: Acoustic & Electrical Response Curves"
+        chart_subtitle = f"Interactive View ({inst_name}) — Switch between Input/Output Difference and Output Voice"
+        y_title = "Normalized Magnitude / Differential Gain (dB)"
+        y_domain = [-30, 15]
+
+    print("Rendering interactive chart using Altair...")
+    return render_chart_to_file(master_df, target_path, chart_title, chart_subtitle, y_title, y_domain, mode=mode)
+
 def generate_all_charts(output_dir=None):
     """Generates standalone Altair interactive charts for all configured instruments."""
     out_dir = Path(output_dir) if output_dir else RESPONSES_DIR
     out_dir.mkdir(parents=True, exist_ok=True)
     all_insts = load_all_instruments()
+
+    # 1. Precompute target output voice dataframes ONCE globally (source-instrument invariant)
+    print("Precomputing target output voice responses...")
+    dfs_out_base = [build_voice_dataframe(vid, cfg, mode="output") for vid, cfg in VOICES.items()]
+    master_df_out = pl.concat(dfs_out_base)
+
     generated = {}
     for inst_id, inst_cfg in all_insts.items():
-        # 1. Standalone Output Voice chart
+        inst_name = inst_cfg.get("name", inst_id)
+
+        # 1. Standalone Output Voice chart (reuses global output voice dataframe)
         out_output_file = out_dir / f"{inst_id}_output.html"
-        generate_interactive_chart(instrument=inst_cfg, out_html=out_output_file, mode="output")
+        render_chart_to_file(
+            master_df_out,
+            target_path=out_output_file,
+            chart_title="Passivizer Master Voices: Output Voice Frequency Responses",
+            chart_subtitle=f"Target Passive Acoustic Apertures & SPICE Loaded RLC Resonances (Reference: {inst_name})",
+            y_title="Normalized Output Magnitude (dB)",
+            y_domain=[-30, 10],
+            mode="output",
+        )
 
-        # 2. Standalone Input/Output Difference chart
+        # 2. Compute Input/Output Difference dataframes ONCE for this instrument
+        print(f"Computing differential responses for {inst_name}...")
+        dfs_diff_base = [build_voice_dataframe(vid, cfg, instrument=inst_cfg, mode="difference") for vid, cfg in VOICES.items()]
+        master_df_diff = pl.concat(dfs_diff_base)
+
         out_diff_file = out_dir / f"{inst_id}_diff.html"
-        generate_interactive_chart(instrument=inst_cfg, out_html=out_diff_file, mode="difference")
+        render_chart_to_file(
+            master_df_diff,
+            target_path=out_diff_file,
+            chart_title="Passivizer Master Voices: Input/Output Differential Transfer Functions",
+            chart_subtitle=f"Source: {inst_name} -> Target: 34\" Standard & 37\" Multi-Scale Datums (Δ Transfer Filter)",
+            y_title="Differential Transfer Magnitude (dB)",
+            y_domain=[-28, 15],
+            mode="difference",
+        )
 
-        # 3. Main unified chart with interactive switcher
+        # 3. Main unified chart with interactive switcher (combine precomputed dataframes)
+        df_out_mod = master_df_out.with_columns(pl.lit("Output Voice").alias("mode"))
+        df_diff_mod = master_df_diff.with_columns(pl.lit("Input/Output Difference").alias("mode"))
+        master_df_unified = pl.concat([df_diff_mod, df_out_mod])
+
         out_file = out_dir / f"{inst_id}.html"
-        generate_interactive_chart(instrument=inst_cfg, out_html=out_file, mode="unified")
+        render_chart_to_file(
+            master_df_unified,
+            target_path=out_file,
+            chart_title="Passivizer Master Voices: Acoustic & Electrical Response Curves",
+            chart_subtitle=f"Interactive View ({inst_name}) — Switch between Input/Output Difference and Output Voice",
+            y_title="Normalized Magnitude / Differential Gain (dB)",
+            y_domain=[-30, 15],
+            mode="unified",
+        )
         generated[inst_id] = out_file
 
     generate_portal_pages(output_dir=out_dir)

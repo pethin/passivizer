@@ -1,0 +1,31 @@
+* Passivizer Source Netlist: Music Man StingRay MM (Parallel Humbucker)
+* Source: Dual-Coil Parallel Humbucker with Authentic Active 2-Band Preamp Buffer
+.options plotwinsize=0 numdgt=7
+
+* 1. Audio Source
+V_in in 0 wavefile="T3K-sweep-v3.wav"
+
+* 2. Pickup Coils (Bartolini MM4CBC Dual Coils in Parallel)
+L_coil in node1 2.4
+R_dc node1 node2 4.6k
+R_eddy in node2 140k
+C_coil node2 0 130p
+
+* 3. Active Preamp Input Stage (High-Z Input Buffer, Zero Cable Drag on Coils)
+R_preamp_in node2 0 1Meg
+C_preamp_in node2 0 25p
+
+* 4. Active Preamp Buffer Stage (Pre-EB 2-Band Active Contour)
+* Direct low-Z op-amp output buffer isolating coils from cable capacitance
+E_preamp node_buf 0 node2 0 1.0
+R_out node_buf node3 100
+* Preamp voicing: stingray_2band (+1.8 dB @ 50 Hz bass punch, +2.2 dB @ 4-7 kHz clank)
+
+* 5. Instrument Cable Load (15-ft cable ~750pF)
+C_cable node3 0 750p
+
+* 6. Darkglass Anagram Input Stage (1 M-Ohm || 30pF)
+R_anagram node3 0 1Meg
+C_anagram node3 0 30p
+
+.end

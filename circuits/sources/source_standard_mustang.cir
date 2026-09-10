@@ -1,0 +1,30 @@
+* Passivizer Source Netlist: Standard 30" Fender Mustang Bass
+* Physical Spec: Vintage Alnico V Split-Coil Mustang (9.2k Rdc, 3.4H L, 160k Reddy, 55pF Ccoil)
+* Electronics: Stock 250k Audio Volume Pot, 250k Tone Pot (100% Wide Open, 47nF Cap), 750pF Cable
+.options plotwinsize=0 numdgt=7
+
+* 1. Audio Source (Pre-filtered NAM Calibration Track)
+V_in in 0 wavefile="v1_1_1.wav"
+
+* 2. Pickup Coils (Standard Fender Split-Mustang)
+L_coil in node1 3.40
+R_dc node1 node2 9.20k
+R_eddy in node2 160k
+C_coil node2 0 55p
+
+* 3. Tone Pot (100% Wide Open: 250k series resistance with 47nF capacitor)
+R_tone node2 tone_mid 250k
+C_tone tone_mid 0 47n
+
+* 4. 250k Volume Pot (Volume @ 100%)
+R_pot_top node2 node3 10
+R_pot_bot node3 0 250k
+
+* 5. Instrument Cable Load (15-ft cable ~750pF)
+C_cable node3 0 750p
+
+* 6. Darkglass Anagram Input Stage (1 M-Ohm || 30pF)
+R_anagram node3 0 1Meg
+C_anagram node3 0 30p
+
+.end

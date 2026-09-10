@@ -145,13 +145,26 @@ def load_instrument(identifier_or_path):
         "standard_pj": "34in_standard_pj",
         "34in_pj": "34in_standard_pj",
         "pj": "34in_standard_pj",
-        "34in_active_p": "34in_active_p",
-        "active_p": "34in_active_p",
-        "34in_active_jazz": "34in_active_jazz",
-        "active_jazz": "34in_active_jazz",
-        "active_j": "34in_active_jazz",
-        "34in_active_pj": "34in_active_pj",
-        "active_pj": "34in_active_pj"
+        "34in_active_stingray": "34in_active_stingray",
+        "active_stingray": "34in_active_stingray",
+        "stingray": "34in_active_stingray",
+        "ray": "34in_active_stingray",
+        "34in_active_soapbar": "34in_active_soapbar",
+        "active_soapbar": "34in_active_soapbar",
+        "soapbar": "34in_active_soapbar",
+        "30in_mustang_pj": "30in_mustang_pj",
+        "mustang_pj": "30in_mustang_pj",
+        "30in_mustang": "30in_mustang_pj",
+        "mustang": "30in_mustang_pj",
+        "30in_standard_mustang": "30in_mustang_pj",
+        "standard_mustang": "30in_mustang_pj",
+        "37in_multiscale_dingwall": "37in_multiscale_dingwall",
+        "multiscale_dingwall": "37in_multiscale_dingwall",
+        "dingwall": "37in_multiscale_dingwall",
+        "combustion": "37in_multiscale_dingwall",
+        "34in_dingwall_sp1": "34in_dingwall_sp1",
+        "dingwall_sp1": "34in_dingwall_sp1",
+        "sp1": "34in_dingwall_sp1"
     }
     raw = str(identifier_or_path).strip()
     key = aliases.get(raw, raw)
@@ -543,7 +556,13 @@ def is_voice_matching_source(instrument, voice_id, voice_cfg=None):
     tgt_scale = vcfg.get("scale", "34in")
     tgt_speeds = SCALES.get(tgt_scale, {}).get("speeds", [])
 
-    if len(src_speeds) != len(tgt_speeds) or not np.allclose(src_speeds, tgt_speeds, rtol=0.02):
+    speed_match = False
+    if len(src_speeds) == len(tgt_speeds) and np.allclose(src_speeds, tgt_speeds, rtol=0.03):
+        speed_match = True
+    elif len(src_speeds) == 5 and len(tgt_speeds) == 4 and np.allclose(src_speeds[1:], tgt_speeds, rtol=0.03):
+        speed_match = True
+
+    if not speed_match:
         return False
 
     src_p = get_source_pickup(inst, voice_id)
@@ -824,10 +843,10 @@ def compute_voice_prefilter_firs(voice_id, instrument="30in", src_scale=None, nu
     src_components = src_pickup.get("components", []) if src_pickup.get("type") == "composite" else []
     use_branch_matching = (len(src_components) == len(pickups) and len(pickups) > 1)
 
-    # Active Pickup Electrical Resonance Deconvolution (Wiener Inversion)
-    # For passive source instruments, electrical deconvolution is handled directly in the differential SPICE engine
+    # For passive or circuit-modeled source instruments, electrical deconvolution is handled directly in the differential SPICE engine
+    has_src_circuit = bool(src_pickup.get("circuit"))
     is_passive = (inst.get("electronics") == "passive")
-    h_elec_inv = np.ones_like(freqs) if (is_identity or is_passive) else resolve_pickup_electrical_deconvolution_np(freqs, src_pickup, inst)
+    h_elec_inv = np.ones_like(freqs) if (is_identity or is_passive or has_src_circuit) else resolve_pickup_electrical_deconvolution_np(freqs, src_pickup, inst)
     
     positions = [compute_effective_position(p["coils"]) for p in pickups]
     pos_max = max(positions) if positions else 0.0
@@ -1076,8 +1095,9 @@ def compute_aperture_prefilter_fir(voice_id, instrument="30in", src_scale=None, 
     else:
         h_str_diff = np.ones_like(freqs)
 
+    has_src_circuit = bool(src_pickup.get("circuit"))
     is_passive = (inst.get("electronics") == "passive")
-    h_elec_inv = np.ones_like(freqs) if (is_identity or is_passive) else resolve_pickup_electrical_deconvolution_np(freqs, src_pickup, inst)
+    h_elec_inv = np.ones_like(freqs) if (is_identity or is_passive or has_src_circuit) else resolve_pickup_electrical_deconvolution_np(freqs, src_pickup, inst)
 
     prefilter_curve = h_acoustic_transfer * h_elec_inv * h_tilt * h_tension * h_str_diff
     max_val = np.max(prefilter_curve)

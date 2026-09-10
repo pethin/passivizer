@@ -9,6 +9,8 @@ tanh compliance, and generates 24-bit 48 kHz audio digital twins in < 1 second.
 
 import argparse
 import cmath
+import copy
+import functools
 import math
 import os
 import re
@@ -37,6 +39,7 @@ from model_physics import (
     get_instrument_string,
     get_source_pickup,
     resolve_voices,
+    is_voice_matching_source,
 )
 
 def parse_spice_val(val_str: str) -> float:
@@ -157,8 +160,10 @@ class CircuitModel:
         self.Ranagram = 1.0e6
         self.Canagram = 30e-12
 
-def parse_netlist(cir_path: Path) -> CircuitModel:
-    """Parses a Passivizer .cir netlist into a CircuitModel."""
+@functools.lru_cache(maxsize=128)
+def _parse_netlist_cached(cir_path_str: str) -> CircuitModel:
+    """Internal cached parser for a Passivizer .cir netlist."""
+    cir_path = Path(cir_path_str)
     model = CircuitModel()
     with open(cir_path, "r", encoding="utf-8") as f:
         lines = f.readlines()
@@ -172,7 +177,7 @@ def parse_netlist(cir_path: Path) -> CircuitModel:
     if "01_modern_jazz" in stem:
         model.has_active_buffer = True
         model.preamp_type = "sadowsky_2band"
-    elif "08_stingray" in stem:
+    elif "stingray" in stem:
         model.has_active_buffer = True
         model.preamp_type = "stingray_2band"
 
@@ -302,6 +307,12 @@ def parse_netlist(cir_path: Path) -> CircuitModel:
 
     return model
 
+def parse_netlist(cir_path: Path) -> CircuitModel:
+    """Parses a Passivizer .cir netlist into a CircuitModel (LRU-cached with shallow copy)."""
+    p = Path(cir_path).resolve()
+    cached = _parse_netlist_cached(str(p))
+    return copy.copy(cached)
+
 def compute_core_impedance(s, L: float, L_core: float = 0.0, R_core: float = 0.0):
     """
     Computes Foster 2-stage ladder impedance of the coil inductor:
@@ -394,212 +405,129 @@ def compute_active_preamp_eq(preamp_type: str, s):
 
 def compute_circuit_transfer_functions(model: CircuitModel, freqs=FREQS):
     """
-    Computes closed-form nodal AC transfer functions across frequencies.
+    Computes closed-form nodal AC transfer functions across frequencies using vectorized NumPy SIMD operations.
     Returns a list of magnitude curves:
       - Single-pickup: [mag_curve] (length 1)
       - Dual-pickup (parallel or series): [mag_neck, mag_bridge] (length 2)
     Supports both passive high-Z harnesses and active buffered preamps.
     """
+    f = np.asarray(freqs, dtype=np.float64)
+    w = np.where(f == 0.0, 2.0 * np.pi * 1e-3, 2.0 * np.pi * f)
+    s = 1j * w
+
     if model.has_active_buffer:
         # Active Preamp Buffer: coils terminate into high-Z buffer, isolating them from cable capacitance.
         # Op-amp buffer drives cable and Anagram pedalboard load through low-Z output stage.
+        Z_cable_load = 1.0 / (1.0 / model.Ranagram + s * (model.Ccable + model.Canagram))
+        H_buf_to_out = Z_cable_load / (model.R_out + Z_cable_load)
+
+        # Preamp active contour
+        H_eq = compute_active_preamp_eq(model.preamp_type, s)
+
+        # Coils terminated into high-Z preamp input (R_preamp_in || C_preamp_in)
+        Y_preamp_in = 1.0 / model.R_preamp_in + s * model.C_preamp_in
+        if model.Ctone > 0:
+            Y_tone = (s * model.Ctone) / (1.0 + s * model.Rtone * model.Ctone) if model.Rtone > 0 else s * model.Ctone
+        else:
+            Y_tone = 0.0
+        Y_eff2 = Y_preamp_in + Y_tone
+
         if model.topology == "single":
-            mag_curve = []
-            for f in freqs:
-                w = 2.0 * math.pi * 1e-3 if f == 0.0 else 2.0 * math.pi * f
-                s = 1j * w
+            Z_L = compute_core_impedance(s, model.L, model.L_core, model.R_core)
+            Y_branch = 1.0 / (model.Rdc + Z_L) + 1.0 / model.Reddy
+            Y_shunt2 = s * model.Ccoil + Y_eff2
+            H_dyn_to_2 = Y_branch / (Y_branch + Y_shunt2)
 
-                # Output stage: low-Z buffer driving cable & Anagram load
-                Z_cable_load = 1.0 / (1.0 / model.Ranagram + s * (model.Ccable + model.Canagram))
-                H_buf_to_out = Z_cable_load / (model.R_out + Z_cable_load)
-
-                # Preamp active contour
-                H_eq = compute_active_preamp_eq(model.preamp_type, s)
-
-                # Coils terminated into high-Z preamp input (R_preamp_in || C_preamp_in)
-                Y_preamp_in = 1.0 / model.R_preamp_in + s * model.C_preamp_in
-                if model.Ctone > 0:
-                    Y_tone = (s * model.Ctone) / (1.0 + s * model.Rtone * model.Ctone) if model.Rtone > 0 else s * model.Ctone
-                else:
-                    Y_tone = 0.0
-                Y_eff2 = Y_preamp_in + Y_tone
-
-                Z_L = compute_core_impedance(s, model.L, model.L_core, model.R_core)
-                Y_branch = 1.0 / (model.Rdc + Z_L) + 1.0 / model.Reddy
-                Y_shunt2 = s * model.Ccoil + Y_eff2
-                H_dyn_to_2 = Y_branch / (Y_branch + Y_shunt2)
-
-                H_total = H_dyn_to_2 * H_eq * H_buf_to_out
-                mag_curve.append(abs(H_total))
-            return [mag_curve]
+            H_total = H_dyn_to_2 * H_eq * H_buf_to_out
+            return [np.abs(H_total).tolist()]
 
         elif model.topology == "parallel":
-            mag_n = []
-            mag_b = []
-            for f in freqs:
-                w = 2.0 * math.pi * 1e-3 if f == 0.0 else 2.0 * math.pi * f
-                s = 1j * w
+            Z_L = compute_core_impedance(s, model.L, model.L_core, model.R_core)
+            Z_L_b = compute_core_impedance(s, model.L_b, model.L_core_b, model.R_core_b)
+            Y_br_n = 1.0 / (model.Rdc + Z_L) + 1.0 / model.Reddy
+            Y_br_b = 1.0 / (model.Rdc_b + Z_L_b) + 1.0 / model.Reddy_b
+            Y_shunt2 = s * (model.Ccoil + model.Ccoil_b) + Y_eff2
+            Y_total = Y_br_n + Y_br_b + Y_shunt2
 
-                # Output stage: low-Z buffer driving cable & Anagram load
-                Z_cable_load = 1.0 / (1.0 / model.Ranagram + s * (model.Ccable + model.Canagram))
-                H_buf_to_out = Z_cable_load / (model.R_out + Z_cable_load)
+            H_n_to_2 = Y_br_n / Y_total
+            H_b_to_2 = Y_br_b / Y_total
 
-                # Preamp active contour
-                H_eq = compute_active_preamp_eq(model.preamp_type, s)
+            H_n = H_n_to_2 * H_eq * H_buf_to_out
+            H_b = H_b_to_2 * H_eq * H_buf_to_out
 
-                # Coils terminated into high-Z preamp input
-                Y_preamp_in = 1.0 / model.R_preamp_in + s * model.C_preamp_in
-                if model.Ctone > 0:
-                    Y_tone = (s * model.Ctone) / (1.0 + s * model.Rtone * model.Ctone) if model.Rtone > 0 else s * model.Ctone
-                else:
-                    Y_tone = 0.0
-                Y_eff2 = Y_preamp_in + Y_tone
-
-                Z_L = compute_core_impedance(s, model.L, model.L_core, model.R_core)
-                Z_L_b = compute_core_impedance(s, model.L_b, model.L_core_b, model.R_core_b)
-                Y_br_n = 1.0 / (model.Rdc + Z_L) + 1.0 / model.Reddy
-                Y_br_b = 1.0 / (model.Rdc_b + Z_L_b) + 1.0 / model.Reddy_b
-                Y_shunt2 = s * (model.Ccoil + model.Ccoil_b) + Y_eff2
-                Y_total = Y_br_n + Y_br_b + Y_shunt2
-
-                H_n_to_2 = Y_br_n / Y_total
-                H_b_to_2 = Y_br_b / Y_total
-
-                H_n = H_n_to_2 * H_eq * H_buf_to_out
-                H_b = H_b_to_2 * H_eq * H_buf_to_out
-
-                mag_n.append(abs(H_n))
-                mag_b.append(abs(H_b))
-            return [mag_n, mag_b]
+            return [np.abs(H_n).tolist(), np.abs(H_b).tolist()]
 
     # Passive RLC Guitar Harness: Coils directly loaded by pots, cable capacitance, and Anagram load
     Rload = (model.Rbot * model.Ranagram) / (model.Rbot + model.Ranagram)
     Cload = model.Ccable + model.Canagram
+    Zload = 1.0 / (1.0 / Rload + s * Cload)
+
+    # Tone circuit admittance (series R-C branch to ground)
+    if model.Ctone > 0:
+        Y_tone = (s * model.Ctone) / (1.0 + s * model.Rtone * model.Ctone) if model.Rtone > 0 else s * model.Ctone
+    else:
+        Y_tone = 0.0
+
+    # Treble bleed impedance (if configured)
+    if model.Ctb > 0 and model.Rtb_par > 0:
+        Z_tb = model.Rtb_ser + model.Rtb_par / (1.0 + s * model.Rtb_par * model.Ctb)
+        Z23_pot = (model.Rtop * Z_tb) / (model.Rtop + Z_tb)
+    else:
+        Z23_pot = model.Rtop
 
     if model.topology == "single":
-        mag_curve = []
-        for f in freqs:
-            if f == 0.0:
-                # If there is a series blocking capacitor, DC gain is 0
-                if model.Crick > 0:
-                    mag_curve.append(0.0)
-                    continue
-                w = 2.0 * math.pi * 1e-3
-            else:
-                w = 2.0 * math.pi * f
-            s = 1j * w
+        Z_L = compute_core_impedance(s, model.L, model.L_core, model.R_core)
+        Y_branch = 1.0 / (model.Rdc + Z_L) + 1.0 / model.Reddy
+        Y_shunt2 = s * model.Ccoil + Y_tone
 
-            # Branch admittance (Foster core impedance Z_L + Rdc || Reddy)
-            Z_L = compute_core_impedance(s, model.L, model.L_core, model.R_core)
-            Y_branch = 1.0 / (model.Rdc + Z_L) + 1.0 / model.Reddy
+        Z_rick = 1.0 / (s * model.Crick) if model.Crick > 0 else 0.0
+        Z23 = Z_rick + Z23_pot
 
-            # Tone circuit admittance (series R-C branch to ground)
-            if model.Ctone > 0:
-                Y_tone = (s * model.Ctone) / (1.0 + s * model.Rtone * model.Ctone) if model.Rtone > 0 else s * model.Ctone
-            else:
-                Y_tone = 0.0
-
-            Y_shunt2 = s * model.Ccoil + Y_tone
-
-            # Treble bleed impedance (if configured)
-            if model.Ctb > 0 and model.Rtb_par > 0:
-                Z_tb = model.Rtb_ser + model.Rtb_par / (1.0 + s * model.Rtb_par * model.Ctb)
-                Z23_pot = (model.Rtop * Z_tb) / (model.Rtop + Z_tb)
-            else:
-                Z23_pot = model.Rtop
-
-            Z_rick = 1.0 / (s * model.Crick) if model.Crick > 0 else 0.0
-            Z23 = Z_rick + Z23_pot
-
-            Zload = 1.0 / (1.0 / Rload + s * Cload)
-
-            Y_eff2 = Y_shunt2 + 1.0 / (Z23 + Zload)
-            H_dyn_to_2 = Y_branch / (Y_branch + Y_eff2)
-            H_2_to_3 = Zload / (Z23 + Zload)
-            H_total = H_dyn_to_2 * H_2_to_3
-            mag_curve.append(abs(H_total))
-        return [mag_curve]
+        Y_eff2 = Y_shunt2 + 1.0 / (Z23 + Zload)
+        H_dyn_to_2 = Y_branch / (Y_branch + Y_eff2)
+        H_2_to_3 = Zload / (Z23 + Zload)
+        H_total = np.where((f == 0.0) & (model.Crick > 0), 0.0, np.abs(H_dyn_to_2 * H_2_to_3))
+        return [H_total.tolist()]
 
     elif model.topology == "parallel":
-        mag_n = []
-        mag_b = []
-        for f in freqs:
-            w = 2.0 * math.pi * f
-            s = 1j * w
+        Z_L = compute_core_impedance(s, model.L, model.L_core, model.R_core)
+        Z_L_b = compute_core_impedance(s, model.L_b, model.L_core_b, model.R_core_b)
+        Y_br_n = 1.0 / (model.Rdc + Z_L) + 1.0 / model.Reddy
+        Y_br_b = 1.0 / (model.Rdc_b + Z_L_b) + 1.0 / model.Reddy_b
 
-            Z_L = compute_core_impedance(s, model.L, model.L_core, model.R_core)
-            Z_L_b = compute_core_impedance(s, model.L_b, model.L_core_b, model.R_core_b)
-            Y_br_n = 1.0 / (model.Rdc + Z_L) + 1.0 / model.Reddy
-            Y_br_b = 1.0 / (model.Rdc_b + Z_L_b) + 1.0 / model.Reddy_b
+        Y_shunt2 = s * (model.Ccoil + model.Ccoil_b) + Y_tone
+        Z23 = Z23_pot
 
-            # Tone circuit admittance (series R-C branch to ground)
-            if model.Ctone > 0:
-                Y_tone = (s * model.Ctone) / (1.0 + s * model.Rtone * model.Ctone) if model.Rtone > 0 else s * model.Ctone
-            else:
-                Y_tone = 0.0
+        Y_eff2 = Y_shunt2 + 1.0 / (Z23 + Zload)
+        Y_total = Y_br_n + Y_br_b + Y_eff2
 
-            Y_shunt2 = s * (model.Ccoil + model.Ccoil_b) + Y_tone
+        H_n_to_2 = Y_br_n / Y_total
+        H_b_to_2 = Y_br_b / Y_total
+        H_2_to_3 = Zload / (Z23 + Zload)
 
-            if model.Ctb > 0 and model.Rtb_par > 0:
-                Z_tb = model.Rtb_ser + model.Rtb_par / (1.0 + s * model.Rtb_par * model.Ctb)
-                Z23 = (model.Rtop * Z_tb) / (model.Rtop + Z_tb)
-            else:
-                Z23 = model.Rtop
-
-            Zload = 1.0 / (1.0 / Rload + s * Cload)
-
-            Y_eff2 = Y_shunt2 + 1.0 / (Z23 + Zload)
-            Y_total = Y_br_n + Y_br_b + Y_eff2
-
-            H_n_to_2 = Y_br_n / Y_total
-            H_b_to_2 = Y_br_b / Y_total
-            H_2_to_3 = Zload / (Z23 + Zload)
-
-            mag_n.append(abs(H_n_to_2 * H_2_to_3))
-            mag_b.append(abs(H_b_to_2 * H_2_to_3))
-        return [mag_n, mag_b]
+        return [np.abs(H_n_to_2 * H_2_to_3).tolist(), np.abs(H_b_to_2 * H_2_to_3).tolist()]
 
     elif model.topology == "series":
-        mag_n = []
-        mag_b = []
-        for f in freqs:
-            w = 2.0 * math.pi * f
-            s = 1j * w
+        Z_L = compute_core_impedance(s, model.L, model.L_core, model.R_core)
+        Z_L_b = compute_core_impedance(s, model.L_b, model.L_core_b, model.R_core_b)
+        Y_br_n = 1.0 / (model.Rdc + Z_L) + 1.0 / model.Reddy
+        Y_br_b = 1.0 / (model.Rdc_b + Z_L_b) + 1.0 / model.Reddy_b
+        Y_cn = s * model.Ccoil
+        Y_cb = s * model.Ccoil_b
+        Y_2b = Y_br_b + Y_cb
 
-            Z_L = compute_core_impedance(s, model.L, model.L_core, model.R_core)
-            Z_L_b = compute_core_impedance(s, model.L_b, model.L_core_b, model.R_core_b)
-            Y_br_n = 1.0 / (model.Rdc + Z_L) + 1.0 / model.Reddy
-            Y_br_b = 1.0 / (model.Rdc_b + Z_L_b) + 1.0 / model.Reddy_b
-            Y_cn = s * model.Ccoil
-            Y_cb = s * model.Ccoil_b
-            Y_2b = Y_br_b + Y_cb
+        Z23 = Z23_pot
+        Y_out_load = 1.0 / (Z23 + Zload)
 
-            # Tone circuit admittance (series R-C branch to ground)
-            if model.Ctone > 0:
-                Y_tone = (s * model.Ctone) / (1.0 + s * model.Rtone * model.Ctone) if model.Rtone > 0 else s * model.Ctone
-            else:
-                Y_tone = 0.0
+        Y_m = Y_br_n + Y_cn + Y_2b
+        Y_2 = Y_2b + Y_out_load + Y_tone
+        delta = Y_m * Y_2 - Y_2b ** 2
 
-            if model.Ctb > 0 and model.Rtb_par > 0:
-                Z_tb = model.Rtb_ser + model.Rtb_par / (1.0 + s * model.Rtb_par * model.Ctb)
-                Z23 = (model.Rtop * Z_tb) / (model.Rtop + Z_tb)
-            else:
-                Z23 = model.Rtop
+        T2_n = (Y_2b * Y_br_n) / delta
+        T2_b = ((Y_br_n + Y_cn) * Y_br_b) / delta
+        T_2_to_3 = Zload / (Z23 + Zload)
 
-            Zload = 1.0 / (1.0 / Rload + s * Cload)
-            Y_out_load = 1.0 / (Z23 + Zload)
-
-            Y_m = Y_br_n + Y_cn + Y_2b
-            Y_2 = Y_2b + Y_out_load + Y_tone
-            delta = Y_m * Y_2 - Y_2b ** 2
-
-            T2_n = (Y_2b * Y_br_n) / delta
-            T2_b = ((Y_br_n + Y_cn) * Y_br_b) / delta
-            T_2_to_3 = Zload / (Z23 + Zload)
-
-            mag_n.append(abs(T2_n * T_2_to_3))
-            mag_b.append(abs(T2_b * T_2_to_3))
-        return [mag_n, mag_b]
+        return [np.abs(T2_n * T_2_to_3).tolist(), np.abs(T2_b * T_2_to_3).tolist()]
 
     raise ValueError(f"Unknown circuit topology: {model.topology}")
 
@@ -627,6 +555,10 @@ def compute_differential_circuit_transfer_functions(
 
         tgt_arr = np.asarray(tgt_c, dtype=np.float64)
         src_arr = np.asarray(src_c, dtype=np.float64)
+
+        if np.allclose(tgt_arr, src_arr, rtol=1e-4):
+            diff_curves.append(np.ones_like(tgt_arr).tolist())
+            continue
 
         # Wiener regularized quotient
         h_diff = (tgt_arr * src_arr) / (src_arr ** 2 + eps ** 2)
@@ -909,6 +841,7 @@ def simulate_circuit_audio(
     k_sag: float = 0.08,
     k_sags=None,
     dc_block: bool = True,
+    max_samples: int = None,
 ):
     """
     Executes native Virtual Analog circuit simulation on audio.
@@ -929,10 +862,11 @@ def simulate_circuit_audio(
 
     if isinstance(input_audio, (str, Path)):
         with AudioFile(str(input_audio)) as f:
-            audio = f.read(f.frames)
+            num_frames = min(f.frames, max_samples) if max_samples else f.frames
+            audio = f.read(num_frames)
             sr = f.samplerate
     elif isinstance(input_audio, np.ndarray):
-        audio = input_audio
+        audio = input_audio[:, :max_samples] if input_audio.ndim > 1 else input_audio[:max_samples] if max_samples else input_audio
         sr = 48000
     else:
         raise ValueError(f"Unsupported input_audio type: {type(input_audio)}")
@@ -1036,7 +970,7 @@ def simulate_circuit_audio(
     if len(channel_outputs) > 1 and prefilter_firs is not None and len(prefilter_firs) > 1:
         peaks = [int(np.argmax(np.abs(fir))) for fir in prefilter_firs]
         delta_samples = max(peaks) - min(peaks) if len(peaks) > 1 else 0
-        has_spatial_delay = (delta_samples > 5)
+        has_spatial_delay = (delta_samples > 0)
         if has_spatial_delay:
             # Acoustic inter-pickup spatial coherence decay:
             # Multi-string wave dispersion across the 4 strings naturally bounds the fundamental
@@ -1165,6 +1099,7 @@ def simulate_voice(
     k_sag: float = None,
     eddy_diffusion: bool = True,
     dc_block: bool = True,
+    max_samples: int = None,
 ):
     """
     Simulates a target voice digital twin using the native Virtual Analog engine.
@@ -1273,21 +1208,27 @@ def simulate_voice(
         voice_k_sags = None
 
     is_passive = (inst_cfg.get("electronics") == "passive")
+    is_identity = is_voice_matching_source(inst_cfg, voice_id, vcfg)
+    src_pickup = get_source_pickup(inst_cfg, voice_id)
+    src_cir_rel = src_pickup.get("circuit")
+    if not src_cir_rel and is_passive:
+        src_cir_rel = "circuits/sources/source_standard_p.cir"
+    src_cir_path = (REPO_ROOT / src_cir_rel) if src_cir_rel else None
+
     diff_curves = None
-    if is_passive:
-        src_pickup = get_source_pickup(inst_cfg, voice_id)
-        src_cir_rel = src_pickup.get("circuit", "circuits/sources/source_standard_p.cir")
-        src_cir_path = REPO_ROOT / src_cir_rel
-        if src_cir_path.exists():
-            src_model = parse_netlist(src_cir_path)
-            apply_magnet_properties_to_model(src_model, src_pickup, eddy_diffusion=eddy_diffusion)
-            diff_curves = compute_differential_circuit_transfer_functions(model, src_model, freqs=FREQS)
+    if src_cir_path and src_cir_path.exists():
+        src_model = parse_netlist(src_cir_path)
+        apply_magnet_properties_to_model(src_model, src_pickup, eddy_diffusion=eddy_diffusion)
+        diff_curves = compute_differential_circuit_transfer_functions(model, src_model, freqs=FREQS)
+
+    has_source_circuit = (diff_curves is not None)
+    bypass_saturation = is_passive or has_source_circuit or is_identity
 
     prefilter_firs = None
     if not prefiltered:
         prefilter_firs = compute_voice_prefilter_firs(voice_id, instrument=instrument)
-        if is_passive:
-            stage_desc = "Acoustic Aperture + Differential Circuit Simulation (Passive Source)"
+        if has_source_circuit:
+            stage_desc = f"Acoustic Aperture + Differential Circuit Simulation ({'Passive' if is_passive else 'Active'} Source)"
         else:
             stage_desc = "Acoustic Aperture + Circuit Simulation"
     else:
@@ -1301,7 +1242,7 @@ def simulate_voice(
         prefilter_firs=prefilter_firs,
         save_intermediate=save_intermediate,
         circuit_curves=diff_curves,
-        is_passive=is_passive,
+        is_passive=bypass_saturation,
         normalize=normalize,
         target_dbfs=target_dbfs,
         oversample=oversample,
@@ -1316,6 +1257,7 @@ def simulate_voice(
         k_sag=voice_sag,
         k_sags=voice_k_sags,
         dc_block=dc_block,
+        max_samples=max_samples,
     )
     print(f"     Exported: {output_wav}")
     return True

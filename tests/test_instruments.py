@@ -5,6 +5,7 @@ import tomllib
 from scripts.model_physics import (
     INSTRUMENTS,
     VOICES,
+    STRINGS,
     load_instrument,
     load_all_instruments,
     get_source_pickup,
@@ -21,9 +22,11 @@ def test_load_all_default_instruments():
         "34in_standard_p",
         "34in_standard_jazz",
         "34in_standard_pj",
-        "34in_active_p",
-        "34in_active_jazz",
-        "34in_active_pj",
+        "34in_active_stingray",
+        "34in_active_soapbar",
+        "30in_mustang_pj",
+        "37in_multiscale_dingwall",
+        "34in_dingwall_sp1",
     ]
     for iid in expected_ids:
         assert iid in instruments, f"Default instrument '{iid}' not found"
@@ -32,7 +35,7 @@ def test_load_all_default_instruments():
         assert "id" in cfg
         assert "name" in cfg
         assert cfg["scale_length_in"] > 0
-        assert len(cfg["string_wave_speeds"]) == 4
+        assert len(cfg["string_wave_speeds"]) in [4, 5]
         assert "pickups" in cfg and len(cfg["pickups"]) > 0
         assert "default_pickup" in cfg
         assert cfg["default_pickup"] in cfg["pickups"]
@@ -254,76 +257,6 @@ def test_32in_pj_blend_parallel_definition():
         assert inst["pickup_mapping"]["07_modern_pj_active"] == "pj_blend_parallel"
         assert inst["pickup_mapping"]["08_vintage_pj_passive"] == "pj_blend_parallel"
 
-def test_34in_active_p_routing():
-    inst = load_instrument("34in_active_p")
-    assert inst["id"] == "34in_active_p"
-    assert inst["scale_length_in"] == 34.0
-    assert "px" in inst["pickups"]
-    px = inst["pickups"]["px"]
-    assert px["resonant_frequency_hz"] == 3200.0
-    assert px["q_factor"] == 1.40
-    assert px["type"] == "split_coil"
-
-    # All voices route to px
-    for vid in VOICES:
-        pickup = get_source_pickup(inst, vid)
-        assert pickup["id"] == "px"
-
-    # Shorthand alias check
-    assert load_instrument("active_p")["id"] == "34in_active_p"
-
-def test_34in_active_jazz_routing():
-    inst = load_instrument("34in_active_jazz")
-    assert inst["id"] == "34in_active_jazz"
-    assert inst["scale_length_in"] == 34.0
-    assert "neck" in inst["pickups"]
-    assert "bridge" in inst["pickups"]
-    assert "pair_parallel" in inst["pickups"]
-
-    assert inst["pickups"]["neck"]["resonant_frequency_hz"] == 4050.0
-    assert inst["pickups"]["bridge"]["resonant_frequency_hz"] == 4050.0
-    assert inst["pickups"]["pair_parallel"]["resonant_frequency_hz"] == 4050.0
-
-    # Bridge solo voices
-    assert get_source_pickup(inst, "03_jazz_bridge_60s")["id"] == "bridge"
-    assert get_source_pickup(inst, "09_stingray_mm_parallel")["id"] == "bridge"
-
-    # Neck solo voices
-    assert get_source_pickup(inst, "04_modern_p_ceramic")["id"] == "neck"
-
-    # Parallel voices
-    assert get_source_pickup(inst, "01_modern_jazz_active")["id"] == "pair_parallel"
-    assert get_source_pickup(inst, "02_jazz_bass_pair")["id"] == "pair_parallel"
-
-    # Shorthand alias check
-    assert load_instrument("active_jazz")["id"] == "34in_active_jazz"
-
-def test_34in_active_pj_routing():
-    inst = load_instrument("34in_active_pj")
-    assert inst["id"] == "34in_active_pj"
-    assert inst["scale_length_in"] == 34.0
-    assert "px" in inst["pickups"]
-    assert "jx" in inst["pickups"]
-    assert "pair_parallel" in inst["pickups"]
-
-    assert inst["pickups"]["px"]["resonant_frequency_hz"] == 3200.0
-    assert inst["pickups"]["jx"]["resonant_frequency_hz"] == 4050.0
-
-    # P voices route to PX
-    assert get_source_pickup(inst, "04_modern_p_ceramic")["id"] == "px"
-    assert get_source_pickup(inst, "05_vintage_62_p_alnico")["id"] == "px"
-
-    # Bridge voices route to JX
-    assert get_source_pickup(inst, "03_jazz_bridge_60s")["id"] == "jx"
-    assert get_source_pickup(inst, "09_stingray_mm_parallel")["id"] == "jx"
-
-    # Hybrid voices route to parallel blend
-    assert get_source_pickup(inst, "07_modern_pj_active")["id"] == "pair_parallel"
-    assert get_source_pickup(inst, "08_vintage_pj_passive")["id"] == "pair_parallel"
-
-    # Shorthand alias check
-    assert load_instrument("active_pj")["id"] == "34in_active_pj"
-
 def test_34in_standard_pj_routing():
     inst = load_instrument("34in_standard_pj")
     assert inst["id"] == "34in_standard_pj"
@@ -380,6 +313,217 @@ def test_34in_standard_pj_routing():
     assert get_source_pickup(inst, "07_modern_pj_active")["id"] == "pair_parallel"
     assert get_source_pickup(inst, "08_vintage_pj_passive")["id"] == "pair_parallel"
     assert get_source_pickup(inst, "11_pmm_hybrid_series")["id"] == "pair_parallel"
+
+def test_34in_active_stingray_routing():
+    inst = load_instrument("34in_active_stingray")
+    assert inst["id"] == "34in_active_stingray"
+    assert inst["scale_length_in"] == 34.0
+    assert inst["electronics"] == "active"
+    assert "mm_parallel" in inst["pickups"]
+    assert inst["default_pickup"] == "mm_parallel"
+
+    # MM pickup definition
+    mm = inst["pickups"]["mm_parallel"]
+    assert mm["type"] == "dual_coil_parallel"
+    assert math.isclose(mm["position_from_bridge_m"], 0.0660, abs_tol=1e-4)
+    assert mm["resonant_frequency_hz"] == 4200.0
+    assert mm["q_factor"] == 1.60
+    assert len(mm["coils"]) == 2
+
+    # Shorthand aliases check
+    assert load_instrument("active_stingray")["id"] == "34in_active_stingray"
+    assert load_instrument("stingray")["id"] == "34in_active_stingray"
+    assert load_instrument("ray")["id"] == "34in_active_stingray"
+
+    # All target voices map to mm_parallel
+    for vid in VOICES:
+        pickup = get_source_pickup(inst, vid)
+        assert pickup["id"] == "mm_parallel"
+
+def test_34in_active_soapbar_routing():
+    inst = load_instrument("34in_active_soapbar")
+    assert inst["id"] == "34in_active_soapbar"
+    assert inst["scale_length_in"] == 34.0
+    assert inst["electronics"] == "active"
+    assert "neck" in inst["pickups"]
+    assert "bridge" in inst["pickups"]
+    assert "pair_parallel" in inst["pickups"]
+    assert inst["default_pickup"] == "pair_parallel"
+
+    # Neck soapbar
+    neck = inst["pickups"]["neck"]
+    assert math.isclose(neck["position_from_bridge_m"], 0.1350, abs_tol=1e-4)
+    assert neck["resonant_frequency_hz"] == 3800.0
+    assert neck["q_factor"] == 1.40
+    assert len(neck["coils"]) == 2
+
+    # Bridge soapbar
+    bridge = inst["pickups"]["bridge"]
+    assert math.isclose(bridge["position_from_bridge_m"], 0.0550, abs_tol=1e-4)
+    assert bridge["resonant_frequency_hz"] == 4100.0
+    assert bridge["q_factor"] == 1.40
+    assert len(bridge["coils"]) == 2
+
+    # Composite pair
+    pair = inst["pickups"]["pair_parallel"]
+    assert pair["type"] == "composite"
+    assert len(pair["components"]) == 2
+    assert pair["components"][0]["pickup"] == "neck"
+    assert pair["components"][1]["pickup"] == "bridge"
+
+    # Shorthand aliases check
+    assert load_instrument("active_soapbar")["id"] == "34in_active_soapbar"
+    assert load_instrument("soapbar")["id"] == "34in_active_soapbar"
+
+    # P voices route to neck soapbar
+    assert get_source_pickup(inst, "04_modern_p_ceramic")["id"] == "neck"
+    assert get_source_pickup(inst, "05_vintage_62_p_alnico")["id"] == "neck"
+    assert get_source_pickup(inst, "12_mudbucker_ultra_series")["id"] == "neck"
+    assert get_source_pickup(inst, "14_upright_bridge_transducer")["id"] == "neck"
+
+    # Bridge voices route to bridge soapbar
+    assert get_source_pickup(inst, "03_jazz_bridge_60s")["id"] == "bridge"
+    assert get_source_pickup(inst, "09_stingray_mm_parallel")["id"] == "bridge"
+    assert get_source_pickup(inst, "10_rickenbacker_bridge_hpf")["id"] == "bridge"
+    assert get_source_pickup(inst, "13_dingwall_multiscale_bridge")["id"] == "bridge"
+
+    # Parallel voices route to pair_parallel
+    assert get_source_pickup(inst, "01_modern_jazz_active")["id"] == "pair_parallel"
+    assert get_source_pickup(inst, "02_jazz_bass_pair")["id"] == "pair_parallel"
+    assert get_source_pickup(inst, "07_modern_pj_active")["id"] == "pair_parallel"
+    assert get_source_pickup(inst, "08_vintage_pj_passive")["id"] == "pair_parallel"
+    assert get_source_pickup(inst, "11_pmm_hybrid_series")["id"] == "pair_parallel"
+
+def test_30in_mustang_pj_routing():
+    inst = load_instrument("30in_mustang_pj")
+    assert inst["id"] == "30in_mustang_pj"
+    assert inst["scale_length_in"] == 30.0
+    assert inst["electronics"] == "passive"
+    assert "p" in inst["pickups"]
+    assert "j" in inst["pickups"]
+    assert "pair_parallel" in inst["pickups"]
+    assert inst["default_pickup"] == "pair_parallel"
+
+    p = inst["pickups"]["p"]
+    assert p["type"] == "split_coil"
+    assert math.isclose(p["position_from_bridge_m"], 0.1550, abs_tol=1e-4)
+    assert p["resonant_frequency_hz"] == 2800.0
+    assert len(p["coils"]) == 2
+
+    j = inst["pickups"]["j"]
+    assert j["type"] == "single_coil"
+    assert math.isclose(j["position_from_bridge_m"], 0.0550, abs_tol=1e-4)
+    assert j["resonant_frequency_hz"] == 3200.0
+
+    # Aliases
+    assert load_instrument("mustang")["id"] == "30in_mustang_pj"
+    assert load_instrument("30in_mustang")["id"] == "30in_mustang_pj"
+    assert load_instrument("mustang_pj")["id"] == "30in_mustang_pj"
+
+    # Smart voice routing
+    assert get_source_pickup(inst, "05_vintage_62_p_alnico")["id"] == "p"
+    assert get_source_pickup(inst, "03_jazz_bridge_60s")["id"] == "j"
+    assert get_source_pickup(inst, "02_jazz_bass_pair")["id"] == "pair_parallel"
+
+def test_37in_multiscale_dingwall_routing():
+    inst = load_instrument("37in_multiscale_dingwall")
+    assert inst["id"] == "37in_multiscale_dingwall"
+    assert inst["scale_length_in"] == 37.0
+    assert inst["electronics"] == "active"
+    assert len(inst["string_wave_speeds"]) == 5
+    assert inst["strings"]["gauge"] == "45-130"
+    assert "bridge" in inst["pickups"]
+    assert "middle" in inst["pickups"]
+    assert "pair_parallel" in inst["pickups"]
+
+    # Bridge pickup (1:1 with Voice 13)
+    b = inst["pickups"]["bridge"]
+    assert math.isclose(b["position_from_bridge_m"], 0.0480, abs_tol=1e-4)
+    assert b["resonant_frequency_hz"] == 3400.0
+
+    # Middle pickup
+    mid = inst["pickups"]["middle"]
+    assert math.isclose(mid["position_from_bridge_m"], 0.0960, abs_tol=1e-4)
+
+    # Aliases
+    assert load_instrument("dingwall")["id"] == "37in_multiscale_dingwall"
+    assert load_instrument("combustion")["id"] == "37in_multiscale_dingwall"
+
+    # Voice 13 maps to bridge
+    assert get_source_pickup(inst, "13_dingwall_multiscale_bridge")["id"] == "bridge"
+    assert get_source_pickup(inst, "05_vintage_62_p_alnico")["id"] == "middle"
+    assert get_source_pickup(inst, "01_modern_jazz_active")["id"] == "pair_parallel"
+
+def test_34in_dingwall_sp1_routing():
+    inst = load_instrument("34in_dingwall_sp1")
+    assert inst["id"] == "34in_dingwall_sp1"
+    assert inst["scale_length_in"] == 35.0
+    assert inst["electronics"] == "passive"
+    assert len(inst["string_wave_speeds"]) == 5
+    assert inst["strings"]["gauge"] == "45-130"
+    assert "p" in inst["pickups"]
+    assert "bridge" in inst["pickups"]
+    assert "pair_parallel" in inst["pickups"]
+
+    # Dual-P split coil
+    p = inst["pickups"]["p"]
+    assert p["type"] == "split_coil"
+    assert math.isclose(p["position_from_bridge_m"], 0.1250, abs_tol=1e-4)
+    assert len(p["coils"]) == 2
+    assert p["coils"][0]["strings"] == ["B", "E", "A"]
+    assert p["coils"][1]["strings"] == ["D", "G"]
+
+    # FD3n Bridge
+    b = inst["pickups"]["bridge"]
+    assert math.isclose(b["position_from_bridge_m"], 0.0580, abs_tol=1e-4)
+
+    # Aliases
+    assert load_instrument("sp1")["id"] == "34in_dingwall_sp1"
+    assert load_instrument("dingwall_sp1")["id"] == "34in_dingwall_sp1"
+
+    # Routing
+    assert get_source_pickup(inst, "05_vintage_62_p_alnico")["id"] == "p"
+    assert get_source_pickup(inst, "03_jazz_bridge_60s")["id"] == "bridge"
+    assert get_source_pickup(inst, "08_vintage_pj_passive")["id"] == "pair_parallel"
+
+def test_all_instruments_have_valid_string_presets():
+    """Verify that every default instrument declares a string preset that exists in STRINGS catalog."""
+    instruments = load_all_instruments()
+    for iid, cfg in instruments.items():
+        if "strings" in cfg and "preset" in cfg["strings"]:
+            preset = cfg["strings"]["preset"]
+            assert preset in STRINGS, f"Instrument '{iid}' declares unknown string preset '{preset}'"
+
+def test_active_identity_differential_flatness():
+    """Verify that active source instruments matching their target voice evaluate to 0.00 dB flat."""
+    from scripts.analyze_voices import build_voice_dataframe
+    import numpy as np
+
+    # 1. 37" Multi-Scale Dingwall -> Voice 13 Dingwall Bridge (< 0.05 dB flat)
+    df_ding = build_voice_dataframe("13_dingwall_multiscale_bridge", VOICES["13_dingwall_multiscale_bridge"], instrument="37in_multiscale_dingwall", mode="difference")
+    mags_ding = df_ding["magnitude_db"].to_numpy()
+    assert np.all(np.abs(mags_ding) < 0.05), f"Dingwall identity differential not flat: max abs={np.max(np.abs(mags_ding))}"
+
+    # 2. 34" Active StingRay -> Voice 09 Music Man MM (< 0.05 dB flat)
+    df_ray = build_voice_dataframe("09_stingray_mm_parallel", VOICES["09_stingray_mm_parallel"], instrument="34in_active_stingray", mode="difference")
+    mags_ray = df_ray["magnitude_db"].to_numpy()
+    assert np.all(np.abs(mags_ray) < 0.05), f"StingRay identity differential not flat: max abs={np.max(np.abs(mags_ray))}"
+
+def test_small_sample_delay_inter_pickup_coherence_decay():
+    """Verify that dual-pickup configurations with small inter-pickup sample delay (<= 5 samples) apply coherence decay."""
+    from scripts.analyze_voices import build_voice_dataframe
+    import numpy as np
+
+    # 34" Active Soapbar Bass playing 01 Modern Active Jazz Pair has delta_samples = 5.
+    # Must apply spatial coherence decay without plunging into unphysical -40 dB razor notches.
+    df = build_voice_dataframe("01_modern_jazz_active", VOICES["01_modern_jazz_active"], instrument="34in_active_soapbar", mode="difference")
+    mags = df["magnitude_db"].to_numpy()
+    min_db = np.min(mags)
+    assert min_db > -20.0, f"Soapbar on Jazz Pair has unregularized comb notch: min={min_db} dB"
+    assert -16.0 <= min_db <= -12.0, f"Expected smooth authentic acoustic mid-scoop around -14 dB, got {min_db} dB"
+
+
+
 
 
 

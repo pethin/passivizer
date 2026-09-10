@@ -1,0 +1,81 @@
+# ==============================================================================
+# PASSIVIZER SOURCE INSTRUMENT CONFIGURATION
+# 34" Standard Scale Active Music Man StingRay / Sterling Ray4 / Ray34
+# ==============================================================================
+# Physical Datums:
+#   - Scale Length: 34.0" (863.6mm total, 431.8mm 12th fret to bridge saddle)
+#   - Bridge Sweet Spot: Humbucker centerline 66.0mm from bridge saddle (365.8mm from 12th fret)
+#   - Coil Geometry: Dual-coil humbucker (0.75" coil spacing, 1.25" total sensing aperture)
+#       - Neck coil: 75.5mm from bridge (356.3mm from 12th fret)
+#       - Bridge coil: 56.5mm from bridge (375.3mm from 12th fret)
+#       - Oversized 3/8" (9.5mm) Alnico V or Ceramic pole pieces
+# Electronics:
+#   - Active 9V/18V onboard preamp (2-Band or 3-Band active boost/cut EQ buffer).
+#   - Low output impedance (< 1.0 kOhm) direct to output jack / Anagram Block 1.
+#   - Loaded electrical resonance: 4.20 kHz, Q = 1.60 (isolated from cable capacitance).
+
+id = "34in_active_stingray"
+name = "34\" Active StingRay (Music Man MM)"
+scale_length_in = 34.0
+scale_length_m = 0.8636
+electronics = "active"
+
+# String wave speeds: v = 2 * L * f0 (for E1=41.2Hz, A1=55.0Hz, D2=73.4Hz, G2=98.0Hz)
+string_wave_speeds = [71.16, 95.00, 126.81, 169.27]
+
+default_pickup = "mm_parallel"
+
+# ------------------------------------------------------------------------------
+# Physical Strings Configuration (Source Instrument Setup)
+# ------------------------------------------------------------------------------
+# Strung with standard nickel roundwounds (Ernie Ball Regular Slinky / D'Addario EXL165 .045-.105).
+[strings]
+preset = "roundwound_nickel_standard"
+brand = "Ernie Ball"
+model = "Regular Slinky"
+gauge = "45-105"
+core = "hex"
+wrap = "nickel_round"
+tension_lbs = 171.0
+
+# ------------------------------------------------------------------------------
+# 1. MUSIC MAN DUAL-COIL HUMBUCKER (Parallel Mode)
+# ------------------------------------------------------------------------------
+[pickups.mm_parallel]
+name = "Music Man Dual-Coil Humbucker (Parallel)"
+position_from_bridge_m = 0.0660  # Sweet spot centerline 66.0mm
+aperture_width_in = 1.25         # 1.25" overall aperture envelope
+coil_spacing_in = 0.75           # 0.75" (19.05mm) spacing between coil centers
+type = "dual_coil_parallel"
+circuit = "circuits/sources/source_active_stingray.cir"
+magnet_type = "alnico_v"
+resonant_frequency_hz = 4200.0   # Active 2-band buffered resonance (cable isolated)
+q_factor = 1.60                  # Resonant peak Q
+coils = [
+    { strings = ["all"], position_from_bridge_m = 0.0755, aperture_width_in = 0.75, weight = 0.5 }, # Neck coil
+    { strings = ["all"], position_from_bridge_m = 0.0565, aperture_width_in = 0.75, weight = 0.5 }  # Bridge coil
+]
+
+# ------------------------------------------------------------------------------
+# 2. SMART VOICE MAPPING
+# ------------------------------------------------------------------------------
+# Single sweet-spot humbucker: all target voices map to the active parallel humbucker.
+# Voice 09 (Music Man StingRay) is a true 1:1 physical and electrical identity match (0.0 dB flat).
+[pickup_mapping]
+"01_modern_jazz_active" = "mm_parallel"
+"02_jazz_bass_pair" = "mm_parallel"
+"02b_jazz_bass_pair_22nf" = "mm_parallel"
+"03_jazz_bridge_60s" = "mm_parallel"
+"04_modern_p_ceramic" = "mm_parallel"
+"05_vintage_62_p_alnico" = "mm_parallel"
+"05b_vintage_62_p_22nf" = "mm_parallel"
+"05c_vintage_62_p_47nf" = "mm_parallel"
+"05d_vintage_50s_p_100nf" = "mm_parallel"
+"07_modern_pj_active" = "mm_parallel"
+"08_vintage_pj_passive" = "mm_parallel"
+"09_stingray_mm_parallel" = "mm_parallel"  # Physical identity match!
+"10_rickenbacker_bridge_hpf" = "mm_parallel"
+"11_pmm_hybrid_series" = "mm_parallel"
+"12_mudbucker_ultra_series" = "mm_parallel"
+"13_dingwall_multiscale_bridge" = "mm_parallel"
+"14_upright_bridge_transducer" = "mm_parallel"

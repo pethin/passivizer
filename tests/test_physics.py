@@ -149,6 +149,10 @@ def test_identity_acoustic_transfer_preserves_flat_bass():
     assert is_voice_matching_source(inst_jazz, "02_jazz_bass_pair", VOICES["02_jazz_bass_pair"])
     assert is_voice_matching_source(inst_jazz, "01_modern_jazz_active", VOICES["01_modern_jazz_active"])
 
+    # 5-string Dingwall bridge matches Voice 13 (Dingwall Multi-Scale Bridge)
+    inst_dingwall = load_instrument("37in_multiscale_dingwall")
+    assert is_voice_matching_source(inst_dingwall, "13_dingwall_multiscale_bridge", VOICES["13_dingwall_multiscale_bridge"])
+
     # Non-matching voice should return False
     assert not is_voice_matching_source(inst_p, "02_jazz_bass_pair", VOICES["02_jazz_bass_pair"])
 
@@ -201,24 +205,24 @@ def test_30in_mm_jazz_pair_subbass_retention():
     assert math.isclose(f20, -0.50, abs_tol=0.5)
     assert math.isclose(f100, -0.63, abs_tol=0.5)
 
-def test_active_jazz_differential_transfer_has_no_artificial_comb_filter():
-    """Verify that multi-pickup matching source instruments (e.g. 34in_active_jazz) have tau=0 and no comb filtering."""
+def test_jazz_differential_transfer_has_no_artificial_comb_filter():
+    """Verify that multi-pickup matching source instruments (e.g. 34in_standard_jazz) have tau=0 and no comb filtering."""
     from scripts.model_physics import compute_voice_prefilter_firs, load_instrument, VOICES
     from scripts.analyze_voices import build_voice_dataframe
 
     # 1. FIRs must have zero inter-pickup delay (peak at tap 0)
-    firs_01 = compute_voice_prefilter_firs("01_modern_jazz_active", instrument="34in_active_jazz")
+    firs_01 = compute_voice_prefilter_firs("01_modern_jazz_active", instrument="34in_standard_jazz")
     assert len(firs_01) == 2
     assert np.argmax(np.abs(firs_01[0])) <= 2
     assert np.argmax(np.abs(firs_01[1])) <= 2
 
-    firs_02 = compute_voice_prefilter_firs("02_jazz_bass_pair", instrument="34in_active_jazz")
+    firs_02 = compute_voice_prefilter_firs("02_jazz_bass_pair", instrument="34in_standard_jazz")
     assert len(firs_02) == 2
     assert np.argmax(np.abs(firs_02[0])) <= 2
     assert np.argmax(np.abs(firs_02[1])) <= 2
 
     # 2. Differential transfer function must be smooth without artificial comb filter notches
-    inst = load_instrument("34in_active_jazz")
+    inst = load_instrument("34in_standard_jazz")
     df_01 = build_voice_dataframe("01_modern_jazz_active", VOICES["01_modern_jazz_active"], instrument=inst)
     mags_01 = df_01["magnitude_db"].to_numpy()
     freqs = df_01["frequency"].to_numpy()
@@ -236,7 +240,7 @@ def test_single_to_multi_pickup_coherence_eliminates_high_frequency_comb_notches
     from scripts.model_physics import load_instrument, VOICES
     from scripts.analyze_voices import build_voice_dataframe
 
-    inst = load_instrument("34in_active_p")
+    inst = load_instrument("30in_emg_mmtw")
     for voice_id in ["01_modern_jazz_active", "02_jazz_bass_pair"]:
         df = build_voice_dataframe(voice_id, VOICES[voice_id], instrument=inst)
         mags = df["magnitude_db"].to_numpy()
@@ -301,8 +305,8 @@ def test_multicoil_wavelength_dependent_coherence_and_mudbucker():
     diffs_09 = np.diff(m_09[treble_mask])
     assert np.all(diffs_09 >= -0.05), "Treble rise must be smooth and monotonic without kinks or plateaus"
 
-    # 2. Voice 12 (Mudbucker) on 34in Active P-Bass
-    p_inst = load_instrument("34in_active_p")
+    # 2. Voice 12 (Mudbucker) on 34in Active StingRay
+    p_inst = load_instrument("34in_active_stingray")
     df_12 = build_voice_dataframe("12_mudbucker_ultra_series", VOICES["12_mudbucker_ultra_series"], instrument=p_inst, mode="difference")
     f_12 = df_12["frequency"].to_numpy()
     m_12 = df_12["magnitude_db"].to_numpy()
