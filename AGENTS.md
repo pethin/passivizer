@@ -170,6 +170,32 @@ To ensure high-fidelity modeling and prevent regressions, all agents and contrib
      naturally deconvolving source pickup coils and onboard preamps on cross-instrument voicings, and achieving natural $0.00\text{ dB}$ identity on matching voices without ad-hoc bypass branches.
   4. Ensure all source instruments declare valid string presets existing in `config/strings.toml` (e.g. `roundwound_stainless_clank`).
 
+### 5.12 Differential Magnetic Softening vs. Blanket Passive/Source Circuit Saturation Bypasses
+- **Anti-Pattern:** Bypassing dynamic magnetic core saturation with blanket conditionals like `bypass_saturation = is_passive or has_source_circuit or is_identity`.
+- **Why It Fails:** 
+  1. Commercial active instruments (e.g. 34" Active Music Man StingRay) declare active source circuit netlists (`source_active_stingray.cir`), causing `has_source_circuit = True`. This mistakenly bypasses target passive magnetic saturation when converting an active StingRay to an Alnico V P-Bass, rendering the simulated audio 100% linear and lacking touch-responsive compression and 2nd-harmonic bloom.
+  2. Passive instruments with stiff/linear magnet cores (e.g. Dingwall Neodymium $H_c > 800\text{ kA/m}$) do not exhibit passive core saturation or Lenz flux drag. Bypassing saturation simply because `is_passive = True` prevents incremental magnetic softening ($\Delta \alpha = 0.18, \Delta \eta = 0.05, \Delta k_{\text{sag}} = 0.07$) when transforming to vintage Alnico V or Alnico II pickups.
+- **Mandated Practice:**
+  Evaluate differential metallurgy and magnetic coercivity between source and target:
+  $$\Delta \alpha = \max(\alpha_{\text{tgt}} - \alpha_{\text{src}}, 0.0), \quad \Delta \alpha_3 = \max(\alpha_{3,\text{tgt}} - \alpha_{3,\text{src}}, 0.0)$$
+  $$\Delta \eta_{\text{hyst}} = \max(\eta_{\text{tgt}} - \eta_{\text{src}}, 0.0), \quad \Delta k_{\text{sag}} = \max(k_{\text{sag,tgt}} - k_{\text{sag,src}}, 0.0)$$
+  $$V_{\text{sat,eff}} = \begin{cases} V_{\text{sat,tgt}} & \text{if active source} \\ \frac{V_{\text{sat,tgt}}}{1.0 - \min\left(0.85, \frac{V_{\text{sat,tgt}}}{V_{\text{sat,src}}}\right) + 0.15} & \text{if passive source with } V_{\text{sat,tgt}} < V_{\text{sat,src}} \\ 10.0 & \text{otherwise} \end{cases}$$
+  Engage magnetic softening if and only if:
+  $$\text{should\_soften} = (\text{not is\_identity}) \land (\text{not is\_passive} \lor \text{is\_target\_more\_saturated})$$
+  $$\text{bypass\_saturation} = \text{not should\_soften}$$
+  This strictly prevents double-compression on matching or softer-to-stiffer passive conversions while applying authentic differential magnetic feel across active and cross-magnet conversions.
+
+### 5.13 Strict Prevention of Double Voicing across Acoustic, Electrical, and Non-Linear Stages
+- **Anti-Pattern:**
+  1. Passing an intermediate pre-filtered audio file (`aperture_<voice>.wav`) into `simulate_circuits.py` without `--prefiltered`, causing `compute_voice_prefilter_firs` to convolve the aperture deconvolution, scale tension snap, and bridge proximity tilt a second time.
+  2. Multiplying acoustic aperture branch FIRs by pickup weighting factors (`p_weight = 0.5`) when the target voice is loaded into a multi-channel SPICE netlist whose nodal analysis already models the physical parallel admittance divider ($Y_{\text{branch}} / Y_{\text{total}}$) or series mesh divider, causing $-6\text{ dB}$ double-attenuation.
+  3. Omitting explicit source SPICE netlists on composite pickups (e.g. `pickups.pair_parallel`), causing cross-instrument conversions to fall back to generic RLC inverted curves instead of differential SPICE transfer functions.
+- **Why It Fails:** Double aperture deconvolution squares the transfer contour ($H_{\text{acoust}}^2$), creating excessive high-frequency treble tilt (+6 dB boost instead of +3 dB) and artificial phase notches. Double branch attenuation drops small-signal impulse response gain by $-6\text{ dB}$ and distorts channel balance.
+- **Mandated Practice:**
+  1. In `simulate_voice()` and `main()`, automatically inspect `input_wav` filename. If `Path(input_wav).name.startswith("aperture_")`, automatically set `prefiltered = True` to guarantee `compute_voice_prefilter_firs` is never re-convolved.
+  2. In `compute_voice_prefilter_firs()`, check if target voice declares a multi-channel circuit (`has_multichannel_circuit = bool(cir_rel and cir_path.exists() and len(pickups) > 1)`). When present, evaluate branch FIRs with `p_weight = 1.0` (matching `analyze_voices.py:line 108`), ensuring branch signals enter SPICE at natural unity scale where the electrical network evaluates physical current division.
+  3. Ensure all composite and blend pickups in `config/instruments/*.toml` declare valid SPICE source netlists in `circuits/sources/` (e.g. `circuit = "circuits/sources/source_dingwall_fd3n.cir"`).
+
 ---
 
 ## 6. Architectural Guardrails: High-Performance Audio DSP & SIMD Engineering

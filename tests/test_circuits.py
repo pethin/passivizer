@@ -26,7 +26,7 @@ from scripts.simulate_circuits import (
     compute_differential_circuit_transfer_functions,
     CircuitModel,
 )
-from scripts.model_physics import VOICES, FREQS, NUM_TAPS, write_wav_24bit, compute_voice_prefilter_firs
+from scripts.model_physics import VOICES, FREQS, NUM_TAPS, write_wav_24bit, compute_voice_prefilter_firs, load_instrument
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 CIRCUITS_DIR = REPO_ROOT / "circuits"
@@ -1092,6 +1092,255 @@ def test_voice_09b_series_netlist_and_transfer():
     # At 7 kHz (clank region), series has less gain than parallel
     idx_7k = FREQS.index(7000.0) if 7000.0 in FREQS else np.argmin(np.abs(np.array(FREQS) - 7000.0))
     assert c09b[idx_7k] < c09[idx_7k]
+
+
+def test_differential_magnetic_softening_neodymium_to_alnico():
+    """
+    Verify that converting a passive Neodymium source (34in_dingwall_sp1) to an
+    Alnico V target (05_vintage_62_p_alnico) engages differential magnetic softening:
+    - Delta alpha = 0.18, Delta eta = 0.05, Delta k_sag = 0.07, Vsat_eff ≈ 0.84.
+    - Forte peaks (> 0.5V) undergo soft-knee saturation and 2nd harmonic expansion.
+    """
+    import pedalboard.io
+    sr = 48000
+    t = np.linspace(0, 0.1, int(sr * 0.1), endpoint=False)
+    forte_signal = (0.85 * np.sin(2 * np.pi * 100 * t)).astype(np.float32)
+
+    with tempfile.TemporaryDirectory() as td:
+        in_wav = Path(td) / "forte_in.wav"
+        out_wav = Path(td) / "out_softened.wav"
+        write_wav_24bit(str(in_wav), forte_signal, sample_rate=sr)
+
+        res = simulate_voice("05_vintage_62_p_alnico", input_wav=in_wav, output_wav=out_wav, instrument="34in_dingwall_sp1", normalize="none")
+        assert res is True
+
+        with pedalboard.io.AudioFile(str(out_wav)) as f:
+            audio_out = f.read(f.frames)[0]
+
+        # In a non-linear saturation, second harmonic (200 Hz) emerges from asymmetry (Delta alpha > 0)
+        fft_mag = np.abs(np.fft.rfft(audio_out))
+        freqs = np.fft.rfftfreq(len(audio_out), 1.0 / sr)
+        fund_idx = np.argmin(np.abs(freqs - 100.0))
+        h2_idx = np.argmin(np.abs(freqs - 200.0))
+
+        fund_level = fft_mag[fund_idx]
+        h2_level = fft_mag[h2_idx]
+        # Second harmonic is present due to differential asymmetry (alpha > 0)
+        assert h2_level > 1e-4 * fund_level, f"Expected 2nd harmonic bloom from differential alpha, got H2/H1 = {h2_level/fund_level:.6f}"
+
+
+def test_differential_magnetic_softening_alnico_to_neodymium_bypassed():
+    """
+    Verify that converting a softer Alnico V source (34in_standard_p) to a stiffer
+    Neodymium target (13_dingwall_multiscale_bridge) bypasses forward saturation (Delta <= 0).
+    Input scaling linearity error ||y_full - 2 * y_half|| / ||y_full|| must be < 1e-4.
+    """
+    import pedalboard.io
+    sr = 48000
+    t = np.linspace(0, 0.1, int(sr * 0.1), endpoint=False)
+    sig_full = (0.85 * np.sin(2 * np.pi * 100 * t)).astype(np.float32)
+    sig_half = (0.425 * np.sin(2 * np.pi * 100 * t)).astype(np.float32)
+
+    with tempfile.TemporaryDirectory() as td:
+        in_full = Path(td) / "full.wav"
+        in_half = Path(td) / "half.wav"
+        out_full = Path(td) / "out_bypassed_full.wav"
+        out_half = Path(td) / "out_bypassed_half.wav"
+        write_wav_24bit(str(in_full), sig_full, sample_rate=sr)
+        write_wav_24bit(str(in_half), sig_half, sample_rate=sr)
+
+        simulate_voice("13_dingwall_multiscale_bridge", input_wav=in_full, output_wav=out_full, instrument="34in_standard_p", normalize="none")
+        simulate_voice("13_dingwall_multiscale_bridge", input_wav=in_half, output_wav=out_half, instrument="34in_standard_p", normalize="none")
+
+        with pedalboard.io.AudioFile(str(out_full)) as f:
+            y_full = f.read(f.frames)[0]
+        with pedalboard.io.AudioFile(str(out_half)) as f:
+            y_half = f.read(f.frames)[0]
+
+        # Target Neodymium is stiffer than source Alnico V, so softening is bypassed: 100% linear
+        rel_diff = float(np.max(np.abs(y_full - 2.0 * y_half)) / np.max(np.abs(y_full)))
+        assert rel_diff < 1e-4, f"Expected linear scaling (rel_diff < 1e-4), got {rel_diff:.2e}"
+
+
+def test_differential_magnetic_softening_active_to_passive():
+    """
+    Verify that converting an active 18V EMG source (30in_emg_mmtw) to a passive
+    Alnico V target (05_vintage_62_p_alnico) applies full target magnetic saturation.
+    Compression and asymmetry cause ||y_full - 2 * y_half|| / ||y_full|| to exceed 5%.
+    """
+    import pedalboard.io
+    sr = 48000
+    t = np.linspace(0, 0.1, int(sr * 0.1), endpoint=False)
+    sig_full = (0.85 * np.sin(2 * np.pi * 100 * t)).astype(np.float32)
+    sig_half = (0.425 * np.sin(2 * np.pi * 100 * t)).astype(np.float32)
+
+    with tempfile.TemporaryDirectory() as td:
+        in_full = Path(td) / "full.wav"
+        in_half = Path(td) / "half.wav"
+        out_full = Path(td) / "out_act_full.wav"
+        out_half = Path(td) / "out_act_half.wav"
+        write_wav_24bit(str(in_full), sig_full, sample_rate=sr)
+        write_wav_24bit(str(in_half), sig_half, sample_rate=sr)
+
+        simulate_voice("05_vintage_62_p_alnico", input_wav=in_full, output_wav=out_full, instrument="30in_emg_mmtw", normalize="none")
+        simulate_voice("05_vintage_62_p_alnico", input_wav=in_half, output_wav=out_half, instrument="30in_emg_mmtw", normalize="none")
+
+        with pedalboard.io.AudioFile(str(out_full)) as f:
+            y_full = f.read(f.frames)[0]
+        with pedalboard.io.AudioFile(str(out_half)) as f:
+            y_half = f.read(f.frames)[0]
+
+        rel_diff = float(np.max(np.abs(y_full - 2.0 * y_half)) / np.max(np.abs(y_full)))
+        assert rel_diff > 0.05, f"Expected non-linear saturation (rel_diff > 0.05), got {rel_diff:.4f}"
+
+
+def test_differential_magnetic_softening_identity_bypassed():
+    """
+    Verify that an identity voice conversion (34in_standard_p -> 05_vintage_62_p_alnico)
+    bypasses forward saturation to prevent double-compression.
+    Input scaling linearity error ||y_full - 2 * y_half|| / ||y_full|| must be < 1e-4.
+    """
+    import pedalboard.io
+    sr = 48000
+    t = np.linspace(0, 0.1, int(sr * 0.1), endpoint=False)
+    sig_full = (0.85 * np.sin(2 * np.pi * 100 * t)).astype(np.float32)
+    sig_half = (0.425 * np.sin(2 * np.pi * 100 * t)).astype(np.float32)
+
+    with tempfile.TemporaryDirectory() as td:
+        in_full = Path(td) / "full.wav"
+        in_half = Path(td) / "half.wav"
+        out_full = Path(td) / "out_id_full.wav"
+        out_half = Path(td) / "out_id_half.wav"
+        write_wav_24bit(str(in_full), sig_full, sample_rate=sr)
+        write_wav_24bit(str(in_half), sig_half, sample_rate=sr)
+
+        simulate_voice("05_vintage_62_p_alnico", input_wav=in_full, output_wav=out_full, instrument="34in_standard_p", normalize="none")
+        simulate_voice("05_vintage_62_p_alnico", input_wav=in_half, output_wav=out_half, instrument="34in_standard_p", normalize="none")
+
+        with pedalboard.io.AudioFile(str(out_full)) as f:
+            y_full = f.read(f.frames)[0]
+        with pedalboard.io.AudioFile(str(out_half)) as f:
+            y_half = f.read(f.frames)[0]
+
+        rel_diff = float(np.max(np.abs(y_full - 2.0 * y_half)) / np.max(np.abs(y_full)))
+        assert rel_diff < 1e-4, f"Expected linear scaling (rel_diff < 1e-4), got {rel_diff:.2e}"
+
+
+def test_calibrated_drive_excursion_item3():
+    """
+    Verify Item 3: Drive excursion into magnetic saturation window is consistently calibrated
+    when prefilter_firs is None (standalone or prefiltered audio).
+    - Large signals (peak 0.95) are scaled to target_drive_peak (<= 0.70) into saturation.
+    - Small signals (peak 0.05) bypass saturation completely and remain 100% linear.
+    """
+    import pedalboard.io
+    m = parse_netlist(CIRCUITS_DIR / "05_vintage_62_p_alnico.cir")
+    sr = 48000
+    t = np.linspace(0, 0.1, int(sr * 0.1), endpoint=False)
+
+    # 1. Large signal: peak 0.95
+    large_sig = (0.95 * np.sin(2 * np.pi * 100 * t)).astype(np.float32)
+    # 2. Small signal: peak 0.05
+    small_sig = (0.05 * np.sin(2 * np.pi * 100 * t)).astype(np.float32)
+
+    with tempfile.TemporaryDirectory() as td:
+        out_large = Path(td) / "out_large.wav"
+        out_small = Path(td) / "out_small.wav"
+
+        simulate_circuit_audio(large_sig, out_large, m, prefilter_firs=None, is_passive=False, normalize="none")
+        simulate_circuit_audio(small_sig, out_small, m, prefilter_firs=None, is_passive=False, normalize="none")
+
+        with pedalboard.io.AudioFile(str(out_large)) as f:
+            audio_large = f.read(f.frames)[0]
+        with pedalboard.io.AudioFile(str(out_small)) as f:
+            audio_small = f.read(f.frames)[0]
+
+        # Small signal has zero harmonic distortion (pure sine preserved)
+        fft_small = np.abs(np.fft.rfft(audio_small))
+        freqs = np.fft.rfftfreq(len(audio_small), 1.0 / sr)
+        h1_idx = np.argmin(np.abs(freqs - 100.0))
+        h2_idx = np.argmin(np.abs(freqs - 200.0))
+        assert fft_small[h2_idx] < 1e-4 * fft_small[h1_idx]
+
+        # Large signal engages saturation safely without exceeding true-peak headroom
+        assert np.max(np.abs(audio_large)) <= 0.9885
+
+def test_no_double_voicing_on_aperture_input():
+    """
+    Verify Vector 1: Auto-detection of pre-filtered intermediate aperture audio.
+    When input_wav filename starts with 'aperture_', simulate_voice must automatically
+    set prefiltered=True and avoid convolving prefilter_firs a second time.
+    """
+    import pedalboard.io
+    sr = 48000
+    impulse = np.zeros(1024, dtype=np.float32)
+    impulse[0] = 0.50
+
+    with tempfile.TemporaryDirectory() as td:
+        aperture_wav = Path(td) / "aperture_04_modern_p_ceramic.wav"
+        out_wav = Path(td) / "out_04.wav"
+
+        # Write simulated aperture prefiltered audio
+        with pedalboard.io.AudioFile(str(aperture_wav), "w", samplerate=sr, num_channels=1, bit_depth=24) as f:
+            f.write(impulse[np.newaxis, :])
+
+        # Call simulate_voice WITHOUT passing prefiltered=True
+        success = simulate_voice(
+            "04_modern_p_ceramic",
+            input_wav=aperture_wav,
+            output_wav=out_wav,
+            instrument="30in",
+            prefiltered=False, # explicitly False: should be overridden by auto-detection!
+            normalize="none",
+        )
+        assert success is True
+        assert out_wav.exists()
+
+        # Read result: if prefiltered was correctly auto-detected, output length is ~1024 + 1024
+        # (circuit impulse only), NOT convolved through prefilter_firs again.
+        with pedalboard.io.AudioFile(str(out_wav)) as f:
+            out_audio = f.read(f.frames)[0]
+        assert len(out_audio) == len(impulse)
+        assert np.max(np.abs(out_audio)) > 0.0
+
+def test_multichannel_branch_weight_consistency():
+    """
+    Verify Vector 2 & 3: Multi-channel branch weight consistency.
+    When a voice has a multi-channel SPICE netlist (e.g. 02_jazz_bass_pair),
+    prefilter FIRs have unit branch weight (p_weight = 1.0) because SPICE nodal
+    analysis computes the parallel current divider Y_branch / Y_total.
+    """
+    from scripts.model_physics import compute_voice_prefilter_firs, VOICES
+    firs_02 = compute_voice_prefilter_firs("02_jazz_bass_pair", instrument="30in", num_taps=512)
+    assert len(firs_02) == 2
+    # Both channels must have peaks around 0.99
+    peak_0 = np.max(np.abs(firs_02[0]))
+    peak_1 = np.max(np.abs(firs_02[1]))
+    assert math.isclose(max(peak_0, peak_1), 0.99, rel_tol=1e-3)
+
+def test_dingwall_composite_source_circuit():
+    """
+    Verify Vector 2: 37in_multiscale_dingwall pair_parallel declares source circuit
+    and computes differential SPICE transfer functions without falling back to generic RLC.
+    """
+    inst = load_instrument("37in_multiscale_dingwall")
+    pair_pickup = inst["pickups"]["pair_parallel"]
+    assert "circuit" in pair_pickup
+    assert pair_pickup["circuit"] == "circuits/sources/source_dingwall_fd3n.cir"
+    assert (REPO_ROOT / pair_pickup["circuit"]).exists()
+
+    # Differential SPICE transfer functions evaluate cleanly
+    cir_path = REPO_ROOT / "circuits" / "02_jazz_bass_pair.cir"
+    src_cir_path = REPO_ROOT / pair_pickup["circuit"]
+    tgt_model = parse_netlist(cir_path)
+    src_model = parse_netlist(src_cir_path)
+    diff_curves = compute_differential_circuit_transfer_functions(tgt_model, src_model, freqs=FREQS)
+    assert len(diff_curves) == 2
+    for c in diff_curves:
+        assert len(c) == len(FREQS)
+        assert np.all(np.isfinite(c))
+        assert np.all(np.array(c) > 0.0)
+
 
 
 

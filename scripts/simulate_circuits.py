@@ -68,6 +68,7 @@ MAGNET_PROPERTIES = {
         "alpha": 0.26,
         "alpha3": 0.10,
         "k_sag": 0.08,
+        "vsat": 0.50,
     },
     "alnico_ii": {
         "k_core": 0.10,
@@ -76,6 +77,7 @@ MAGNET_PROPERTIES = {
         "alpha": 0.32,
         "alpha3": 0.14,
         "k_sag": 0.12,
+        "vsat": 0.45,
     },
     "ceramic": {
         "k_core": 0.02,
@@ -84,6 +86,7 @@ MAGNET_PROPERTIES = {
         "alpha": 0.12,
         "alpha3": 0.04,
         "k_sag": 0.03,
+        "vsat": 0.70,
     },
     "ceramic_alnico_hybrid": {
         "k_core": 0.05,
@@ -92,6 +95,7 @@ MAGNET_PROPERTIES = {
         "alpha": 0.18,
         "alpha3": 0.07,
         "k_sag": 0.05,
+        "vsat": 0.60,
     },
     "neodymium": {
         "k_core": 0.01,
@@ -100,6 +104,7 @@ MAGNET_PROPERTIES = {
         "alpha": 0.08,
         "alpha3": 0.02,
         "k_sag": 0.01,
+        "vsat": 0.90,
     },
     "piezo": {
         "k_core": 0.00,
@@ -108,6 +113,16 @@ MAGNET_PROPERTIES = {
         "alpha": 0.00,
         "alpha3": 0.00,
         "k_sag": 0.00,
+        "vsat": 1.00,
+    },
+    "active": {
+        "k_core": 0.00,
+        "f_core": 0.0,
+        "eta_hyst": 0.00,
+        "alpha": 0.00,
+        "alpha3": 0.00,
+        "k_sag": 0.00,
+        "vsat": 1.20,
     },
 }
 MAGNET_PROPERTIES["hybrid"] = MAGNET_PROPERTIES["ceramic_alnico_hybrid"]
@@ -830,6 +845,7 @@ def simulate_circuit_audio(
     save_intermediate: Path = None,
     circuit_curves=None,
     is_passive: bool = False,
+    bypass_saturation: bool = None,
     normalize: str = "auto",
     target_dbfs: float = None,
     oversample: int = 2,
@@ -843,6 +859,8 @@ def simulate_circuit_audio(
     eta_hysts=None,
     k_sag: float = 0.08,
     k_sags=None,
+    vsat: float = None,
+    vsats=None,
     dc_block: bool = True,
     max_samples: int = None,
 ):
@@ -850,11 +868,11 @@ def simulate_circuit_audio(
     Executes native Virtual Analog circuit simulation on audio.
     If prefilter_firs is provided, convolves input audio through acoustic aperture and
     scale-tension FIRs in memory first.
-    For active instruments, applies anti-aliased oversampled soft-knee saturation with
-    displacement-domain weighting, dynamic Lenz flux sag, dipole cubic proximity expansion,
-    magnet-specific alpha asymmetry, and Dahl magnetic hysteresis friction.
-    For passive source instruments, bypasses forward saturation (to prevent double-compression)
-    and applies regularized differential SPICE transfer functions (H_target / H_source).
+    For active instruments and differential softening conversions, applies anti-aliased
+    oversampled soft-knee saturation with displacement-domain weighting, dynamic Lenz flux sag,
+    dipole cubic proximity expansion, magnet-specific alpha asymmetry, and Dahl magnetic hysteresis.
+    For matching passive source instruments or stiffer targets, bypasses forward saturation (to prevent
+    double-compression) and applies regularized differential SPICE transfer functions (H_target / H_source).
     Applies sub-audible DC-blocking high-pass filtering (8.0 Hz) to eliminate DC offset before
     feeding downstream high-gain overdrive stages.
     Automatically normalizes output level based on the input sweep's dBFS (or explicit target_dbfs).
@@ -873,6 +891,9 @@ def simulate_circuit_audio(
         sr = 48000
     else:
         raise ValueError(f"Unsupported input_audio type: {type(input_audio)}")
+
+    if bypass_saturation is None:
+        bypass_saturation = is_passive
 
     # Capture input sweep baseline levels before filtering
     in_mono = audio[0] if audio.ndim > 1 else audio
@@ -894,6 +915,11 @@ def simulate_circuit_audio(
             with wave.open(str(save_path), "wb") as wf:
                 wf.setparams(params)
                 wf.writeframes(frames)
+    elif not bypass_saturation and in_peak > 0.10:
+        # Item 3: Calibrated drive excursion into magnetic saturation window
+        # Aligns standalone/prefiltered inputs with apply_prefilter_to_audio calibration
+        target_drive_peak = min(in_peak * 0.687, 0.70)
+        audio = (audio / max(in_peak, 1e-9)) * target_drive_peak
 
     if circuit_curves is not None:
         mag_curves = circuit_curves
@@ -910,14 +936,18 @@ def simulate_circuit_audio(
         else:
             in_ch = audio
 
-        # Dynamic magnetic saturation: bypassed for passive sources (already physically saturated)
-        if is_passive:
+        # Dynamic magnetic saturation: bypassed when linear or already physically saturated
+        if bypass_saturation:
             in_dyn = in_ch.copy().astype(np.float32)
         else:
-            if model.topology in ["parallel", "series"]:
-                vsat = model.vsat_n if ch_idx == 0 else model.vsat_b
+            if vsats is not None and len(vsats) > ch_idx:
+                ch_vsat = vsats[ch_idx]
+            elif vsat is not None:
+                ch_vsat = vsat
+            elif model.topology in ["parallel", "series"]:
+                ch_vsat = model.vsat_n if ch_idx == 0 else model.vsat_b
             else:
-                vsat = model.vsat
+                ch_vsat = model.vsat
 
             ch_alpha = (
                 alphas[ch_idx]
@@ -940,17 +970,20 @@ def simulate_circuit_audio(
                 else k_sag
             )
 
-            in_dyn = apply_oversampled_saturation(
-                in_ch,
-                vsat=vsat,
-                alpha=ch_alpha,
-                alpha3=ch_alpha3,
-                eta_hyst=ch_eta,
-                k_sag=ch_sag,
-                oversample=oversample,
-                displacement_weighting=displacement_weighting,
-                magnet_drag=magnet_drag,
-            )
+            if ch_vsat >= 10.0 and ch_alpha <= 0.001 and ch_alpha3 <= 0.001 and ch_eta <= 0.001 and ch_sag <= 0.001:
+                in_dyn = in_ch.copy().astype(np.float32)
+            else:
+                in_dyn = apply_oversampled_saturation(
+                    in_ch,
+                    vsat=ch_vsat,
+                    alpha=ch_alpha,
+                    alpha3=ch_alpha3,
+                    eta_hyst=ch_eta,
+                    k_sag=ch_sag,
+                    oversample=oversample,
+                    displacement_weighting=displacement_weighting,
+                    magnet_drag=magnet_drag,
+                )
 
         # Synthesize minimum-phase causal impulse response
         fir = np.array(
@@ -1138,6 +1171,9 @@ def simulate_voice(
             prefiltered = True
         else:
             raise FileNotFoundError(f"Input audio '{input_wav}' not found, and no standard calibration audio (T3K-sweep-v3.wav, v3_0_0.wav, input.wav) was detected.")
+    elif Path(input_wav).name.startswith("aperture_") and not prefiltered:
+        prefiltered = True
+        print(f"  [Auto-detected pre-filtered aperture input: {Path(input_wav).name} -> setting prefiltered=True]")
 
     if not output_wav:
         output_wav = inst_audio_dir / f"out_{voice_id}.wav"
@@ -1225,7 +1261,97 @@ def simulate_voice(
         diff_curves = compute_differential_circuit_transfer_functions(model, src_model, freqs=FREQS)
 
     has_source_circuit = (diff_curves is not None)
-    bypass_saturation = is_passive or has_source_circuit or is_identity
+
+    # Differential magnetic softening parameters
+    if not is_passive:
+        # Active source: zero passive core saturation, target profile applies fully
+        src_props = MAGNET_PROPERTIES["active"]
+    else:
+        src_mag = src_pickup.get("magnet_type")
+        if not src_mag and src_pickup.get("components"):
+            for c in src_pickup["components"]:
+                c_p = inst_cfg.get("pickups", {}).get(c.get("pickup"), {})
+                if c_p.get("magnet_type"):
+                    src_mag = c_p.get("magnet_type")
+                    break
+        if not src_mag:
+            src_mag = inst_cfg.get("magnet_type", "alnico_v")
+        src_props = MAGNET_PROPERTIES.get(src_mag, MAGNET_PROPERTIES["alnico_v"])
+
+    src_alpha = src_props["alpha"]
+    src_alpha3 = src_props["alpha3"]
+    src_eta = src_props["eta_hyst"]
+    src_sag = src_props["k_sag"]
+    src_vsat = src_props.get("vsat", 0.50)
+
+    tgt_vsat = model.vsat
+    diff_alpha = max(voice_alpha - src_alpha, 0.0)
+    diff_alpha3 = max(voice_alpha3 - src_alpha3, 0.0)
+    diff_eta = max(voice_eta - src_eta, 0.0)
+    diff_sag = max(voice_sag - src_sag, 0.0)
+
+    if not is_passive:
+        eff_vsat = tgt_vsat
+    elif tgt_vsat < src_vsat:
+        denom = 1.0 - min(0.85, tgt_vsat / src_vsat) + 0.15
+        eff_vsat = tgt_vsat / denom
+    else:
+        eff_vsat = 10.0
+
+    if voice_alphas and len(voice_alphas) > 1:
+        eff_alphas = []
+        eff_alpha3s = []
+        eff_eta_hysts = []
+        eff_k_sags = []
+        eff_vsats = []
+        for i in range(len(voice_alphas)):
+            ch_a = max(voice_alphas[i] - src_alpha, 0.0)
+            ch_a3 = max(voice_alpha3s[i] - src_alpha3, 0.0)
+            ch_eta = max(voice_eta_hysts[i] - src_eta, 0.0)
+            ch_sag = max(voice_k_sags[i] - src_sag, 0.0)
+            eff_alphas.append(ch_a)
+            eff_alpha3s.append(ch_a3)
+            eff_eta_hysts.append(ch_eta)
+            eff_k_sags.append(ch_sag)
+
+            ch_tgt_vsat = model.vsat_n if i == 0 else model.vsat_b
+            if not is_passive:
+                eff_vsats.append(ch_tgt_vsat)
+            elif ch_tgt_vsat < src_vsat:
+                denom = 1.0 - min(0.85, ch_tgt_vsat / src_vsat) + 0.15
+                eff_vsats.append(ch_tgt_vsat / denom)
+            else:
+                eff_vsats.append(10.0)
+        check_alpha = max(eff_alphas)
+        check_eta = max(eff_eta_hysts)
+        check_sag = max(eff_k_sags)
+        check_vsat = min(eff_vsats)
+    else:
+        eff_alphas = None
+        eff_alpha3s = None
+        eff_eta_hysts = None
+        eff_k_sags = None
+        eff_vsats = None
+        check_alpha = diff_alpha
+        check_eta = diff_eta
+        check_sag = diff_sag
+        check_vsat = eff_vsat
+
+    is_target_more_saturated = (
+        (check_alpha > 0.02)
+        or (check_eta > 0.01)
+        or (check_sag > 0.01)
+        or (check_vsat < src_vsat - 0.03)
+    )
+
+    if is_identity:
+        should_soften = False
+    elif not is_passive:
+        should_soften = True
+    else:
+        should_soften = is_target_more_saturated
+
+    bypass_saturation = not should_soften
 
     prefilter_firs = None
     if not prefiltered:
@@ -1237,7 +1363,7 @@ def simulate_voice(
     else:
         stage_desc = "Circuit Simulation (Pre-filtered Input)"
 
-    print(f"  -> Simulating Native VA ({stage_desc}): {cir_path.name} (Topology: {model.topology}, Source: {inst_id}, Alpha: {voice_alpha}, Alpha3: {voice_alpha3}, Eta: {voice_eta}, Sag: {voice_sag})...")
+    print(f"  -> Simulating Native VA ({stage_desc}): {cir_path.name} (Topology: {model.topology}, Source: {inst_id}, Soften: {should_soften}, Alpha: {diff_alpha:.2f}, Alpha3: {diff_alpha3:.2f}, Eta: {diff_eta:.2f}, Sag: {diff_sag:.2f}, Vsat: {eff_vsat:.2f})...")
     simulate_circuit_audio(
         input_wav,
         output_wav,
@@ -1245,20 +1371,23 @@ def simulate_voice(
         prefilter_firs=prefilter_firs,
         save_intermediate=save_intermediate,
         circuit_curves=diff_curves,
+        bypass_saturation=bypass_saturation,
         is_passive=bypass_saturation,
         normalize=normalize,
         target_dbfs=target_dbfs,
         oversample=oversample,
         displacement_weighting=displacement_weighting,
         magnet_drag=magnet_drag,
-        alpha=voice_alpha,
-        alphas=voice_alphas,
-        alpha3=voice_alpha3,
-        alpha3s=voice_alpha3s,
-        eta_hyst=voice_eta,
-        eta_hysts=voice_eta_hysts,
-        k_sag=voice_sag,
-        k_sags=voice_k_sags,
+        alpha=diff_alpha,
+        alphas=eff_alphas,
+        alpha3=diff_alpha3,
+        alpha3s=eff_alpha3s,
+        eta_hyst=diff_eta,
+        eta_hysts=eff_eta_hysts,
+        k_sag=diff_sag,
+        k_sags=eff_k_sags,
+        vsat=eff_vsat,
+        vsats=eff_vsats,
         dc_block=dc_block,
         max_samples=max_samples,
     )
@@ -1366,12 +1495,13 @@ def main():
     voices = resolve_voices(args.voice)
     in_path = Path(args.input) if args.input else None
     out_path = Path(args.out) if args.out else None
+    prefiltered = args.prefiltered or (in_path is not None and in_path.name.startswith("aperture_"))
 
     sim_kwargs = dict(
         input_wav=in_path,
         output_wav=out_path,
         instrument=args.instrument,
-        prefiltered=args.prefiltered,
+        prefiltered=prefiltered,
         save_intermediate=args.save_intermediate,
         normalize=args.normalize,
         target_dbfs=args.target_dbfs,

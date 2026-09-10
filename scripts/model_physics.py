@@ -839,6 +839,10 @@ def compute_voice_prefilter_firs(voice_id, instrument="30in", src_scale=None, nu
     pickups = resolve_voice_pickups(cfg)
     is_identity = (sensor_type != "bridge_force") and is_voice_matching_source(inst, voice_id, cfg)
 
+    cir_rel = cfg.get("circuit")
+    cir_path = (REPO_ROOT / cir_rel) if cir_rel else None
+    has_multichannel_circuit = bool(cir_path and cir_path.exists() and len(pickups) > 1)
+
     # Resolve branch-matched source coils if source is a composite blend matching target branch count
     src_components = src_pickup.get("components", []) if src_pickup.get("type") == "composite" else []
     use_branch_matching = (len(src_components) == len(pickups) and len(pickups) > 1)
@@ -928,7 +932,7 @@ def compute_voice_prefilter_firs(voice_id, instrument="30in", src_scale=None, nu
             h_hi_tilt = np.sqrt((1.0 + g_hi ** 2 * (freqs / 2200.0) ** 2) / (1.0 + (freqs / 2200.0) ** 2))
             h_tilt = h_low_tilt * h_hi_tilt
 
-        p_weight = p.get("weight", 1.0)
+        p_weight = 1.0 if has_multichannel_circuit else p.get("weight", 1.0)
         p_pol = p.get("polarity", 1.0)
         scale_fac = abs(p_weight * p_pol)
 
