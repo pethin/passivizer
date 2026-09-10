@@ -15,15 +15,15 @@ import subprocess
 import xml.etree.ElementTree as ET
 
 
-def make_pole(x: float, y: float, r: float = 13.0) -> str:
+def make_pole(x: float, y: float, r: float = 11.0) -> str:
     """Generate an anatomically accurate cylindrical Alnico V pole piece with metallic shading."""
     return f"""
     <!-- Pole piece at {x:.1f}, {y:.1f} -->
     <g transform="translate({x:.1f}, {y:.1f})">
-      <circle cx="0" cy="0" r="{r+2.5:.1f}" fill="#080a0f" opacity="0.85"/>
+      <circle cx="0" cy="0" r="{r+2.0:.1f}" fill="#080a0f" opacity="0.85"/>
       <circle cx="0" cy="0" r="{r:.1f}" fill="url(#poleGrad)"/>
       <circle cx="0" cy="0" r="{r-1.5:.1f}" fill="none" stroke="#f8fafc" stroke-width="0.85" opacity="0.75"/>
-      <ellipse cx="-3" cy="-3" rx="{r*0.4:.1f}" ry="{r*0.25:.1f}" fill="#ffffff" opacity="0.65" transform="rotate(-30, -3, -3)"/>
+      <ellipse cx="-2.5" cy="-2.5" rx="{r*0.4:.1f}" ry="{r*0.25:.1f}" fill="#ffffff" opacity="0.65" transform="rotate(-30, -2.5, -2.5)"/>
       <circle cx="0" cy="0" r="{r*0.5:.1f}" fill="none" stroke="#64748b" stroke-width="0.5" opacity="0.5"/>
     </g>
     """
@@ -35,31 +35,42 @@ def make_pbass_half(
     x_strings: tuple[float, float],
     accent: str,
     label: str = "",
+    w: float = 240.0,
+    h: float = 114.0,
 ) -> str:
-    """Generate a bold Precision Bass split bobbin with mounting ears and exactly 4 poles (2 per string)."""
-    w, h, rx = 270.0, 114.0, 16.0
+    """Generate an authentic Precision Bass split bobbin matching EMG/Fender P-bass spec.
+
+    Physical reference (EMG P-Bass CAD drawing):
+    - Bobbin dimensions: 2.250" x 1.100" (57.15mm x 27.94mm) => 240px x 114px (at 19mm / 80px scale)
+    - Corner radius: R .125 (3.17mm) => 13.5px
+    - Mounting screw spacing: 2.450" (62.23mm) center-to-center => 131.0px from center (11.0px past body edge)
+    - Mounting ear radius: R .234 (5.94mm => 25.0px) with center located 1.49mm (6.3px) INSIDE the body edge,
+      producing an authentic 4.45mm (18.7px) protrusion where the mounting hole is offset toward the body.
+    """
+    rx = 13.5
     x = cx - w / 2
     y = cy - h / 2
 
-    ear_w, ear_h = 22.0, 34.0
-    left_ear_x = x - ear_w + 5
-    right_ear_x = x + w - 5
+    # Mounting screw is 62.23mm / 2 = 31.115mm from center => 131.0px (11.0px outside casing)
+    ear_screw_dx = 131.0
+    left_screw_x = cx - ear_screw_dx
+    right_screw_x = cx + ear_screw_dx
 
     s1, s2 = x_strings
-    pole_offset = 18.0
+    pole_offset = 15.0
 
     return f"""
     <!-- P-Bass Bobbin Half at {cx:.1f}, {cy:.1f} ({label}) -->
     <g filter="url(#dropShadow)">
-      <!-- Left Mounting Tab -->
-      <path d="M {x+12:.1f} {cy-17:.1f} L {left_ear_x+8:.1f} {cy-17:.1f} A 12 12 0 0 0 {left_ear_x+8:.1f} {cy+17:.1f} L {x+12:.1f} {cy+17:.1f} Z" fill="url(#coverGrad)" stroke="#222938" stroke-width="1.8"/>
-      <circle cx="{left_ear_x+9:.1f}" cy="{cy:.1f}" r="4.5" fill="#080a0f" stroke="#475569" stroke-width="1"/>
-      <circle cx="{left_ear_x+9:.1f}" cy="{cy:.1f}" r="2" fill="#1e293b"/>
+      <!-- Left Mounting Tab (R=25.0px with center 6.3px inside body at x={x+6.3:.1f}, screw at x={left_screw_x:.1f}) -->
+      <path d="M {x:.1f} {cy - 24.2:.1f} A 25 25 0 0 0 {x:.1f} {cy + 24.2:.1f} Z" fill="url(#coverGrad)" stroke="#222938" stroke-width="1.8"/>
+      <circle cx="{left_screw_x:.1f}" cy="{cy:.1f}" r="4.0" fill="#080a0f" stroke="#475569" stroke-width="1"/>
+      <circle cx="{left_screw_x:.1f}" cy="{cy:.1f}" r="1.8" fill="#1e293b"/>
 
-      <!-- Right Mounting Tab -->
-      <path d="M {x+w-12:.1f} {cy-17:.1f} L {right_ear_x+ear_w-8:.1f} {cy-17:.1f} A 12 12 0 0 1 {right_ear_x+ear_w-8:.1f} {cy+17:.1f} L {x+w-12:.1f} {cy+17:.1f} Z" fill="url(#coverGrad)" stroke="#222938" stroke-width="1.8"/>
-      <circle cx="{right_ear_x+ear_w-9:.1f}" cy="{cy:.1f}" r="4.5" fill="#080a0f" stroke="#475569" stroke-width="1"/>
-      <circle cx="{right_ear_x+ear_w-9:.1f}" cy="{cy:.1f}" r="2" fill="#1e293b"/>
+      <!-- Right Mounting Tab (R=25.0px with center 6.3px inside body at x={x+w-6.3:.1f}, screw at x={right_screw_x:.1f}) -->
+      <path d="M {x + w:.1f} {cy - 24.2:.1f} A 25 25 0 0 1 {x + w:.1f} {cy + 24.2:.1f} Z" fill="url(#coverGrad)" stroke="#222938" stroke-width="1.8"/>
+      <circle cx="{right_screw_x:.1f}" cy="{cy:.1f}" r="4.0" fill="#080a0f" stroke="#475569" stroke-width="1"/>
+      <circle cx="{right_screw_x:.1f}" cy="{cy:.1f}" r="1.8" fill="#1e293b"/>
 
       <!-- Main Bobbin Casing -->
       <rect x="{x:.1f}" y="{y:.1f}" width="{w:.1f}" height="{h:.1f}" rx="{rx:.1f}" fill="url(#coverGrad)" stroke="#334155" stroke-width="1.8"/>
@@ -83,32 +94,41 @@ def make_jbass_pickup(
     cy: float,
     x_strings: list[float],
     accent: str,
-    w: float = 530.0,
-    h: float = 76.0,
+    w: float = 396.0,
+    h: float = 78.0,
     label: str = "",
 ) -> str:
-    """Generate a Jazz Bass single-coil pickup with mounting tabs and exactly 8 poles (4 pairs of 2)."""
-    rx = 12.0
+    """Generate a Jazz Bass single-coil pickup with authentic EMG/Fender Long-J geometry (39.6mm ear spacing)."""
+    rx = 10.0
     x = cx - w / 2
     y = cy - h / 2
-    pole_offset = 16.0
+    pole_offset = 15.0
+
+    # Authentic ear spacing from EMG Long J Housing spec: 1.560" (39.6mm) center-to-center => 83.4px from center
+    ear_dx = 83.4
+    left_ear_x = cx - ear_dx
+    right_ear_x = cx + ear_dx
 
     return f"""
     <!-- Jazz Bass Bobbin at {cx:.1f}, {cy:.1f} ({label}) -->
     <g filter="url(#dropShadow)">
-      <!-- Left Mounting Tab Pair -->
-      <path d="M {cx - 160:.1f} {y:.1f} L {cx - 160:.1f} {y - 14:.1f} A 7 7 0 0 1 {cx - 140:.1f} {y - 14:.1f} L {cx - 140:.1f} {y:.1f} Z" fill="url(#coverGrad)" stroke="#222938" stroke-width="1.5"/>
-      <circle cx="{cx - 150:.1f}" cy="{y - 7:.1f}" r="3" fill="#080a0f" stroke="#475569" stroke-width="0.8"/>
+      <!-- Left Mounting Tab Pair (between E & A strings, centered at {left_ear_x:.1f}) -->
+      <path d="M {left_ear_x - 21:.1f} {y:.1f} A 26.7 26.7 0 0 1 {left_ear_x + 21:.1f} {y:.1f} Z" fill="url(#coverGrad)" stroke="#222938" stroke-width="1.5"/>
+      <circle cx="{left_ear_x:.1f}" cy="{y - 4.5:.1f}" r="3.2" fill="#080a0f" stroke="#475569" stroke-width="0.8"/>
+      <circle cx="{left_ear_x:.1f}" cy="{y - 4.5:.1f}" r="1.4" fill="#1e293b"/>
       
-      <path d="M {cx - 160:.1f} {y + h:.1f} L {cx - 160:.1f} {y + h + 14:.1f} A 7 7 0 0 0 {cx - 140:.1f} {y + h + 14:.1f} L {cx - 140:.1f} {y + h:.1f} Z" fill="url(#coverGrad)" stroke="#222938" stroke-width="1.5"/>
-      <circle cx="{cx - 150:.1f}" cy="{y + h + 7:.1f}" r="3" fill="#080a0f" stroke="#475569" stroke-width="0.8"/>
+      <path d="M {left_ear_x - 21:.1f} {y + h:.1f} A 26.7 26.7 0 0 0 {left_ear_x + 21:.1f} {y + h:.1f} Z" fill="url(#coverGrad)" stroke="#222938" stroke-width="1.5"/>
+      <circle cx="{left_ear_x:.1f}" cy="{y + h + 4.5:.1f}" r="3.2" fill="#080a0f" stroke="#475569" stroke-width="0.8"/>
+      <circle cx="{left_ear_x:.1f}" cy="{y + h + 4.5:.1f}" r="1.4" fill="#1e293b"/>
 
-      <!-- Right Mounting Tab Pair -->
-      <path d="M {cx + 140:.1f} {y:.1f} L {cx + 140:.1f} {y - 14:.1f} A 7 7 0 0 1 {cx + 160:.1f} {y - 14:.1f} L {cx + 160:.1f} {y:.1f} Z" fill="url(#coverGrad)" stroke="#222938" stroke-width="1.5"/>
-      <circle cx="{cx + 150:.1f}" cy="{y - 7:.1f}" r="3" fill="#080a0f" stroke="#475569" stroke-width="0.8"/>
+      <!-- Right Mounting Tab Pair (between D & G strings, centered at {right_ear_x:.1f}) -->
+      <path d="M {right_ear_x - 21:.1f} {y:.1f} A 26.7 26.7 0 0 1 {right_ear_x + 21:.1f} {y:.1f} Z" fill="url(#coverGrad)" stroke="#222938" stroke-width="1.5"/>
+      <circle cx="{right_ear_x:.1f}" cy="{y - 4.5:.1f}" r="3.2" fill="#080a0f" stroke="#475569" stroke-width="0.8"/>
+      <circle cx="{right_ear_x:.1f}" cy="{y - 4.5:.1f}" r="1.4" fill="#1e293b"/>
       
-      <path d="M {cx + 140:.1f} {y + h:.1f} L {cx + 140:.1f} {y + h + 14:.1f} A 7 7 0 0 0 {cx + 160:.1f} {y + h + 14:.1f} L {cx + 160:.1f} {y + h:.1f} Z" fill="url(#coverGrad)" stroke="#222938" stroke-width="1.5"/>
-      <circle cx="{cx + 150:.1f}" cy="{y + h + 7:.1f}" r="3" fill="#080a0f" stroke="#475569" stroke-width="0.8"/>
+      <path d="M {right_ear_x - 21:.1f} {y + h:.1f} A 26.7 26.7 0 0 0 {right_ear_x + 21:.1f} {y + h:.1f} Z" fill="url(#coverGrad)" stroke="#222938" stroke-width="1.5"/>
+      <circle cx="{right_ear_x:.1f}" cy="{y + h + 4.5:.1f}" r="3.2" fill="#080a0f" stroke="#475569" stroke-width="0.8"/>
+      <circle cx="{right_ear_x:.1f}" cy="{y + h + 4.5:.1f}" r="1.4" fill="#1e293b"/>
 
       <!-- Main Bobbin Casing -->
       <rect x="{x:.1f}" y="{y:.1f}" width="{w:.1f}" height="{h:.1f}" rx="{rx:.1f}" fill="url(#coverGrad)" stroke="#334155" stroke-width="1.8"/>
@@ -133,7 +153,7 @@ def make_jbass_pickup(
 
 def generate_pack_svg(model_key: str) -> str:
     """Generate pristine standalone SVG for a Tone3000 Tone Pack edition."""
-    strings = [420.0, 540.0, 660.0, 780.0]  # E, A, D, G string axes
+    strings = [480.0, 560.0, 640.0, 720.0]  # E, A, D, G string axes (80px / 19mm scale)
 
     configs = {
         "precision": {
@@ -147,27 +167,27 @@ def generate_pack_svg(model_key: str) -> str:
             "content": lambda acc: f"""
                 <!-- Background Flux Lines -->
                 <g fill="none" stroke="{acc}" stroke-opacity="0.14" stroke-width="1.2">
-                  <ellipse cx="480" cy="480" rx="160" ry="90"/>
-                  <ellipse cx="480" cy="480" rx="230" ry="135" stroke-dasharray="8 6"/>
-                  <ellipse cx="720" cy="594" rx="160" ry="90"/>
-                  <ellipse cx="720" cy="594" rx="230" ry="135" stroke-dasharray="8 6"/>
+                  <ellipse cx="520" cy="480" rx="145" ry="80"/>
+                  <ellipse cx="520" cy="480" rx="205" ry="115" stroke-dasharray="8 6"/>
+                  <ellipse cx="680" cy="594" rx="145" ry="80"/>
+                  <ellipse cx="680" cy="594" rx="205" ry="115" stroke-dasharray="8 6"/>
                 </g>
                 <!-- RLC Inductance Curve -->
-                <path d="M 160 760 Q 320 755 480 730 T 660 610 T 780 735 T 1040 805" fill="none" stroke="{acc}" stroke-opacity="0.22" stroke-width="2.5" stroke-dasharray="6 6"/>
-                <!-- P-Bass Split Coils (EA at 480, DG at 594: Exactly 0.0px vertical gap, flush alignment) -->
-                {make_pbass_half(480, 480, (strings[0], strings[1]), acc, "BASS E/A")}
-                {make_pbass_half(720, 594, (strings[2], strings[3]), acc, "TREBLE D/G")}
+                <path d="M 160 760 Q 340 755 520 725 T 640 605 T 760 725 T 1040 805" fill="none" stroke="{acc}" stroke-opacity="0.22" stroke-width="2.5" stroke-dasharray="6 6"/>
+                <!-- P-Bass Split Coils (EA at 520, DG at 680: Exactly 0.0px vertical gap, flush alignment) -->
+                {make_pbass_half(520, 480, (strings[0], strings[1]), acc, "BASS E/A")}
+                {make_pbass_half(680, 594, (strings[2], strings[3]), acc, "TREBLE D/G")}
                 <!-- Datum labels (Word-wrapped and safely placed within margins >= 130px) -->
                 <g font-family="system-ui, -apple-system, sans-serif" fill="#cbd5e1" font-weight="800" letter-spacing="1">
                   <!-- Left Datum -->
                   <text x="130" y="472" font-size="14">SPLIT-P COIL</text>
                   <text x="130" y="492" font-size="12" fill="#94a3b8" font-weight="600">125mm BRIDGE DATUM</text>
-                  <line x1="130" y1="502" x2="330" y2="502" stroke="#334155" stroke-dasharray="3 3" stroke-width="1"/>
+                  <line x1="130" y1="502" x2="365" y2="502" stroke="#334155" stroke-dasharray="3 3" stroke-width="1"/>
 
                   <!-- Right Datum -->
                   <text x="1070" y="586" text-anchor="end" font-size="14">DUAL-DATUM SPLIT</text>
                   <text x="1070" y="606" text-anchor="end" font-size="12" fill="#94a3b8" font-weight="600">REVERSE-COIL OFFSET</text>
-                  <line x1="870" y1="616" x2="1070" y2="616" stroke="#334155" stroke-dasharray="3 3" stroke-width="1"/>
+                  <line x1="835" y1="616" x2="1070" y2="616" stroke="#334155" stroke-dasharray="3 3" stroke-width="1"/>
                 </g>
             """,
         },
@@ -182,28 +202,31 @@ def generate_pack_svg(model_key: str) -> str:
             "content": lambda acc: f"""
                 <!-- Background Flux Lines -->
                 <g fill="none" stroke="{acc}" stroke-opacity="0.14" stroke-width="1.2">
-                  <ellipse cx="600" cy="430" rx="300" ry="85"/>
-                  <ellipse cx="600" cy="430" rx="380" ry="120" stroke-dasharray="8 6"/>
-                  <ellipse cx="600" cy="665" rx="300" ry="85"/>
-                  <ellipse cx="600" cy="665" rx="380" ry="120" stroke-dasharray="8 6"/>
+                  <ellipse cx="600" cy="430" rx="230" ry="70"/>
+                  <ellipse cx="600" cy="430" rx="300" ry="100" stroke-dasharray="8 6"/>
+                  <ellipse cx="600" cy="665" rx="230" ry="70"/>
+                  <ellipse cx="600" cy="665" rx="300" ry="100" stroke-dasharray="8 6"/>
                 </g>
                 <!-- RLC Inductance Curve -->
-                <path d="M 160 760 Q 340 755 500 710 T 680 580 T 800 720 T 1040 805" fill="none" stroke="{acc}" stroke-opacity="0.22" stroke-width="2.5" stroke-dasharray="6 6"/>
+                <path d="M 160 760 Q 360 755 500 710 T 660 585 T 780 715 T 1040 805" fill="none" stroke="{acc}" stroke-opacity="0.22" stroke-width="2.5" stroke-dasharray="6 6"/>
                 <!-- Neck and Bridge J Pickups (Vertical clearance = 159px) -->
-                {make_jbass_pickup(600, 430, strings, acc, w=510, h=76, label="NECK PICKUP")}
-                {make_jbass_pickup(600, 665, strings, acc, w=530, h=76, label="BRIDGE PICKUP")}
+                {make_jbass_pickup(600, 430, strings, acc, w=385, h=78, label="NECK PICKUP")}
+                {make_jbass_pickup(600, 665, strings, acc, w=396, h=78, label="BRIDGE PICKUP")}
                 <!-- Datum labels (Word-wrapped and safely placed within margins >= 130px) -->
                 <g font-family="system-ui, -apple-system, sans-serif" fill="#cbd5e1" font-weight="800" letter-spacing="1">
                   <!-- Left Datums -->
                   <text x="130" y="422" font-size="14">NECK COIL</text>
                   <text x="130" y="442" font-size="12" fill="#94a3b8" font-weight="600">155.6mm DATUM</text>
-                  
+                  <line x1="130" y1="452" x2="375" y2="452" stroke="#334155" stroke-dasharray="3 3" stroke-width="1"/>
+
                   <text x="130" y="657" font-size="14">BRIDGE COIL</text>
                   <text x="130" y="677" font-size="12" fill="#94a3b8" font-weight="600">63.5mm DATUM</text>
+                  <line x1="130" y1="687" x2="365" y2="687" stroke="#334155" stroke-dasharray="3 3" stroke-width="1"/>
 
                   <!-- Right Datum -->
                   <text x="1070" y="540" text-anchor="end" font-size="14">PARALLEL SUMMATION</text>
                   <text x="1070" y="560" text-anchor="end" font-size="12" fill="#94a3b8" font-weight="600">HUM-CANCELLATION COMB</text>
+                  <line x1="835" y1="570" x2="1070" y2="570" stroke="#334155" stroke-dasharray="3 3" stroke-width="1"/>
                 </g>
             """,
         },
@@ -218,30 +241,33 @@ def generate_pack_svg(model_key: str) -> str:
             "content": lambda acc: f"""
                 <!-- Background Flux Lines -->
                 <g fill="none" stroke="{acc}" stroke-opacity="0.14" stroke-width="1.2">
-                  <ellipse cx="480" cy="410" rx="150" ry="75"/>
-                  <ellipse cx="720" cy="524" rx="150" ry="75"/>
-                  <ellipse cx="600" cy="690" rx="280" ry="75"/>
-                  <ellipse cx="600" cy="690" rx="360" ry="110" stroke-dasharray="8 6"/>
+                  <ellipse cx="520" cy="410" rx="135" ry="70"/>
+                  <ellipse cx="680" cy="524" rx="135" ry="70"/>
+                  <ellipse cx="600" cy="690" rx="230" ry="65"/>
+                  <ellipse cx="600" cy="690" rx="300" ry="95" stroke-dasharray="8 6"/>
                 </g>
                 <!-- RLC Inductance Curve -->
-                <path d="M 160 760 Q 320 755 480 720 T 640 590 T 780 710 T 1040 805" fill="none" stroke="{acc}" stroke-opacity="0.22" stroke-width="2.5" stroke-dasharray="6 6"/>
-                <!-- Split-P at Neck (EA at 410, DG at 524: Exactly 0.0px vertical gap, flush alignment) -->
-                {make_pbass_half(480, 410, (strings[0], strings[1]), acc, "P-BASS EA")}
-                {make_pbass_half(720, 524, (strings[2], strings[3]), acc, "P-BASS DG")}
+                <path d="M 160 760 Q 340 755 500 720 T 640 590 T 760 715 T 1040 805" fill="none" stroke="{acc}" stroke-opacity="0.22" stroke-width="2.5" stroke-dasharray="6 6"/>
+                <!-- Split-P at Neck (EA at 520, DG at 680: Exactly 0.0px vertical gap, flush alignment) -->
+                {make_pbass_half(520, 410, (strings[0], strings[1]), acc, "P-BASS EA")}
+                {make_pbass_half(680, 524, (strings[2], strings[3]), acc, "P-BASS DG")}
                 <!-- Jazz Pickup at Bridge (y=690: 72px vertical clearance below DG) -->
-                {make_jbass_pickup(600, 690, strings, acc, w=530, h=74, label="J-BRIDGE")}
+                {make_jbass_pickup(600, 690, strings, acc, w=396, h=78, label="J-BRIDGE")}
                 <!-- Datum labels (Word-wrapped and safely placed within margins >= 130px) -->
                 <g font-family="system-ui, -apple-system, sans-serif" fill="#cbd5e1" font-weight="800" letter-spacing="1">
                   <!-- Left Datums -->
                   <text x="130" y="402" font-size="14">SPLIT-P COIL</text>
                   <text x="130" y="422" font-size="12" fill="#94a3b8" font-weight="600">125mm DATUM</text>
+                  <line x1="130" y1="432" x2="365" y2="432" stroke="#334155" stroke-dasharray="3 3" stroke-width="1"/>
 
                   <text x="130" y="682" font-size="14">J-BRIDGE COIL</text>
                   <text x="130" y="702" font-size="12" fill="#94a3b8" font-weight="600">63.5mm DATUM</text>
+                  <line x1="130" y1="712" x2="365" y2="712" stroke="#334155" stroke-dasharray="3 3" stroke-width="1"/>
 
                   <!-- Right Datum -->
                   <text x="1070" y="540" text-anchor="end" font-size="14">BLEND MATRIX</text>
                   <text x="1070" y="560" text-anchor="end" font-size="12" fill="#94a3b8" font-weight="600">DUAL-TOPOLOGY SUM</text>
+                  <line x1="835" y1="570" x2="1070" y2="570" stroke="#334155" stroke-dasharray="3 3" stroke-width="1"/>
                 </g>
             """,
         },
@@ -261,30 +287,33 @@ def generate_pack_svg(model_key: str) -> str:
                 </g>
                 <!-- Background Flux Lines -->
                 <g fill="none" stroke="{acc}" stroke-opacity="0.14" stroke-width="1.2">
-                  <ellipse cx="480" cy="410" rx="150" ry="75"/>
-                  <ellipse cx="720" cy="524" rx="150" ry="75"/>
-                  <ellipse cx="600" cy="690" rx="280" ry="75"/>
-                  <ellipse cx="600" cy="690" rx="360" ry="110" stroke-dasharray="8 6"/>
+                  <ellipse cx="520" cy="410" rx="135" ry="70"/>
+                  <ellipse cx="680" cy="524" rx="135" ry="70"/>
+                  <ellipse cx="600" cy="690" rx="230" ry="65"/>
+                  <ellipse cx="600" cy="690" rx="300" ry="95" stroke-dasharray="8 6"/>
                 </g>
                 <!-- RLC Inductance Curve -->
-                <path d="M 160 760 Q 300 755 450 710 T 620 570 T 760 705 T 1040 805" fill="none" stroke="{acc}" stroke-opacity="0.22" stroke-width="2.5" stroke-dasharray="6 6"/>
-                <!-- Split-P at Neck (EA at 410, DG at 524: Exactly 0.0px vertical gap, flush alignment) -->
-                {make_pbass_half(480, 410, (strings[0], strings[1]), acc, "MUSTANG P-EA")}
-                {make_pbass_half(720, 524, (strings[2], strings[3]), acc, "MUSTANG P-DG")}
+                <path d="M 160 760 Q 320 755 480 710 T 620 575 T 740 705 T 1040 805" fill="none" stroke="{acc}" stroke-opacity="0.22" stroke-width="2.5" stroke-dasharray="6 6"/>
+                <!-- Split-P at Neck (EA at 520, DG at 680: Exactly 0.0px vertical gap, flush alignment) -->
+                {make_pbass_half(520, 410, (strings[0], strings[1]), acc, "MUSTANG P-EA")}
+                {make_pbass_half(680, 524, (strings[2], strings[3]), acc, "MUSTANG P-DG")}
                 <!-- Jazz Pickup at Bridge (y=690: 72px vertical clearance below DG) -->
-                {make_jbass_pickup(600, 690, strings, acc, w=530, h=74, label="MUSTANG J-BRIDGE")}
+                {make_jbass_pickup(600, 690, strings, acc, w=396, h=78, label="MUSTANG J-BRIDGE")}
                 <!-- Datum labels (Word-wrapped and safely placed within margins >= 130px) -->
                 <g font-family="system-ui, -apple-system, sans-serif" fill="#cbd5e1" font-weight="800" letter-spacing="1">
                   <!-- Left Datums -->
                   <text x="130" y="402" font-size="14">30&quot; MUSTANG P</text>
                   <text x="130" y="422" font-size="12" fill="#94a3b8" font-weight="600">110mm DATUM</text>
+                  <line x1="130" y1="432" x2="365" y2="432" stroke="#334155" stroke-dasharray="3 3" stroke-width="1"/>
 
                   <text x="130" y="682" font-size="14">J-BRIDGE COIL</text>
                   <text x="130" y="702" font-size="12" fill="#94a3b8" font-weight="600">56mm DATUM</text>
+                  <line x1="130" y1="712" x2="365" y2="712" stroke="#334155" stroke-dasharray="3 3" stroke-width="1"/>
 
                   <!-- Right Datum -->
                   <text x="1070" y="540" text-anchor="end" font-size="14">30&quot; SHORT SCALE</text>
                   <text x="1070" y="560" text-anchor="end" font-size="12" fill="#94a3b8" font-weight="600">LOW-TENSION BLOOM</text>
+                  <line x1="835" y1="570" x2="1070" y2="570" stroke="#334155" stroke-dasharray="3 3" stroke-width="1"/>
                 </g>
             """,
         },
