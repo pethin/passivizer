@@ -520,6 +520,44 @@ def test_alternate_tunings_dispersion_and_split_coil():
     fwd_coil_resp = numpy_pickup_acoustic_response(freqs, [split_p_coils[0]], [63.42])
     assert np.allclose(single_string_0_d, fwd_coil_resp, rtol=1e-4)
 
+def test_body_microphonic_coupling():
+    """Verify mechanical body-pickup microphonic coupling physics and differential scaling."""
+    from scripts.model_physics import compute_body_microphonic_coupling, FREQS
+
+    freqs = np.asarray(FREQS, dtype=np.float64)
+
+    # 1. Active EMG source to Vintage Alnico V target: Δk_body = 0.08 - 0.0 = 0.08
+    src_pickup_active = {"magnet_type": "active"}
+    tgt_voice_alnico5 = {"magnet_type": "alnico_v"}
+    h_body = compute_body_microphonic_coupling(freqs, src_pickup_active, tgt_voice_alnico5)
+
+    assert len(h_body) == len(freqs)
+    assert np.all(np.isfinite(h_body))
+    # DC and sub-audible must be exactly 1.0 (0.0 dB)
+    assert math.isclose(h_body[0], 1.0, rel_tol=1e-5)
+    # Peak must occur near 6.2 kHz
+    peak_idx = int(np.argmax(h_body))
+    peak_freq = freqs[peak_idx]
+    assert 5500.0 <= peak_freq <= 6800.0
+    # Boost should be subtle (+0.4 to +0.55 dB)
+    peak_db = 20.0 * np.log10(h_body[peak_idx])
+    assert 0.35 <= peak_db <= 0.55
+    # Ultrasonic damping: above 15 kHz, curve smoothly rolls back toward 1.0
+    idx_18k = int(np.argmin(np.abs(freqs - 18000.0)))
+    assert 20.0 * np.log10(h_body[idx_18k]) < 0.15
+
+    # 2. Matching passive source (Alnico V to Alnico V): Δk_body = 0.0 -> exact identity
+    src_alnico5 = {"magnet_type": "alnico_v"}
+    h_body_id = compute_body_microphonic_coupling(freqs, src_alnico5, tgt_voice_alnico5)
+    assert np.allclose(h_body_id, 1.0, atol=1e-12)
+
+    # 3. Active-to-active: exact identity
+    src_active = {"magnet_type": "active"}
+    tgt_active = {"magnet_type": "active"}
+    h_body_active = compute_body_microphonic_coupling(freqs, src_active, tgt_active)
+    assert np.allclose(h_body_active, 1.0, atol=1e-12)
+
+
 
 
 

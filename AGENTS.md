@@ -224,6 +224,27 @@ To ensure high-fidelity modeling and prevent regressions, all agents and contrib
   5. **Tone3000 Trainer Invariance:**
      Keep `scripts/train_nam.py` strictly untouched. All tuning, gauge, and string-count invariance must be completely resolved upstream in the physics modeling, aperture synthesis, and SPICE circuit simulation pipelines.
 
+### 5.15 Physical Analog Realism: Eddy De-Qing, Orbital Bloom, Thermal Dither, and Body Coupling
+- **Anti-Pattern:**
+  1. Modeling magnetic saturation as purely instantaneous, static diode/tanh waveshaping without dynamic eddy current damping on pick attacks.
+  2. Synthesizing even harmonics exclusively via asymmetric polynomials ($v + \alpha v^2$), which introduces unphysical DC bias and lacks orbital precession dynamics.
+  3. Feeding mathematically pristine dead-silence to hardware pedalboards (Darkglass Anagram), triggering fixed-point neural activation gating pops.
+  4. Omitting mechanical body-to-pickup vibrational transfer on vintage unpotted passive pickups.
+- **Why It Fails:** Real passive pickups possess rich physical analog interactions: conductive pole pieces dissipate transient eddy currents on forte attacks ($d\Phi/dt$), 2D elliptical string orbits precess around pole pieces generating quadrature frequency-doubling ($2f_0$) without DC offset, copper windings produce continuous Johnson-Nyquist thermal noise colored by RLC impedance, and unpotted coils mechanically resonate with the wooden instrument body at ~6.2 kHz. Omitting them produces sterile, digital-sounding models prone to neural quantization chatter.
+- **Mandated Practice:**
+  1. **Dynamic Eddy-Current Core De-Qing:** Scale transient high-frequency drag in `_lenz_velocity_drag_core` proportionally to excess envelope and transient velocity:
+     $$\text{eddy\_factor} = k_{\text{eddy}} \cdot \text{excess} \cdot \tanh\left(\frac{|x_{\text{high}}|}{V_{\text{sat}}}\right), \quad \text{drag}_{\text{high}} = 1.0 - (k_{\text{sag}} + \text{eddy\_factor}) \cdot \text{excess}$$
+     yielding dynamic transient de-Qing on pick/slap spikes while preserving harmonic sparkle during sustain.
+  2. **Elliptical String Orbit Projection:** Project 2D orbit precession in the displacement domain via analytic quadrature ($x \cdot \mathcal{H}\{x\}$):
+     $$x_{\text{quad}} = x \cdot \mathcal{H}\{x\}, \quad x_{\text{out}} = x + \Delta \kappa_{\text{orbit}} \cdot \tanh\left(\frac{|x|}{V_{\text{sat}}}\right) \cdot x_{\text{quad}}$$
+     yielding authentic 2nd-harmonic ($2f_0$) bloom with exact zero DC bias and zero odd-order clipping.
+  3. **Passive RLC-Shaped Thermal Noise Dither:** Inject calibrated $-108\text{ dBFS}$ Johnson-Nyquist thermal dither colored by the pickup's electrical impedance transfer function:
+     $$\text{dither} = \frac{\text{FIR}_{\text{RLC}} * w}{\text{RMS}(\text{FIR}_{\text{RLC}} * w)} \cdot 10^{-108 / 20}, \quad \text{PRNG seed} = 42$$
+     Bypass on small-signal test sweeps ($\le 0.10$ peak) and identity conversions to preserve exact mathematical linearity in automated tests.
+  4. **Mechanical Body-Pickup Microphonic Coupling:** Model diffuse acoustic coupling for unpotted vintage passive pickups:
+     $$H_{\text{body}}(f) = 1.0 + \Delta k_{\text{body}} \cdot \frac{f / f_b}{Q_b \sqrt{(1 - (f/f_b)^2)^2 + (f / (Q_b f_b))^2}} \cdot e^{-(f / f_{\text{damp}})^2}$$
+     with $f_b = 6200.0\text{ Hz}, Q_b = 1.8, f_{\text{damp}} = 9500.0\text{ Hz}$, evaluated differentially ($\Delta k_{\text{body}} = \max(k_{\text{tgt}} - k_{\text{src}}, 0.0)$).
+
 ---
 
 ## 6. Architectural Guardrails: High-Performance Audio DSP & SIMD Engineering

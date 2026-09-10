@@ -1540,6 +1540,103 @@ def test_frequency_selective_lenz_velocity_drag():
     out_small = apply_oversampled_saturation(small_sig, vsat=0.4, k_sag=0.20)
     assert np.allclose(small_sig, out_small, atol=1e-6)
 
+def test_dynamic_eddy_de_qing():
+    """Verify dynamic eddy-current transient core de-Qing physics."""
+    from scripts.simulate_circuits import _lenz_velocity_drag_core
+
+    fs = 48000
+    n = 2400
+    # High-frequency transient clank on forte attack
+    x = np.sin(2 * np.pi * 3500.0 * np.linspace(0, n / fs, n)) * 0.8
+    env = np.full(n, 0.8)  # Forte excursion above vsat=0.45
+    alpha_c = 1.0 - math.exp(-2.0 * math.pi * 750.0 / fs)
+
+    # Low eddy (ceramic / modern active) vs high eddy (vintage Alnico V)
+    out_no_eddy = _lenz_velocity_drag_core(x, env, vsat=0.45, k_sag=0.08, alpha_c=alpha_c, k_eddy=0.0)
+    out_with_eddy = _lenz_velocity_drag_core(x, env, vsat=0.45, k_sag=0.08, alpha_c=alpha_c, k_eddy=0.16)
+
+    rms_no = np.sqrt(np.mean(out_no_eddy ** 2))
+    rms_with = np.sqrt(np.mean(out_with_eddy ** 2))
+
+    # Eddy current de-Qing must add transient damping to the peak attack
+    assert rms_with < rms_no
+    damping_db = 20.0 * np.log10(rms_no / rms_with)
+    assert 0.4 <= damping_db <= 2.5
+
+def test_elliptical_orbit_projection():
+    """Verify elliptical string orbit quadrature second-harmonic (2f0) projection."""
+    from scripts.simulate_circuits import apply_elliptical_orbit_projection
+
+    fs = 48000
+    n = 24000
+    t = np.linspace(0, n / fs, n, endpoint=False)
+    sine = (0.5 * np.sin(2 * np.pi * 100.0 * t)).astype(np.float64)
+
+    # 1. kappa_orbit == 0 must return input untouched
+    out_zero = apply_elliptical_orbit_projection(sine, vsat=0.5, kappa_orbit=0.0)
+    assert np.allclose(out_zero, sine, atol=1e-12)
+
+    # 2. Realistic Alnico V orbit projection (kappa = 0.06)
+    out_orbit = apply_elliptical_orbit_projection(sine, vsat=0.5, kappa_orbit=0.06)
+
+    # DC offset must be zero
+    assert abs(np.mean(out_orbit)) < 1e-6
+
+    # 2f0 harmonic (200 Hz) must emerge in the spectrum
+    fft_in = np.abs(np.fft.rfft(sine))
+    fft_out = np.abs(np.fft.rfft(out_orbit))
+    f_bins = np.fft.rfftfreq(n, 1.0 / fs)
+    idx_100 = np.argmin(np.abs(f_bins - 100.0))
+    idx_200 = np.argmin(np.abs(f_bins - 200.0))
+
+    # In input sine, 200 Hz has near-zero energy
+    assert fft_in[idx_200] / fft_in[idx_100] < 1e-4
+    # In orbit projected output, authentic 2f0 bloom is present at approx -40 to -50 dB
+    h2_ratio = fft_out[idx_200] / fft_out[idx_100]
+    h2_db = 20.0 * np.log10(h2_ratio)
+    assert -52.0 <= h2_db <= -36.0
+
+def test_passive_rlc_thermal_noise_dither():
+    """Verify passive RLC-shaped -108 dBFS thermal noise dither and reproducibility."""
+    import pedalboard.io
+    from scripts.simulate_circuits import simulate_circuit_audio, CircuitModel
+
+    fs = 48000
+    model = CircuitModel()
+    model.L = 4.8
+    model.Rdc = 9500.0
+    model.Ccoil = 80e-12
+
+    # Synthesize test input sweep above 0.10 peak
+    t = np.linspace(0, 0.5, int(fs * 0.5), endpoint=False)
+    sweep = (0.5 * np.sin(2 * np.pi * 120.0 * t)).astype(np.float32)
+
+    with tempfile.TemporaryDirectory() as td:
+        out1 = Path(td) / "dither1.wav"
+        out2 = Path(td) / "dither2.wav"
+        out_nodither = Path(td) / "nodither.wav"
+
+        # 1. Deterministic reproducibility across multiple calls
+        simulate_circuit_audio(sweep, out1, model, noise_dither=True, is_identity=False, normalize="none")
+        simulate_circuit_audio(sweep, out2, model, noise_dither=True, is_identity=False, normalize="none")
+
+        with open(out1, "rb") as f1, open(out2, "rb") as f2:
+            assert f1.read() == f2.read(), "Thermal noise dither must be bit-exact reproducible with PRNG seed 42"
+
+        # 2. Dither difference from clean un-dithered output
+        simulate_circuit_audio(sweep, out_nodither, model, noise_dither=False, is_identity=False, normalize="none")
+        with pedalboard.io.AudioFile(str(out1)) as f:
+            a_dither = f.read(f.frames)[0]
+        with pedalboard.io.AudioFile(str(out_nodither)) as f:
+            a_clean = f.read(f.frames)[0]
+
+        diff = a_dither - a_clean
+        diff_rms = np.sqrt(np.mean(diff ** 2))
+        diff_rms_db = 20.0 * math.log10(diff_rms)
+        # Injected noise should be calibrated around -108 dBFS (within 2.0 dB)
+        assert abs(diff_rms_db - (-108.0)) < 2.0
+
+
 
 
 

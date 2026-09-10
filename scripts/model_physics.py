@@ -294,6 +294,51 @@ def compute_differential_string_transfer(freqs, src_string, tgt_string):
 
     return h_damp_ratio * h_bloom
 
+BODY_COUPLING_PROPERTIES = {
+    "alnico_v": 0.08,
+    "alnico_ii": 0.10,
+    "ceramic": 0.03,
+    "ceramic_alnico_hybrid": 0.05,
+    "hybrid": 0.05,
+    "neodymium": 0.01,
+    "piezo": 0.00,
+    "active": 0.00,
+}
+
+def compute_body_microphonic_coupling(freqs, src_pickup, tgt_voice, inst=None):
+    """
+    Computes diffuse mechanical body-pickup microphonic coupling transfer curve.
+    Unpotted and lightly potted vintage passive pickups exhibit subtle mechanical
+    coupling to body vibrations around 6.2 kHz, damped above 9.5 kHz.
+    Active epoxy-potted and sealed modern pickups have near-zero microphonic coupling.
+    Evaluated differentially: Δk_body = max(k_tgt - k_src, 0.0).
+    """
+    freqs = np.asarray(freqs, dtype=np.float64)
+    if inst is not None and inst.get("electronics") == "active":
+        src_mag = "active"
+    else:
+        src_mag = src_pickup.get("magnet_type", src_pickup.get("magnet", "active"))
+
+    tgt_mag = tgt_voice.get("magnet_type", tgt_voice.get("magnet", "alnico_v"))
+
+    k_src = BODY_COUPLING_PROPERTIES.get(src_mag, 0.0)
+    k_tgt = BODY_COUPLING_PROPERTIES.get(tgt_mag, BODY_COUPLING_PROPERTIES["alnico_v"])
+
+    delta_k = max(k_tgt - k_src, 0.0)
+    if delta_k <= 0.0:
+        return np.ones_like(freqs)
+
+    fb = 6200.0
+    Qb = 1.8
+    fdamp = 9500.0
+
+    fn = freqs / fb
+    denom = Qb * np.sqrt((1.0 - fn ** 2) ** 2 + (fn / Qb) ** 2)
+    resonance = np.where(freqs > 10.0, fn / np.maximum(denom, 1e-9), 0.0)
+    damping = np.exp(-((freqs / fdamp) ** 2))
+
+    return 1.0 + delta_k * resonance * damping
+
 # Global registries initialized from modular configuration files
 SCALES = load_scales()
 VOICES = load_voices_config()
@@ -1159,7 +1204,8 @@ def compute_voice_prefilter_firs(voice_id, instrument="30in", src_scale=None, nu
             h_str_diff = np.ones_like(freqs)
 
         h_scale_tension = np.ones_like(freqs) if is_identity else h_tension
-        prefilter_curve = scale_fac * h_acoustic_transfer * h_elec_inv * h_tilt * h_scale_tension * h_str_diff
+        h_body = np.ones_like(freqs) if is_identity else compute_body_microphonic_coupling(freqs, src_pickup, cfg, inst=inst)
+        prefilter_curve = scale_fac * h_acoustic_transfer * h_elec_inv * h_tilt * h_scale_tension * h_str_diff * h_body
         fir_raw = synthesize_minimum_phase_fir(prefilter_curve, num_taps=num_taps, normalize=False)
 
         # Spatial acoustic wave propagation delay for multi-pickup configurations
@@ -1309,7 +1355,8 @@ def compute_aperture_prefilter_fir(voice_id, instrument="30in", src_scale=None, 
     is_passive = (inst.get("electronics") == "passive")
     h_elec_inv = np.ones_like(freqs) if (is_identity or is_passive or has_src_circuit) else resolve_pickup_electrical_deconvolution_np(freqs, src_pickup, inst)
 
-    prefilter_curve = h_acoustic_transfer * h_elec_inv * h_tilt * h_tension * h_str_diff
+    h_body = np.ones_like(freqs) if is_identity else compute_body_microphonic_coupling(freqs, src_pickup, cfg, inst=inst)
+    prefilter_curve = h_acoustic_transfer * h_elec_inv * h_tilt * h_tension * h_str_diff * h_body
     max_val = np.max(prefilter_curve)
     resp_norm = prefilter_curve / max_val if max_val > 0 else prefilter_curve
 
