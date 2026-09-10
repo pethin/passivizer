@@ -151,6 +151,141 @@ def make_jbass_pickup(
     """
 
 
+def make_stingray_pickup(
+    cx: float,
+    cy: float,
+    x_strings: list[float],
+    accent: str,
+    w: float = 380.0,
+    h: float = 204.0,
+    label: str = "MUSIC MAN HUMBUCKER",
+) -> str:
+    """Generate an authentic Music Man StingRay 4-string humbucker based on Partsland #AB021 spec.
+
+    Physical reference:
+    - Body: 101.7mm total width (94.0mm mounting screw c-c) x 48.5mm height => 380px x 204px
+    - 3-screw mounting pattern: 2 ears on bass side (left), 1 ear on treble side (right)
+    - 8 massive 3/8" (9.5mm) Alnico V pole pieces (radius 18px) in 2 rows of 4 straddling each string
+    """
+    rx = 14.0
+    x = cx - w / 2
+    y = cy - h / 2
+
+    # Left mounting ears (bass side: 2 ears spaced vertically)
+    left_screw_x = cx - 198.0
+    ear_y1 = cy - 54.0
+    ear_y2 = cy + 54.0
+
+    # Right mounting ear (treble side: 1 ear centered vertically)
+    right_screw_x = cx + 198.0
+    ear_yr = cy
+
+    pole_r = 18.0
+    row_offset = 38.0
+
+    # Upper row (neck coil), lower row (bridge coil)
+    upper_poles = "".join(make_pole(s, cy - row_offset, r=pole_r) for s in x_strings)
+    lower_poles = "".join(make_pole(s, cy + row_offset, r=pole_r) for s in x_strings)
+
+    return f"""
+    <!-- Music Man StingRay Humbucker at {cx:.1f}, {cy:.1f} ({label}) -->
+    <g filter="url(#dropShadow)">
+      <!-- Left Upper Mounting Tab (Bass Side) -->
+      <path d="M {x:.1f} {ear_y1 - 18:.1f} A 20 20 0 0 0 {x:.1f} {ear_y1 + 18:.1f} Z" fill="url(#coverGrad)" stroke="#222938" stroke-width="1.8"/>
+      <circle cx="{left_screw_x:.1f}" cy="{ear_y1:.1f}" r="4.0" fill="#080a0f" stroke="#475569" stroke-width="1"/>
+      <circle cx="{left_screw_x:.1f}" cy="{ear_y1:.1f}" r="1.8" fill="#1e293b"/>
+
+      <!-- Left Lower Mounting Tab (Bass Side) -->
+      <path d="M {x:.1f} {ear_y2 - 18:.1f} A 20 20 0 0 0 {x:.1f} {ear_y2 + 18:.1f} Z" fill="url(#coverGrad)" stroke="#222938" stroke-width="1.8"/>
+      <circle cx="{left_screw_x:.1f}" cy="{ear_y2:.1f}" r="4.0" fill="#080a0f" stroke="#475569" stroke-width="1"/>
+      <circle cx="{left_screw_x:.1f}" cy="{ear_y2:.1f}" r="1.8" fill="#1e293b"/>
+
+      <!-- Right Center Mounting Tab (Treble Side - Single Ear) -->
+      <path d="M {x + w:.1f} {ear_yr - 22:.1f} A 24 24 0 0 1 {x + w:.1f} {ear_yr + 22:.1f} Z" fill="url(#coverGrad)" stroke="#222938" stroke-width="1.8"/>
+      <circle cx="{right_screw_x:.1f}" cy="{ear_yr:.1f}" r="4.0" fill="#080a0f" stroke="#475569" stroke-width="1"/>
+      <circle cx="{right_screw_x:.1f}" cy="{ear_yr:.1f}" r="1.8" fill="#1e293b"/>
+
+      <!-- Main Pickup Housing -->
+      <rect x="{x:.1f}" y="{y:.1f}" width="{w:.1f}" height="{h:.1f}" rx="{rx:.1f}" fill="url(#coverGrad)" stroke="#334155" stroke-width="2.0"/>
+      <rect x="{x+3:.1f}" y="{y+3:.1f}" width="{w-6:.1f}" height="{h-6:.1f}" rx="{rx-2:.1f}" fill="none" stroke="#64748b" stroke-width="0.75" opacity="0.4"/>
+      <rect x="{x+7:.1f}" y="{y+7:.1f}" width="{w-14:.1f}" height="{h-14:.1f}" rx="{rx-4:.1f}" fill="#0f131a" stroke="#1c2330" stroke-width="1.2"/>
+
+      <!-- Internal Dual Coil Bobbin Outlines -->
+      <rect x="{x+14:.1f}" y="{y+12:.1f}" width="{w-28:.1f}" height="{h/2 - 16:.1f}" rx="6" fill="none" stroke="{accent}" stroke-width="0.75" stroke-opacity="0.35" stroke-dasharray="6 6"/>
+      <rect x="{x+14:.1f}" y="{cy + 4:.1f}" width="{w-28:.1f}" height="{h/2 - 16:.1f}" rx="6" fill="none" stroke="{accent}" stroke-width="0.75" stroke-opacity="0.35" stroke-dasharray="6 6"/>
+
+      <!-- 8 Massive Alnico V 3/8" Pole Pieces -->
+      {upper_poles}
+      {lower_poles}
+    </g>
+    """
+
+
+def make_soapbar_pickup(
+    cx: float,
+    cy: float,
+    x_strings: list[float],
+    accent: str,
+    w: float = 375.0,
+    h: float = 160.0,
+    label: str = "ACTIVE SOAPBAR",
+) -> str:
+    """Generate an authentic active soapbar pickup based on EMG 35 / EMG-X CAD spec.
+
+    Physical reference:
+    - Dimensions: 3.500" x 1.500" (88.9mm x 38.1mm) => 375px x 160px
+    - Corner radius: R .125" (3.18mm) => 13.5px
+    - Mounting holes: 3.250" (82.55mm) center-to-center => 348px (174px from center)
+    - Inset semi-circular mounting screw cutouts on left and right ends (.125 DIA)
+    - Dual internal sensing blades with sleek solid active cover
+    """
+    rx = 13.5
+    x = cx - w / 2
+    y = cy - h / 2
+
+    screw_dx = 174.0
+    left_screw_x = cx - screw_dx
+    right_screw_x = cx + screw_dx
+
+    # Dual internal blade centerline offsets
+    blade_offset = 32.0
+
+    return f"""
+    <!-- Active Soapbar Pickup at {cx:.1f}, {cy:.1f} ({label}) -->
+    <g filter="url(#dropShadow)">
+      <!-- Main Soapbar Casing -->
+      <rect x="{x:.1f}" y="{y:.1f}" width="{w:.1f}" height="{h:.1f}" rx="{rx:.1f}" fill="url(#coverGrad)" stroke="#334155" stroke-width="1.8"/>
+      <rect x="{x+3:.1f}" y="{y+3:.1f}" width="{w-6:.1f}" height="{h-6:.1f}" rx="{rx-2:.1f}" fill="none" stroke="#64748b" stroke-width="0.75" opacity="0.4"/>
+      <rect x="{x+6:.1f}" y="{y+6:.1f}" width="{w-12:.1f}" height="{h-12:.1f}" rx="{rx-4:.1f}" fill="#0d1117" stroke="#1c2330" stroke-width="1.2"/>
+
+      <!-- Inset Mounting Tabs & Screw Recesses (EMG-X style) -->
+      <!-- Left Inset Recess -->
+      <path d="M {x+6:.1f} {cy - 20:.1f} A 20 20 0 0 1 {x+6:.1f} {cy + 20:.1f} Z" fill="#080a0f" stroke="#1e293b" stroke-width="1.2"/>
+      <circle cx="{left_screw_x:.1f}" cy="{cy:.1f}" r="4.2" fill="#080a0f" stroke="#475569" stroke-width="1"/>
+      <circle cx="{left_screw_x:.1f}" cy="{cy:.1f}" r="1.8" fill="#1e293b"/>
+
+      <!-- Right Inset Recess -->
+      <path d="M {x+w-6:.1f} {cy - 20:.1f} A 20 20 0 0 0 {x+w-6:.1f} {cy + 20:.1f} Z" fill="#080a0f" stroke="#1e293b" stroke-width="1.2"/>
+      <circle cx="{right_screw_x:.1f}" cy="{cy:.1f}" r="4.2" fill="#080a0f" stroke="#475569" stroke-width="1"/>
+      <circle cx="{right_screw_x:.1f}" cy="{cy:.1f}" r="1.8" fill="#1e293b"/>
+
+      <!-- Internal Dual Sensing Blade Rails -->
+      <!-- Upper Blade Rail -->
+      <rect x="{cx - 145:.1f}" y="{cy - blade_offset - 3:.1f}" width="290" height="6" rx="3" fill="#1e293b" stroke="#334155" stroke-width="0.8"/>
+      <rect x="{cx - 142:.1f}" y="{cy - blade_offset - 1:.1f}" width="284" height="2" rx="1" fill="{accent}" fill-opacity="0.6"/>
+      <!-- Lower Blade Rail -->
+      <rect x="{cx - 145:.1f}" y="{cy + blade_offset - 3:.1f}" width="290" height="6" rx="3" fill="#1e293b" stroke="#334155" stroke-width="0.8"/>
+      <rect x="{cx - 142:.1f}" y="{cy + blade_offset - 1:.1f}" width="284" height="2" rx="1" fill="{accent}" fill-opacity="0.6"/>
+
+      <!-- Internal Coil Boundary Indication -->
+      <rect x="{x+24:.1f}" y="{y+16:.1f}" width="{w-48:.1f}" height="{h-32:.1f}" rx="8" fill="none" stroke="{accent}" stroke-width="0.75" stroke-opacity="0.25" stroke-dasharray="6 6"/>
+
+      <!-- Corner Technical Markings (EMG Style) -->
+      <text x="{x+w-24:.1f}" y="{y+h-14:.1f}" fill="#64748b" font-size="10" font-family="system-ui, -apple-system, sans-serif" font-weight="800" letter-spacing="1" text-anchor="end">ACTIVE DUAL-BLADE</text>
+    </g>
+    """
+
+
 def generate_pack_svg(model_key: str) -> str:
     """Generate pristine standalone SVG for a Tone3000 Tone Pack edition."""
     strings = [480.0, 560.0, 640.0, 720.0]  # E, A, D, G string axes (80px / 19mm scale)
@@ -314,6 +449,78 @@ def generate_pack_svg(model_key: str) -> str:
                   <text x="1070" y="540" text-anchor="end" font-size="14">30&quot; SHORT SCALE</text>
                   <text x="1070" y="560" text-anchor="end" font-size="12" fill="#94a3b8" font-weight="600">LOW-TENSION BLOOM</text>
                   <line x1="835" y1="570" x2="1070" y2="570" stroke="#334155" stroke-dasharray="3 3" stroke-width="1"/>
+                </g>
+            """,
+        },
+        "active_soapbar": {
+            "accent": "#06b6d4",
+            "title": "ACTIVE SOAPBAR BASS",
+            "desc_line1": "Calibrated for 34&quot; Modern Active Dual-Soapbar Bass",
+            "desc_line2": "Dual-Blade Humbuckers • Active 3-Band Preamp Buffer • Low-Z Output",
+            "scale": "34&quot; SCALE",
+            "badge2": "DUAL SOAPBARS",
+            "badge3": "ACTIVE 3-BAND PREAMP",
+            "content": lambda acc: f"""
+                <!-- Background Flux Lines -->
+                <g fill="none" stroke="{acc}" stroke-opacity="0.14" stroke-width="1.2">
+                  <ellipse cx="600" cy="430" rx="220" ry="90"/>
+                  <ellipse cx="600" cy="430" rx="290" ry="120" stroke-dasharray="8 6"/>
+                  <ellipse cx="600" cy="670" rx="220" ry="90"/>
+                  <ellipse cx="600" cy="670" rx="290" ry="120" stroke-dasharray="8 6"/>
+                </g>
+                <!-- RLC Inductance Curve -->
+                <path d="M 160 770 Q 360 765 500 700 T 640 550 T 780 700 T 1040 810" fill="none" stroke="{acc}" stroke-opacity="0.22" stroke-width="2.5" stroke-dasharray="6 6"/>
+                <!-- Neck and Bridge Active Soapbars (Neck cy=430, Bridge cy=670: 80px gap) -->
+                {make_soapbar_pickup(600, 430, strings, acc, label="NECK SOAPBAR")}
+                {make_soapbar_pickup(600, 670, strings, acc, label="BRIDGE SOAPBAR")}
+                <!-- Datum labels (Word-wrapped and safely placed within margins >= 130px) -->
+                <g font-family="system-ui, -apple-system, sans-serif" fill="#cbd5e1" font-weight="800" letter-spacing="1">
+                  <!-- Left Datums -->
+                  <text x="130" y="422" font-size="14">NECK SOAPBAR</text>
+                  <text x="130" y="442" font-size="12" fill="#94a3b8" font-weight="600">135.0mm DATUM</text>
+                  <line x1="130" y1="452" x2="385" y2="452" stroke="#334155" stroke-dasharray="3 3" stroke-width="1"/>
+
+                  <text x="130" y="662" font-size="14">BRIDGE SOAPBAR</text>
+                  <text x="130" y="682" font-size="12" fill="#94a3b8" font-weight="600">55.0mm DATUM</text>
+                  <line x1="130" y1="692" x2="385" y2="692" stroke="#334155" stroke-dasharray="3 3" stroke-width="1"/>
+
+                  <!-- Right Datum -->
+                  <text x="1070" y="540" text-anchor="end" font-size="14">ACTIVE BUFFER</text>
+                  <text x="1070" y="560" text-anchor="end" font-size="12" fill="#94a3b8" font-weight="600">LOW-Z DUAL BLADES</text>
+                  <line x1="815" y1="570" x2="1070" y2="570" stroke="#334155" stroke-dasharray="3 3" stroke-width="1"/>
+                </g>
+            """,
+        },
+        "active_stingray": {
+            "accent": "#f97316",
+            "title": "ACTIVE STINGRAY BASS",
+            "desc_line1": "Calibrated for 34&quot; Active Music Man StingRay / Sterling Ray34",
+            "desc_line2": "Oversized 3/8&quot; Alnico V Poles • Sweet-Spot Dual Coil • Active 2-Band Preamp",
+            "scale": "34&quot; SCALE",
+            "badge2": "SWEET-SPOT HUMBUCKER",
+            "badge3": "ACTIVE 2-BAND PREAMP",
+            "content": lambda acc: f"""
+                <!-- Background Magnetic Flux Field -->
+                <g fill="none" stroke="{acc}" stroke-opacity="0.14" stroke-width="1.2">
+                  <ellipse cx="600" cy="550" rx="240" ry="130"/>
+                  <ellipse cx="600" cy="550" rx="320" ry="170" stroke-dasharray="8 6"/>
+                  <ellipse cx="600" cy="550" rx="400" ry="210" stroke-dasharray="4 8" stroke-opacity="0.08"/>
+                </g>
+                <!-- RLC Inductance Curve with StingRay 2.5 kHz Notch and 4.2 kHz Peak -->
+                <path d="M 160 760 Q 340 755 480 720 T 560 745 T 660 565 T 780 710 T 1040 805" fill="none" stroke="{acc}" stroke-opacity="0.24" stroke-width="2.5" stroke-dasharray="6 6"/>
+                <!-- Music Man Sweet-Spot Humbucker centered at cy=550 -->
+                {make_stingray_pickup(600, 550, strings, acc, label="SWEET-SPOT HUMBUCKER")}
+                <!-- Datum labels (Word-wrapped and safely placed within margins >= 130px) -->
+                <g font-family="system-ui, -apple-system, sans-serif" fill="#cbd5e1" font-weight="800" letter-spacing="1">
+                  <!-- Left Datum -->
+                  <text x="130" y="532" font-size="14">SWEET SPOT COIL</text>
+                  <text x="130" y="552" font-size="12" fill="#94a3b8" font-weight="600">66.0mm BRIDGE DATUM</text>
+                  <line x1="130" y1="562" x2="380" y2="562" stroke="#334155" stroke-dasharray="3 3" stroke-width="1"/>
+
+                  <!-- Right Datum -->
+                  <text x="1070" y="532" text-anchor="end" font-size="14">3/8&quot; ALNICO V POLES</text>
+                  <text x="1070" y="552" text-anchor="end" font-size="12" fill="#94a3b8" font-weight="600">ACTIVE 2-BAND PREAMP</text>
+                  <line x1="820" y1="562" x2="1070" y2="562" stroke="#334155" stroke-dasharray="3 3" stroke-width="1"/>
                 </g>
             """,
         },
@@ -499,6 +706,8 @@ def main():
         "jazz": "allomorph_standard_jazz_bass",
         "pj": "allomorph_standard_pj_bass",
         "mustang": "allomorph_mustang_pj_bass",
+        "active_soapbar": "allomorph_active_soapbar_bass",
+        "active_stingray": "allomorph_active_stingray_bass",
     }
 
     # Remove obsolete coilshift placeholders if present

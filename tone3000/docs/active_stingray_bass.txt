@@ -1,0 +1,141 @@
+ALLOMORPH: ACTIVE STINGRAY BASS EDITION
+
+Transform your active Music Man StingRay or Sterling Ray4/Ray34 bass into 22 legendary vintage passive, modern active, progressive rock, and acoustic pickup configurations.
+
+
+OVERVIEW
+
+Allomorph delivers precision digital twins of iconic pickup topologies and control harnesses engineered for Neural Amp Modeler (NAM) and the Darkglass Anagram pedalboard.
+
+Rather than modeling an amplifier or speaker cabinet, these models capture:
+• True differential circuit deconvolution (H_diff = H_tgt / H_src)
+• Bridge sweet-spot dual-coil aperture geometry and spatial string comb-filtering
+• Oversized 3/8" (9.5mm) Alnico V magnetic core saturation and string dynamics
+• Era-accurate potentiometer loading (250k, 500k, 330k) and tone capacitor values
+• High-impedance passive coil eddy currents and complex skin-effect damping
+• Cable capacitance loading (750 pF) and active buffer deconvolution
+• Pure capacitive ToneStyler rotary shunts with undamped vocal resonance
+• Active onboard discrete preamps and EQ buffers
+
+Calibrated for a 34" Standard Scale Active Music Man StingRay (or Sterling Ray34 / Ray4 / SUB) equipped with the iconic bridge sweet-spot dual-coil humbucker (66.0mm centerline) and onboard active 2-band or 3-band preamp. Exact differential deconvolution neutralizes your onboard preamp's buffered resonance and sweet-spot aperture, reconstructing wide-spaced dual singles, neck split-coils, and acoustic transducers in real time with zero latency.
+
+
+RECOMMENDED SIGNAL CHAIN
+
+[Active StingRay Bass]
+  -> [Block 1: Allomorph NAM Preamp]  (Input / Pickup Front-End)
+  -> [Block 2: Amp / Drive / Preamp]  (Darkglass B7K, SVT, B-15, etc.)
+  -> [Block 3: Speaker Cabinet IR]    (8x10, 4x10, 1x15, etc.)
+  -> [FOH / Audio Interface / DAW]
+
+Why Block 1? Drive and preamp circuits react directly to pickup resonant peaks. Placing Allomorph first ensures downstream pedals distort authentic vintage passive or active resonant envelopes rather than an unshaped active DI.
+
+
+QUICK INSTRUMENT SETUP
+
+• Physical Volume Knob: 100% (Wide Open)
+• Onboard Active EQ (Bass, Treble, Mid): Set to Center Detents (Flat / 0 dB)
+
+Plug straight in. Because the StingRay features a single bridge sweet-spot humbucker, all target models map directly to your physical humbucker. All impedance matching, aperture repositioning, pot loading, and active preamp EQs are handled automatically by the NAM models.
+
+
+THE 22 DIGITAL TWIN VOICINGS
+
+
+Precision Bass & Tone Shaper Family
+
+01. Vintage '62 P-Bass (Alnico V - Tone Open)
+Transforms your sweet-spot humbucker into an iconic 1962 CTS 250k split-coil centered at 125mm with 47nF paper-in-oil cap wide open. Lower eddy damping yields organic touch sensitivity, woody bloom, and open harmonic extension (2.1 kHz peak).
+
+02. Modern Ceramic Split-P (Boutique 500k)
+High-inductance ceramic split-coil (Bartolini 8CBP style, 4.8H) loaded by boutique 500k pots, 22nF cap, and treble bleed. Delivers aggressive pick attack, tight low-mids, and bright transient snap.
+
+03. Vintage '62 Split-P (22nF ToneStyler)
+Vintage '62 split-coil with modern 22nF pure capacitive shunt. Punchy 440 Hz low-mid peak (+1.5 dB, -3 dB @ 750 Hz) that cuts fret clatter while retaining forward mix punch and authoritative weight.
+
+04. Vintage '62 Split-P Motown Thump (47nF ToneStyler)
+Iconic Jamerson/Pino flatwound tone: 47nF pure capacitive shunt with flatwound string damping. Resonant 450 Hz bump with steep top-end rolloff for pillowy sub-bass mass.
+
+05. Vintage '50s Split-P Deep Dub (100nF ToneStyler)
+Fullerton factory 0.1µF spec with zero wiper damping. Massive sub-bass shelf rolloff (-3 dB @ 240 Hz) for subterranean dub and reggae thump that shakes the foundation.
+
+
+Jazz Bass Family
+
+06. Modern Active Jazz Bass (NYC 2-Band)
+Sadowsky-style active 2-band buffer with cable isolation (1M in, 100 ohm out). Realigns your sweet spot into a virtual 60s Jazz pair with zero cable drag (~7.8 kHz resonance). Wideband sparkle, punchy low end (+4 dB @ 40 Hz), crystalline treble (+4 dB @ 4 kHz), and scooped slap definition.
+
+07. Vintage '60s Jazz Bass Pair (Parallel)
+Transforms your humbucker into authentic 1960s dual single-coils in parallel with 3 5/8" spacing, loaded by dual 250k volume pots (125k net) and a 47nF cap. Natural woody low-mid resonance (2.7 kHz peak) with iconic 1 kHz phase-cancellation scoop.
+
+08. '60s Jazz Bass Pair (22nF ToneStyler)
+Dual single-coil response with a 22nF ToneStyler pure capacitive shunt. Eliminates wiper resistance to produce an undamped 762 Hz vocal mid bump (-3 dB @ 1225 Hz), preserving aggressive Jaco/Miller bite without treble clank.
+
+09. '60s Jazz Bridge Growl (Jaco Bias)
+Reconstructs decoupled dual volumes with 55k neck wiper resistance. Pulls comb notch into vocal 550–800 Hz zone for signature Jaco bridge growl while retaining low-end body.
+
+10. '60s Jazz Bridge Single-Coil
+Authentic 60s bridge datum (63.5mm from saddle) with 250k harness. Focused midrange bite (800 Hz–1.6 kHz) with articulate, percussive staccato finger attack.
+
+
+P/MM Modern Hybrids
+
+11. Modern Active P/MM Bass (Parallel)
+Sandberg California / Lakland 44-02 style Split-P and Music Man bridge humbucker in parallel with onboard active buffer (3.4 kHz peak). Woody P-bass weight combined with laser-focused MM slap bite.
+
+12. P/MM Hybrid (Series Sum)
+Split P and MM humbucker wired in series (7.2H inductance, 500k pots). Massive +5.8 dB inductive surge with a forward, muscular 1.6 kHz punch and wall-shaking low-mids.
+
+
+P/J Bass Family
+
+13. Modern Active P/J Bass
+Ceramic split-neck and single-bridge with active 2-band buffer (+4 dB @ 40 Hz, +4 dB @ 4 kHz) and cable isolation (7.6 kHz peak). Modern slap snap with deep sub-bass foundation.
+
+14. Vintage '80s Passive P/J Bass
+1980s Fender Special / Yamaha BB style Alnico split/single pair with dual 250k volume loading (125k net). Thick hard-rock punch, woody mid bite, and authoritative low grunt.
+
+
+Progressive & Classic Rock Legends
+
+15. Rickenbacker 4003 Bridge (4.7nF HPF)
+High-output bridge coil with factory 330k pots and vintage 4.7nF series high-pass capacitor. Cuts sub-bass mud below 150 Hz for biting prog-rock pick grit and clank.
+
+16. Dingwall Fanned Multi-Scale Bridge (Active)
+Angled bridge sweet spot (48.0mm datum) of a 34"–37" fanned-fret bass with active buffer stage and stainless roundwound physics. Extreme high wave-speed clank and FD3 dual-coil sparkle (7.3 kHz peak).
+
+17. Gibson Mudbucker Ultra Series
+Overwound neck-heel sidewinder humbucker (14.4H, 500k pots). Resonant peak pulled to 1.2 kHz with steep natural acoustic rolloff for colossal subterranean low end without top-end fizz.
+
+
+Acoustic Transducers
+
+18. Upright Acoustic Double Bass (Bridge Piezo)
+Direct bridge force sensor simulation (Underwood/Realist style on 41.5" scale) with velocity-to-force leaky integration (+6 dB/oct from 70–250 Hz) and 32 Hz rumble cut. Woody pizzicato bloom and warm body resonance.
+
+
+Music Man StingRay Family
+
+19. Music Man StingRay (Active 2-Band Parallel)
+Parallel dual-coil humbucker centered at 66.0mm with active 2-band preamp (+5 dB bass @ 50 Hz, +3 dB treble @ 7 kHz). Bit-exact 0.00 dB identity twin calibrated to your physical instrument's exact pickup geometry and preamp curve.
+
+20. Music Man StingRay (Active 2-Band Series)
+Dual-coil humbucker wired in series with active 2-band preamp. +2.5 dB hotter output with aggressive 2.1 kHz midrange bark and softened treble clank (StingRay 5 / Sterling series switch).
+
+
+Studio Buffers & Dynamics
+
+21. Modern Studio Active Buffer (Zero Cable Loading)
+Studio 1M ohm active buffer twin. Deconvolves 750 pF cable capacitance and onboard pot damping from your stock pickup, shifting resonance to 7.5–9.0 kHz for pristine pick attack and hi-fi air.
+
+22. Passive Character (Dynamic Baseline / True Bypass)
+Bit-exact 0.00 dB flat linear response calibrated to stock StingRay dynamics and output staging. Serves as a transparent reference for seamless A/B comparison and unity routing.
+
+
+LICENSE & DISCLAIMER
+
+License:
+Licensed for personal and commercial musical performances, recording, and production. Redistribution, sublicensing, or resale of raw model files or derived profiles without permission is strictly prohibited.
+
+Trademark Disclaimer:
+All product names, trademarks, and registered trademarks (such as Fender, Precision Bass, P-Bass, Jazz Bass, J-Bass, Music Man, StingRay, Sterling, Rickenbacker, Gibson, Dingwall, Bartolini, Sadowsky, Spector, ToneStyler, EMG, and Darkglass) are the property of their respective owners. Used solely to identify historical instruments and analog circuits analyzed in this project. Allomorph is an independent project and is not affiliated with or endorsed by any of these manufacturers.

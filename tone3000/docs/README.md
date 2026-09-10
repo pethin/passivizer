@@ -14,13 +14,15 @@ Each pack contains 22 precision digital twin voicings calibrated via true differ
 | **Standard Jazz Bass Edition** | 34" Standard Fender Jazz Bass (Passive Single-Coil Pair) | Vol 100%, Tone 100%, Pickup configs: `[Parallel]`, `[Neck]`, `[Bridge]` | [`standard_jazz_bass.txt`](standard_jazz_bass.txt) | [`allomorph_standard_jazz_bass.svg`](../assets/allomorph_standard_jazz_bass.svg) &bull; [JPG](../assets/allomorph_standard_jazz_bass.jpg) |
 | **Standard P/J Bass Edition** | 34" Standard Fender P/J Bass (Split-P Neck + J Bridge) | Vol 100%, Tone 100%, Pickup configs: `[Parallel]`, `[P-Bass]`, `[J-Bridge]` | [`standard_pj_bass.txt`](standard_pj_bass.txt) | [`allomorph_standard_pj_bass.svg`](../assets/allomorph_standard_pj_bass.svg) &bull; [JPG](../assets/allomorph_standard_pj_bass.jpg) |
 | **Mustang P/J Bass Edition** | 30" Short-Scale Fender Mustang P/J Bass | Vol 100%, Tone 100%, Pickup configs: `[Parallel]`, `[P-Bass]`, `[J-Bridge]` | [`mustang_pj_bass.txt`](mustang_pj_bass.txt) | [`allomorph_mustang_pj_bass.svg`](../assets/allomorph_mustang_pj_bass.svg) &bull; [JPG](../assets/allomorph_mustang_pj_bass.jpg) |
+| **Active Soapbar Bass Edition** | 34" Modern Active Dual-Soapbar Bass (Ibanez SR / Yamaha TRBX / Schecter) | Vol 100%, Active EQ Flat (Center Detents), Blend configs: `[Center]`, `[Neck]`, `[Bridge]` | [`active_soapbar_bass.txt`](active_soapbar_bass.txt) | [`allomorph_active_soapbar_bass.svg`](../assets/allomorph_active_soapbar_bass.svg) &bull; [JPG](../assets/allomorph_active_soapbar_bass.jpg) |
+| **Active StingRay Bass Edition** | 34" Active Music Man StingRay / Sterling Ray34 (Bridge MM Humbucker) | Vol 100%, Active EQ Flat (Center Detents) | [`active_stingray_bass.txt`](active_stingray_bass.txt) | [`allomorph_active_stingray_bass.svg`](../assets/allomorph_active_stingray_bass.svg) &bull; [JPG](../assets/allomorph_active_stingray_bass.jpg) |
 
 ---
 
 ## Storefront Engineering Constraints
 
 All pack descriptions in this directory strictly adhere to Tone3000 platform guidelines:
-1. **Character Limit Compliance:** Tone3000 enforces a strict maximum length of 10,000 characters per listing. All 4 packs are calibrated between 7,500 and 9,600 characters.
+1. **Character Limit Compliance:** Tone3000 enforces a strict maximum length of 10,000 characters per listing. All 6 packs are calibrated between 7,500 and 9,600 characters.
 2. **Pickup Configuration Tags:** Multi-pickup editions (Jazz, P/J, Mustang P/J) include bracketed physical selector tags on every voicing (e.g. `[Parallel]`, `[Neck]`, `[Bridge]`, `[P-Bass]`, `[J-Bridge]`) so users know exactly how to set their instrument switches for optimal acoustic cancellation matching.
 3. **Concise Voicing Summaries:** Each of the 22 target voicings is distilled into 1–2 punchy, informative sentences highlighting the resonant peak ($f_r$), pot loading, and physical sonic character.
 4. **Independent Legal Disclaimers:** Trademark disclaimers and non-commercial/commercial user rights are explicitly codified per listing.

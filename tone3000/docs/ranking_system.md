@@ -88,10 +88,45 @@ The final two positions (Ranks 21 and 22) in every pack are reserved for transpa
 
 ---
 
+### 2.4 Active Soapbar Bass Edition
+*Source Instrument:* Modern 34" active bass with dual blade soapbars ($135.0\text{ mm}$ neck, $55.0\text{ mm}$ bridge) and 3-band active EQ buffer.  
+*Native Tones:* Modern active dual-blade humbuckers with blend control.
+
+| Rank Range | Sonic Family | Rationale / Musical Character |
+| :--- | :--- | :--- |
+| **01–05** | **Precision Bass & Tone Shaper Family** | #1 most requested transformation for active soapbar players. Replaces modern sterile active tone with warm, organic, woody Alnico V split-coil body ($2.1\text{ kHz}$ peak) and ToneStyler flatwound Motown thump. |
+| **06–10** | **Jazz Bass Family** | Delivers the airy, open, dynamic breath of vintage 1960s dual single-coils ($1\text{ kHz}$ phase-cancellation scoop and Jaco decoupled bridge growl) that wide dual-blade soapbars cannot natively produce. |
+| **11–12** | **Music Man StingRay Family** | Aggressive sweet-spot humbucker clank, $2.5\text{ kHz}$ hollow mid-scoop, and series bark. |
+| **13–14** | **P/MM Modern Hybrids** | Sandberg California / Lakland 44-02 style Split-P + Music Man parallel and series authority. |
+| **15–17** | **Progressive & Classic Rock Legends** | Rickenbacker 4003 ($4.7\text{nF}$ HPF pick clank), Dingwall multi-scale ($7.3\text{ kHz}$ sparkle), and Gibson Mudbucker ($14.4\text{ H}$ sub-bass). |
+| **18** | **Acoustic Transducers** | Bridge piezo force sensor on $41.5''$ upright scale with velocity-to-force leaky integration. |
+| **19–20** | **P/J Bass Family** | Modern active and vintage '80s passive P/J configurations. Lowest rank among non-native combinations due to topology proximity to dual active pickups. |
+| **21–22** | **Studio Buffers & Dynamics** | Studio $1\text{M}\Omega$ active buffer and bit-exact $0.00\text{ dB}$ True Bypass baseline. |
+
+---
+
+### 2.5 Active StingRay Bass Edition
+*Source Instrument:* 34" active Music Man StingRay / Sterling Ray34 with single bridge sweet-spot dual-coil humbucker ($66.0\text{ mm}$) and active 2-band preamp.  
+*Native Tones:* Music Man StingRay Active 2-Band Parallel (1:1 physical & electrical identity twin!) and Series.
+
+| Rank Range | Sonic Family | Rationale / Musical Character |
+| :--- | :--- | :--- |
+| **01–05** | **Precision Bass & Tone Shaper Family** | #1 missing sound for StingRay players. Delivers the warm, woody, low-mid thump of a neck split-coil ($125\text{ mm}$) and flatwound Motown thump that a bridge humbucker physically lacks. |
+| **06–10** | **Jazz Bass Family** | Dual single-coil wide-aperture $1\text{ kHz}$ comb scoop, Marcus Miller slap sparkle, and Jaco bridge bite. |
+| **11–12** | **P/MM Modern Hybrids** | Combines virtual P-neck with the player's physical StingRay bridge humbucker in parallel and series. |
+| **13–14** | **P/J Bass Family** | Modern active and vintage '80s passive P/J configurations combining P-neck weight with bridge clarity. |
+| **15–17** | **Progressive & Classic Rock Legends** | Rickenbacker 4003 ($4.7\text{nF}$ HPF pick clank), Dingwall multi-scale ($7.3\text{ kHz}$ peak), and Gibson Mudbucker ($14.4\text{ H}$ subterranean boom). |
+| **18** | **Acoustic Transducers** | Bridge piezo force sensor on $41.5''$ upright scale with velocity-to-force leaky integration. |
+| **19–20** | **Music Man StingRay Family** | *Base Instrument Profiles:* Active 2-Band Parallel (bit-exact $0.00\text{ dB}$ identity match) and Active 2-Band Series bark. Relegated to lowest instrument ranks per the inverse-availability principle. |
+| **21–22** | **Studio Buffers & Dynamics** | Studio $1\text{M}\Omega$ active buffer and bit-exact $0.00\text{ dB}$ True Bypass baseline. |
+
+---
+
 ## 3. Governance & Quality Checklist
 
 When modifying or generating new Tone3000 pack listings:
-1. **Verify Rank Inversion:** Ensure native pickup configurations sit in the lower half of the listing (Ranks 14–20).
+1. **Verify Rank Inversion:** Ensure native pickup configurations sit in the lower half of the listing (Ranks 14–20 for native pickup architectures).
 2. **Verify Distinct Families:** Confirm StingRay is never merged with P/J, and P/MM is never merged with Acoustic Transducers.
 3. **Check Character Limits:** Ensure the total listing length remains between 7,500 and 9,600 characters ($\le 10,000$ max).
-4. **Preserve Bracketed Tags:** Every multi-pickup listing must contain `[Parallel]`, `[Neck]`, `[Bridge]`, `[P-Bass]`, or `[J-Bridge]` tags.
+4. **Preserve Bracketed Tags:** Every multi-pickup listing must contain `[Parallel]`, `[Center]`, `[Neck]`, `[Bridge]`, `[P-Bass]`, or `[J-Bridge]` tags.
+5. **Active Calibration Integrity:** Active editions must direct players to set onboard active EQs flat at center detents.
