@@ -33,6 +33,7 @@ When contributing to or maintaining this repository, strictly adhere to these ar
   - 24-bit audio file I/O uses **Spotify's `pedalboard`** (JUCE-backed SIMD C++ engine).
   - Minimum-phase FIR synthesis uses our internal homomorphic real-cepstrum Hilbert transform engine vectorized with NumPy.
   - Do **NOT** add `scipy` or `soundfile` as dependencies (they carry legacy C/Fortran bloat).
+- **Git & Contribution Governance:** All commits must be signed off using `git commit -s` (or `Signed-off-by: Legal Name <email>`) to satisfy `CLA.md` and pass automated DCO CI checks.
 - **Circuit Simulation Engine:**
   - **Native WAV SPICE Engine:** Built-in Apple Silicon (`arm64`) WAV SPICE circuit simulation engine (`scripts/simulate_circuits.py`) providing zero-external-dependency SPICE netlist parsing, analytical nodal RLC solving, regularized differential SPICE transfer functions ($H_{\text{diff}} = H_{\text{target}} / H_{\text{source}}$), dynamic core saturation bypass, and vector soft-knee saturation ($V_{\text{sat}} \cdot \tanh(v/V_{\text{sat}})$) directly on audio waveforms at >1500x speed.
 
@@ -42,7 +43,13 @@ When contributing to or maintaining this repository, strictly adhere to these ar
 
 ```
 allomorph/
+├── .github/
+│   ├── workflows/dco.yml     # Hardened injection-safe DCO / CLA sign-off check
+│   └── PULL_REQUEST_TEMPLATE.md # Contributor pull request checklist
 ├── AGENTS.md                 # Antigravity project rules and context (this file)
+├── CLA.md                    # Harmony-based Contributor License Agreement (Dual-licensing)
+├── CONTRIBUTING.md           # Contributor guide, setup, and sign-off instructions
+├── LICENSE                   # PolyForm Noncommercial License 1.0.0
 ├── pyproject.toml            # Project metadata (polars, altair, pedalboard)
 ├── README.md                 # Comprehensive architecture, CLI usage, roadmap
 ├── main.py                   # Main CLI entrypoint delegation
