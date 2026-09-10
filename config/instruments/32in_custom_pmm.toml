@@ -49,10 +49,10 @@ type = "split_coil"
 resonant_frequency_hz = 3200.0   # Ceramic active X-series resonance (from EMG datasheet)
 q_factor = 1.40
 coils = [
-    # D/G strings see only the forward D/G coil half
-    { strings = ["D", "G"], position_from_bridge_m = 0.1368, aperture_width_in = 1.10, weight = 1.0 },
-    # E/A strings see only the rearward E/A coil half
-    { strings = ["E", "A"], position_from_bridge_m = 0.1088, aperture_width_in = 1.10, weight = 1.0 }
+    # Strings 1 & 2 see only the forward D/G coil half
+    { strings = [1, 2], position_from_bridge_m = 0.1368, aperture_width_in = 1.10, weight = 1.0 },
+    # Strings 3 & 4 see only the rearward E/A coil half
+    { strings = [3, 4], position_from_bridge_m = 0.1088, aperture_width_in = 1.10, weight = 1.0 }
 ]
 
 # ------------------------------------------------------------------------------

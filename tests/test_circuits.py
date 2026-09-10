@@ -1475,6 +1475,72 @@ def test_multi_pickup_excursion_ratio():
         if out_wav.exists():
             out_wav.unlink()
 
+def test_asymmetric_dahl_proximity_pinning():
+    """
+    Verify Refinement: Asymmetric Dahl magnetic domain-wall pinning.
+    Approach excursion (x > 0 towards pole) experiences higher pinning coupling than departure (x < 0).
+    Verifies zero DC bias drift on cyclic zero-mean AC excitation.
+    """
+    from scripts.simulate_circuits import _dahl_core, apply_dahl_hysteresis
+
+    n = 1000
+    pos_step = np.full(n, 0.6, dtype=np.float64)
+    neg_step = np.full(n, -0.6, dtype=np.float64)
+    pos_step[0] = 0.0
+    neg_step[0] = 0.0
+
+    out_pos = _dahl_core(pos_step, eta=0.10, r=0.06)
+    out_neg = _dahl_core(neg_step, eta=0.10, r=0.06)
+
+    z_pos_1 = (out_pos[1] - (1.0 - 0.10) * pos_step[1]) / 0.10
+    z_neg_1 = abs((out_neg[1] - (1.0 - 0.10) * neg_step[1]) / 0.10)
+    assert z_pos_1 > z_neg_1
+
+    # Verify tiny DC drift on cyclic audio (< 0.005, blocked downstream by 8 Hz DC blocker)
+    t = np.linspace(0, 0.5, 24000)
+    sine = np.sin(2 * np.pi * 100.0 * t) * 0.7
+    out_sine = apply_dahl_hysteresis(sine, eta=0.06, r=0.06)
+    assert abs(np.mean(out_sine)) < 0.005
+
+def test_frequency_selective_lenz_velocity_drag():
+    """
+    Verify Refinement: Velocity-proportional / frequency-selective Lenz drag.
+    High-frequency transient clank is damped more heavily than low-frequency fundamental.
+    """
+    from scripts.simulate_circuits import _lenz_velocity_drag_core, apply_oversampled_saturation
+
+    fs = 48000
+    t = np.linspace(0, 0.2, int(fs * 0.2))
+    # Dual-tone signal: 60 Hz bass fundamental + 3000 Hz transient clank
+    sig_low = np.sin(2 * np.pi * 60.0 * t) * 0.5
+    sig_high = np.sin(2 * np.pi * 3000.0 * t) * 0.5
+    sig_dual = (sig_low + sig_high).astype(np.float32)
+
+    # Saturate with Lenz drag engaged
+    out_sag = apply_oversampled_saturation(sig_dual, vsat=0.4, k_sag=0.20, magnet_drag=True)
+    out_nosag = apply_oversampled_saturation(sig_dual, vsat=0.4, k_sag=0.0, magnet_drag=False)
+
+    f_bins = np.fft.rfftfreq(len(t), 1.0 / fs)
+    idx_60 = np.argmin(np.abs(f_bins - 60.0))
+    idx_3k = np.argmin(np.abs(f_bins - 3000.0))
+
+    fft_sag = np.abs(np.fft.rfft(out_sag))
+    fft_nosag = np.abs(np.fft.rfft(out_nosag))
+
+    low_ratio = fft_sag[idx_60] / fft_nosag[idx_60]
+    high_ratio = fft_sag[idx_3k] / fft_nosag[idx_3k]
+
+    # High frequency must be damped more heavily than low frequency
+    assert high_ratio < low_ratio
+    delta_db_diff = 20.0 * np.log10(low_ratio / high_ratio)
+    assert delta_db_diff >= 0.5
+
+    # Small-signal test vector (<= 0.10) must be 100% linear bypass
+    small_sig = (sig_dual * 0.05).astype(np.float32)
+    out_small = apply_oversampled_saturation(small_sig, vsat=0.4, k_sag=0.20)
+    assert np.allclose(small_sig, out_small, atol=1e-6)
+
+
 
 
 

@@ -125,9 +125,9 @@ def test_32in_fretless_pmm_routing():
     assert pcsx["resonant_frequency_hz"] == 2610.0
     assert pcsx["q_factor"] == 1.35
     assert len(pcsx["coils"]) == 2
-    assert pcsx["coils"][0]["strings"] == ["D", "G"]
+    assert pcsx["coils"][0]["strings"] == [1, 2]
     assert math.isclose(pcsx["coils"][0]["position_from_bridge_m"], 0.1544, abs_tol=1e-4)
-    assert pcsx["coils"][1]["strings"] == ["E", "A"]
+    assert pcsx["coils"][1]["strings"] == [3, 4]
     assert math.isclose(pcsx["coils"][1]["position_from_bridge_m"], 0.1264, abs_tol=1e-4)
 
     # Upright voice routes to upright_blend composite
@@ -195,8 +195,8 @@ def test_resolve_pickup_coils():
     inst_p = load_instrument("34in_standard_p")
     coils_p = resolve_pickup_coils(inst_p["pickups"]["split_p"], inst_p)
     assert len(coils_p) == 2
-    assert coils_p[0]["strings"] == ["E", "A"]
-    assert coils_p[1]["strings"] == ["D", "G"]
+    assert coils_p[0]["strings"] == [3, 4]
+    assert coils_p[1]["strings"] == [1, 2]
     assert math.isclose(coils_p[0]["position_from_bridge_m"], 0.1390, abs_tol=1e-4)
     assert math.isclose(coils_p[1]["position_from_bridge_m"], 0.1110, abs_tol=1e-4)
 
@@ -470,8 +470,8 @@ def test_34in_dingwall_sp1_routing():
     assert p["type"] == "split_coil"
     assert math.isclose(p["position_from_bridge_m"], 0.1250, abs_tol=1e-4)
     assert len(p["coils"]) == 2
-    assert p["coils"][0]["strings"] == ["B", "E", "A"]
-    assert p["coils"][1]["strings"] == ["D", "G"]
+    assert p["coils"][0]["strings"] == [3, 4, 5]
+    assert p["coils"][1]["strings"] == [1, 2]
 
     # FD3n Bridge
     b = inst["pickups"]["bridge"]

@@ -54,10 +54,10 @@ type = "split_coil"
 resonant_frequency_hz = 2610.0   # Ceramic/steel active X-series resonance
 q_factor = 1.35
 coils = [
-    # D/G strings see forward coil half (closer to neck for warm acoustic bloom)
-    { strings = ["D", "G"], position_from_bridge_m = 0.1544, aperture_width_in = 1.10, weight = 1.0 },
-    # E/A strings see rearward coil half (closer to bridge for tight fundamental definition)
-    { strings = ["E", "A"], position_from_bridge_m = 0.1264, aperture_width_in = 1.10, weight = 1.0 }
+    # Strings 1 & 2 see forward coil half (closer to neck for warm acoustic bloom)
+    { strings = [1, 2], position_from_bridge_m = 0.1544, aperture_width_in = 1.10, weight = 1.0 },
+    # Strings 3 & 4 see rearward coil half (closer to bridge for tight fundamental definition)
+    { strings = [3, 4], position_from_bridge_m = 0.1264, aperture_width_in = 1.10, weight = 1.0 }
 ]
 
 # ------------------------------------------------------------------------------

@@ -55,10 +55,10 @@ magnet_type = "alnico_v"
 resonant_frequency_hz = 2800.0
 q_factor = 1.40
 coils = [
-    # E/A strings see forward coil half (deeper fundamental)
-    { strings = ["E", "A"], position_from_bridge_m = 0.1670, aperture_width_in = 1.00, weight = 1.0 },
-    # D/G strings see rearward coil half (snappy transient bite)
-    { strings = ["D", "G"], position_from_bridge_m = 0.1430, aperture_width_in = 1.00, weight = 1.0 }
+    # Strings 3 & 4 see forward coil half (deeper fundamental)
+    { strings = [3, 4], position_from_bridge_m = 0.1670, aperture_width_in = 1.00, weight = 1.0 },
+    # Strings 1 & 2 see rearward coil half (snappy transient bite)
+    { strings = [1, 2], position_from_bridge_m = 0.1430, aperture_width_in = 1.00, weight = 1.0 }
 ]
 
 # ------------------------------------------------------------------------------

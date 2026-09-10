@@ -54,10 +54,10 @@ circuit = "circuits/sources/source_standard_p.cir"
 resonant_frequency_hz = 2800.0   # Standard Fender split-coil loaded resonance (2.8 kHz)
 q_factor = 1.40                  # Vintage Alnico V loaded Q factor
 coils = [
-    # E/A strings see forward coil half (warmer, deeper fundamental)
-    { strings = ["E", "A"], position_from_bridge_m = 0.1390, aperture_width_in = 1.00, weight = 1.0 },
-    # D/G strings see rearward coil half (tighter, punchier mid bite)
-    { strings = ["D", "G"], position_from_bridge_m = 0.1110, aperture_width_in = 1.00, weight = 1.0 }
+    # Strings 3 & 4 see forward coil half (warmer, deeper fundamental)
+    { strings = [3, 4], position_from_bridge_m = 0.1390, aperture_width_in = 1.00, weight = 1.0 },
+    # Strings 1 & 2 see rearward coil half (tighter, punchier mid bite)
+    { strings = [1, 2], position_from_bridge_m = 0.1110, aperture_width_in = 1.00, weight = 1.0 }
 ]
 
 # ------------------------------------------------------------------------------

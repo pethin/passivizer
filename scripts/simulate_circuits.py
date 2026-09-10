@@ -721,7 +721,9 @@ if _HAS_NUMBA:
         for i in range(1, n):
             dx = x_arr[i] - x_arr[i - 1]
             delta = abs(x_arr[i] - z_prev)
-            coupling = delta / (delta + r)
+            # Asymmetric pole proximity: domain-wall pinning increases as string approaches pole piece (x > 0)
+            r_eff = r * (1.0 - 0.35 * math.tanh(x_arr[i] / 0.5))
+            coupling = delta / (delta + r_eff)
             z_prev = z_prev + dx * coupling
             z[i] = z_prev
         z[0] = 0.0
@@ -740,6 +742,28 @@ if _HAS_NUMBA:
                 e_prev += alpha_rel * (val - e_prev)
             env[i] = e_prev
         return env
+
+    @njit(fastmath=True)
+    def _lenz_velocity_drag_core(x_arr: np.ndarray, env: np.ndarray, vsat: float, k_sag: float, alpha_c: float) -> np.ndarray:
+        n = len(x_arr)
+        out = np.empty(n, dtype=np.float64)
+        x_low_prev = 0.0
+        for i in range(n):
+            val = x_arr[i]
+            x_low_prev += alpha_c * (val - x_low_prev)
+            x_high = val - x_low_prev
+            e = env[i]
+            if e > vsat and vsat > 0.0:
+                excess = (e - vsat) / vsat
+                if excess > 1.0:
+                    excess = 1.0
+                drag_high = 1.0 - k_sag * excess
+                drag_low = 1.0 - 0.25 * k_sag * excess
+            else:
+                drag_high = 1.0
+                drag_low = 1.0
+            out[i] = drag_low * x_low_prev + drag_high * x_high
+        return out
 else:
     def _dahl_core(x_arr: np.ndarray, eta: float, r: float) -> np.ndarray:
         n = len(x_arr)
@@ -748,7 +772,8 @@ else:
         for i in range(1, n):
             dx = x_arr[i] - x_arr[i - 1]
             delta = abs(x_arr[i] - z_prev)
-            coupling = delta / (delta + r)
+            r_eff = r * (1.0 - 0.35 * math.tanh(x_arr[i] / 0.5))
+            coupling = delta / (delta + r_eff)
             z_prev = z_prev + dx * coupling
             z[i] = z_prev
         z[0] = 0.0
@@ -766,6 +791,27 @@ else:
                 e_prev += alpha_rel * (val - e_prev)
             env[i] = e_prev
         return env
+
+    def _lenz_velocity_drag_core(x_arr: np.ndarray, env: np.ndarray, vsat: float, k_sag: float, alpha_c: float) -> np.ndarray:
+        n = len(x_arr)
+        out = np.empty(n, dtype=np.float64)
+        x_low_prev = 0.0
+        for i in range(n):
+            val = x_arr[i]
+            x_low_prev += alpha_c * (val - x_low_prev)
+            x_high = val - x_low_prev
+            e = env[i]
+            if e > vsat and vsat > 0.0:
+                excess = (e - vsat) / vsat
+                if excess > 1.0:
+                    excess = 1.0
+                drag_high = 1.0 - k_sag * excess
+                drag_low = 1.0 - 0.25 * k_sag * excess
+            else:
+                drag_high = 1.0
+                drag_low = 1.0
+            out[i] = drag_low * x_low_prev + drag_high * x_high
+        return out
 
 def apply_dahl_hysteresis(x: np.ndarray, eta: float = 0.06, r: float = 0.06) -> np.ndarray:
     """
@@ -817,16 +863,16 @@ def apply_oversampled_saturation(
         v_asym = x + alpha * (x ** 2) + alpha3 * (x ** 3)
         return (vsat * np.tanh(v_asym / vsat)).astype(np.float32)
 
-    # 1. Dynamic Lenz-Law Core Flux Sag on forte peak excursions (asymmetric attack/release envelope)
+    # 1. Dynamic Lenz-Law Core Flux Sag on forte peak excursions (velocity-proportional high-frequency damping)
     if magnet_drag and vsat > 0 and k_sag > 0.0:
         tau_att = 0.006  # 6 ms fast attack on string strike
         tau_rel = 0.045  # 45 ms smooth domain relaxation release
         alpha_att = 1.0 - math.exp(-1.0 / (48000.0 * tau_att))
         alpha_rel = 1.0 - math.exp(-1.0 / (48000.0 * tau_rel))
         env = _lenz_envelope_core(x, alpha_att, alpha_rel)
-        excess = np.maximum(0.0, (env - vsat) / vsat)
-        drag = 1.0 - k_sag * np.clip(excess, 0.0, 1.0)
-        x = x * drag
+        # 1-pole crossover at 750 Hz separating punchy bass fundamental from transient string clank
+        alpha_c = 1.0 - math.exp(-2.0 * math.pi * 750.0 / 48000.0)
+        x = _lenz_velocity_drag_core(x, env, vsat, k_sag, alpha_c)
 
     if oversample <= 1:
         if displacement_weighting:

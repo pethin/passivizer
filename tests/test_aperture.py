@@ -50,18 +50,18 @@ def test_pickup_acoustic_response_single_coil():
     assert res[2] > 0.05
 
 def test_split_coil_string_differentiation():
-    """Verify that E/A coil only affects E and A strings, and D/G coil only affects D and G strings."""
-    speeds = [66.98, 89.41, 119.35, 159.31] # E, A, D, G on 32"
+    """Verify that lower (3, 4) coil only affects bass strings, and upper (1, 2) coil only affects treble strings."""
+    speeds = [66.98, 89.41, 119.35, 159.31] # strings 4, 3, 2, 1 on 32"
 
     coils = [
-        {"position_from_bridge_m": 0.1088, "aperture_width_in": 1.10, "weight": 1.0, "polarity": 1.0, "strings": ["E", "A"]},
-        {"position_from_bridge_m": 0.1368, "aperture_width_in": 1.10, "weight": 1.0, "polarity": 1.0, "strings": ["D", "G"]},
+        {"position_from_bridge_m": 0.1088, "aperture_width_in": 1.10, "weight": 1.0, "polarity": 1.0, "strings": [3, 4]},
+        {"position_from_bridge_m": 0.1368, "aperture_width_in": 1.10, "weight": 1.0, "polarity": 1.0, "strings": [1, 2]},
     ]
 
     freqs = np.array([500.0])
-    val_all = pickup_acoustic_response(freqs, coils, speeds, string_names=["E", "A", "D", "G"])[0]
-    val_low = pickup_acoustic_response(freqs, coils, speeds[:2], string_names=["E", "A"])[0]
-    val_high = pickup_acoustic_response(freqs, coils, speeds[2:], string_names=["D", "G"])[0]
+    val_all = pickup_acoustic_response(freqs, coils, speeds, string_names=[4, 3, 2, 1])[0]
+    val_low = pickup_acoustic_response(freqs, coils, speeds[:2], string_names=[4, 3])[0]
+    val_high = pickup_acoustic_response(freqs, coils, speeds[2:], string_names=[2, 1])[0]
 
     # Low strings (closer to bridge on Reverse P) and high strings (closer to neck) have distinct responses
     assert not math.isclose(val_low, val_high, rel_tol=1e-2)
@@ -76,11 +76,11 @@ def test_3coil_pmm_compound_response():
     # Should have 4 coil records (PX D/G, PX E/A, MMTWX neck, MMTWX bridge)
     assert len(coils) == 4
 
-    # Check that D/G strings see 3 active coils and E/A strings see 3 active coils
-    dg_coils = [c for c in coils if "all" in c["strings"] or "D" in c["strings"]]
+    # Check that strings 1/2 (D/G) see 3 active coils and strings 3/4 (E/A) see 3 active coils
+    dg_coils = [c for c in coils if "all" in c["strings"] or 1 in c["strings"] or "D" in c["strings"]]
     assert len(dg_coils) == 3
 
-    ea_coils = [c for c in coils if "all" in c["strings"] or "E" in c["strings"]]
+    ea_coils = [c for c in coils if "all" in c["strings"] or 4 in c["strings"] or "E" in c["strings"]]
     assert len(ea_coils) == 3
 
     # Positions should match blueprint: PX DG 136.8mm, MMTWX neck 73.7mm, MMTWX bridge 50.8mm

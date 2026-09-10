@@ -196,6 +196,34 @@ To ensure high-fidelity modeling and prevent regressions, all agents and contrib
   2. In `compute_voice_prefilter_firs()`, check if target voice declares a multi-channel circuit (`has_multichannel_circuit = bool(cir_rel and cir_path.exists() and len(pickups) > 1)`). When present, evaluate branch FIRs with `p_weight = 1.0` (matching `analyze_voices.py:line 108`), ensuring branch signals enter SPICE at natural unity scale where the electrical network evaluates physical current division.
   3. Ensure all composite and blend pickups in `config/instruments/*.toml` declare valid SPICE source netlists in `circuits/sources/` (e.g. `circuit = "circuits/sources/source_dingwall_fd3n.cir"`).
 
+### 5.14 Invariance to Fixed Tunings, String Counts, and String Gauges (Continuum Integration & Geometric Register Halves)
+- **Anti-Pattern:**
+  1. Constraining physical acoustic spatial filtering (aperture roll-off, spatial wave propagation delays, multi-coil comb filtering, and inharmonicity dispersion) to 4 discrete open-string wave speeds derived from standard E-A-D-G tuning (e.g. `[71.16, 95.0, 126.81, 169.27]`).
+  2. Matching split-coil pickup halves (e.g. Precision Bass, reverse P, P/J, P/MM) using hardcoded note-name strings (e.g. `strings = ["E", "A"]` vs `strings = ["D", "G"]`) or assuming string count is strictly 4.
+  3. Assuming fixed string gauges (.045–.105) or rigid inharmonicity coefficients tied to note names rather than continuous physical pitch $f_0$.
+- **Why It Fails:**
+  1. Bassists frequently employ non-standard tunings (Drop D, Drop C, C Standard, D Standard, Drop A), 5-string basses (Low B or High C), and 6-string instruments with varied string gauges (.030–.175).
+  2. In Drop D ($D_1\text{-}A_1\text{-}D_2\text{-}G_2$) or Drop C ($C_1\text{-}G_1\text{-}C_2\text{-}F_2$), matching by note name causes string 0 (low D or low C) to either fail to match or mistakenly route to the treble coil half (`"D"` in `["D", "G"]`), when physically string 0 sits directly over the forward bass coil half.
+  3. Discrete 4-string speed averaging produces artificial comb ripples at specific open-string nulls (e.g. $1.5\text{ kHz}$ on E vs $3.7\text{ kHz}$ on G) that shift or vanish when playing up the neck, changing string gauge, or retuning, leaving the digital twin and trained NAM model brittle.
+- **Mandated Practice:**
+  1. **Continuous Wave-Speed Continuum:**
+     Generate a continuous, log-spaced distribution of wave speeds $v(f_0) = 2 \cdot L \cdot f_0$ spanning the entire operating bass register:
+     $$f_0 \in [30.87\text{ Hz}, 100.00\text{ Hz}]$$
+     where $30.87\text{ Hz}$ represents Low B (B0) and $100.00\text{ Hz}$ covers open G (G2 = 98.0 Hz) across 4-, 5-, and 6-string basses, dropped tunings, and varied gauges. Integrate acoustic aperture responses ($H_{\text{composite}}$) and macro aperture envelopes across this continuum ($N \ge 24$ points) with uniform log weighting ($1/N$).
+  2. **Geometric Register Half Routing:**
+     In configurations and internal representations, use standard musical string numbers (`strings = [1, 2]` for treble/upper coil, `strings = [3, 4]` or `[3, 4, 5]` for bass/lower coil, and `strings = ["all"]` for full coverage) or register tags (`register = "lower"` / `"upper"`), NEVER pitch note names (`["E", "A"]` / `["D", "G"]`).
+     Continuum points in the lower register half ($i < N/2$) route to the bass coil, and continuum points in the upper register half ($i \ge N/2$) route to the treble coil, guaranteeing correct geometric sensing independent of tuning or string count.
+  3. **Continuous Inharmonicity Dispersion:**
+     Derive string stiffness $B_s(f_0)$ via continuous logarithmic interpolation across physical anchor points ($27.5\text{ Hz}$ to $196\text{ Hz}$):
+     $$v_{\text{disp}}(f) = v_0 \sqrt{1 + B_s(f_0) \frac{(f / f_0)^2}{1 + (f / f_{\text{disp,max}})^2}}, \quad f_{\text{disp,max}} = 3500\text{ Hz}$$
+     ensuring smooth $C^1$ wave dispersion across all registers without hardcoded note lookups.
+  4. **Dynamic Mean Wave Propagation Delay:**
+     Calculate inter-pickup acoustic propagation delays using the mean bass register fundamental frequency ($\bar{f}_0 = 66.9045\text{ Hz}$ across standard open strings):
+     $$\bar{c} = 2 \cdot L \cdot \bar{f}_0$$
+     guaranteeing accurate inter-pickup delays across scale lengths (e.g. 30", 32", 34", 37") regardless of tuning.
+  5. **Tone3000 Trainer Invariance:**
+     Keep `scripts/train_nam.py` strictly untouched. All tuning, gauge, and string-count invariance must be completely resolved upstream in the physics modeling, aperture synthesis, and SPICE circuit simulation pipelines.
+
 ---
 
 ## 6. Architectural Guardrails: High-Performance Audio DSP & SIMD Engineering

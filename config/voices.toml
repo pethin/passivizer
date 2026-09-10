@@ -17,7 +17,7 @@
 #   scale       : Reference scale length key from scales.toml ("34in", "multiscale", "upright").
 #   hpf         : (Optional) High-pass cutoff frequency in Hz (e.g. 105Hz for Rickenbacker).
 #   coils       : Array of physical coil definitions with string bindings and positions:
-#                 - strings: ["all"], ["E", "A"], or ["D", "G"]
+#                 - strings: ["all"], [1, 2] (treble), or [3, 4] (bass)
 #                 - position_from_bridge_m: distance from bridge saddle in meters
 #                 - aperture_width_in: coil magnetic sensing aperture in inches
 #                 - weight: amplitude weighting (e.g. 0.5 for parallel/series coils)
@@ -249,8 +249,8 @@ Q = 1.8
 gain_db = 1.5
 scale = "34in"
 coils = [
-    { strings = ["E", "A"], position_from_bridge_m = 0.1390, aperture_width_in = 1.00, weight = 1.0 },
-    { strings = ["D", "G"], position_from_bridge_m = 0.1110, aperture_width_in = 1.00, weight = 1.0 }
+    { strings = [3, 4], position_from_bridge_m = 0.1390, aperture_width_in = 1.00, weight = 1.0 },
+    { strings = [1, 2], position_from_bridge_m = 0.1110, aperture_width_in = 1.00, weight = 1.0 }
 ]
 
 # ------------------------------------------------------------------------------
@@ -270,8 +270,8 @@ Q = 1.4
 gain_db = 0.5
 scale = "34in"
 coils = [
-    { strings = ["E", "A"], position_from_bridge_m = 0.1390, aperture_width_in = 1.00, weight = 1.0 },
-    { strings = ["D", "G"], position_from_bridge_m = 0.1110, aperture_width_in = 1.00, weight = 1.0 }
+    { strings = [3, 4], position_from_bridge_m = 0.1390, aperture_width_in = 1.00, weight = 1.0 },
+    { strings = [1, 2], position_from_bridge_m = 0.1110, aperture_width_in = 1.00, weight = 1.0 }
 ]
 
 # ------------------------------------------------------------------------------
@@ -292,8 +292,8 @@ Q = 1.5
 gain_db = 0.5
 scale = "34in"
 coils = [
-    { strings = ["E", "A"], position_from_bridge_m = 0.1390, aperture_width_in = 1.00, weight = 1.0 },
-    { strings = ["D", "G"], position_from_bridge_m = 0.1110, aperture_width_in = 1.00, weight = 1.0 }
+    { strings = [3, 4], position_from_bridge_m = 0.1390, aperture_width_in = 1.00, weight = 1.0 },
+    { strings = [1, 2], position_from_bridge_m = 0.1110, aperture_width_in = 1.00, weight = 1.0 }
 ]
 
 # ------------------------------------------------------------------------------
@@ -315,8 +315,8 @@ gain_db = -1.0
 scale = "34in"
 target_string = "flatwound_vintage_heavy"
 coils = [
-    { strings = ["E", "A"], position_from_bridge_m = 0.1390, aperture_width_in = 1.00, weight = 1.0 },
-    { strings = ["D", "G"], position_from_bridge_m = 0.1110, aperture_width_in = 1.00, weight = 1.0 }
+    { strings = [3, 4], position_from_bridge_m = 0.1390, aperture_width_in = 1.00, weight = 1.0 },
+    { strings = [1, 2], position_from_bridge_m = 0.1110, aperture_width_in = 1.00, weight = 1.0 }
 ]
 
 # ------------------------------------------------------------------------------
@@ -337,8 +337,8 @@ Q = 0.8
 gain_db = -0.5
 scale = "34in"
 coils = [
-    { strings = ["E", "A"], position_from_bridge_m = 0.1390, aperture_width_in = 1.00, weight = 1.0 },
-    { strings = ["D", "G"], position_from_bridge_m = 0.1110, aperture_width_in = 1.00, weight = 1.0 }
+    { strings = [3, 4], position_from_bridge_m = 0.1390, aperture_width_in = 1.00, weight = 1.0 },
+    { strings = [1, 2], position_from_bridge_m = 0.1110, aperture_width_in = 1.00, weight = 1.0 }
 ]
 
 # ------------------------------------------------------------------------------
@@ -360,8 +360,8 @@ Q = 1.6
 gain_db = 1.5
 scale = "34in"
 coils = [
-    { strings = ["E", "A"], position_from_bridge_m = 0.1390, aperture_width_in = 1.00, weight = 0.5 },
-    { strings = ["D", "G"], position_from_bridge_m = 0.1110, aperture_width_in = 1.00, weight = 0.5 },
+    { strings = [3, 4], position_from_bridge_m = 0.1390, aperture_width_in = 1.00, weight = 0.5 },
+    { strings = [1, 2], position_from_bridge_m = 0.1110, aperture_width_in = 1.00, weight = 0.5 },
     { strings = ["all"],    position_from_bridge_m = 0.0635, aperture_width_in = 0.75, weight = 0.5 }
 ]
 
@@ -374,8 +374,8 @@ fr = 4800.0
 Q = 1.7
 weight = 0.5
 coils = [
-    { strings = ["E", "A"], position_from_bridge_m = 0.1390, aperture_width_in = 1.00, weight = 1.0 },
-    { strings = ["D", "G"], position_from_bridge_m = 0.1110, aperture_width_in = 1.00, weight = 1.0 }
+    { strings = [3, 4], position_from_bridge_m = 0.1390, aperture_width_in = 1.00, weight = 1.0 },
+    { strings = [1, 2], position_from_bridge_m = 0.1110, aperture_width_in = 1.00, weight = 1.0 }
 ]
 
 [[voices.07_modern_pj_active.pickups]]
@@ -409,8 +409,8 @@ Q = 1.2      # Damped quality factor under dual 250k volume load
 gain_db = 0.5
 scale = "34in"
 coils = [
-    { strings = ["E", "A"], position_from_bridge_m = 0.1390, aperture_width_in = 1.00, weight = 0.5 },
-    { strings = ["D", "G"], position_from_bridge_m = 0.1110, aperture_width_in = 1.00, weight = 0.5 },
+    { strings = [3, 4], position_from_bridge_m = 0.1390, aperture_width_in = 1.00, weight = 0.5 },
+    { strings = [1, 2], position_from_bridge_m = 0.1110, aperture_width_in = 1.00, weight = 0.5 },
     { strings = ["all"],    position_from_bridge_m = 0.0635, aperture_width_in = 0.75, weight = 0.5 }
 ]
 
@@ -423,8 +423,8 @@ fr = 2600.0
 Q = 1.3
 weight = 0.5
 coils = [
-    { strings = ["E", "A"], position_from_bridge_m = 0.1390, aperture_width_in = 1.00, weight = 1.0 },
-    { strings = ["D", "G"], position_from_bridge_m = 0.1110, aperture_width_in = 1.00, weight = 1.0 }
+    { strings = [3, 4], position_from_bridge_m = 0.1390, aperture_width_in = 1.00, weight = 1.0 },
+    { strings = [1, 2], position_from_bridge_m = 0.1110, aperture_width_in = 1.00, weight = 1.0 }
 ]
 
 [[voices.08_vintage_pj_passive.pickups]]
@@ -522,8 +522,8 @@ Q = 2.2      # Composite equivalent quality factor
 gain_db = 5.8
 scale = "34in"
 coils = [
-    { strings = ["E", "A"], position_from_bridge_m = 0.1390, aperture_width_in = 1.00, weight = 0.5 },
-    { strings = ["D", "G"], position_from_bridge_m = 0.1110, aperture_width_in = 1.00, weight = 0.5 },
+    { strings = [3, 4], position_from_bridge_m = 0.1390, aperture_width_in = 1.00, weight = 0.5 },
+    { strings = [1, 2], position_from_bridge_m = 0.1110, aperture_width_in = 1.00, weight = 0.5 },
     { strings = ["all"],    position_from_bridge_m = 0.0755, aperture_width_in = 0.75, weight = 0.5 },
     { strings = ["all"],    position_from_bridge_m = 0.0565, aperture_width_in = 0.75, weight = 0.5 }
 ]
@@ -537,8 +537,8 @@ fr = 2200.0
 Q = 1.8
 weight = 0.5
 coils = [
-    { strings = ["E", "A"], position_from_bridge_m = 0.1390, aperture_width_in = 1.00, weight = 1.0 },
-    { strings = ["D", "G"], position_from_bridge_m = 0.1110, aperture_width_in = 1.00, weight = 1.0 }
+    { strings = [3, 4], position_from_bridge_m = 0.1390, aperture_width_in = 1.00, weight = 1.0 },
+    { strings = [1, 2], position_from_bridge_m = 0.1110, aperture_width_in = 1.00, weight = 1.0 }
 ]
 
 [[voices.11_pmm_hybrid_series.pickups]]

@@ -96,23 +96,23 @@ def test_resolve_voice_coils():
     # 04 Modern P ceramic should have 2 split coils with specific string bindings
     c04 = resolve_voice_coils(VOICES["04_modern_p_ceramic"])
     assert len(c04) == 2
-    assert c04[0]["strings"] == ["E", "A"]
+    assert c04[0]["strings"] == [3, 4]
     assert c04[0]["position_from_bridge_m"] == 0.1390
-    assert c04[1]["strings"] == ["D", "G"]
+    assert c04[1]["strings"] == [1, 2]
     assert c04[1]["position_from_bridge_m"] == 0.1110
 
     # 07 Modern PJ active should have 3 coils (split P + J bridge)
     c07 = resolve_voice_coils(VOICES["07_modern_pj_active"])
     assert len(c07) == 3
-    assert c07[0]["strings"] == ["E", "A"]
-    assert c07[1]["strings"] == ["D", "G"]
+    assert c07[0]["strings"] == [3, 4]
+    assert c07[1]["strings"] == [1, 2]
     assert c07[2]["strings"] == ["all"]
 
     # 11 P/MM hybrid should have 4 coils (split P + MM humbucker pair)
     c11 = resolve_voice_coils(VOICES["11_pmm_hybrid_series"])
     assert len(c11) == 4
-    assert c11[0]["strings"] == ["E", "A"]
-    assert c11[1]["strings"] == ["D", "G"]
+    assert c11[0]["strings"] == [3, 4]
+    assert c11[1]["strings"] == [1, 2]
     assert c11[2]["strings"] == ["all"]
     assert c11[3]["strings"] == ["all"]
 

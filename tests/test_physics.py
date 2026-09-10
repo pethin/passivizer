@@ -341,5 +341,186 @@ def test_dynamic_coherence_decay_and_multiscale_snap():
     # Check that prefilter is non-trivial and has high-frequency energy
     assert np.linalg.norm(firs_13[0]) > 0.1
 
+def test_per_string_acoustic_dispersion():
+    """
+    Verify Refinement: Per-string acoustic inharmonicity dispersion.
+    Wave speed v(f) increases smoothly with frequency due to flexural stiffness,
+    thick low strings disperse more than thin high strings, and response is bounded.
+    """
+    import math
+    from scripts.model_physics import (
+        compute_dispersive_wave_speed,
+        numpy_pickup_acoustic_response,
+        FREQS,
+    )
+
+    freqs = np.asarray(FREQS, dtype=np.float64)
+
+    # 1. Low-E dispersion
+    v0_e = 71.16
+    v_disp_e = compute_dispersive_wave_speed(freqs, v0_e, "E")
+    # At DC, v(0) == v0
+    assert math.isclose(v_disp_e[0], v0_e, rel_tol=1e-5)
+    # v(f) strictly non-decreasing with frequency
+    diffs = np.diff(v_disp_e)
+    assert np.all(diffs >= -1e-6)
+    # Bounded: maximum boost at 8 kHz <= 1.15x
+    assert v_disp_e[-1] <= 1.15 * v0_e
+
+    # 2. String stiffness ranking: Low-B > Low-E > G > High-C
+    v0_b = 58.0
+    v0_g = 169.27
+    v0_c = 225.0
+    v_disp_b = compute_dispersive_wave_speed(freqs, v0_b, "B")
+    v_disp_g = compute_dispersive_wave_speed(freqs, v0_g, "G")
+    v_disp_c = compute_dispersive_wave_speed(freqs, v0_c, "C")
+
+    idx_3k = np.argmin(np.abs(freqs - 3000.0))
+    ratio_b = v_disp_b[idx_3k] / v0_b
+    ratio_e = v_disp_e[idx_3k] / v0_e
+    ratio_g = v_disp_g[idx_3k] / v0_g
+    ratio_c = v_disp_c[idx_3k] / v0_c
+
+    assert ratio_b > ratio_e > ratio_g > ratio_c
+
+    # 3. Acoustic response with dispersion evaluates cleanly (4-string and 6-string)
+    coils = [
+        {"position_from_bridge_m": 0.065, "aperture_width_in": 0.75, "weight": 1.0, "polarity": 1.0, "strings": ["all"]}
+    ]
+    resp_4 = numpy_pickup_acoustic_response(freqs, coils, [71.16, 95.0, 126.81, 169.27])
+    assert len(resp_4) == len(freqs)
+    assert np.all(np.isfinite(resp_4))
+    assert np.all(resp_4 > 0.0)
+    assert math.isclose(resp_4[0], 1.0, rel_tol=1e-3)
+
+    resp_6 = numpy_pickup_acoustic_response(freqs, coils, [58.0, 71.16, 95.0, 126.81, 169.27, 225.0])
+    assert len(resp_6) == len(freqs)
+    assert np.all(np.isfinite(resp_6))
+    assert np.all(resp_6 > 0.0)
+    assert math.isclose(resp_6[0], 1.0, rel_tol=1e-3)
+
+def test_infer_string_names_and_split_coil_high_c():
+    """
+    Verify that infer_string_names accurately distinguishes Low-B vs High-C 5-string tunings,
+    and that split-coil pickups bind High-C to the treble half and Low-B to the bass half.
+    """
+    from scripts.model_physics import infer_string_names, numpy_pickup_acoustic_response, FREQS
+
+    # 4-string standard
+    assert infer_string_names([71.16, 95.0, 126.81, 169.27]) == ["E", "A", "D", "G"]
+
+    # 5-string Low-B (standard 34" and 37" multiscale)
+    assert infer_string_names([53.28, 71.16, 95.0, 126.81, 169.27]) == ["B", "E", "A", "D", "G"]
+    assert infer_string_names([58.02, 75.88, 99.19, 129.60, 169.27]) == ["B", "E", "A", "D", "G"]
+
+    # 5-string High-C (E-A-D-G-C on standard 34" and 30" short scale)
+    assert infer_string_names([71.16, 95.0, 126.81, 169.27, 225.69]) == ["E", "A", "D", "G", "C"]
+    assert infer_string_names([62.79, 83.82, 111.89, 149.35, 199.36]) == ["E", "A", "D", "G", "C"]
+
+    # 6-string
+    assert infer_string_names([53.28, 71.16, 95.0, 126.81, 169.27, 225.69]) == ["B", "E", "A", "D", "G", "C"]
+
+    # Split-coil P-Bass response with 5-string High-C:
+    # Forward coil: E/A; Rearward coil: D/G. High-C should bind with D/G.
+    freqs = np.asarray(FREQS, dtype=np.float64)
+    split_p_coils = [
+        {"position_from_bridge_m": 0.138, "aperture_width_in": 1.0, "weight": 1.0, "polarity": 1.0, "strings": [3, 4]},
+        {"position_from_bridge_m": 0.112, "aperture_width_in": 1.0, "weight": 1.0, "polarity": 1.0, "strings": [1, 2]},
+    ]
+    # High-C 5-string speeds
+    high_c_speeds = [71.16, 95.0, 126.81, 169.27, 225.69]
+    resp_high_c = numpy_pickup_acoustic_response(freqs, split_p_coils, high_c_speeds)
+    assert len(resp_high_c) == len(freqs)
+    assert np.all(np.isfinite(resp_high_c))
+    assert np.all(resp_high_c > 0.0)
+
+def test_alternate_tunings_dispersion_and_split_coil():
+    """
+    Verify support for alternate and dropped tunings:
+    - Drop D (D-A-D-G), Drop C (C-G-C-F), C Standard (C-F-A#-D#), D Standard (D-G-C-F), Drop A (A-E-A-D-G)
+    - Continuous inharmonicity interpolation B_s(f0)
+    - Split-coil (P-Bass) register routing ensuring dropped strings map to the bass coil half
+    """
+    import math
+    from scripts.model_physics import (
+        infer_string_names,
+        get_inharmonicity_for_f0,
+        compute_dispersive_wave_speed,
+        numpy_pickup_acoustic_response,
+        FREQS,
+    )
+
+    # 1. Tuning string name inference
+    drop_d_speeds = [63.42, 95.00, 126.81, 169.27]
+    assert infer_string_names(drop_d_speeds) == ["D", "A", "D", "G"]
+
+    drop_c_speeds = [56.49, 84.63, 112.98, 150.82]
+    assert infer_string_names(drop_c_speeds) == ["C", "G", "C", "F"]
+
+    c_std_speeds = [56.49, 75.40, 100.65, 134.35]
+    assert infer_string_names(c_std_speeds) == ["C", "F", "A#", "D#"]
+
+    d_std_speeds = [63.42, 84.63, 112.98, 150.82]
+    assert infer_string_names(d_std_speeds) == ["D", "G", "C", "F"]
+
+    drop_a_5_speeds = [47.50, 71.16, 95.00, 126.81, 169.27]
+    assert infer_string_names(drop_a_5_speeds) == ["A", "E", "A", "D", "G"]
+
+    # 2. Continuous inharmonicity interpolation B_s(f0)
+    bs_a0 = get_inharmonicity_for_f0(27.50)
+    bs_c1 = get_inharmonicity_for_f0(32.70)
+    bs_d1 = get_inharmonicity_for_f0(36.71)
+    bs_e1 = get_inharmonicity_for_f0(41.20)
+    bs_a1 = get_inharmonicity_for_f0(55.00)
+    bs_d2 = get_inharmonicity_for_f0(73.42)
+    bs_g2 = get_inharmonicity_for_f0(98.00)
+    bs_c3 = get_inharmonicity_for_f0(130.81)
+
+    # Strictly monotonic decrease with frequency / pitch
+    assert bs_a0 > bs_c1 > bs_d1 > bs_e1 > bs_a1 > bs_d2 > bs_g2 > bs_c3
+    # Bounded physical stiffness
+    assert 1e-6 < bs_c1 < 5e-5
+    assert 1e-6 < bs_d1 < 5e-5
+
+    # 3. Wave speed dispersion for Drop D and Drop C
+    freqs = np.asarray(FREQS, dtype=np.float64)
+    v_disp_drop_d = compute_dispersive_wave_speed(freqs, 63.42)
+    assert math.isclose(v_disp_drop_d[0], 63.42, rel_tol=1e-5)
+    assert np.all(np.diff(v_disp_drop_d) >= -1e-6)
+    assert v_disp_drop_d[-1] <= 1.15 * 63.42
+
+    v_disp_drop_c = compute_dispersive_wave_speed(freqs, 56.49)
+    assert math.isclose(v_disp_drop_c[0], 56.49, rel_tol=1e-5)
+    assert np.all(np.diff(v_disp_drop_c) >= -1e-6)
+    assert v_disp_drop_c[-1] <= 1.15 * 56.49
+
+    # 4. Split-coil P-Bass response under Drop D and Drop C
+    # Forward coil: 139mm (E/A strings); Rearward coil: 111mm (D/G strings)
+    split_p_coils = [
+        {"position_from_bridge_m": 0.1390, "aperture_width_in": 1.0, "weight": 1.0, "polarity": 1.0, "strings": [3, 4]},
+        {"position_from_bridge_m": 0.1110, "aperture_width_in": 1.0, "weight": 1.0, "polarity": 1.0, "strings": [1, 2]},
+    ]
+
+    resp_drop_d = numpy_pickup_acoustic_response(freqs, split_p_coils, drop_d_speeds)
+    assert len(resp_drop_d) == len(freqs)
+    assert np.all(np.isfinite(resp_drop_d))
+    assert np.all(resp_drop_d > 0.0)
+    assert math.isclose(resp_drop_d[0], 1.0, rel_tol=1e-3)
+
+    resp_drop_c = numpy_pickup_acoustic_response(freqs, split_p_coils, drop_c_speeds)
+    assert len(resp_drop_c) == len(freqs)
+    assert np.all(np.isfinite(resp_drop_c))
+    assert np.all(resp_drop_c > 0.0)
+    assert math.isclose(resp_drop_c[0], 1.0, rel_tol=1e-3)
+
+    # Verify that string 0 in Drop D (named "D") binds to the forward coil (0.139m), not rearward coil (0.111m)
+    single_string_0_d = numpy_pickup_acoustic_response(freqs, split_p_coils, [63.42], string_names=["D"])
+    # If it was matched to both coils or rearward coil, response would differ.
+    # Single coil forward:
+    fwd_coil_resp = numpy_pickup_acoustic_response(freqs, [split_p_coils[0]], [63.42])
+    assert np.allclose(single_string_0_d, fwd_coil_resp, rtol=1e-4)
+
+
+
 
 

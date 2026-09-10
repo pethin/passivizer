@@ -51,12 +51,19 @@ For a standard 34" 4-string bass (standard gauge .045 – .105):
 > [!WARNING]
 > If an IR uses a single wave speed ($v_E = 71\text{ m/s}$), it forces a deep notch at $2.8\text{ kHz}$. While correct for the open E string, this creates an artificial, hollow notch on the D and G strings where the real notch is well above $5\text{ kHz}$.
 
-### The Passivizer Composite Aperture Solution
-Passivizer integrates the aperture response across the operational wave speeds of all four (or five) strings, weighting typical playing zones:
+### The Continuous Wave-Speed Continuum Formulation
+Rather than constraining models to fixed 4-string standard tunings ($E, A, D, G$), Passivizer employs a continuous, log-spaced wave-speed continuum $v(f_0) = 2 \cdot L \cdot f_0$ spanning the entire physical operating register of the electric bass ($f_0 \in [30.87\text{ Hz}, 100.00\text{ Hz}]$):
 
-$$H_{\text{composite}}(f) = \frac{1}{\sum k_i} \sum_{i \in \{\text{E,A,D,G}\}} k_i \cdot \left| \text{sinc}\left(\frac{f \cdot w}{v_i}\right) \right| + \text{floor}$$
+$$H_{\text{composite}}(f) = \frac{1}{N} \sum_{i=1}^N \left| \text{sinc}\left(\frac{f \cdot w}{v(f_{0,i})}\right) \right|$$
 
-This smooths out localized notches while preserving the authentic, broad high-frequency aperture rolloff across the entire instrument.
+where each continuum point incorporates:
+1. **Tuning and Gauge Invariance:** Seamlessly accounts for Standard, Drop D, Drop C, C Standard, D Standard, Drop A, 5-string (Low B), and 6-string setups without manual reconfiguration or retuning.
+2. **Dynamic Inharmonicity Dispersion:** High-frequency wave speed expands with flexural string stiffness:
+   $$v_{\text{disp}}(f) = v(f_0) \sqrt{1 + B_s(f_0) \frac{(f / f_0)^2}{1 + (f / 3500\text{ Hz})^2}}$$
+   where $B_s(f_0)$ is continuously interpolated across string registers.
+3. **Geometric Register Half Routing:** Split-coil pickups (like the Precision Bass) dynamically evaluate lower-register continuum points ($i < N/2$) on the forward bass coil half and upper-register points ($i \ge N/2$) on the rearward treble coil half, independent of note names or string gauges.
+
+This eliminates discrete localized comb teeth and guarantees smooth, physically authentic spatial filtering across any instrument configuration.
 
 ---
 
