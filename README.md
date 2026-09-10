@@ -334,6 +334,14 @@ allomorph/
 
 ---
 
+## Contributing
+
+We welcome community contributions, netlists, and optimizations! Because Allomorph uses a dual-licensing model, all contributors must agree to the [Contributor License Agreement](CLA.md) via standard commit sign-off (`git commit -s`).
+
+Please see [`CONTRIBUTING.md`](CONTRIBUTING.md) for full development setup, coding guidelines, and pull request instructions.
+
+---
+
 ## License
 
 This project and its distributed assets are licensed under the [PolyForm Noncommercial License 1.0.0](LICENSE).
