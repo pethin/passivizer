@@ -24,42 +24,44 @@ All pack descriptions in this directory strictly adhere to Tone3000 platform gui
 2. **Pickup Configuration Tags:** Multi-pickup editions (Jazz, P/J, Mustang P/J) include bracketed physical selector tags on every voicing (e.g. `[Parallel]`, `[Neck]`, `[Bridge]`, `[P-Bass]`, `[J-Bridge]`) so users know exactly how to set their instrument switches for optimal acoustic cancellation matching.
 3. **Concise Voicing Summaries:** Each of the 22 target voicings is distilled into 1–2 punchy, informative sentences highlighting the resonant peak ($f_r$), pot loading, and physical sonic character.
 4. **Independent Legal Disclaimers:** Trademark disclaimers and non-commercial/commercial user rights are explicitly codified per listing.
+5. **Inverse-Availability Voicing Ranking:** Packs are ordered by user utility and transformative value. Voicings that cannot be natively produced by the player's physical instrument sit near the top; native base-instrument voicings are relegated to the lowest ranks (see [`ranking_system.md`](ranking_system.md)).
 
 ---
 
-## Digital Twin Voice Architecture (22 Voicings)
+## Digital Twin Voice Architecture & Ranking
 
-Every pack provides identical high-resolution digital twin coverage spanning seven sonic families:
+Every pack provides comprehensive coverage across eight modular sonic families, ordered according to the [Tone Ranking Architecture](ranking_system.md):
 
-1. **Jazz Bass Family (01–04):**
-   - Modern Active Jazz Bass (NYC 2-Band Preamp)
-   - 1962 Stack-Knob Jazz Bass (Dual Concentric 250k/500k)
-   - 1975 Marcus Jazz Bass (Ash/Maple 70s Bridge Spacing)
-   - Jaco Pastorius 1962 Fretless Jazz (Bridge Solo)
-2. **Precision & Mustang Family (05–08):**
-   - 1963 Motown Precision Bass (Flatwound Jamerson P-Bass)
-   - 1951 Early Precision "Tele" Bass (Single-Coil Bakelite Bobbin)
-   - 1970s Classic Precision Bass (Punchy Rock Fingerstyle & Pick)
-   - 1966 Mustang Short-Scale Bass (Direct 30" Split-Coil Thump)
-3. **Music Man Family (09–12):**
-   - 1976 Music Man StingRay (Alnico V 2-Band Preamp @ 3.4 kHz)
-   - Modern StingRay Special 4H (Neodymium 18V 3-Band Preamp)
-   - Modern Active P/MM Hybrid (Lakland/Sandberg Parallel Bridge Sweet Spot)
-   - High-Output P/MM Hybrid Series (7.2H High-Inductance Punch)
-   - Music Man Sterling (Ceramic Parallel Snarl)
-4. **Specialty & Vintage Voicings (14–16):**
-   - 1968 Rickenbacker 4001S (Horseshoe & Hi-Gain Bridge with 0.0047uF Cap)
-   - Gibson EB-0 / EB-3 "Mudbucker" (30H Sidewinder Ultra Series Sub-Bass)
-   - Modern Humbucker Soapbar (Boutique Bartolini Deep Growl)
-5. **ToneStyler Notchless Shunts (17–18):**
-   - ToneStyler Notchless Rolloff #8 (1.5 kHz Mid-Punch)
-   - ToneStyler Notchless Rolloff #12 (400 Hz Warm Sub-Bass)
-6. **Heavy Rock & Acoustic Transducers (19–20):**
-   - Dingwall Fanned Multi-Scale Bridge (34"–37" High Wave-Speed Clank @ 7.3 kHz)
-   - Upright Acoustic Double Bass (Underwood/Realist Bridge Force Transducer)
-7. **Studio Buffers & Unity Baselines (21–22):**
-   - Modern Studio Active Buffer (Zero Cable Loading / 1M Impedance Twin)
-   - Passive Character (Bit-Exact 0.00 dB True Bypass Reference)
+1. **Jazz Bass Family:**
+   - Modern Active Jazz Bass (NYC 2-Band Preamp with Cable Isolation)
+   - Vintage '60s Jazz Bass Pair (Dual Parallel 250k Harness with 1 kHz Scoop)
+   - '60s Jazz Bass Pair (22nF ToneStyler Vocal Mid Bump @ 762 Hz)
+   - '60s Jazz Bridge Growl (Jaco Bias 55k Wiper Decoupling)
+   - '60s Jazz Bridge Single-Coil (Articulate 63.5mm Datum Punch)
+2. **Music Man StingRay Family:**
+   - Music Man StingRay Active 2-Band Parallel (Classic Hollow Mid-Scoop & Clank)
+   - Music Man StingRay Active 2-Band Series (Aggressive 2.1 kHz Bark & +2.5 dB EMF)
+3. **P/MM Modern Hybrids:**
+   - Modern Active P/MM Bass (Sandberg/Lakland Parallel Split + MM Sweet Spot)
+   - P/MM Hybrid Series Sum (Massive 7.2H Inductive Surge & +5.8 dB Punch)
+4. **Progressive & Classic Rock Legends:**
+   - Rickenbacker 4003 Bridge (Vintage 4.7nF Series HPF Clank)
+   - Dingwall Fanned Multi-Scale Bridge (34"–37" High Wave-Speed Sparkle @ 7.3 kHz)
+   - Gibson Mudbucker Ultra Series (14.4H Neck-Heel Sidewinder Sub-Bass)
+5. **Acoustic Transducers:**
+   - Upright Acoustic Double Bass (Underwood/Realist Bridge Force Sensor with Leaky Integration)
+6. **Precision Bass & Tone Shaper Family:**
+   - Vintage '62 P-Bass (Alnico V - Tone Open CTS 250k)
+   - Modern Ceramic Split-P (Boutique 500k with Hybrid Treble Bleed)
+   - Vintage '62 Split-P (22nF ToneStyler Punch @ 440 Hz)
+   - Vintage '62 Split-P Motown Thump (47nF ToneStyler Flatwound Damping)
+   - Vintage '50s Split-P Deep Dub (100nF ToneStyler Fullerton 0.1µF Spec)
+7. **P/J Bass Family:**
+   - Modern Active P/J Bass (Active 2-Band Boost @ 40 Hz & 4 kHz)
+   - Vintage '80s Passive P/J Bass (Duff McKagan / BB3000 Parallel Sum)
+8. **Studio Buffers & Dynamics:**
+   - Modern Studio Active Buffer (Zero Cable Loading / 1M Impedance Twin @ 7.5–9.0 kHz)
+   - Passive Character (Bit-Exact 0.00 dB True Bypass Linear Baseline)
 
 ---
 

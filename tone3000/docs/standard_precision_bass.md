@@ -59,58 +59,67 @@ Models decoupled dual volumes with 55k neck wiper resistance. Pulls comb notch i
 Authentic 60s bridge datum (63.5mm from saddle) with 250k harness. Focused midrange bite (800 Hz–1.6 kHz) with articulate, percussive staccato finger attack.
 
 
-Precision Bass & Tone Shaper Family
+Music Man StingRay Family
 
-06. Modern Ceramic Split-P (Boutique 500k)
-High-inductance ceramic split-coil (Bartolini 8CBP, 4.8H) with boutique 500k pots, 22nF cap, and treble bleed. Tight transient attack with aggressive high-mid presence.
-
-07. Vintage '62 P-Bass (Alnico V - Tone Open)
-Classic 1962 CTS 250k harness with 47nF paper-in-oil cap wide open. Lower eddy damping yields organic touch sensitivity, woody bloom, and open harmonic extension (2.1 kHz peak).
-
-08. Vintage '62 Split-P (22nF ToneStyler)
-Vintage '62 split-coil with modern 22nF pure capacitive shunt. Punchy 440 Hz low-mid peak (+1.5 dB, -3 dB @ 750 Hz) that cuts fret clatter while retaining forward mix punch.
-
-09. Vintage '62 Split-P Motown Thump (47nF ToneStyler)
-Iconic Jamerson/Pino flatwound tone: 47nF pure capacitive shunt with flatwound string damping. Resonant 450 Hz bump with steep top-end rolloff for pillowy sub-bass mass.
-
-10. Vintage '50s Split-P Deep Dub (100nF ToneStyler)
-Fullerton factory 0.1µF spec with zero wiper damping. Massive sub-bass shelf rolloff (-3 dB @ 240 Hz) for subterranean dub and reggae thump that shakes the room.
-
-
-P/J & Music Man Family
-
-11. Modern Active P/J Bass
-Ceramic split-neck and single-bridge with active 2-band buffer (+4 dB @ 40 Hz, +4 dB @ 4 kHz) and cable isolation (7.6 kHz peak). Modern slap snap with deep sub-bass foundation.
-
-12. Vintage '80s Passive P/J Bass
-1980s Fender Special / Yamaha BB style Alnico split/single pair with dual 250k volume loading (125k net). Thick hard-rock punch, woody mid bite, and authoritative low grunt.
-
-13. Music Man StingRay (Active 2-Band Parallel)
+06. Music Man StingRay (Active 2-Band Parallel)
 Parallel dual-coil humbucker centered at 66.0mm with active 2-band preamp (+5 dB bass @ 50 Hz, +3 dB treble @ 7 kHz). Cable isolation, 2.5 kHz mid-scoop, and signature metallic clank.
 
-14. Music Man StingRay (Active 2-Band Series)
+07. Music Man StingRay (Active 2-Band Series)
 Dual-coil humbucker in series with active 2-band preamp. +2.5 dB hotter output with aggressive 2.1 kHz midrange bark and softened treble clank (StingRay 5 / Sterling series switch).
 
 
-Progressive, Rock & Acoustic Transducers
+P/J Bass Family
 
-15. Rickenbacker 4003 Bridge (4.7nF HPF)
-High-output bridge coil with factory 330k pots and vintage 4.7nF series high-pass capacitor. Cuts sub-bass mud below 150 Hz for biting prog-rock pick grit and clank.
+08. Modern Active P/J Bass
+Ceramic split-neck and single-bridge with active 2-band buffer (+4 dB @ 40 Hz, +4 dB @ 4 kHz) and cable isolation (7.6 kHz peak). Modern slap snap with deep sub-bass foundation.
 
-16. Modern Active P/MM Bass (Parallel)
+09. Vintage '80s Passive P/J Bass
+1980s Fender Special / Yamaha BB style Alnico split/single pair with dual 250k volume loading (125k net). Thick hard-rock punch, woody mid bite, and authoritative low grunt.
+
+
+P/MM Modern Hybrids
+
+10. Modern Active P/MM Bass (Parallel)
 Sandberg California / Lakland 44-02 style Split-P and Music Man bridge humbucker in parallel with onboard active buffer (3.4 kHz peak). Woody P-bass weight combined with laser-focused MM slap bite.
 
-17. P/MM Hybrid (Series Sum)
+11. P/MM Hybrid (Series Sum)
 Split P and MM humbucker wired in series (7.2H inductance, 500k pots). Massive +5.8 dB inductive surge with a forward, muscular 1.6 kHz punch and wall-shaking low-mids.
 
-18. Gibson Mudbucker Ultra Series
-Overwound neck-heel sidewinder humbucker (14.4H, 500k pots). Resonant peak pulled to 1.2 kHz with steep natural acoustic rolloff for colossal subterranean low end without top-end fizz.
 
-19. Dingwall Fanned Multi-Scale Bridge (Active)
+Progressive & Classic Rock Legends
+
+12. Rickenbacker 4003 Bridge (4.7nF HPF)
+High-output bridge coil with factory 330k pots and vintage 4.7nF series high-pass capacitor. Cuts sub-bass mud below 150 Hz for biting prog-rock pick grit and clank.
+
+13. Dingwall Fanned Multi-Scale Bridge (Active)
 Angled bridge sweet spot (48.0mm datum) of a 34"–37" fanned-fret bass with active buffer stage and stainless roundwound physics. Extreme high wave-speed clank and FD3 dual-coil sparkle (7.3 kHz peak).
 
-20. Upright Acoustic Double Bass (Bridge Piezo)
+14. Gibson Mudbucker Ultra Series
+Overwound neck-heel sidewinder humbucker (14.4H, 500k pots). Resonant peak pulled to 1.2 kHz with steep natural acoustic rolloff for colossal subterranean low end without top-end fizz.
+
+
+Acoustic Transducers
+
+15. Upright Acoustic Double Bass (Bridge Piezo)
 Direct bridge force sensor simulation (Underwood/Realist style on 41.5" scale) with velocity-to-force leaky integration (+6 dB/oct from 70–250 Hz) and 32 Hz rumble cut. Woody pizzicato bloom and warm body resonance.
+
+
+Precision Bass & Tone Shaper Family
+
+16. Vintage '62 P-Bass (Alnico V - Tone Open)
+Classic 1962 CTS 250k harness with 47nF paper-in-oil cap wide open. Lower eddy damping yields organic touch sensitivity, woody bloom, and open harmonic extension (2.1 kHz peak).
+
+17. Modern Ceramic Split-P (Boutique 500k)
+High-inductance ceramic split-coil (Bartolini 8CBP, 4.8H) with boutique 500k pots, 22nF cap, and treble bleed. Tight transient attack with aggressive high-mid presence.
+
+18. Vintage '62 Split-P (22nF ToneStyler)
+Vintage '62 split-coil with modern 22nF pure capacitive shunt. Punchy 440 Hz low-mid peak (+1.5 dB, -3 dB @ 750 Hz) that cuts fret clatter while retaining forward mix punch.
+
+19. Vintage '62 Split-P Motown Thump (47nF ToneStyler)
+Iconic Jamerson/Pino flatwound tone: 47nF pure capacitive shunt with flatwound string damping. Resonant 450 Hz bump with steep top-end rolloff for pillowy sub-bass mass.
+
+20. Vintage '50s Split-P Deep Dub (100nF ToneStyler)
+Fullerton factory 0.1µF spec with zero wiper damping. Massive sub-bass shelf rolloff (-3 dB @ 240 Hz) for subterranean dub and reggae thump that shakes the room.
 
 
 Studio Buffers & Dynamics
