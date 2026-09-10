@@ -61,7 +61,7 @@ def test_parse_all_circuit_netlists():
             assert model.Rtop > 0
             assert model.Rbot > 0
 
-        if vid in ["01_modern_jazz_active", "02_jazz_bass_pair", "02b_jazz_bass_pair_tone50", "07_modern_pj_active", "08_vintage_pj_passive"]:
+        if vid in ["01_modern_jazz_active", "02_jazz_bass_pair", "02b_jazz_bass_pair_22nf", "07_modern_pj_active", "08_vintage_pj_passive"]:
             assert model.topology == "parallel"
             assert model.L_b > 0
             assert model.Rdc_b > 0
@@ -94,7 +94,7 @@ def test_single_pickup_transfer_function():
     assert mag[-1] < 0.20
 
 def test_tone_rolloff_transfer_function():
-    cir_path = CIRCUITS_DIR / "06_p_bass_47nf_rolloff.cir"
+    cir_path = CIRCUITS_DIR / "05c_vintage_62_p_47nf.cir"
     model = parse_netlist(cir_path)
     assert model.Ctone == pytest.approx(47e-9)
 
@@ -384,8 +384,8 @@ def test_upright_voicing_simulation_vs_theory_consistency():
 
 def test_tone_pot_series_admittance():
     """Verify that series Rtone allows wide-open tone pots to preserve pickup resonance."""
-    # 1. Voice 06: Rtone = 3.3 Ohm ESR floor, Ctone = 47nF -> collapses peak to 200-500 Hz
-    m_rolled = parse_netlist(CIRCUITS_DIR / "06_p_bass_47nf_rolloff.cir")
+    # 1. Voice 05c: Rtone = 3.3 Ohm ESR floor, Ctone = 47nF -> collapses peak to 200-500 Hz
+    m_rolled = parse_netlist(CIRCUITS_DIR / "05c_vintage_62_p_47nf.cir")
     assert m_rolled.Rtone == pytest.approx(3.3)
     assert m_rolled.Ctone == pytest.approx(47e-9)
     curves_rolled = compute_circuit_transfer_functions(m_rolled, freqs=FREQS)
@@ -736,37 +736,63 @@ def test_dahl_magnetic_hysteresis():
     out_impulse = apply_oversampled_saturation(impulse, vsat=0.5, alpha=0.26, eta_hyst=0.06)
     assert np.array_equal(impulse, out_impulse)
 
-def test_tone_50_sweet_spot_transfer_function():
+def test_tonestyler_p_bass_progression_transfer_functions():
     """
-    Verify Voice 05b (Vintage '62 P-Bass with Tone at 50% Sweet Spot):
-    1. Netlist parses R_tone = 50k, C_tone = 47nF.
-    2. Frequency response forms a gentle midrange plateau rather than extreme resonance peak or total mud.
-    3. Rolloff at 2.8 kHz is ~4-5 dB down, smoothing pick transients while preserving 1 kHz low-mids.
+    Verify ToneStyler P-Bass sequence (05, 05b, 05c, 05d):
+    1. Netlists parse R_tone = 3.3 ohms (zero pot wiper damping) with 22nF, 47nF, 100nF.
+    2. Resonant peak physically glides down through the spectrum:
+       - 05 (Tone Open): peak ~ 2128 Hz (+0.5 dB)
+       - 05b (22nF): peak ~ 440 Hz (+1.5 dB)
+       - 05c (47nF): peak ~ 205 Hz (-0.1 dB)
+       - 05d (100nF): deep sub-bass rolloff with -3 dB cutoff at ~240 Hz
+    3. Each step preserves undamped Q factor without muddy pot wiper damping.
     """
-    m05b = parse_netlist(CIRCUITS_DIR / "05b_vintage_62_p_tone50.cir")
-    assert m05b.Ctone == pytest.approx(47e-9)
-    assert m05b.Rtone == pytest.approx(50000.0)
+    m05 = parse_netlist(CIRCUITS_DIR / "05_vintage_62_p_alnico.cir")
+    m05b = parse_netlist(CIRCUITS_DIR / "05b_vintage_62_p_22nf.cir")
+    m05c = parse_netlist(CIRCUITS_DIR / "05c_vintage_62_p_47nf.cir")
+    m05d = parse_netlist(CIRCUITS_DIR / "05d_vintage_50s_p_100nf.cir")
 
-    m05_open = parse_netlist(CIRCUITS_DIR / "05_vintage_62_p_alnico.cir")
-    m06_roll = parse_netlist(CIRCUITS_DIR / "06_p_bass_47nf_rolloff.cir")
+    assert m05b.Ctone == pytest.approx(22e-9)
+    assert m05b.Rtone == pytest.approx(3.3)
+    assert m05c.Ctone == pytest.approx(47e-9)
+    assert m05c.Rtone == pytest.approx(3.3)
+    assert m05d.Ctone == pytest.approx(100e-9)
+    assert m05d.Rtone == pytest.approx(3.3)
 
-    curves_05b = compute_circuit_transfer_functions(m05b, freqs=FREQS)[0]
-    curves_05 = compute_circuit_transfer_functions(m05_open, freqs=FREQS)[0]
-    curves_06 = compute_circuit_transfer_functions(m06_roll, freqs=FREQS)[0]
+    c05 = compute_circuit_transfer_functions(m05, freqs=FREQS)[0]
+    c05b = compute_circuit_transfer_functions(m05b, freqs=FREQS)[0]
+    c05c = compute_circuit_transfer_functions(m05c, freqs=FREQS)[0]
+    c05d = compute_circuit_transfer_functions(m05d, freqs=FREQS)[0]
 
-    idx_1k = min(range(len(FREQS)), key=lambda i: abs(FREQS[i] - 1000.0))
-    idx_2k8 = min(range(len(FREQS)), key=lambda i: abs(FREQS[i] - 2800.0))
+    # Peak frequencies glide downward
+    peak_f05 = FREQS[c05.index(max(c05))]
+    peak_f05b = FREQS[c05b.index(max(c05b))]
+    peak_f05c = FREQS[c05c.index(max(c05c))]
 
-    # At 1 kHz, 05b is within 2.5 dB of wide-open 05
-    diff_1k_db = 20.0 * math.log10(curves_05b[idx_1k] / curves_05[idx_1k])
-    assert -2.5 <= diff_1k_db <= -0.5
+    assert 1900.0 <= peak_f05 <= 2400.0
+    assert 400.0 <= peak_f05b <= 480.0
+    assert 180.0 <= peak_f05c <= 240.0
+    assert peak_f05 > peak_f05b > peak_f05c
 
-    # At 2.8 kHz (where 05 has its bright resonant peak), 05b rolls off by 3.5 to 6.0 dB relative to 05
-    diff_2k8_db = 20.0 * math.log10(curves_05b[idx_2k8] / curves_05[idx_2k8])
-    assert -6.5 <= diff_2k8_db <= -3.0
+    # 05d has deepest cutoff: at 500 Hz, 05d is significantly more attenuated than 05c
+    idx_500 = min(range(len(FREQS)), key=lambda i: abs(FREQS[i] - 500.0))
+    assert c05d[idx_500] < c05c[idx_500] < c05b[idx_500]
 
-    # At 2.8 kHz, 05b retains significantly more clarity and bite than fully rolled-off 06
-    assert curves_05b[idx_2k8] > curves_06[idx_2k8] * 2.5
+    # Differential transfer function verification against standard P source:
+    src_p = parse_netlist(CIRCUITS_DIR / "sources" / "source_standard_p.cir")
+    diff_05b = compute_differential_circuit_transfer_functions(m05b, src_p, freqs=FREQS)[0]
+    diff_05d = compute_differential_circuit_transfer_functions(m05d, src_p, freqs=FREQS)[0]
+
+    idx_440 = min(range(len(FREQS)), key=lambda i: abs(FREQS[i] - 440.0))
+    db_05b_440 = 20.0 * math.log10(diff_05b[idx_440] / diff_05b[0])
+    db_05d_440 = 20.0 * math.log10(diff_05d[idx_440] / diff_05d[0])
+
+    # 05b (22nF) has resonant boost at 440 Hz (> 1.5 dB)
+    assert db_05b_440 > 1.5
+    # 05d (100nF) has deep rolloff at 440 Hz (< -8.0 dB)
+    assert db_05d_440 < -8.0
+    # 05b and 05d must be distinct and separated by > 10 dB at 440 Hz
+    assert (db_05b_440 - db_05d_440) > 10.0
 
 def test_higher_order_dipole_expansion_and_sag():
     """
@@ -843,15 +869,15 @@ def test_higher_order_dipole_expansion_and_sag():
 
 def test_voice_02b_transfer_function():
     """
-    Verify Voice 02b (Vintage '60s Jazz Bass Pair with Tone rolled to 50% Sweet Spot):
-    1. Netlist parses topology = parallel, R_tone = 50k, C_tone = 47nF.
-    2. At 1 kHz, 02b preserves vocal low-mid growl within 1.5 dB of wide-open Voice 02 (-0.8 dB).
-    3. At 2.7 kHz, 02b attenuates pick/treble clatter by 2.0 to 4.0 dB relative to Voice 02.
+    Verify Voice 02b (Vintage '60s Jazz Bass Pair with 22nF ToneStyler Detent):
+    1. Netlist parses topology = parallel, R_tone = 3.3, C_tone = 22nF.
+    2. Resonant peak occurs in the 700-850 Hz region (Jaco vocal bridge burp).
+    3. Treble at 3 kHz is attenuated by > 6 dB relative to wide-open Voice 02.
     """
-    m02b = parse_netlist(CIRCUITS_DIR / "02b_jazz_bass_pair_tone50.cir")
+    m02b = parse_netlist(CIRCUITS_DIR / "02b_jazz_bass_pair_22nf.cir")
     assert m02b.topology == "parallel"
-    assert m02b.Ctone == pytest.approx(47e-9)
-    assert m02b.Rtone == pytest.approx(50000.0)
+    assert m02b.Ctone == pytest.approx(22e-9)
+    assert m02b.Rtone == pytest.approx(3.3)
 
     m02 = parse_netlist(CIRCUITS_DIR / "02_jazz_bass_pair.cir")
 
@@ -859,14 +885,12 @@ def test_voice_02b_transfer_function():
     curves_02 = compute_circuit_transfer_functions(m02, freqs=FREQS)
 
     for ch in [0, 1]:
-        idx_1k = min(range(len(FREQS)), key=lambda i: abs(FREQS[i] - 1000.0))
-        idx_2k7 = min(range(len(FREQS)), key=lambda i: abs(FREQS[i] - 2700.0))
+        peak_f = FREQS[curves_02b[ch].index(max(curves_02b[ch]))]
+        assert 700.0 <= peak_f <= 850.0
 
-        diff_1k_db = 20.0 * math.log10(curves_02b[ch][idx_1k] / curves_02[ch][idx_1k])
-        diff_2k7_db = 20.0 * math.log10(curves_02b[ch][idx_2k7] / curves_02[ch][idx_2k7])
-
-        assert -1.5 <= diff_1k_db <= -0.3, f"Channel {ch} diff at 1 kHz was {diff_1k_db:.2f} dB"
-        assert -4.0 <= diff_2k7_db <= -1.8, f"Channel {ch} diff at 2.7 kHz was {diff_2k7_db:.2f} dB"
+        idx_3k = min(range(len(FREQS)), key=lambda i: abs(FREQS[i] - 3000.0))
+        diff_3k_db = 20.0 * math.log10(curves_02b[ch][idx_3k] / curves_02[ch][idx_3k])
+        assert diff_3k_db < -6.0
 
 def test_spatial_wave_propagation_delay():
     """

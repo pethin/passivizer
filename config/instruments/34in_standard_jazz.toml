@@ -98,10 +98,13 @@ components = [
 [pickup_mapping]
 "01_modern_jazz_active" = "pair_parallel"          # Both pickups in parallel (active twin)
 "02_jazz_bass_pair" = "pair_parallel"          # Both pickups in parallel (identity)
+"02b_jazz_bass_pair_22nf" = "pair_parallel"    # Both pickups in parallel with 22nF ToneStyler
 "03_jazz_bridge_60s" = "bridge"                # Solo bridge single-coil (identity)
 "04_modern_p_ceramic" = "neck"                  # Solo neck single-coil (closest to P-bass position)
 "05_vintage_62_p_alnico" = "neck"               # Solo neck single-coil (closest to P-bass position)
-"06_p_bass_47nf_rolloff" = "neck"               # Solo neck single-coil
+"05b_vintage_62_p_22nf" = "neck"                # Solo neck single-coil
+"05c_vintage_62_p_47nf" = "neck"               # Solo neck single-coil
+"05d_vintage_50s_p_100nf" = "neck"              # Solo neck single-coil
 "07_modern_pj_active" = "pair_parallel"   # Modern Active P/J
 "08_vintage_pj_passive" = "pair_parallel"  # Vintage Alnico P/J
 "09_stingray_mm_parallel" = "bridge"            # Solo bridge pickup

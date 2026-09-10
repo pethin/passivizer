@@ -59,10 +59,13 @@ In your presets, use the Block 1 output level trim to normalize all voices to an
 | :--- | :--- | :--- | :--- |
 | **`01_modern_jazz_active`** | Modern Active Jazz (Sadowsky 2-Band) | $+2.0\text{ dB}$ | $-2.0\text{ dB}$ (Controls active boost) |
 | **`02_jazz_bass_pair`** | Vintage 60s Jazz Bass Pair (Parallel) | $-0.5\text{ dB}$ | $+0.5\text{ dB}$ |
+| **`02b_jazz_bass_pair_22nf`** | Vintage 60s J-Pair (22nF ToneStyler) | $-0.5\text{ dB}$ | $+0.5\text{ dB}$ |
 | **`03_jazz_bridge_60s`** | 60s Jazz Bridge Single-Coil | $-2.5\text{ dB}$ | $+2.5\text{ dB}$ (Compensates single-coil drop) |
 | **`04_modern_p_ceramic`** | Modern Split-Coil P (Ceramic 500k) | $+1.5\text{ dB}$ | $0.0\text{ dB}$ (Reference Baseline) |
 | **`05_vintage_62_p_alnico`** | Vintage '62 Split-Coil P (Alnico V 250k) | $+0.5\text{ dB}$ | $+1.0\text{ dB}$ |
-| **`06_p_bass_47nf_rolloff`** | Split-Coil P (47nF Tone Rolloff) | $-1.0\text{ dB}$ | $+1.0\text{ dB}$ |
+| **`05b_vintage_62_p_22nf`** | Vintage '62 P (22nF ToneStyler) | $+0.0\text{ dB}$ | $+1.0\text{ dB}$ |
+| **`05c_vintage_62_p_47nf`** | Vintage P (47nF ToneStyler Motown) | $-1.0\text{ dB}$ | $+1.0\text{ dB}$ |
+| **`05d_vintage_50s_p_100nf`** | Vintage '50s P (100nF ToneStyler) | $-1.5\text{ dB}$ | $+1.5\text{ dB}$ |
 | **`07_modern_pj_active`** | Modern Active P/J (Sadowsky/Spector 2-Band) | $+2.0\text{ dB}$ | $-2.0\text{ dB}$ (Controls active boost) |
 | **`08_vintage_pj_passive`** | Vintage '80s Passive P/J (Dual-Volume) | $+0.5\text{ dB}$ | $+0.5\text{ dB}$ |
 | **`09_stingray_mm_parallel`** | Music Man MM (Active 2-Band Humbucker)| $+2.5\text{ dB}$ | $-1.5\text{ dB}$ (Controls active boost) |
@@ -85,8 +88,8 @@ Group the pickup profiles into dedicated 3-button banks on the Anagram hardware:
 
 ### Bank 2: Precision Bass Foundations
 * **Footswitch A:** `04_modern_p_ceramic.nam` (Modern Split-Coil P - Boutique 500k)
-* **Footswitch B:** `05_vintage_62_p_alnico.nam` (Vintage '62 P Alnico V)
-* **Footswitch C:** `06_p_bass_47nf_rolloff.nam` (P-Bass 47nF Tone Rolloff / Motown Dub)
+* **Footswitch B:** `05_vintage_62_p_alnico.nam` (Vintage '62 P Alnico V - Tone Open)
+* **Footswitch C:** `05c_vintage_62_p_47nf.nam` (P-Bass 47nF ToneStyler Motown Flatwound)
 
 ### Bank 3: P/J Hybrid & Music Man Active
 * **Footswitch A:** `07_modern_pj_active.nam` (Modern Active P/J - Sadowsky/Spector 2-Band)

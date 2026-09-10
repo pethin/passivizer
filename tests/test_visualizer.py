@@ -35,7 +35,7 @@ def test_generate_interactive_chart():
 def test_circuit_simulation_integration():
     """Verify that build_voice_dataframe accurately incorporates the exact .cir netlist transfer functions."""
     # 1. 47nF tone capacitor rolloff on P-Bass
-    df_tone = build_voice_dataframe("06_p_bass_47nf_rolloff", VOICES["06_p_bass_47nf_rolloff"], src_scale="30in")
+    df_tone = build_voice_dataframe("05c_vintage_62_p_47nf", VOICES["05c_vintage_62_p_47nf"], src_scale="30in")
     df_p = build_voice_dataframe("04_modern_p_ceramic", VOICES["04_modern_p_ceramic"], src_scale="30in")
 
     mag_tone_5k = df_tone.filter(pl.col("frequency") > 4500.0)["magnitude_db"].to_list()[0]

@@ -66,9 +66,9 @@ def test_target_voice_strings():
     assert str_v13["type"] == "roundwound"
     assert str_v13["wrap"] == "stainless"
 
-    v06 = VOICES["06_p_bass_47nf_rolloff"]
-    str_v06 = get_voice_string(v06)
-    assert str_v06["type"] == "flatwound"
+    v05c = VOICES["05c_vintage_62_p_47nf"]
+    str_v05c = get_voice_string(v05c)
+    assert str_v05c["type"] == "flatwound"
 
     # Standard voices default to roundwound_nickel_standard
     v04 = VOICES["04_modern_p_ceramic"]

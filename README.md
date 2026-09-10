@@ -127,18 +127,21 @@ Passivizer converts the lower tension and warm low-mid "bloom" of **30" short-sc
 
 ---
 
-## Target Voice Catalog (14 Master Configurations & Acoustic Transducers)
+## Target Voice Catalog (18 Master Configurations & Acoustic Transducers)
 
-Passivizer includes pre-configured physical and electrical parameters for **14 distinct pickup topologies and transducers** including active 2-band preamps, fanned-fret multi-scale, and upright double bass (see [`docs/voice_catalog.md`](file:///Users/peter/Projects/pethin/passivizer/docs/voice_catalog.md) for full engineering specifications):
+Passivizer includes pre-configured physical and electrical parameters for **18 distinct pickup topologies and transducers** including active 2-band preamps, Stellartone ToneStyler discrete capacitive switching, fanned-fret multi-scale, and upright double bass (see [`docs/voice_catalog.md`](file:///Users/peter/Projects/pethin/passivizer/docs/voice_catalog.md) for full engineering specifications):
 
 | # | Profile ID | Pickup Type | Topology | Harness / Controls | $L_{\text{eq}}$ | $f_r$ (Peak) | Circuit & Acoustic Character |
 | :- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
 | **01** | `01_modern_jazz_active` | Modern Active Jazz | Active 2-Band | Sadowsky 2-Band ($R_{\text{in}}=1\text{M}\Omega, R_{\text{out}}=100\,\Omega$) | $1.69\text{ H}$ (isolated) | $7.8\text{ kHz}$ | Isolated 60s J-pair with Sadowsky active 2-band boost; wideband sparkle with $+4\text{ dB}$ bass/treble. |
 | **02** | `02_jazz_bass_pair` | Vintage 60s J-Bass Pair | Dual Parallel | Vintage $2\times 250\text{k}\Omega$ Vol ($125\text{k}\Omega$ net), $250\text{k}\Omega$ Tone, $47\text{nF}$ | $1.69\text{ H}$ | $2.7\text{ kHz}$ | Dual narrow single-coils in parallel; 60s $92.1\text{ mm}$ ($3\frac{5}{8}''$) aperture scoop with woody resonance. |
+| **02b**| `02b_jazz_bass_pair_22nf`| 60s J-Bass Pair (22nF) | Dual Parallel | Vintage $2\times 250\text{k}\Omega$ Vol, 22nF ToneStyler Pure Shunt ($R_{\text{tone}}=3.3\,\Omega$) | $1.69\text{ H}$ | $762\text{ Hz}$ | Vocal midrange honk ($762\text{ Hz}$ peak, $-3\text{ dB}$ at $1225\text{ Hz}$); pure capacitive shunt preserves Jaco bridge growl with zero wiper mud. |
 | **03** | `03_jazz_bridge_60s` | 60s J-Bass Bridge | Single Coil | Vintage $250\text{k}\Omega$ Vol, $250\text{k}\Omega$ Tone, $47\text{nF}$ | $3.60\text{ H}$ | $2.8\text{ kHz}$ | 60s bridge single-coil ($63.5\text{ mm}$ datum); focused midrange bite, authentic Jaco growl. |
 | **04** | `04_modern_p_ceramic` | Modern Split P | Single Split | Boutique $500\text{k}\Omega$ Vol/Tone, $22\text{nF}$ Cap, Treble Bleed | $4.80\text{ H}$ | $2.4\text{ kHz}$ | Modern ceramic split-coil (Bartolini 8CBP); punchy attack with extended clarity from 500k harness. |
-| **05** | `05_vintage_62_p_alnico` | Vintage '62 P | Single Split | Vintage CTS $250\text{k}\Omega$ Vol/Tone, $47\text{nF}$ PIO Cap | $3.80\text{ H}$ | $2.6\text{ kHz}$ | Classic Alnico V split-coil; lower eddy damping, open dynamic sensitivity and woody bloom. |
-| **06** | `06_p_bass_47nf_rolloff` | Split P w/ 47nF | Split w/ Shunt | Vintage $250\text{k}\Omega$ Vol + Direct $47\text{nF}$ Tone Shunt Rolloff | $4.80\text{ H}$ | $0.45\text{ kHz}$| Split-coil with tone rolled to 0; deep, fundamental-heavy pillowy Motown sub-bass. |
+| **05** | `05_vintage_62_p_alnico` | Vintage '62 P (Tone Open)| Single Split | Vintage CTS $250\text{k}\Omega$ Vol/Tone Open, $47\text{nF}$ PIO Cap | $3.80\text{ H}$ | $2.1\text{ kHz}$ | Classic Alnico V split-coil wide open; touch-sensitive dynamic response, woody organic bloom ($4.0\text{ kHz}$ cutoff). |
+| **05b**| `05b_vintage_62_p_22nf` | Vintage '62 P (22nF) | Single Split | 22nF ToneStyler Pure Shunt ($R_{\text{tone}}=3.3\,\Omega$) | $3.80\text{ H}$ | $440\text{ Hz}$ | Modern Fender spec; punchy $440\text{ Hz}$ low-mid resonant focus (+1.5 dB), $-3\text{ dB}$ cutoff at $750\text{ Hz}$. |
+| **05c**| `05c_vintage_62_p_47nf` | Vintage '62 P (47nF) | Single Split | 47nF ToneStyler Pure Shunt ($R_{\text{tone}}=3.3\,\Omega$), Flatwound Heavy | $3.80\text{ H}$ | $450\text{ Hz}$ | Authentic Jamerson Motown flatwound thump; 47nF ToneStyler pure capacitive shunt with pillowy low-end warmth. |
+| **05d**| `05d_vintage_50s_p_100nf`| Vintage '50s P (100nF) | Single Split | 100nF ToneStyler Pure Shunt ($R_{\text{tone}}=3.3\,\Omega$) | $3.80\text{ H}$ | Sub-bass | Original 1951–1959 Fullerton factory paper-in-oil spec; massive sub-bass shelf rolloff ($-3\text{ dB}$ at $240\text{ Hz}$, deep Motown / reggae dub thump). |
 | **07** | `07_modern_pj_active` | Modern Active P/J | Active 2-Band | Sadowsky/Spector 2-Band ($R_{\text{in}}=1\text{M}\Omega, R_{\text{out}}=100\,\Omega$) | $2.06\text{ H}$ (isolated) | $7.6\text{ kHz}$ | Active 2-band boost with isolated ceramic P/J coils; punchy sub-bass fundamental, wideband sparkle, and aggressive clank. |
 | **08** | `08_vintage_pj_passive` | Vintage '80s Passive P/J | Parallel Sum | Dual $250\text{k}\Omega$ Vol ($125\text{k}\Omega$ net), $250\text{k}\Omega$ Tone, $47\text{nF}$ | $1.85\text{ H}$ | $2.8\text{ kHz}$ | Vintage Alnico V split-P and 60s J-bridge in parallel; authentic '80s Fender Special / Yamaha BB thump with woody mid-punch. |
 | **09** | `09_stingray_mm_parallel` | Music Man StingRay | Active MM Buffer | Music Man 2-Band ($R_{\text{in}}=1\text{M}\Omega, R_{\text{out}}=100\,\Omega$) | $2.40\text{ H}$ (isolated) | $7.2\text{ kHz}$ | Authentic active 2-band MM humbucker; cable isolation, comb notch at $2.5\text{ kHz}$, metallic clank. |
@@ -262,17 +265,23 @@ passivizer/
 │   ├── aperture_math.md                   # Magnetic aperture sinc, multi-string & scale physics
 │   └── anagram_workflow.md                # Darkglass Anagram Block 1 routing & gain staging
 ├── circuits/                              # Standalone SPICE netlists (.cir)
-│   ├── 01_jazz_bass_pair.cir              # Dual single-coils in parallel
-│   ├── 02_jazz_bridge_60s.cir              # 60s bridge single-coil
-│   ├── 03_modern_p_ceramic.cir            # Modern ceramic split-coil P
-│   ├── 04_vintage_62_p_alnico.cir         # Vintage '62 Alnico V split-coil P
-│   ├── 05_p_bass_47nf_rolloff.cir         # Split-coil P with 47nF tone shunt
-│   ├── 06_pj_hybrid_parallel.cir          # P/J hybrid parallel
-│   ├── 07_stingray_mm_parallel.cir        # Music Man parallel humbucker
-│   ├── 08_rickenbacker_bridge_hpf.cir     # 4003 bridge with 4.7nF series HPF
-│   ├── 09_pmm_hybrid_series.cir           # P/MM hybrid in series
-│   ├── 10_mudbucker_ultra_series.cir      # Overwound series humbucker
-│   └── 11_dingwall_multiscale_bridge.cir  # Multi-scale angled bridge position
+│   ├── 01_modern_jazz_active.cir          # Sadowsky active 2-band isolated Jazz pair
+│   ├── 02_jazz_bass_pair.cir              # Dual single-coils in parallel (tone open)
+│   ├── 02b_jazz_bass_pair_22nf.cir        # Vintage J-pair with 22nF ToneStyler
+│   ├── 03_jazz_bridge_60s.cir             # 60s bridge single-coil
+│   ├── 04_modern_p_ceramic.cir            # Modern ceramic split-coil P (500k)
+│   ├── 05_vintage_62_p_alnico.cir         # Vintage '62 Alnico V split-P (tone open)
+│   ├── 05b_vintage_62_p_22nf.cir          # Vintage '62 split-P with 22nF ToneStyler
+│   ├── 05c_vintage_62_p_47nf.cir          # Vintage '62 split-P with 47nF ToneStyler (Motown)
+│   ├── 05d_vintage_50s_p_100nf.cir        # Vintage '50s split-P with 100nF ToneStyler
+│   ├── 07_modern_pj_active.cir            # Modern active P/J
+│   ├── 08_vintage_pj_passive.cir          # Vintage '80s passive P/J
+│   ├── 09_stingray_mm_parallel.cir        # Music Man parallel humbucker
+│   ├── 10_rickenbacker_bridge_hpf.cir     # 4003 bridge with 4.7nF series HPF
+│   ├── 11_pmm_hybrid_series.cir           # P/MM hybrid in series
+│   ├── 12_mudbucker_ultra_series.cir      # Overwound series humbucker
+│   ├── 13_dingwall_multiscale_bridge.cir  # Multi-scale angled bridge position
+│   └── 14_upright_bridge_transducer.cir   # Upright piezo bridge transducer
 ├── config/                                # Modular TOML configuration files
 │   ├── instruments/                       # Source bass geometries, pickups & routing
 │   │   ├── 30in_emg_mmtw.toml             # 30" active EMG MMTW dual-mode bass

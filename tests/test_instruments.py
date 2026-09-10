@@ -364,7 +364,7 @@ def test_34in_standard_pj_routing():
     # Routing checks: P voices
     assert get_source_pickup(inst, "04_modern_p_ceramic")["id"] == "p"
     assert get_source_pickup(inst, "05_vintage_62_p_alnico")["id"] == "p"
-    assert get_source_pickup(inst, "06_p_bass_47nf_rolloff")["id"] == "p"
+    assert get_source_pickup(inst, "05c_vintage_62_p_47nf")["id"] == "p"
     assert get_source_pickup(inst, "12_mudbucker_ultra_series")["id"] == "p"
     assert get_source_pickup(inst, "14_upright_bridge_transducer")["id"] == "p"
 

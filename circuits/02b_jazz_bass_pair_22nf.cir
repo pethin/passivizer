@@ -1,5 +1,5 @@
-* Passivizer Netlist 02b: 60s Jazz Bass Pair in Parallel (Tone @ 50% Sweet Spot)
-* Target: Vintage 60s Dual Single-Coil Pair in Parallel with Tone Rolled to 50% (50k + 47nF)
+* Passivizer Netlist 02b: 60s Jazz Bass Pair in Parallel (22nF ToneStyler)
+* Target: Vintage 60s Dual Single-Coil Pair in Parallel with 22nF ToneStyler pure capacitive shunt
 .options plotwinsize=0 numdgt=7
 
 * 1. Audio Sources: Independent String Motion per Pickup (Channel 0 = Neck, Channel 1 = Bridge)
@@ -23,9 +23,9 @@ R_dc_b node1_b node2 7.80k
 R_eddy_b in_dyn_b node2 125k
 C_coil_b node2 0 70p
 
-* 4. Tone Pot (50% Studio Sweet Spot: 50k series wiper resistance with 47nF capacitor)
-R_tone node2 tone_mid 50k
-C_tone tone_mid 0 47n
+* 4. Tone Control (ToneStyler 22nF Position: pure capacitive shunt, 3.3 Ohm contact ESR)
+R_tone node2 node2_c 3.3
+C_tone node2_c 0 22n
 
 * 5. Dual 250k Volume Pots in Parallel (Volume @ 100%: 250k || 250k = 125k)
 R_pot_top node2 node3 10
@@ -39,5 +39,5 @@ R_anagram node3 0 1Meg
 C_anagram node3 0 30p
 
 * 8. Output Audio Export for NAM Training
-.wave "out_02b_jazz_bass_pair_tone50.wav" 24 48000 V(node3)
+.wave "out_02b_jazz_bass_pair_22nf.wav" 24 48000 V(node3)
 .end

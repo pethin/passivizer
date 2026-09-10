@@ -36,6 +36,7 @@ from model_physics import (
     load_instrument,
     get_instrument_string,
     get_source_pickup,
+    resolve_voices,
 )
 
 def parse_spice_val(val_str: str) -> float:
@@ -619,7 +620,6 @@ def compute_differential_circuit_transfer_functions(
     src_curves = compute_circuit_transfer_functions(source_model, freqs=freqs)
 
     f_arr = np.asarray(freqs, dtype=np.float64)
-    ref_idx = int(np.argmin(np.abs(f_arr - 1000.0)))
 
     diff_curves = []
     for ch_idx, tgt_c in enumerate(tgt_curves):
@@ -631,13 +631,8 @@ def compute_differential_circuit_transfer_functions(
         # Wiener regularized quotient
         h_diff = (tgt_arr * src_arr) / (src_arr ** 2 + eps ** 2)
 
-        # Reference gain at 1 kHz (or DC)
-        ref_gain = h_diff[ref_idx] if ref_idx < len(h_diff) else h_diff[0]
-        if ref_gain <= 0:
-            ref_gain = 1.0
-
-        # Convert to relative dB for smooth soft-knee compression
-        h_db = 20.0 * np.log10(np.maximum(h_diff / ref_gain, 1e-6))
+        # Convert to absolute dB (linear ratio between target and source circuits)
+        h_db = 20.0 * np.log10(np.maximum(h_diff, 1e-6))
 
         # Soft-knee limiting: smoothly saturate boost towards max_boost_db
         knee_width = min(2.5, max_boost_db / 2.0)
@@ -656,7 +651,7 @@ def compute_differential_circuit_transfer_functions(
         excess_boost = (1.0 / 1.2) * np.logaddexp(0.0, 1.2 * h_db_soft)
         h_db_final = h_db_soft - (1.0 - s) * excess_boost
 
-        h_diff_smooth = ref_gain * (10.0 ** (h_db_final / 20.0))
+        h_diff_smooth = 10.0 ** (h_db_final / 20.0)
         diff_curves.append(h_diff_smooth.tolist())
 
     return diff_curves
@@ -1423,7 +1418,7 @@ def main():
     eddy_diffusion = not args.no_eddy_diffusion
     eta_hyst = 0.0 if args.no_hysteresis else args.eta_hyst
 
-    voices = list(VOICES.keys()) if args.voice == "all" else [args.voice]
+    voices = resolve_voices(args.voice)
     in_path = Path(args.input) if args.input else None
     out_path = Path(args.out) if args.out else None
 

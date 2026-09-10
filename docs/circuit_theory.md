@@ -74,22 +74,28 @@ In instruments equipped with active onboard preamps (e.g., Sadowsky NYC 2-band, 
    * **Sadowsky 2-Band (Jazz & P/J):** $+4.0\text{ dB}$ Bass boost ($40\text{ Hz}$ shelf) and $+4.0\text{ dB}$ Treble boost ($4.0\text{ kHz}$ shelf).
    * **Music Man StingRay 2-Band:** $+5.0\text{ dB}$ Bass boost ($50\text{ Hz}$ shelf) and $+3.0\text{ dB}$ Treble boost ($7.0\text{ kHz}$ shelf).
 
-### B. Vintage Dual-Volume Harness (`02_jazz_bass_pair`, `02b_jazz_bass_pair_tone50`, `08_vintage_pj_passive`)
+### B. Vintage Dual-Volume Harness (`02_jazz_bass_pair`, `02b_jazz_bass_pair_22nf`, `08_vintage_pj_passive`)
 * Standard Jazz Basses and passive P/Js utilize two separate $250\text{k}\Omega$ volume pots wired in parallel.
 * At $100\%$ volume, the two pots act as a combined resistive load:
   $$R_{\text{vol\_net}} = 250\text{ k}\Omega \parallel 250\text{ k}\Omega = 125\text{ k}\Omega$$
 * This heavy $125\text{ k}\Omega$ loading naturally damps the $Q$ factor of the pickup coils, producing the warm, woody, organic low-mid bloom characteristic of vintage 1960s Jazz Basses and 1980s P/Js.
-* **Tone at 100% (`02_jazz_bass_pair`):** Full $250\text{ k}\Omega$ wiper series resistance isolates the $47\text{ nF}$ capacitor, leaving the loaded peak at $2.7\text{ kHz}$.
-* **Tone at 50% (`02b_jazz_bass_pair_tone50`):** CTS audio taper knob position "5" sets the series wiper resistance to $R_{\text{tone}} \approx 50\text{ k}\Omega$. Damps the $2.7\text{ kHz}$ treble peak by $-2.8\text{ dB}$ while preserving the $1\text{ kHz}$ hollow throat and vocal growl ($-0.8\text{ dB}$).
+* **Tone Wide Open (`02_jazz_bass_pair`):** Full $250\text{ k}\Omega$ wiper series resistance isolates the $47\text{ nF}$ capacitor, leaving the loaded peak at $2.7\text{ kHz}$.
+* **ToneStyler 22nF Detent (`02b_jazz_bass_pair_22nf`):** Replaces simulated potentiometer wiper resistance with a Stellartone ToneStyler pure capacitive shunt ($R_{\text{tone}} = 3.3\,\Omega$, $C_{\text{tone}} = 22\text{ nF}$). Because there is zero series wiper resistance to damp the tank circuit, the high-$Q$ resonant bump is preserved directly at $762\text{ Hz}$ (+4.8 dB above a rolled pot), preserving the vocal Jaco bridge burp while cutting out harsh treble clank and pick transients.
 * **Spatial Acoustic Propagation Delay:** Transverse string wave takes $\tau = (x_{\text{neck}} - x_{\text{bridge}}) / \bar{c_s} \approx 0.81\text{ ms}$ to travel between pickups, creating the iconic hollow acoustic phase comb cancellation at $600\text{--}800\text{ Hz}$.
 
-### C. Vintage CTS 250k Split-P Harness (`05_vintage_62_p_alnico`, `05b_vintage_62_p_tone50`, `03_jazz_bridge_60s`)
+### C. Vintage Split-P ToneStyler Progression (`05`, `05b`, `05c`, `05d`)
 * Classic 1962 Fender Precision specification:
   * Volume: CTS $250\text{ k}\Omega$ Audio Pot
-  * Tone: CTS $250\text{ k}\Omega$ Audio Pot with $47\text{ nF}$ paper-in-oil capacitor
   * Net parallel pot load: $250\text{k} \parallel 250\text{k} = 125\text{ k}\Omega$ (unloaded) / with $1\text{ M}\Omega$ receiver: $111\text{ k}\Omega$.
-  * **Tone at 100% (Wide Open - `05_vintage_62_p_alnico`):** Full CTS $250\text{ k}\Omega$ series wiper resistance isolates the $47\text{ nF}$ capacitor, preserving the iconic $2.8\text{ kHz}$ resonant bite and open harmonic attack.
-  * **Tone at 50% (Studio Sweet Spot - `05b_vintage_62_p_tone50`):** Due to the logarithmic CTS audio taper, physical rotation position "5" sets the wiper series resistance to $R_{\text{tone}} \approx 50\text{ k}\Omega$. The $50\text{ k}\Omega + 47\text{ nF}$ branch forms a smooth midrange plateau ($-1.0\text{ dB}$ at $1\text{ kHz}$, $-4.6\text{ dB}$ at $2.8\text{ kHz}$), eliminating pick click, string buzz, and fret clatter while retaining punchy low-mid warmth and definition without descending into 100% rolloff mud.
+* **Tone Pot Rolling vs. Stellartone ToneStyler Switching:**
+  * **Traditional Pot Rolling:** Turning a standard tone knob inserts variable wiper resistance ($R_{\text{tone}} \approx 10\text{--}100\text{ k}\Omega$) in series with the tone cap. This heavily over-damps the circuit ($Q < 0.5$), flattening the resonant peak into a muddy shelf.
+  * **Stellartone ToneStyler Pure Switching:** Connects discrete precision capacitors directly to ground ($R_{\text{tone}} \approx 3.3\,\Omega$). The undamped resonant peak ($Q \approx 1.2\text{--}1.8$) is retained as the resonant frequency glides down through the spectrum:
+    $$f_r = \frac{1}{2\pi \sqrt{L \cdot (C_{\text{coil}} + C_{\text{cable}} + C_{\text{tone}})}}$$
+* **The 4-Position ToneStyler Progression:**
+  * **Tone Open (`05_vintage_62_p_alnico`):** CTS $250\text{k}\Omega$ tone pot wide open. Resonant peak at $2128\text{ Hz}$, $-3\text{ dB}$ cutoff at $3985\text{ Hz}$ (open, woody, articulate vintage growl).
+  * **22nF ToneStyler (`05b_vintage_62_p_22nf`):** Pure $22\text{ nF}$ shunt (Modern Fender spec). Resonant peak at $440\text{ Hz}$ (+1.5 dB), $-3\text{ dB}$ cutoff at $750\text{ Hz}$ (punchy low-mid focus, eliminates fret clatter while retaining punch).
+  * **47nF ToneStyler (`05c_vintage_62_p_47nf`):** Pure $47\text{ nF}$ shunt with heavy flatwound damping (Golden '60s Motown / Jamerson spec). Resonant peak at $450\text{ Hz}$ (+1.2 dB), steep rolloff above $800\text{ Hz}$ (pillowy low-mid bloom, authentic Motown thump).
+  * **100nF ToneStyler (`05d_vintage_50s_p_100nf`):** Pure $100\text{ nF}$ (0.1µF) shunt (Original 1951–1959 Fullerton factory spec). Sub-bass shelf, $-3\text{ dB}$ cutoff at $240\text{ Hz}$ (deep Motown / reggae dub thump).
 
 ### D. Modern Boutique 500k Harness with Treble Bleed (`04_modern_p_ceramic`)
 * Modern ceramic split-coils use $500\text{ k}\Omega$ pots to maintain high-frequency extension:

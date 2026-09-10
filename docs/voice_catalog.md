@@ -1,4 +1,4 @@
-# Passivizer Master Voice Catalog (16 Pickup Configurations & Transducers)
+# Passivizer Master Voice Catalog (17 Pickup Configurations & Transducers)
 
 This catalog details the physical parameters, equivalent RLC circuit values, acoustic apertures, control harnesses, and electrical characteristics for the **Passivizer Digital Twin Profiles**.
 
@@ -10,12 +10,13 @@ This catalog details the physical parameters, equivalent RLC circuit values, aco
 | :- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
 | **01** | `01_modern_jazz_active` | Modern Active Jazz | Active 2-Band | Sadowsky 2-Band Preamp ($R_{\text{in}}=1\text{M}\Omega, R_{\text{out}}=100\,\Omega$) | $1.69\text{ H}$ (isolated) | $3.69\text{ k}\Omega$ | $7.8\text{ kHz}$ | Sadowsky-style active 2-band boost with isolated 60s J-pair ($92.1\text{ mm}$ aperture scoop), wideband hi-fi sparkle, punchy active bass and treble shelving. |
 | **02** | `02_jazz_bass_pair` | Vintage 60s J-Bass Pair | Dual Parallel | Vintage 60s $2\times 250\text{k}\Omega$ Vol ($125\text{k}\Omega$ net), $250\text{k}\Omega$ Tone, $47\text{nF}$ Cap | $1.69\text{ H}$ | $3.69\text{ k}\Omega$ | $2.7\text{ kHz}$ | Dual narrow single-coils in parallel; authentic 60s $92.1\text{ mm}$ ($3\frac{5}{8}''$) aperture scoop with natural woody low-mid resonance. |
-| **02b**| `02b_jazz_bass_pair_tone50`| Vintage 60s J-Bass Pair (Tone 50%)| Dual Parallel | Vintage 60s $2\times 250\text{k}\Omega$ Vol, $50\text{k}\Omega$ Tone Wiper, $47\text{nF}$ Cap | $1.69\text{ H}$ | $3.69\text{ k}\Omega$ | $1.7\text{ kHz}$ | Classic Jaco fingerstyle sweet spot (knob on 5); $50\text{ k}\Omega$ wiper gently damps treble clatter ($-2.8\text{ dB}$ at $2.7\text{ kHz}$) while preserving $1\text{ kHz}$ mid growl. |
+| **02b**| `02b_jazz_bass_pair_22nf`| 60s J-Bass Pair (22nF ToneStyler)| Dual Parallel | Vintage 60s $2\times 250\text{k}\Omega$ Vol, 22nF ToneStyler Pure Shunt ($R_{\text{tone}}=3.3\,\Omega$) | $1.69\text{ H}$ | $3.69\text{ k}\Omega$ | $762\text{ Hz}$ | Vocal midrange honk ($762\text{ Hz}$ resonant peak, $-3\text{ dB}$ at $1225\text{ Hz}$); pure capacitive shunt preserves punchy Jaco bridge growl with zero wiper mud. |
 | **03** | `03_jazz_bridge_60s` | 60s J-Bass Bridge | Single Coil | Vintage $250\text{k}\Omega$ Vol, $250\text{k}\Omega$ Tone, $47\text{nF}$ Cap | $3.60\text{ H}$ | $7.80\text{ k}\Omega$ | $2.8\text{ kHz}$ | Narrow single-coil placed in 60s bridge position ($63.5\text{ mm}$ from bridge); focused midrange growl with articulate transient snap. |
 | **04** | `04_modern_p_ceramic` | Modern Split P | Single Split | Modern Boutique $500\text{k}\Omega$ Vol, $500\text{k}\Omega$ Tone, $22\text{nF}$ Cap, Treble Bleed | $4.80\text{ H}$ | $9.50\text{ k}\Omega$ | $2.4\text{ kHz}$ | Ceramic split-coil; modern boutique 500k harness preserves high-mid punch and pick attack clarity; hybrid treble bleed maintains presence when backed off. |
-| **05** | `05_vintage_62_p_alnico`| Vintage '62 P | Single Split | Vintage 1962 CTS $250\text{k}\Omega$ Vol, $250\text{k}\Omega$ Tone, $47\text{nF}$ Cap | $3.80\text{ H}$ | $10.50\text{ k}\Omega$ | $2.6\text{ kHz}$ | Alnico V split-coil; lower eddy damping, touch-sensitive dynamic response, woody organic bloom. |
-| **05b**| `05b_vintage_62_p_tone50`| Vintage '62 P (Tone 50%)| Single Split | Vintage 1962 CTS $250\text{k}\Omega$ Vol, $50\text{k}\Omega$ Tone Wiper, $47\text{nF}$ Cap | $3.80\text{ H}$ | $10.50\text{ k}\Omega$ | $1.6\text{ kHz}$ | Classic studio sweet spot (knob on 5); $50\text{ k}\Omega$ wiper gently damps resonant peak ($-4.6\text{ dB}$ at $2.8\text{ kHz}$) while preserving $1\text{ kHz}$ punch without mud. |
-| **06** | `06_p_bass_47nf_rolloff`| Split P w/ 47nF Rolloff | Split w/ Shunt | Vintage $250\text{k}\Omega$ Vol + Direct $47\text{nF}$ Tone Shunt Rolloff | $4.80\text{ H}$ | $9.50\text{ k}\Omega$ | $0.45\text{ kHz}$ | Split-coil loaded by direct $47\text{ nF}$ shunt; rolled-off highs above $800\text{ Hz}$, pillowy Motown sub fundamental. |
+| **05** | `05_vintage_62_p_alnico`| Vintage '62 P (Tone Open)| Single Split | Vintage 1962 CTS $250\text{k}\Omega$ Vol, $250\text{k}\Omega$ Tone Open, $47\text{nF}$ Cap | $3.80\text{ H}$ | $10.50\text{ k}\Omega$ | $2.1\text{ kHz}$ | Alnico V split-coil wide open; touch-sensitive dynamic response, woody organic bloom ($4.0\text{ kHz}$ cutoff). |
+| **05b**| `05b_vintage_62_p_22nf` | Vintage '62 P (22nF ToneStyler)| Single Split | 22nF ToneStyler Pure Shunt ($R_{\text{tone}}=3.3\,\Omega$) | $3.80\text{ H}$ | $10.50\text{ k}\Omega$ | $440\text{ Hz}$ | Modern Fender spec; punchy $440\text{ Hz}$ low-mid resonant focus (+1.5 dB), $-3\text{ dB}$ cutoff at $750\text{ Hz}$, eliminates fret clatter while retaining punch. |
+| **05c**| `05c_vintage_62_p_47nf`| Vintage '62 P (47nF ToneStyler)| Single Split | 47nF ToneStyler Pure Shunt ($R_{\text{tone}}=3.3\,\Omega$), Flatwound Heavy | $3.80\text{ H}$ | $10.50\text{ k}\Omega$ | $450\text{ Hz}$ | Authentic Jamerson Motown flatwound thump with 47nF ToneStyler pure capacitive shunt; low-tension bloom and deep pillowy warmth. |
+| **05d**| `05d_vintage_50s_p_100nf`| Vintage '50s P (100nF ToneStyler)| Single Split | 100nF ToneStyler Pure Shunt ($R_{\text{tone}}=3.3\,\Omega$) | $3.80\text{ H}$ | $10.50\text{ k}\Omega$ | Sub-bass | Original 1951–1959 Fullerton factory paper-in-oil spec; massive sub-bass shelf rolloff ($-3\text{ dB}$ at $240\text{ Hz}$, deep Motown / reggae dub thump). |
 | **07** | `07_modern_pj_active` | Modern Active P/J | Active 2-Band | Sadowsky/Spector 2-Band Preamp ($R_{\text{in}}=1\text{M}\Omega, R_{\text{out}}=100\,\Omega$) | $2.06\text{ H}$ (isolated) | $4.28\text{ k}\Omega$ | $7.6\text{ kHz}$ | Active 2-band boost with isolated ceramic P/J coils ($139/111\text{ mm}$ P + $63.5\text{ mm}$ J); punchy sub-bass fundamental, wideband sparkle, and aggressive bridge clank. |
 | **08** | `08_vintage_pj_passive`| Vintage '80s Passive P/J| Parallel Sum | Dual $250\text{k}\Omega$ Vol ($125\text{k}\Omega$ net), $250\text{k}\Omega$ Tone, $47\text{nF}$ Cap | $1.85\text{ H}$ | $4.48\text{ k}\Omega$ | $2.8\text{ kHz}$ | Vintage Alnico V split-P and 60s J-bridge in parallel; authentic '80s Fender Special / Yamaha BB thump with woody mid-punch. |
 | **09** | `09_stingray_mm_parallel`| MM Humbucker Active | Active 2-Band | Music Man 2-Band Preamp ($R_{\text{in}}=1\text{M}\Omega, R_{\text{out}}=100\,\Omega$) | $2.40\text{ H}$ (isolated) | $4.60\text{ k}\Omega$ | $7.2\text{ kHz}$ | Dual-coil parallel humbucker with authentic active MM preamp buffer isolating coils from cable loading; comb notch at $2.5\text{ kHz}$ and clank peak at $7.2\text{ kHz}$. |
@@ -45,12 +46,12 @@ This catalog details the physical parameters, equivalent RLC circuit values, aco
 * **Acoustic Character:** Symmetrical dual-aperture phase cancellation produces a hollow mid-scoop at $1\text{ kHz}$ with classic woody low-mid resonance and open high-end.
 * **32" Bass Setting:** ABCX Blend at **Center Detent (50/50)** (MMTWX in Single-Coil Mode - Push/Pull Down).
 
-### 02b. `02b_jazz_bass_pair_tone50` (Vintage 60s Jazz Bass Pair - Tone @ 50% Sweet Spot)
-* **Archetype:** Standard 1960s Fender Jazz Bass Dual Single-Coil Pair (Tone Pot at Knob Position 5)
+### 02b. `02b_jazz_bass_pair_22nf` (Vintage 60s Jazz Bass Pair - 22nF ToneStyler)
+* **Archetype:** Standard 1960s Fender Jazz Bass Dual Single-Coil Pair with Stellartone ToneStyler (22nF Pure Capacitive Shunt)
 * **Pickup Architecture:** Dual parallel single coils (Neck: $3.20\text{ H}$; Bridge: $3.60\text{ H}$) spaced $92.1\text{ mm}$ ($3\frac{5}{8}''$) apart ($155.6\text{ mm}$ neck, $63.5\text{ mm}$ bridge)
-* **Control Harness:** Authentic vintage dual $250\text{k}\Omega$ volume pots in parallel ($125\text{k}\Omega$ net load), single CTS $250\text{k}\Omega$ audio tone pot set to 50% physical rotation ($R_{\text{tone}} = 50\text{ k}\Omega$ wiper series resistance), $47\text{ nF}$ capacitor.
-* **Electrical Parameters:** Combined $L_{\text{eq}} = 1.69\text{ H}$, $R_{\text{dc}} = 3.69\text{ k}\Omega$, $R_{\text{tone}} = 50\text{ k}\Omega$, $C_{\text{tone}} = 47\text{ nF}$. Damped loaded peak at $1.7\text{ kHz}, Q = 1.1$.
-* **Acoustic Character:** The iconic Jaco Pastorius / Marcus Miller fingerstyle studio tone: gently softens metallic roundwound string clatter ($-2.8\text{ dB}$ at $2.7\text{ kHz}$) while preserving the punchy $1\text{ kHz}$ hollow throat and vocal growl without muddying the low-B/E fundamental.
+* **Control Harness:** Authentic vintage dual $250\text{k}\Omega$ volume pots in parallel ($125\text{k}\Omega$ net load), Stellartone ToneStyler rotary switch selecting a precision $22\text{ nF}$ capacitor shunt to ground ($R_{\text{tone}} = 3.3\,\Omega$ switch/lead ESR, zero variable wiper damping).
+* **Electrical Parameters:** Combined $L_{\text{eq}} = 1.69\text{ H}$, $R_{\text{dc}} = 3.69\text{ k}\Omega$, $R_{\text{tone}} = 3.3\,\Omega$, $C_{\text{tone}} = 22\text{ nF}$. Undamped resonant peak at **$762\text{ Hz}$**, $-3\text{ dB}$ cutoff at **$1225\text{ Hz}$**.
+* **Acoustic Character:** The iconic Jaco Pastorius / Marcus Miller fingerstyle vocal bridge burp: by eliminating variable potentiometer wiper resistance, the high-$Q$ resonant bump (+4.8 dB above standard 50% pot) is preserved directly in the vocal $760\text{ Hz}$ register, filtering out fret click and pick noise while maintaining commanding midrange articulation and punch.
 * **32" Bass Setting:** ABCX Blend at **Center Detent (50/50)** (MMTWX in Single-Coil Mode - Push/Pull Down).
 
 ### 03. `03_jazz_bridge_60s` (60s Jazz Bass Bridge Single-Coil)
@@ -69,29 +70,39 @@ This catalog details the physical parameters, equivalent RLC circuit values, aco
 * **Acoustic Character:** Immediate pick attack with solid, compressed low-mids ($300\text{--}800\text{ Hz}$) and extended high-mid clarity. The $500\text{k}\Omega$ harness prevents resonant damping, maintaining an open, aggressive transient edge.
 * **32" Bass Setting:** ABCX Blend **100% Neck (PX/PCSX)**.
 
-### 05. `05_vintage_62_p_alnico` (Vintage '62 Split-Coil Alnico V)
+### 05. `05_vintage_62_p_alnico` (Vintage '62 Split-Coil Alnico V - Tone Open)
 * **Archetype:** 1962 Fender Precision with Alnico V Pole Pieces (Tone Wide Open)
 * **Coil Model:** Alnico V split-coil ($w = 1.00''$)
-* **Control Harness:** Vintage 1962 CTS $250\text{k}\Omega$ volume pot, $250\text{k}\Omega$ tone pot, $47\text{ nF}$ paper-in-oil tone capacitor, no treble bleed.
-* **Electrical Parameters:** $L = 3.80\text{ H}$, $R_{\text{dc}} = 10.50\text{ k}\Omega$, $R_{\text{eddy}} = 180\text{ k}\Omega$, $C_{\text{coil}} = 60\text{ pF}$. Loaded $f_r = 2.6\text{ kHz}$.
-* **Acoustic Character:** Lower core eddy-current damping yields an open, touch-sensitive, uncompressed response with organic woody upper-mid bloom.
+* **Control Harness:** Vintage 1962 CTS $250\text{k}\Omega$ volume pot, $250\text{k}\Omega$ tone pot wide open, $47\text{ nF}$ paper-in-oil tone capacitor, no treble bleed.
+* **Electrical Parameters:** $L = 3.80\text{ H}$, $R_{\text{dc}} = 10.50\text{ k}\Omega$, $R_{\text{eddy}} = 180\text{ k}\Omega$, $C_{\text{coil}} = 60\text{ pF}$. Loaded $f_r = 2.1\text{ kHz}$, $-3\text{ dB}$ cutoff at $4.0\text{ kHz}$.
+* **Acoustic Character:** Lower core eddy-current damping yields an open, touch-sensitive, uncompressed response with organic woody upper-mid bloom and complete harmonic extension.
 * **32" Bass Setting:** ABCX Blend **100% Neck (PX/PCSX)**.
 
-### 05b. `05b_vintage_62_p_tone50` (Vintage '62 Split-Coil Alnico V - Tone @ 50% Sweet Spot)
-* **Archetype:** 1962 Fender Precision with Alnico V Pole Pieces (Tone Pot at Knob Position 5)
+### 05b. `05b_vintage_62_p_22nf` (Vintage '62 Split-P - 22nF ToneStyler)
+* **Archetype:** 1962 Fender Precision with Stellartone ToneStyler (22nF Pure Capacitive Shunt)
 * **Coil Model:** Alnico V split-coil ($w = 1.00''$)
-* **Control Harness:** Vintage 1962 CTS $250\text{k}\Omega$ volume pot, CTS $250\text{k}\Omega$ audio taper tone pot set to 50% rotation ($R_{\text{tone}} = 50\text{ k}\Omega$ wiper resistance to ground), $47\text{ nF}$ capacitor.
-* **Electrical Parameters:** $L = 3.80\text{ H}$, $R_{\text{dc}} = 10.50\text{ k}\Omega$, $R_{\text{eddy}} = 180\text{ k}\Omega$, $C_{\text{coil}} = 60\text{ pF}$, $R_{\text{tone}} = 50\text{ k}\Omega$, $C_{\text{tone}} = 47\text{ nF}$. Loaded $f_r = 1.6\text{ kHz}, Q = 1.1$.
-* **Acoustic Character:** The ubiquitous studio bassist sweet spot: eliminates harsh fret buzz, pick click, and finger clank ($-4.6\text{ dB}$ at $2.8\text{ kHz}$) while forming a broad, punchy low-mid plateau ($-1.0\text{ dB}$ at $1\text{ kHz}$) that sits effortlessly in the pocket without getting lost or turning muddy.
+* **Control Harness:** Vintage 1962 CTS $250\text{k}\Omega$ volume pot, Stellartone ToneStyler rotary switch selecting a precision $22\text{ nF}$ capacitor shunt to ground ($R_{\text{tone}} = 3.3\,\Omega$, zero series wiper damping).
+* **Electrical Parameters:** $L = 3.80\text{ H}$, $R_{\text{dc}} = 10.50\text{ k}\Omega$, $R_{\text{tone}} = 3.3\,\Omega$, $C_{\text{tone}} = 22\text{ nF}$. Undamped resonant peak at **$440\text{ Hz}$** (+1.5 dB), $-3\text{ dB}$ cutoff at **$750\text{ Hz}$**.
+* **Acoustic Character:** Modern Fender tone capacitor spec: eliminates fret clatter and pick click while preserving high-$Q$ punch in the punchy $440\text{ Hz}$ low-mid register.
 * **32" Bass Setting:** ABCX Blend **100% Neck (PX/PCSX)**.
 
-### 06. `06_p_bass_47nf_rolloff` (Split-Coil P with 47nF Tone Shunt)
-* **Archetype:** Vintage P-Bass with Tone Rolled to 0 (Jamerson / Palladino style)
-* **Coil Model:** P-Bass split-coil loaded by direct $47\text{ nF}$ capacitor shunt
-* **Control Harness:** $250\text{k}\Omega$ volume pot with tone pot at 0 ($47\text{ nF}$ direct shunt to ground).
-* **Electrical Parameters:** $L = 4.80\text{ H}$, $R_{\text{dc}} = 9.50\text{ k}\Omega$, $C_{\text{tone}} = 47\text{ nF}$. Loaded $f_r = 0.45\text{ kHz}$.
-* **Acoustic Character:** Removes string clack and finger transients above $800\text{ Hz}$, concentrating energy purely in the fundamental $40\text{--}200\text{ Hz}$ register. Delivers warm, pillowy low-end thump.
+### 05c. `05c_vintage_62_p_47nf` (Vintage '62 Split-P - 47nF ToneStyler Motown)
+* **Archetype:** Vintage 1960s Precision Bass with Stellartone ToneStyler 47nF Pure Capacitive Shunt & Heavy Flatwounds (Jamerson / Motown style)
+* **Coil Model:** Alnico V split-coil ($w = 1.00''$)
+* **Control Harness:** Vintage CTS $250\text{k}\Omega$ volume pot, Stellartone ToneStyler rotary switch selecting a precision $47\text{ nF}$ paper-in-oil capacitor shunt to ground ($R_{\text{tone}} = 3.3\,\Omega$ contact/lead ESR, zero series wiper resistance damping).
+* **Electrical Parameters:** $L = 3.80\text{ H}$, $R_{\text{dc}} = 10.50\text{ k}\Omega$, $R_{\text{eddy}} = 180\text{ k}\Omega$, $C_{\text{coil}} = 60\text{ pF}$, $R_{\text{tone}} = 3.3\,\Omega$, $C_{\text{tone}} = 47\text{ nF}$. Loaded resonant peak at **$450\text{ Hz}$** (+1.2 dB), steep rolloff above $800\text{ Hz}$.
+* **Acoustic Character:** Removes fret clatter and transient click above $800\text{ Hz}$ while preserving a punchy resonant low-mid bump at $450\text{ Hz}$. Paired with heavy flatwound string acoustic damping, delivers iconic pillowy Motown thump.
 * **32" Bass Setting:** ABCX Blend **100% Neck (PX/PCSX)**.
+
+### 05d. `05d_vintage_50s_p_100nf` (Vintage '50s Split-P - 100nF ToneStyler)
+* **Archetype:** Early 1950s Fender Precision with Stellartone ToneStyler (100nF / 0.1µF Pure Capacitive Shunt)
+* **Coil Model:** Alnico V split-coil ($w = 1.00''$)
+* **Control Harness:** Vintage 1962 CTS $250\text{k}\Omega$ volume pot, Stellartone ToneStyler rotary switch selecting a precision $100\text{ nF}$ (0.1µF) paper-in-oil / ceramic disc capacitor shunt to ground ($R_{\text{tone}} = 3.3\,\Omega$).
+* **Electrical Parameters:** $L = 3.80\text{ H}$, $R_{\text{dc}} = 10.50\text{ k}\Omega$, $R_{\text{tone}} = 3.3\,\Omega$, $C_{\text{tone}} = 100\text{ nF}$. Sub-bass shelf, $-3\text{ dB}$ cutoff at **$240\text{ Hz}$**.
+* **Acoustic Character:** Original 1951–1959 Fullerton factory 0.1µF spec: massive low-pass filter concentrating all energy into the sub-bass register, yielding deep Motown / reggae dub thump.
+* **32" Bass Setting:** ABCX Blend **100% Neck (PX/PCSX)**.
+
+*(Note: Slot 06 is currently reserved / unassigned.)*
 
 ### 07. `07_modern_pj_active` (Modern Active P/J Bass)
 * **Archetype:** Sadowsky P/J / Spector NS-2 Active 2-Band P/J
@@ -191,10 +202,13 @@ When running Passivizer from a **30" short-scale bass with a single 18V EMG MM p
 | :--- | :--- | :--- | :--- | :--- |
 | **`01_modern_jazz_active`** | J-Pair Virtual Center | $86.8\text{ mm}$ | $+9.3\text{ mm}\ (+0.37'')$ | De-humbuck aperture, mild forward tilt, active 2-band boost |
 | **`02_jazz_bass_pair`** | J-Pair Virtual Center | $86.8\text{ mm}$ | $+9.3\text{ mm}\ (+0.37'')$ | De-humbuck aperture, mild forward tilt |
+| **`02b_jazz_bass_pair_22nf`**| J-Pair Virtual Center | $86.8\text{ mm}$ | $+9.3\text{ mm}\ (+0.37'')$ | De-humbuck aperture, mild forward tilt, 22nF ToneStyler |
 | **`03_jazz_bridge_60s`** | MMTWX Bridge Coil (JB) | $50.8\text{ mm}$ | $-26.7\text{ mm}\ (-1.05'')$ | De-humbuck aperture, tighter bridge bite tilt |
 | **`04_modern_p_ceramic`** | Reverse PX Split Center | $122.8\text{ mm}$ | $+45.3\text{ mm}\ (+1.78'')$ | $+2.7\text{ dB}$ low boost, tames bridge bite |
 | **`05_vintage_62_p_alnico`**| Reverse PX Split Center | $122.8\text{ mm}$ | $+45.3\text{ mm}\ (+1.78'')$ | $+2.7\text{ dB}$ low boost, smooth woody rolloff |
-| **`06_p_bass_47nf_rolloff`** | Reverse PX Split Center | $122.8\text{ mm}$ | $+45.3\text{ mm}\ (+1.78'')$ | Full $47\text{ nF}$ rolloff; deep sub-thump |
+| **`05b_vintage_62_p_22nf`** | Reverse PX Split Center | $122.8\text{ mm}$ | $+45.3\text{ mm}\ (+1.78'')$ | $+2.7\text{ dB}$ low boost, 22nF ToneStyler 440 Hz punch |
+| **`05c_vintage_62_p_47nf`** | Reverse PX Split Center | $122.8\text{ mm}$ | $+45.3\text{ mm}\ (+1.78'')$ | 47nF ToneStyler Motown flatwound deep sub-thump |
+| **`05d_vintage_50s_p_100nf`**| Reverse PX Split Center | $122.8\text{ mm}$ | $+45.3\text{ mm}\ (+1.78'')$ | 100nF ToneStyler 1950s deep sub-bass dub thump |
 | **`07_modern_pj_active`** | P/J Virtual Center | $86.8\text{ mm}$ | $+9.3\text{ mm}\ (+0.37'')$ | Hybrid aperture mix, active 2-band boost, wideband shimmer |
 | **`08_vintage_pj_passive`** | P/J Virtual Center | $86.8\text{ mm}$ | $+9.3\text{ mm}\ (+0.37'')$ | Hybrid aperture mix, vintage Alnico dual-volume warmth |
 | **`09_stingray_mm_parallel`**| MMTWX Centerline | $62.2\text{ mm}$ | $-15.3\text{ mm}\ (-0.60'')$ | Preserves dual-coil comb, active 2-band boost |

@@ -63,10 +63,13 @@ coils = [
 [pickup_mapping]
 "01_modern_jazz_active" = "split_p"
 "02_jazz_bass_pair" = "split_p"
+"02b_jazz_bass_pair_22nf" = "split_p"
 "03_jazz_bridge_60s" = "split_p"
 "04_modern_p_ceramic" = "split_p"
 "05_vintage_62_p_alnico" = "split_p"
-"06_p_bass_47nf_rolloff" = "split_p"
+"05b_vintage_62_p_22nf" = "split_p"
+"05c_vintage_62_p_47nf" = "split_p"
+"05d_vintage_50s_p_100nf" = "split_p"
 "07_modern_pj_active" = "split_p"   # Modern Active P/J
 "08_vintage_pj_passive" = "split_p"  # Vintage Alnico P/J
 "09_stingray_mm_parallel" = "split_p"

@@ -143,7 +143,12 @@ To ensure high-fidelity modeling and prevent regressions, all agents and contrib
 - **Mandated Practice:** Account for finite 3D pole-piece flux fringing and string diameter using a quadrature regularized coherent floor ($\epsilon_{\text{quad}} \approx 0.18$):
   $$p_{\text{coh\_reg}} = p_{\text{coh}} + \epsilon_{\text{quad}}^2 \cdot p_{\text{incoh}}$$
   $$m_{\text{blend}} = \frac{\sqrt{\gamma \cdot p_{\text{coh\_reg}} + (1 - \gamma) p_{\text{incoh}}}}{\text{dc\_norm}}$$
-  Because $p_{\text{coh\_reg}} > 0$ strictly holds everywhere, the frequency derivative at the notch bottom is exactly zero ($\frac{d}{df} m_{\text{blend}} \big|_{f = f_{\text{null}}} = 0$). This guarantees a smooth, parabolic acoustic minimum ($C^\infty$) with an authentic $-10\text{ to }-12\text{ dB}$ notch depth, perfectly preserving DC unity ($1.0000$) while completely eliminating jagged multi-string corners.
+### 5.9 Absolute Transfer Ratios vs. Mid-Band Reference Normalization in Differential Passive Modeling
+- **Anti-Pattern:** Normalizing differential circuit transfer functions by dividing by an arbitrary mid-frequency bin like 1 kHz (`ref_gain = h_diff[1000 Hz]`) prior to applying soft-knee boost limiters.
+- **Why It Fails:** In passive-to-passive digital twin modeling, passive circuits with tone rolloff capacitors (e.g. 22nF, 47nF, 100nF ToneStyler shunts) naturally have significant attenuation at 1 kHz (down -8.5 dB for 22nF, -16 dB for 47nF, and -23 dB for 100nF). Normalizing by `h_diff[1000 Hz]` forces 1 kHz to 0 dB, artificially projecting the natural low-frequency passband (20–500 Hz) into a massive false "boost" (+8.5 to +23 dB). A 6 dB soft-knee limiter will clamp the entire passband across all tone-rolled voicings down to a flat ceiling, forcing distinct capacitor values (e.g. 22nF vs 100nF) to start rolling off at the exact same frequency (~700 Hz) and rendering them indistinguishable.
+- **Mandated Practice:** Evaluate differential circuit transfer curves in absolute gain units:
+  $$h_{\text{db}} = 20 \log_{10}(\max(h_{\text{diff}}, 10^{-6}))$$
+  Because passive circuits naturally have DC transfer gain $\le 1.0$ ($0.0\text{ dB}$), attenuation ($h_{\text{db}} \le 0$) remains strictly untouched everywhere. The soft-knee limiter and high-frequency cosine taper only engage when true positive boost ($h_{\text{db}} > \text{thresh}$) occurs at high frequencies or sharp resonant peaks, ensuring authentic physical rolloff cutoffs (750 Hz for 22nF, 450 Hz for 47nF, 240 Hz for 100nF) form cleanly and distinctly.
 
 ---
 

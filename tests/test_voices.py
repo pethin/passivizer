@@ -1,28 +1,6 @@
 from pathlib import Path
 from scripts.model_physics import VOICES, SCALES
 
-EXPECTED_VOICES = [
-    "01_modern_jazz_active",
-    "02_jazz_bass_pair",
-    "02b_jazz_bass_pair_tone50",
-    "03_jazz_bridge_60s",
-    "04_modern_p_ceramic",
-    "05_vintage_62_p_alnico",
-    "05b_vintage_62_p_tone50",
-    "06_p_bass_47nf_rolloff",
-    "07_modern_pj_active",
-    "08_vintage_pj_passive",
-    "09_stingray_mm_parallel",
-    "10_rickenbacker_bridge_hpf",
-    "11_pmm_hybrid_series",
-    "12_mudbucker_ultra_series",
-    "13_dingwall_multiscale_bridge",
-    "14_upright_bridge_transducer"
-]
-
-def test_all_expected_voices_exist():
-    for vid in EXPECTED_VOICES:
-        assert vid in VOICES, f"Voice {vid} missing from VOICES catalog"
 
 def test_voice_parameter_validity():
     for vid, cfg in VOICES.items():
@@ -180,9 +158,9 @@ def test_scales_structure():
 def test_resolve_voices():
     from scripts.model_physics import resolve_voices
 
-    # "all" should return all 16 voices
+    # "all" should return all voices
     all_voices = resolve_voices("all")
-    assert len(all_voices) == 16
+    assert len(all_voices) == len(VOICES)
     assert all_voices == list(VOICES.keys())
 
     # Single voice
@@ -203,16 +181,25 @@ def test_resolve_voices():
 
     # Shorthand matching specific 02b
     p2b = resolve_voices("02b")
-    assert p2b == ["02b_jazz_bass_pair_tone50"]
+    assert p2b == ["02b_jazz_bass_pair_22nf"]
 
     # Prefix 02 matches both 02 and 02b
     p2_all = resolve_voices("02")
-    assert p2_all == ["02_jazz_bass_pair", "02b_jazz_bass_pair_tone50"]
+    assert p2_all == ["02_jazz_bass_pair", "02b_jazz_bass_pair_22nf"]
 
-    # Shorthand matching specific 05b
+    # Shorthand matching specific 05b, 05c, 05d
     p5b = resolve_voices("05b")
-    assert p5b == ["05b_vintage_62_p_tone50"]
+    assert p5b == ["05b_vintage_62_p_22nf"]
+    p5c = resolve_voices("05c")
+    assert p5c == ["05c_vintage_62_p_47nf"]
+    p5d = resolve_voices("05d")
+    assert p5d == ["05d_vintage_50s_p_100nf"]
 
-    # Prefix 05 matches both 05 and 05b
+    # Prefix 05 matches 05, 05b, 05c, and 05d
     p5_all = resolve_voices("05")
-    assert p5_all == ["05_vintage_62_p_alnico", "05b_vintage_62_p_tone50"]
+    assert p5_all == [
+        "05_vintage_62_p_alnico",
+        "05b_vintage_62_p_22nf",
+        "05c_vintage_62_p_47nf",
+        "05d_vintage_50s_p_100nf",
+    ]

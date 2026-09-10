@@ -1,5 +1,5 @@
-* Passivizer Netlist 05b: Vintage '62 Split-Coil P (Tone 50% Sweet Spot)
-* Target: 1962 Vintage Alnico V Split-Coil (CTS 250k V/T Harness, Tone @ 50% = 50k + 47nF)
+* Passivizer Netlist 05b: Vintage '62 Split-Coil P (22nF ToneStyler)
+* Target: 1962 Vintage Alnico V Split-Coil with 22nF ToneStyler pure capacitive shunt (440 Hz Peak)
 .options plotwinsize=0 numdgt=7
 
 * 1. Audio Source (Pre-filtered NAM Training Track)
@@ -14,9 +14,9 @@ R_dc node1 node2 10.5k
 R_eddy in_dyn node2 180k
 C_coil node2 0 60p
 
-* 4. Tone Pot (50% Setting: 50k series resistance with 47nF capacitor)
-R_tone node2 tone_mid 50k
-C_tone tone_mid 0 47n
+* 4. Tone Control (ToneStyler 22nF Position: pure capacitive shunt, 3.3 Ohm contact ESR)
+R_tone node2 node2_c 3.3
+C_tone node2_c 0 22n
 
 * 5. 250k Volume Pot (Volume @ 100%)
 R_pot_top node2 node3 10
@@ -30,5 +30,5 @@ R_anagram node3 0 1Meg
 C_anagram node3 0 30p
 
 * 8. Output Audio Export for NAM Training
-.wave "out_05b_vintage_62_p_tone50.wav" 24 48000 V(node3)
+.wave "out_05b_vintage_62_p_22nf.wav" 24 48000 V(node3)
 .end
