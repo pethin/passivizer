@@ -137,3 +137,40 @@ To ensure high-fidelity modeling and prevent regressions, all agents and contrib
   $$h_{\text{db\_final}} = h_{\text{db\_soft}} - (1.0 - s) \cdot \text{excess\_boost}$$
   Guarantees strictly continuous first derivatives ($C^\infty$) across the $0.0\text{ dB}$ crossing point while keeping attenuation ($h_{\text{db}} \le 0$) untouched.
 
+---
+
+## 6. Architectural Guardrails: High-Performance Audio DSP & SIMD Engineering
+
+To maintain the native Virtual Analog simulation engine's $>1500\times$ real-time speed, all contributors must prevent the five performance anti-patterns resolved in commit `610dd93e`:
+
+### 6.1 Never Run Interpreted Python Loops over Audio Sample Buffers (ODE / Recursive State Solvers)
+- **Anti-Pattern:** Writing scalar `for i in range(1, n)` loops in standard Python to solve state-space recurrence equations (e.g. Dahl magnetic hysteresis, non-linear capacitor charge, or physical string models) over 48 kHz buffers ($4.5\text{M}$ samples for a 95-second sweep; $9.1\text{M}$ samples at 2x oversampling).
+- **Why It Fails:** Interpreted CPython bytecode evaluation incurs massive function-call and pointer indirection overhead, taking $17.7\text{ seconds}$ per audio channel.
+- **Mandated Practice:** Always accelerate recursive sample-by-sample ODE solvers using Numba JIT compilation (`@njit(fastmath=True)`) with an automatic, graceful pure-Python fallback when Numba is not installed. Achieves a **$220\times$ speedup** ($17.7\text{s} \to 0.08\text{s}$).
+
+### 6.2 Fuse Consecutive Linear Stages in Frequency Domain (Avoid Redundant FFT/IRFFT Round-Trips)
+- **Anti-Pattern:** Bouncing back and forth between time and frequency domains with separate `np.fft.rfft` and `np.fft.irfft` calls for each consecutive linear filter stage (e.g. forward FFT $\to$ displacement pre-filter $\to$ inverse FFT $\to$ non-linearity $\to$ forward FFT $\to$ de-emphasis filter $\to$ anti-aliasing filter $\to$ inverse FFT).
+- **Why It Fails:** Multi-million-point FFT/IRFFT round-trips on $9.12\text{M}$-sample arrays waste gigabytes of memory bus bandwidth and evict CPU L2/L3 caches.
+- **Mandated Practice:** Fuse consecutive linear operations in the frequency domain. Apply pre-filters directly to the spectrum ($X_{\text{up}} \cdot H_{\text{pre}}$) before a single inverse FFT, and combine de-emphasis ($H_{\text{de}} / \text{scale}$) and anti-aliasing lowpass ($aa\_mask$) into a single frequency-domain product before final decimation, eliminating 4 redundant multi-million-point FFT round-trips.
+
+### 6.3 Precompute and Broadcast Input FFTs across Multi-Channel Filters
+- **Anti-Pattern:** Calling `np.fft.rfft(input_mono, n_fft)` inside the channel loop for every pickup branch in `apply_prefilter_to_audio`.
+- **Why It Fails:** In multi-pickup instruments (Jazz Bass pairs, P/J, P/MM), the exact same mono input sweep was being forward-transformed 2 to 4 times, duplicating heavy FFT operations.
+- **Mandated Practice:** Precompute the forward FFT of `input_mono` once across all channels using the maximum impulse response length (`max_ir_len`), and broadcast it across the channel FIR convolutions.
+
+### 6.4 Vectorize 24-Bit Little-Endian WAV Byte Packing via NumPy Views
+- **Anti-Pattern:** Converting 24-bit audio buffers using Python loops and `int(val).to_bytes(3, byteorder="little")` appended to a `bytearray`.
+- **Why It Fails:** Allocating and appending 4.5 million 3-byte slices in Python interpreter space takes $3.63\text{ seconds}$ per audio file.
+- **Mandated Practice:** Vectorize 24-bit little-endian packing in C via NumPy view slicing:
+  ```python
+  scaled = np.clip(samples * 8388607.0, -8388608.0, 8388607.0).astype(np.int32)
+  raw_bytes = scaled.astype("<i4").view(np.uint8).reshape(-1, 4)[:, :3].tobytes()
+  ```
+  Yields a **$135\times$ speedup** ($3.63\text{s} \to 0.026\text{s}$) with zero Python loop overhead.
+
+### 6.5 Multi-Process Concurrency for Batch Voice Simulation
+- **Anti-Pattern:** Running batch simulations across all 16 target voices sequentially in a single Python thread.
+- **Why It Fails:** Audio circuit simulation is CPU-bound and embarrassingly parallel. Single-threaded execution leaves multi-core CPUs (e.g. Apple Silicon M-series chips with 8–16 cores) mostly idle while users wait 7+ minutes for a batch run.
+- **Mandated Practice:** Expose parallel process execution using `concurrent.futures.ProcessPoolExecutor` with `--jobs` / `-j` CLI flags (defaulting to `min(4, os.cpu_count())`). Drops full 16-voice batch simulation time from **$7+\text{ minutes}$ down to $80\text{ seconds}$**.
+
+
