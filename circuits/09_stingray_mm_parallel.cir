@@ -8,11 +8,11 @@ V_in in 0 wavefile="T3K-sweep-v3.wav"
 * 2. Dynamic Magnetic Core & String Excursion Saturation (Soft-Knee Compliance)
 B_comp in_dyn 0 V=0.50 * tanh(V(in) / 0.50)
 
-* 3. Pickup Coils (Bartolini MM4CBC Dual Coils in Parallel)
-L_coil in_dyn node1 2.4
-R_dc node1 node2 4.6k
-R_eddy in_dyn node2 140k
-C_coil node2 0 130p
+* 3. Pickup Coils (Authentic Music Man Dual Coils in Parallel)
+L_coil in_dyn node1 1.20
+R_dc node1 node2 2.20k
+R_eddy in_dyn node2 75k
+C_coil node2 0 180p
 
 * 4. Active Preamp Input Stage (High-Z Input Buffer, Zero Cable Drag on Coils)
 R_preamp_in node2 0 1Meg

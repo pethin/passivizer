@@ -44,6 +44,8 @@ from model_physics import (
     compute_differential_longitudinal_transfer,
     compute_voice_prefilter_firs,
     synthesize_minimum_phase_fir,
+    MEAN_BASS_F0,
+    resolve_scale_range,
 )
 from simulate_circuits import (
     CIRCUITS_DIR,
@@ -82,7 +84,7 @@ def build_voice_dataframe(voice_id, cfg, instrument="30in", src_scale=None, mode
     sensor_type = cfg.get("sensor_type", "magnetic")
     tgt_string = get_voice_string(cfg)
     is_passive = (inst.get("electronics") == "passive")
-    is_identity = (mode != "output") and is_voice_matching_source(inst, voice_id, cfg)
+    is_spatial_match = (mode != "output") and is_voice_matching_source(inst, voice_id, cfg)
 
     if cfg.get("no_eq", False) or (mode == "difference" and voice_id == "16_active_character" and not is_passive):
         data = {
@@ -115,25 +117,66 @@ def build_voice_dataframe(voice_id, cfg, instrument="30in", src_scale=None, mode
                     h_el = h_el * (f_lin / np.sqrt(f_lin ** 2 + fc_hpf ** 2))
                 circuit_curves.append(h_el.tolist())
 
-        h_tgt_total = np.zeros_like(freqs)
-        for i, (p, c_curve) in enumerate(zip(pickups, circuit_curves)):
-            p_weight = p.get("weight", 1.0)
-            p_pol = p.get("polarity", 1.0)
-            weight_fac = 1.0 if (cir_path.exists() and len(circuit_curves) > 1) else p_weight
-            if sensor_type == "bridge_force":
-                f_lin = freqs
-                is_flatwound = "flat" in tgt_string.get("type", "")
-                f_damp = 4200.0 if is_flatwound else 3600.0
-                h_damp = 1.0 / np.sqrt((1.0 - (f_lin / f_damp) ** 2) ** 2 + 2.0 * (f_lin / f_damp) ** 2)
-                g_sub = 0.15
-                h_sub = np.sqrt((g_sub ** 2 * 32.0 ** 2 + f_lin ** 2) / (32.0 ** 2 + f_lin ** 2))
-                h_tilt_raw = np.sqrt((1.0 + (f_lin / 250.0) ** 2) / (1.0 + (f_lin / 70.0) ** 2))
-                h_tilt = h_tilt_raw / np.max(h_tilt_raw)
-                branch = np.interp(freqs, FREQS, np.asarray(c_curve, dtype=np.float64)) * h_damp * h_sub * h_tilt
-            else:
-                branch = np.interp(freqs, FREQS, np.asarray(c_curve, dtype=np.float64)) * (weight_fac * p_pol)
+        if sensor_type == "bridge_force":
+            f_lin = freqs
+            is_flatwound = "flat" in tgt_string.get("type", "")
+            f_damp = 4200.0 if is_flatwound else 3600.0
+            h_damp = 1.0 / np.sqrt((1.0 - (f_lin / f_damp) ** 2) ** 2 + 2.0 * (f_lin / f_damp) ** 2)
+            g_sub = 0.15
+            h_sub = np.sqrt((g_sub ** 2 * 32.0 ** 2 + f_lin ** 2) / (32.0 ** 2 + f_lin ** 2))
+            h_tilt_raw = np.sqrt((1.0 + (f_lin / 250.0) ** 2) / (1.0 + (f_lin / 70.0) ** 2))
+            h_tilt = h_tilt_raw / np.max(h_tilt_raw)
+            c_curve = circuit_curves[0] if circuit_curves else [1.0] * len(FREQS)
+            branch = np.interp(freqs, FREQS, np.asarray(c_curve, dtype=np.float64)) * h_damp * h_sub * h_tilt
+            h_tgt_total = branch
+        else:
+            tgt_scale_range = resolve_scale_range(tgt if tgt_scale in SCALES else tgt_scale)
+            tgt_scale_m = (tgt_scale_range[0] + tgt_scale_range[1]) / 2.0
+            positions = [compute_effective_position(p["coils"]) for p in pickups]
+            pos_max = max(positions) if positions else 0.0
+            c_mean = 2.0 * tgt_scale_m * MEAN_BASS_F0
 
-            h_tgt_total += branch
+            N = 8192
+            f_bins = np.fft.rfftfreq(N, 1.0 / 48000.0)
+            H_channels = []
+            peaks = []
+
+            for i, p in enumerate(pickups):
+                c_curve = circuit_curves[i] if i < len(circuit_curves) else [1.0] * len(FREQS)
+                p_weight = p.get("weight", 1.0)
+                p_pol = p.get("polarity", 1.0)
+                weight_fac = 1.0 if (cir_path.exists() and len(circuit_curves) > 1) else p_weight
+
+                ac = numpy_pickup_acoustic_response(f_bins, p["coils"], scale_length_m=tgt_scale_range) * (weight_fac * p_pol)
+                fir_ac = synthesize_minimum_phase_fir(ac, num_taps=2048, normalize=False)
+                tau_i = (pos_max - positions[i]) / c_mean if len(pickups) > 1 else 0.0
+                delay_samples = int(round(tau_i * 48000.0))
+                if 0 < delay_samples < 2048:
+                    fir_ac = [0.0] * delay_samples + fir_ac[:2048 - delay_samples]
+                peaks.append(int(np.argmax(np.abs(fir_ac))))
+
+                fir_circ = synthesize_minimum_phase_fir(c_curve, num_taps=2048, normalize=False)
+                H_channels.append(np.fft.rfft(fir_ac, N) * np.fft.rfft(fir_circ, N))
+
+            H_channels = np.array(H_channels)
+            delta_samples = max(peaks) - min(peaks) if len(peaks) > 1 else 0
+
+            if len(H_channels) > 1 and delta_samples > 0:
+                P_coherent = np.abs(np.sum(H_channels, axis=0)) ** 2
+                P_incoherent = np.sum(np.abs(H_channels) ** 2, axis=0)
+                delta_tau = delta_samples / 48000.0
+                f_notch = 1.0 / (2.0 * delta_tau)
+                f_start = f_notch
+                f_end = 1.7 * f_notch
+                t = np.clip((f_bins - f_start) / (f_end - f_start), 0.0, 1.0)
+                gamma = 0.88 * 0.5 * (1.0 + np.cos(np.pi * t))
+                mag_spectrum = np.sqrt(gamma * P_coherent + (1.0 - gamma) * P_incoherent)
+            elif len(H_channels) > 1:
+                mag_spectrum = np.abs(np.sum(H_channels, axis=0))
+            else:
+                mag_spectrum = np.abs(H_channels[0])
+
+            h_tgt_total = np.interp(freqs, f_bins, mag_spectrum)
 
         # Tension / Bloom for target instrument
         if tgt_scale == "upright":
@@ -232,7 +275,9 @@ def build_voice_dataframe(voice_id, cfg, instrument="30in", src_scale=None, mode
 
     ref_val = mag_raw[ref_idx]
     mag_norm = mag_raw / ref_val if ref_val > 0 else mag_raw
-    gain_offset = 0.0 if is_identity else cfg.get("gain_db", 0.0)
+    is_circuit_match = bool(circuit_curves and len(circuit_curves) > 0 and np.allclose(circuit_curves[0], 1.0, rtol=1e-3))
+    is_full_identity = is_spatial_match and (is_circuit_match if mode == "difference" else True)
+    gain_offset = 0.0 if is_full_identity else cfg.get("gain_db", 0.0)
     mag_db = 20.0 * np.log10(np.clip(mag_norm, 1e-5, 20.0)) + gain_offset
 
     data = {

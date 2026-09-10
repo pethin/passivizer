@@ -1,5 +1,5 @@
 * Allomorph Netlist 05c: Vintage '62 Split-Coil P (47nF ToneStyler)
-* Target: 1962 Vintage Alnico V Split-Coil with 47nF ToneStyler pure capacitive shunt (450 Hz Peak)
+* Target: 1962 Vintage Alnico V Split-Coil with 47nF ToneStyler pure capacitive shunt (193 Hz Peak)
 .options plotwinsize=0 numdgt=7
 
 * 1. Audio Source (Pre-filtered NAM Training Track)

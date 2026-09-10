@@ -99,10 +99,14 @@ def test_32in_custom_pmm_routing():
     assert pj_pickup["components"][1]["pickup"] == "mmtwx_single"
     assert math.isclose(pj_pickup["position_from_bridge_m"], 0.0868, abs_tol=1e-4)
 
-    # P/MM series voice routes to physical parallel center detent blend
+    # P/MM series & active voices route to physical parallel center detent blend
     pmm_pickup = get_source_pickup(inst, "11_pmm_hybrid_series")
     assert pmm_pickup["name"] == "EMG PX + MMTWX Parallel (Center Detent)"
     assert math.isclose(pmm_pickup["position_from_bridge_m"], 0.0868, abs_tol=1e-4)
+
+    pmm_act_pickup = get_source_pickup(inst, "11_modern_pmm_active")
+    assert pmm_act_pickup["name"] == "EMG PX + MMTWX Parallel (Center Detent)"
+    assert math.isclose(pmm_act_pickup["position_from_bridge_m"], 0.0868, abs_tol=1e-4)
 
     # Mudbucker routes to neck PX
     mud_pickup = get_source_pickup(inst, "12_mudbucker_ultra_series")
@@ -313,6 +317,7 @@ def test_34in_standard_pj_routing():
     assert get_source_pickup(inst, "07_modern_pj_active")["id"] == "pair_parallel"
     assert get_source_pickup(inst, "08_vintage_pj_passive")["id"] == "pair_parallel"
     assert get_source_pickup(inst, "11_pmm_hybrid_series")["id"] == "pair_parallel"
+    assert get_source_pickup(inst, "11_modern_pmm_active")["id"] == "pair_parallel"
 
 def test_34in_active_stingray_routing():
     inst = load_instrument("34in_active_stingray")
@@ -393,6 +398,7 @@ def test_34in_active_soapbar_routing():
     assert get_source_pickup(inst, "07_modern_pj_active")["id"] == "pair_parallel"
     assert get_source_pickup(inst, "08_vintage_pj_passive")["id"] == "pair_parallel"
     assert get_source_pickup(inst, "11_pmm_hybrid_series")["id"] == "pair_parallel"
+    assert get_source_pickup(inst, "11_modern_pmm_active")["id"] == "pair_parallel"
 
 def test_30in_mustang_pj_routing():
     inst = load_instrument("30in_mustang_pj")

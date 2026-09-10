@@ -61,11 +61,11 @@ def test_parse_all_circuit_netlists():
             assert model.Rtop > 0
             assert model.Rbot > 0
 
-        if vid in ["01_modern_jazz_active", "02_jazz_bass_pair", "02b_jazz_bass_pair_22nf", "02c_jazz_bridge_growl_bias", "07_modern_pj_active", "08_vintage_pj_passive"]:
+        if vid in ["01_modern_jazz_active", "02_jazz_bass_pair", "02b_jazz_bass_pair_22nf", "02c_jazz_bridge_growl_bias", "07_modern_pj_active", "08_vintage_pj_passive", "11_modern_pmm_active"]:
             assert model.topology == "parallel"
             assert model.L_b > 0
             assert model.Rdc_b > 0
-        elif vid == "11_pmm_hybrid_series":
+        elif vid in ["11_pmm_hybrid_series", "11b_pmm_hybrid_series"]:
             assert model.topology == "series"
             assert model.L_b > 0
             assert model.Rdc_b > 0
@@ -175,8 +175,8 @@ def test_active_preamp_buffer_transfer_function():
     assert len(curves09) == 1
     mag09 = curves09[0]
     peak09 = FREQS[mag09.index(max(mag09))]
-    # Isolated from cable capacitance, peak is in 6.5 - 8.5 kHz clank & sizzle region
-    assert 6500.0 <= peak09 <= 8500.0
+    # Isolated from cable capacitance, peak is in 6.5 - 9.0 kHz clank & sizzle region
+    assert 6500.0 <= peak09 <= 9000.0
 
 def test_series_dual_pickup_transfer_function():
     cir_path = CIRCUITS_DIR / "11_pmm_hybrid_series.cir"
@@ -192,6 +192,26 @@ def test_series_dual_pickup_transfer_function():
     # Combined series inductance shifts peak into low-mids (~1.6 - 2.1 kHz)
     peak_n = FREQS[mag_n.index(max(mag_n))]
     assert 1500.0 <= peak_n <= 2100.0
+
+def test_active_pmm_transfer_function():
+    cir_path = CIRCUITS_DIR / "11_modern_pmm_active.cir"
+    model = parse_netlist(cir_path)
+    assert model.topology == "parallel"
+    assert model.has_active_buffer is True
+    assert model.preamp_type == "none"
+
+    curves = compute_circuit_transfer_functions(model, freqs=FREQS)
+    assert len(curves) == 2
+
+    mag_n, mag_b = curves
+    # Finite DC transmission balanced between neck and bridge
+    assert 0.40 < mag_n[0] < 0.95
+    assert 0.50 < mag_b[0] < 0.95
+
+    # Active buffer isolates coils from cable capacitance, preserving high resonance (>= 2800 Hz)
+    peak_b = FREQS[mag_b.index(max(mag_b))]
+    assert peak_b >= 2800.0
+
 
 def test_simulate_circuit_audio_output():
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -443,9 +463,16 @@ def test_active_source_differential_deconvolution_and_identity():
     assert m_src_ray.preamp_type == "stingray_2band"
 
     m_src_ding = parse_netlist(CIRCUITS_DIR / "sources" / "source_dingwall_fd3n.cir")
+    assert m_src_ding.has_active_buffer is True
+    assert m_src_ding.preamp_type == "none"
     assert m_src_ding.L == 2.3
-    assert m_src_ding.Rtop == 10
-    assert m_src_ding.Rbot == 500000.0
+
+    # SP1 Passive Dingwall bridge source verification
+    m_src_sp1 = parse_netlist(CIRCUITS_DIR / "sources" / "source_dingwall_sp1_bridge.cir")
+    assert m_src_sp1.has_active_buffer is False
+    assert m_src_sp1.L == 2.3
+    assert m_src_sp1.Rtop == 10
+    assert m_src_sp1.Rbot == 250000.0
 
     # 2. Mathematical identity flatness (exact 0.00 dB everywhere, including DC and 20 kHz)
     m_tgt_ray = parse_netlist(CIRCUITS_DIR / "09_stingray_mm_parallel.cir")
@@ -453,6 +480,8 @@ def test_active_source_differential_deconvolution_and_identity():
     assert np.all(np.array(diff_ray[0]) == 1.0)
 
     m_tgt_ding = parse_netlist(CIRCUITS_DIR / "13_dingwall_multiscale_bridge.cir")
+    assert m_tgt_ding.has_active_buffer is True
+    assert m_tgt_ding.preamp_type == "none"
     diff_ding = compute_differential_circuit_transfer_functions(m_tgt_ding, m_src_ding, freqs=FREQS)
     assert np.all(np.array(diff_ding[0]) == 1.0)
 
@@ -1063,9 +1092,10 @@ def test_cable_dielectric_loss():
 def test_voice_09b_series_netlist_and_transfer():
     """
     Verify Voice 09b Music Man StingRay Series netlist and transfer function:
-    1. Standalone SPICE netlist parses with active buffer and stingray_2band preamp.
-    2. L=4.0H, Rdc=8.8k, Reddy=140k, Ccoil=90pF.
-    3. Series peak is lower in frequency and less treble-heavy than 09 parallel.
+    1. Standalone SPICE netlist parses with active buffer, 1.9x series gain, and stingray_2band preamp.
+    2. Physical 4:1 impedance scaling: L_ser = 4.8H, Rdc_ser = 8.8k vs L_par = 1.2H, Rdc_par = 2.2k.
+    3. Active series resonance sits at authentic ~4.1 kHz.
+    4. Series connection delivers +5.6 dB output boost over parallel.
     """
     cir_09 = CIRCUITS_DIR / "09_stingray_mm_parallel.cir"
     cir_09b = CIRCUITS_DIR / "09b_stingray_mm_series.cir"
@@ -1074,13 +1104,23 @@ def test_voice_09b_series_netlist_and_transfer():
     m09 = parse_netlist(cir_09)
     m09b = parse_netlist(cir_09b)
 
+    assert m09.L == pytest.approx(1.20)
+    assert m09.Rdc == pytest.approx(2200.0)
+    assert m09.Reddy == pytest.approx(75000.0)
+    assert m09.Ccoil == pytest.approx(180e-12)
+
     assert m09b.has_active_buffer is True
     assert m09b.preamp_type == "stingray_2band"
+    assert m09b.preamp_gain == pytest.approx(1.9)
     assert m09b.topology == "single"
-    assert m09b.L == pytest.approx(4.0)
+    assert m09b.L == pytest.approx(4.80)
     assert m09b.Rdc == pytest.approx(8800.0)
-    assert m09b.Reddy == pytest.approx(140000.0)
-    assert m09b.Ccoil == pytest.approx(90e-12)
+    assert m09b.Reddy == pytest.approx(150000.0)
+    assert m09b.Ccoil == pytest.approx(210e-12)
+
+    # Physical 4:1 series/parallel impedance scaling
+    assert m09b.L / m09.L == pytest.approx(4.0)
+    assert m09b.Rdc / m09.Rdc == pytest.approx(4.0)
 
     c09 = np.array(compute_circuit_transfer_functions(m09, freqs=FREQS)[0])
     c09b = np.array(compute_circuit_transfer_functions(m09b, freqs=FREQS)[0])
@@ -1088,12 +1128,20 @@ def test_voice_09b_series_netlist_and_transfer():
     peak_09 = FREQS[np.argmax(c09)]
     peak_09b = FREQS[np.argmax(c09b)]
 
-    # Series peak is shifted lower than parallel peak
+    # Authentic active series resonance sits around ~4.1 kHz
+    assert 3900.0 <= peak_09b <= 4300.0
     assert peak_09b < peak_09
 
-    # At 7 kHz (clank region), series has less gain than parallel
+    # Series open-circuit output gain delivers +5.0 to +6.0 dB boost over parallel across passband
+    idx_100 = FREQS.index(100.0) if 100.0 in FREQS else np.argmin(np.abs(np.array(FREQS) - 100.0))
+    series_boost_db = 20.0 * np.log10(c09b[idx_100] / c09[idx_100])
+    assert 5.0 <= series_boost_db <= 6.0
+
+    # Relative treble rolloff: normalized to low frequencies, series has less treble sizzle than parallel
     idx_7k = FREQS.index(7000.0) if 7000.0 in FREQS else np.argmin(np.abs(np.array(FREQS) - 7000.0))
-    assert c09b[idx_7k] < c09[idx_7k]
+    norm_treble_09 = c09[idx_7k] / c09[idx_100]
+    norm_treble_09b = c09b[idx_7k] / c09b[idx_100]
+    assert norm_treble_09b < norm_treble_09
 
 
 def test_differential_magnetic_softening_neodymium_to_alnico():

@@ -204,12 +204,35 @@ def load_all_instruments(instruments_dir=None):
                 instruments[inst_id] = cfg
     return instruments
 
+class VoiceRegistry(dict):
+    """Dictionary wrapper that provides transparent alias resolution for legacy voice IDs."""
+    ALIASES = {
+        "11_pmm_hybrid_series": "11b_pmm_hybrid_series",
+    }
+
+    def __getitem__(self, key):
+        if super().__contains__(key):
+            return super().__getitem__(key)
+        if key in self.ALIASES:
+            return super().__getitem__(self.ALIASES[key])
+        return super().__getitem__(key)
+
+    def get(self, key, default=None):
+        if super().__contains__(key):
+            return super().get(key, default)
+        if key in self.ALIASES:
+            return super().get(self.ALIASES[key], default)
+        return default
+
+    def __contains__(self, key):
+        return super().__contains__(key) or (key in self.ALIASES and super().__contains__(self.ALIASES[key]))
+
 def load_voices_config(voices_path=None):
     """Loads all target voices and their acoustic parameters from TOML."""
     path = Path(voices_path) if voices_path else VOICES_FILE
     with open(path, "rb") as f:
         data = tomllib.load(f)
-    return data.get("voices", {})
+    return VoiceRegistry(data.get("voices", {}))
 
 def get_source_pickup(instrument, voice_id):
     """

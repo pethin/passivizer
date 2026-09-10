@@ -453,7 +453,7 @@ magnet_type = "alnico_v"
 alpha = 0.22
 fr = 4200.0  # Isolated from cable capacitance
 Q = 1.6
-gain_db = 1.5
+gain_db = 0.0
 scale = "34in"
 coils = [
     { strings = ["all"], position_from_bridge_m = 0.0755, aperture_width_in = 0.75, weight = 0.5 }, # Neck coil
@@ -465,18 +465,18 @@ coils = [
 # ------------------------------------------------------------------------------
 # Dual-coil humbucker wired in series with 0.75" (19.05mm) spacing centered at 66.0mm,
 # paired with authentic active 2-band preamp buffer (+1.8 dB @ 50 Hz, +2.2 dB @ 4-7 kHz).
-# The series connection yields commanding low-mid punch (fr ≈ 2.1 kHz, Q ≈ 1.8),
+# The series connection yields commanding output (+5.6 dB) and focused upper-mid resonance (fr ≈ 4.1 kHz),
 # delivering the aggressive midrange growl of the StingRay 5 and Sterling 3-way toggle.
 [voices.09b_stingray_mm_series]
 name = "09b. Music Man MM (Series Humbucker)"
 circuit = "circuits/09b_stingray_mm_series.cir"
 topology = "Dual-Coil Series Active Buffer"
-description = "Dual-coil humbucker in series with authentic active 2-band preamp buffer (2.1 kHz mid-punch)"
+description = "Dual-coil humbucker in series with authentic active 2-band preamp buffer (4.1 kHz active series resonance, +5.6 dB series punch)"
 magnet_type = "alnico_v"
 alpha = 0.22
-fr = 2100.0  # Isolated from cable capacitance, series coil resonance
-Q = 1.8
-gain_db = 2.5
+fr = 4100.0  # Isolated from cable capacitance, authentic active series resonance
+Q = 1.6
+gain_db = 5.6
 scale = "34in"
 coils = [
     { strings = ["all"], position_from_bridge_m = 0.0755, aperture_width_in = 0.75, weight = 0.5 }, # Neck coil
@@ -505,13 +505,65 @@ coils = [
 ]
 
 # ------------------------------------------------------------------------------
-# 11. P/MM HYBRID (SERIES SUM)
+# 11. MODERN ACTIVE P/MM BASS
 # ------------------------------------------------------------------------------
-# Compound 4-coil array: Split P-Bass plus dual-coil Music Man humbucker wired
+# Compound 4-coil array: Precision Split-P neck (E/A @ 139.0mm, D/G @ 111.0mm) combined
+# with an authentic Music Man dual-coil bridge humbucker in parallel (66.0mm datum)
+# with an active high-impedance buffer isolating coils from cable capacitance
+# (Sandberg California VM / Lakland 44-02 / Delano archetype).
+[voices.11_modern_pmm_active]
+name = "11. Modern Active P/MM Bass (Parallel)"
+circuit = "circuits/11_modern_pmm_active.cir"
+topology = "P/MM Parallel Active Buffer"
+description = "Split P-neck and MM parallel humbucker with active high-Z buffer, zero cable drag, and punchy modern slap growl"
+blend_mode = "parallel"
+magnet_type = "alnico_v"
+alpha = 0.22
+fr = 3400.0  # High resonant peak due to active buffer cable isolation
+Q = 1.55
+gain_db = 1.0
+scale = "34in"
+coils = [
+    { strings = [3, 4], position_from_bridge_m = 0.1390, aperture_width_in = 1.00, weight = 0.5 },
+    { strings = [1, 2], position_from_bridge_m = 0.1110, aperture_width_in = 1.00, weight = 0.5 },
+    { strings = ["all"], position_from_bridge_m = 0.0755, aperture_width_in = 0.75, weight = 0.25 },
+    { strings = ["all"], position_from_bridge_m = 0.0565, aperture_width_in = 0.75, weight = 0.25 }
+]
+
+[[voices.11_modern_pmm_active.pickups]]
+name = "Precision Split-Coil (Neck)"
+type = "split_coil"
+magnet_type = "alnico_v"
+alpha = 0.26
+fr = 3200.0
+Q = 1.6
+weight = 0.5
+coils = [
+    { strings = [3, 4], position_from_bridge_m = 0.1390, aperture_width_in = 1.00, weight = 1.0 },
+    { strings = [1, 2], position_from_bridge_m = 0.1110, aperture_width_in = 1.00, weight = 1.0 }
+]
+
+[[voices.11_modern_pmm_active.pickups]]
+name = "Music Man Dual-Coil Parallel (Bridge)"
+type = "dual_coil_parallel"
+magnet_type = "alnico_v"
+alpha = 0.20
+fr = 3500.0
+Q = 1.5
+weight = 0.5
+coils = [
+    { strings = ["all"], position_from_bridge_m = 0.0755, aperture_width_in = 0.75, weight = 0.5 },
+    { strings = ["all"], position_from_bridge_m = 0.0565, aperture_width_in = 0.75, weight = 0.5 }
+]
+
+# ------------------------------------------------------------------------------
+# 11b. P/MM HYBRID (PASSIVE SERIES SUM)
+# ------------------------------------------------------------------------------
+# Specialty compound humbucker mod: Split P-Bass plus dual-coil Music Man humbucker wired
 # in series, generating massive 7.2H inductance and heavy low-mid authority (500k V/T).
-[voices.11_pmm_hybrid_series]
-name = "11. P/MM Hybrid (Series Sum)"
-circuit = "circuits/11_pmm_hybrid_series.cir"
+[voices.11b_pmm_hybrid_series]
+name = "11b. P/MM Hybrid (Series Sum)"
+circuit = "circuits/11b_pmm_hybrid_series.cir"
 topology = "P/MM Series Sum"
 description = "Split P and MM humbucker wired in series (7.2H high inductive load, 500k V/T)"
 blend_mode = "series"
@@ -528,7 +580,7 @@ coils = [
     { strings = ["all"],    position_from_bridge_m = 0.0565, aperture_width_in = 0.75, weight = 0.5 }
 ]
 
-[[voices.11_pmm_hybrid_series.pickups]]
+[[voices.11b_pmm_hybrid_series.pickups]]
 name = "Precision Split-Coil (Neck)"
 type = "split_coil"
 magnet_type = "alnico_v"
@@ -541,7 +593,7 @@ coils = [
     { strings = [1, 2], position_from_bridge_m = 0.1110, aperture_width_in = 1.00, weight = 1.0 }
 ]
 
-[[voices.11_pmm_hybrid_series.pickups]]
+[[voices.11b_pmm_hybrid_series.pickups]]
 name = "Music Man Dual-Coil (Bridge)"
 type = "dual_coil_parallel"
 magnet_type = "alnico_v"
@@ -553,6 +605,7 @@ coils = [
     { strings = ["all"], position_from_bridge_m = 0.0755, aperture_width_in = 0.75, weight = 0.5 },
     { strings = ["all"], position_from_bridge_m = 0.0565, aperture_width_in = 0.75, weight = 0.5 }
 ]
+
 
 # ------------------------------------------------------------------------------
 # 12. MUDBUCKER ULTRA SERIES
@@ -582,8 +635,8 @@ coils = [
 [voices.13_dingwall_multiscale_bridge]
 name = "13. Dingwall Fanned-Fret Bridge (Multi-Scale)"
 circuit = "circuits/13_dingwall_multiscale_bridge.cir"
-topology = "Multi-Scale Angled Dual-Coil"
-description = "34\"-37\" fanned fret bridge sweet spot with high wave-speed stainless string physics and 500k harness"
+topology = "Multi-Scale Angled Dual-Coil Active Buffer"
+description = "34\"-37\" fanned fret bridge sweet spot with high wave-speed stainless string physics and active buffer"
 magnet_type = "neodymium"
 alpha = 0.08
 fr = 3400.0

@@ -1,6 +1,6 @@
-* Allomorph Source Netlist: Dingwall FD3n Multi-Scale Bridge
+* Allomorph Source Netlist: Dingwall Combustion / NG Multi-Scale Bridge (Active)
 * Physical Spec: Dingwall FD3n Neodymium Dual-Coil in Parallel (2.3H L, 4.4k Rdc, 150k Reddy, 120pF Ccoil)
-* Electronics: Factory 500k Volume Pot, 500k Tone Pot (100% Wide Open, 47nF Cap), 750pF Cable
+* Electronics: Active Onboard Buffer (Darkglass Tone Capsule / EMG Active Buffer), Cable Isolated
 .options plotwinsize=0 numdgt=7
 
 * 1. Audio Source
@@ -12,15 +12,17 @@ R_dc node1 node2 4.4k
 R_eddy in node2 150k
 C_coil node2 0 120p
 
-* 3. Dingwall Factory Passive Tone Pot (500k Audio with 47nF Capacitor)
-R_tone node2 tone_mid 500k
-C_tone tone_mid 0 47n
+* 3. Active Buffer Input Stage (High-Z Input Buffer, Zero Cable Drag on Coils)
+R_preamp_in node2 0 1Meg
+C_preamp_in node2 0 25p
 
-* 4. Dingwall Factory 500k Volume Pot (Volume @ 100%)
-R_pot_top node2 node3 10
-R_pot_bot node3 0 500k
+* 4. Active Buffer Output Stage (Flat Active Buffer)
+* Direct low-Z op-amp output buffer isolating coils from cable capacitance
+E_preamp node_buf 0 node2 0 1.0
+R_out node_buf node3 100
+* Preamp voicing: none (flat buffer)
 
-* 5. Instrument Cable Load (15-ft cable ~750pF)
+* 5. Instrument Cable Load (15-ft cable ~750pF driven by low-Z buffer)
 C_cable node3 0 750p
 
 * 6. Darkglass Anagram Input Stage (1 M-Ohm || 30pF)

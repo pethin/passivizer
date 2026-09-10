@@ -57,8 +57,8 @@ Where:
 
 Allomorph does not assume a generic volume/tone harness for all instruments. Each voice utilizes its authentic manufacturer and era-specific harness:
 
-### A. Active Preamp Buffer Topologies (`01_modern_jazz_active`, `07_modern_pj_active`, `09_stingray_mm_parallel`)
-In instruments equipped with active onboard preamps (e.g., Sadowsky NYC 2-band, Spector 2-band, Music Man 2-band), an internal discrete JFET or op-amp buffer stage directly interfaces with the pickup coils:
+### A. Active Preamp Buffer Topologies (`01_modern_jazz_active`, `07_modern_pj_active`, `09_stingray_mm_parallel`, `09b_stingray_mm_series`, `11_modern_pmm_active`)
+In instruments equipped with active onboard preamps or active buffers (e.g., Sadowsky NYC 2-band, Spector 2-band, Music Man 2-band, Sandberg/Glockenklang, Lakland LH3, EMG ABCX), an internal discrete JFET or op-amp buffer stage directly interfaces with the pickup coils:
 
 ```
 [Coils] ── Lug 3 (Preamp In) ──► [Buffer Op-Amp: Zin = 1Meg || 25pF] ──► [Active 2-Band EQ] ──► [R_out: 100Ω] ──► [Cable + Anagram]
@@ -66,13 +66,15 @@ In instruments equipped with active onboard preamps (e.g., Sadowsky NYC 2-band, 
 
 1. **Cable Capacitance Isolation:**
    * In a traditional passive bass, the $750\text{ pF}$ instrument cable load capacitance directly shunts the high-impedance pickup coils, dragging the resonant peak down into the $2.5\text{--}3.5\text{ kHz}$ range.
-   * An active preamp presents a high input impedance ($R_{\text{preamp\_in}} = 1.0\text{ M}\Omega$, $C_{\text{preamp\_in}} = 25\text{ pF}$). The coils resonate solely against $C_{\text{coil}} + C_{\text{in}} \approx 100\text{--}170\text{ pF}$, shifting the raw electrical resonant peak into the ultra-clarity $7.0\text{--}8.5\text{ kHz}$ region.
+   * An active preamp presents a high input impedance ($R_{\text{preamp\_in}} = 1.0\text{ M}\Omega$, $C_{\text{preamp\_in}} = 25\text{ pF}$). The coils resonate solely against $C_{\text{coil}} + C_{\text{in}} \approx 75\text{--}205\text{ pF}$, shifting the raw electrical resonant peak into the ultra-clarity $3.4\text{--}8.5\text{ kHz}$ region.
 2. **Low-Impedance Cable Driver ($R_{\text{out}} = 100\,\Omega$):**
    * The low output impedance ($100\,\Omega$) drives long instrument cables and downstream pedalboards without high-frequency attenuation:
      $$f_{\text{cable\_cutoff}} = \frac{1}{2\pi \cdot 100 \cdot 780\text{ pF}} \approx 2.04\text{ MHz}$$
-3. **Active 2-Band Shelving Filters:**
+3. **Active Preamp & Buffer Voicings:**
    * **Sadowsky 2-Band (Jazz & P/J):** $+4.0\text{ dB}$ Bass boost ($40\text{ Hz}$ shelf) and $+4.0\text{ dB}$ Treble boost ($4.0\text{ kHz}$ shelf).
-   * **Music Man StingRay 2-Band:** $+5.0\text{ dB}$ Bass boost ($50\text{ Hz}$ shelf) and $+3.0\text{ dB}$ Treble boost ($7.0\text{ kHz}$ shelf).
+   * **Music Man StingRay 2-Band:** $+1.8\text{ dB}$ Bass boost ($50\text{ Hz}$ shelf) and $+2.2\text{ dB}$ Treble boost ($4\text{--}7\text{ kHz}$ shelf).
+   * **Active Parallel P/MM (`11_modern_pmm_active`):** Split-P neck ($4.80\text{ H}$) and MM bridge parallel humbucker ($1.20\text{ H}$) summed in active parallel ($L_{\text{par}} = 0.96\text{ H}$) into a high-headroom transparent buffer stage; delivers punchy, articulate slap growl with resonant clarity at $3.4\text{ kHz}$ and zero cable drag.
+   * **Series Coil Open-Circuit EMF Surge (`09b_stingray_mm_series`):** Switching the two MM coils into series doubles the open-circuit induced EMF ($V_{\text{out}} = e_1 + e_2 \approx 2e$), generating $+5.6\text{ dB}$ of authoritative passband gain with an authentic $4.1\text{ kHz}$ upper-mid resonance.
 
 ### B. Vintage Dual-Volume Harness (`02_jazz_bass_pair`, `02b_jazz_bass_pair_22nf`, `08_vintage_pj_passive`)
 * Standard Jazz Basses and passive P/Js utilize two separate $250\text{k}\Omega$ volume pots wired in parallel.
@@ -114,9 +116,9 @@ In instruments equipped with active onboard preamps (e.g., Sadowsky NYC 2-band, 
     $$f_c = \frac{1}{2\pi \cdot R_{\text{load}} \cdot C_{\text{series}}} \approx 150\text{ Hz}$$
     Rolls off sub-bass rumble while sharpening the aggressive $1.5\text{--}2.5\text{ kHz}$ bridge bite.
 
-### F. High-Inductance 500k Harnesses (`11_pmm_hybrid_series`, `12_mudbucker_ultra_series`, `13_dingwall_multiscale_bridge`)
+### F. High-Inductance 500k Harnesses (`11b_pmm_hybrid_series`, `12_mudbucker_ultra_series`)
 * High-inductance series pickups ($L > 7\text{ H}$) require $500\text{ k}\Omega$ volume and tone pots to prevent excessive high-frequency rolloff.
-* Dingwall and P/MM voices use $47\text{ nF}$ tone caps; Gibson Mudbucker uses $22\text{ nF}$ tone cap.
+* P/MM series voice uses $47\text{ nF}$ tone cap; Gibson Mudbucker uses $22\text{ nF}$ tone cap.
 
 ---
 

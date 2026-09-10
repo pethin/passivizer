@@ -20,12 +20,13 @@ This catalog details the physical parameters, equivalent RLC circuit values, aco
 | **05d**| `05d_vintage_50s_p_100nf`| Vintage '50s P (100nF ToneStyler)| Single Split | 100nF ToneStyler Pure Shunt ($R_{\text{tone}}=3.3\,\Omega$) | $3.80\text{ H}$ | $10.50\text{ k}\Omega$ | Sub-bass | Original 1951–1959 Fullerton factory paper-in-oil spec; massive sub-bass shelf rolloff ($-3\text{ dB}$ at $240\text{ Hz}$, deep Motown / reggae dub thump). |
 | **07** | `07_modern_pj_active` | Modern Active P/J | Active 2-Band | Sadowsky/Spector 2-Band Preamp ($R_{\text{in}}=1\text{M}\Omega, R_{\text{out}}=100\,\Omega$) | $2.06\text{ H}$ (isolated) | $4.28\text{ k}\Omega$ | $7.6\text{ kHz}$ | Active 2-band boost with isolated ceramic P/J coils ($139/111\text{ mm}$ P + $63.5\text{ mm}$ J); punchy sub-bass fundamental, wideband sparkle, and aggressive bridge clank. |
 | **08** | `08_vintage_pj_passive`| Vintage '80s Passive P/J| Parallel Sum | Dual $250\text{k}\Omega$ Vol ($125\text{k}\Omega$ net), $250\text{k}\Omega$ Tone, $47\text{nF}$ Cap | $1.85\text{ H}$ | $4.48\text{ k}\Omega$ | $2.8\text{ kHz}$ | Vintage Alnico V split-P and 60s J-bridge in parallel; authentic '80s Fender Special / Yamaha BB thump with woody mid-punch. |
-| **09** | `09_stingray_mm_parallel`| MM Humbucker Active | Active 2-Band | Music Man 2-Band Preamp ($R_{\text{in}}=1\text{M}\Omega, R_{\text{out}}=100\,\Omega$) | $2.40\text{ H}$ (isolated) | $4.60\text{ k}\Omega$ | $7.2\text{ kHz}$ | Dual-coil parallel humbucker with authentic active MM preamp buffer isolating coils from cable loading; comb notch at $2.5\text{ kHz}$ and clank peak at $7.2\text{ kHz}$. |
-| **09b**| `09b_stingray_mm_series` | MM Series Humbucker Active | Active 2-Band | Music Man 2-Band Preamp ($R_{\text{in}}=1\text{M}\Omega, R_{\text{out}}=100\,\Omega$) | $4.00\text{ H}$ (isolated) | $8.80\text{ k}\Omega$ | $6.1\text{ kHz}$ | Dual-coil series humbucker with active 2-band buffer; $+2.5\text{ dB}$ hotter output, punchy focused $2.1\text{ kHz}$ mid-growl, and softened treble clank (StingRay 5 / Sterling series switch). |
+| **09** | `09_stingray_mm_parallel`| MM Humbucker Active | Active 2-Band | Music Man 2-Band Preamp ($R_{\text{in}}=1\text{M}\Omega, R_{\text{out}}=100\,\Omega$) | $1.20\text{ H}$ (isolated) | $2.20\text{ k}\Omega$ | $8.5\text{ kHz}$ | Dual-coil parallel humbucker with authentic active MM preamp buffer isolating coils from cable loading; comb notch at $2.5\text{ kHz}$ and clank peak at $8.5\text{ kHz}$. |
+| **09b**| `09b_stingray_mm_series` | MM Series Humbucker Active | Active 2-Band | Music Man 2-Band Preamp ($R_{\text{in}}=1\text{M}\Omega, R_{\text{out}}=100\,\Omega$) | $4.80\text{ H}$ (isolated) | $8.80\text{ k}\Omega$ | $4.1\text{ kHz}$ | Dual-coil series humbucker with active 2-band buffer; physical $4:1$ impedance scaling ($L_{\text{ser}}=4 L_{\text{par}}$), $+5.6\text{ dB}$ open-circuit EMF surge, and focused $4.1\text{ kHz}$ active series resonance (StingRay 5 / Sterling series switch). |
 | **10** | `10_rickenbacker_bridge_hpf`| 4003 Bridge HPF | Series HPF | Factory Rickenbacker $330\text{k}\Omega$ Vol, $330\text{k}\Omega$ Tone, $4.7\text{nF}$ Series HPF | $3.80\text{ H}$ | $8.40\text{ k}\Omega$ | $2.2\text{ kHz}$ | High-output single-coil with vintage $4.7\text{ nF}$ series HPF; removes low-end mud below $150\text{ Hz}$, delivering aggressive pick grit and clang. |
-| **11** | `11_pmm_hybrid_series` | P + MM Hybrid | Series Sum | Modern $500\text{k}\Omega$ Vol, $500\text{k}\Omega$ Tone, $47\text{nF}$ Cap | $7.20\text{ H}$ | $14.10\text{ k}\Omega$ | $1.6\text{ kHz}$ | Split P and MM humbucker in series; $+5.8\text{ dB}$ inductive voltage boost with forward $1.6\text{ kHz}$ punch. |
+| **11** | `11_modern_pmm_active` | Modern Active P/MM | Active Buffer | Studio Active Buffer ($R_{\text{in}}=1\text{M}\Omega, R_{\text{out}}=100\,\Omega$) | $0.96\text{ H}$ (isolated) | $1.79\text{ k}\Omega$ | $3.4\text{ kHz}$ | Authentic active parallel P/MM (Sandberg California VM / Lakland 44-02); Split-P neck and MM parallel bridge into high-Z buffer with zero cable drag; articulate punch and modern slap growl. |
+| **11b**| `11b_pmm_hybrid_series`| P + MM Hybrid Series| Series Sum | Modern $500\text{k}\Omega$ Vol, $500\text{k}\Omega$ Tone, $47\text{nF}$ Cap | $7.20\text{ H}$ | $14.10\text{ k}\Omega$ | $1.6\text{ kHz}$ | Split P and MM humbucker in passive series sum; $+5.8\text{ dB}$ inductive voltage boost with forward $1.6\text{ kHz}$ low-mid punch. |
 | **12** | `12_mudbucker_ultra_series`| Overwound Series| Ultra Series | Gibson $500\text{k}\Omega$ Vol, $500\text{k}\Omega$ Tone, $22\text{nF}$ Cap | $14.40\text{ H}$| $27.90\text{ k}\Omega$ | $1.2\text{ kHz}$ | Extreme dual-coil series network; subterranean low-end focus, steep natural top-end rolloff. |
-| **13** | `13_dingwall_multiscale_bridge`| Multi-Scale MM | Angled Parallel | Dingwall $500\text{k}\Omega$ Vol, $500\text{k}\Omega$ Tone, $47\text{nF}$ Cap | $2.30\text{ H}$| $4.40\text{ k}\Omega$ | $3.4\text{ kHz}$ | 34"-37" fanned-fret bridge position ($48.0\text{ mm}$) with high-tension wave speeds and FD3 parallel dual-coil resonance. |
+| **13** | `13_dingwall_multiscale_bridge`| Multi-Scale MM | Angled Parallel | Dingwall Active Onboard Buffer ($1\text{ M}\Omega \parallel 25\text{ pF}$, low-Z out) | $2.30\text{ H}$ (isolated)| $4.40\text{ k}\Omega$ | $7.3\text{ kHz}$ | 34"-37" fanned-fret bridge position ($48.0\text{ mm}$) with high-tension wave speeds and active buffered FD3 parallel dual-coil sparkle. |
 | **14** | `14_upright_bridge_transducer`| Upright Transducer | Bridge Force | Direct $100\text{ M}\Omega$ Buffer, $15\text{ nF}$ Subsonic Rumble Cap | — | — | $4.5\text{ kHz}$ | Direct bridge force sensor with velocity-to-force leaky integration; woody double-bass bloom. |
 | **15** | `15_passive_character` | Passive Dynamic Twin | Dynamic Twin | Transparent ($0.00\text{ dB}$ flat linear transfer) | $3.60\text{ H}$ | $8.20\text{ k}\Omega$ | Flat (0 dB) | Pure passive pickup dynamic feel and magnetic non-linearities without EQ; preserves active bass onboard filters and blend controls. |
 | **16** | `16_active_character` | Modern Active Buffer | Active Buffer | Studio Active Buffer ($R_{\text{in}}=1\text{M}\Omega, R_{\text{out}}=100\,\Omega$) | $3.20\text{ H}$ (isolated) | $7.20\text{ k}\Omega$ | $8.2\text{ kHz}$ | Studio active buffer isolating high-Z coils from cable capacitance ($750\text{ pF}$); wideband sparkle, punchy transient headroom, zero cable drag. |
@@ -140,8 +141,8 @@ This catalog details the physical parameters, equivalent RLC circuit values, aco
 ### 09. `09_stingray_mm_parallel` (Music Man Active Dual-Coil Parallel)
 * **Archetype:** Music Man StingRay 4-String Active Dual-Coil Humbucker
 * **Coil Model:** Dual-coil humbucker ($w = 1.50''$, $d = 0.75''$) wired in parallel
-* **Control Harness:** Authentic Music Man active 2-band op-amp preamp buffer ($R_{\text{in}} = 1.0\text{ M}\Omega$, $C_{\text{in}} = 25\text{ pF}$, low-impedance $R_{\text{out}} = 100\,\Omega$). Active EQ provides $+5.0\text{ dB}$ bass boost ($50\text{ Hz}$ shelf) and $+3.0\text{ dB}$ treble boost ($7.0\text{ kHz}$ shelf).
-* **Electrical Parameters:** The active buffer isolates the coils from the $750\text{ pF}$ instrument cable. Pickup self-capacitance ($130\text{ pF}$) plus input capacitance ($25\text{ pF}$) places raw coil resonance at $7.2\text{ kHz}$.
+* **Control Harness:** Authentic Music Man active 2-band op-amp preamp buffer ($R_{\text{in}} = 1.0\text{ M}\Omega$, $C_{\text{in}} = 25\text{ pF}$, low-impedance $R_{\text{out}} = 100\,\Omega$). Active EQ provides $+1.8\text{ dB}$ bass boost ($50\text{ Hz}$ shelf) and $+2.2\text{ dB}$ treble boost ($4\text{--}7\text{ kHz}$ shelf).
+* **Electrical Parameters:** The active buffer isolates the coils from the $750\text{ pF}$ instrument cable. Parallel equivalent $L = 1.20\text{ H}$, $R_{\text{dc}} = 2.20\text{ k}\Omega$, $R_{\text{eddy}} = 75\text{ k}\Omega$, $C_{\text{coil}} = 180\text{ pF}$. Isolated from cable capacitance, peak resonance sits at $8.5\text{ kHz}$.
 * **Acoustic Character:** Dual-coil phase comb cancellation notch at $2.5\text{ kHz}$ combined with authoritative active bass punch and signature metallic treble clank.
 * **32" Bass Setting:** ABCX Blend **100% Bridge** (MMTWX in Dual-Coil Mode - Push/Pull Up).
 
@@ -149,8 +150,8 @@ This catalog details the physical parameters, equivalent RLC circuit values, aco
 * **Archetype:** Music Man StingRay 5 / Sterling 4-String Series Humbucker (3-Way Switch Position 1)
 * **Coil Model:** Dual-coil humbucker ($w = 1.50''$, $d = 0.75''$) wired in series
 * **Control Harness:** Authentic Music Man active 2-band op-amp preamp buffer ($R_{\text{in}} = 1.0\text{ M}\Omega$, $C_{\text{in}} = 25\text{ pF}$, low-impedance $R_{\text{out}} = 100\,\Omega$). Active EQ provides $+1.8\text{ dB}$ bass boost ($50\text{ Hz}$ shelf) and $+2.2\text{ dB}$ treble shelf ($4\text{--}7\text{ kHz}$).
-* **Electrical Parameters:** Two $2.0\text{ H}$ coils wired in series; combined $L = 4.00\text{ H}$, $R_{\text{dc}} = 8.80\text{ k}\Omega$, $R_{\text{eddy}} = 140\text{ k}\Omega$, $C_{\text{coil}} = 90\text{ pF}$. Isolated from cable capacitance, the electrical resonance sits at $6.1\text{ kHz}$.
-* **Acoustic Character:** The series coil connection adds $+2.5\text{ dB}$ output gain, filling the midrange with aggressive $2.1\text{ kHz}$ bark while softening the brittle $7\text{ kHz}$ treble clank. The definitive punchy, cut-through-the-mix voice favored for heavy rock, slap thumb punch, and modern gospel.
+* **Electrical Parameters:** Two coils wired in series satisfying physical $4:1$ impedance scaling; combined $L = 4.80\text{ H}$ ($4\times 1.20\text{ H}$), $R_{\text{dc}} = 8.80\text{ k}\Omega$ ($4\times 2.20\text{ k}\Omega$), $R_{\text{eddy}} = 150\text{ k}\Omega$, $C_{\text{coil}} = 210\text{ pF}$. Isolated from cable capacitance, the authentic active series resonance sits at $4.1\text{ kHz}$.
+* **Acoustic Character:** The series coil connection adds $+5.6\text{ dB}$ open-circuit voltage doubling, filling the midrange with commanding $4.1\text{ kHz}$ bark while naturally softening extreme $>7\text{ kHz}$ treble clank. The definitive punchy, cut-through-the-mix voice favored for heavy rock, slap thumb punch, and modern gospel.
 * **32" Bass Setting:** ABCX Blend **100% Bridge** (MMTWX in Dual-Coil Mode - Push/Pull Up).
 
 ### 10. `10_rickenbacker_bridge_hpf` (Rickenbacker 4003 Bridge with 4.7nF HPF)
@@ -161,11 +162,21 @@ This catalog details the physical parameters, equivalent RLC circuit values, aco
 * **Acoustic Character:** The series capacitor acts as a high-pass filter, rolling off sub-bass below $150\text{ Hz}$ while focusing midrange punch ($1.5\text{--}2.5\text{ kHz}$). Produces an aggressive, gritty pick attack.
 * **32" Bass Setting:** ABCX Blend **100% Bridge** (MMTWX in Single-Coil Mode - Push/Pull Down).
 
-### 11. `11_pmm_hybrid_series` (P/MM Hybrid Series Sum)
-* **Archetype:** Custom P/MM Hybrid in Series
+### 11. `11_modern_pmm_active` (Modern Active P/MM Bass)
+* **Archetype:** Sandberg California VM4/VM5 / Lakland 44-02 Style Active Parallel P/MM
+* **Pickup Architecture:** Dual parallel pickups:
+  * **Precision Neck:** Split-coil Bartolini 8CBP ($L = 4.80\text{ H}, R_{\text{dc}} = 9.50\text{ k}\Omega$)
+  * **Music Man Bridge:** Dual-coil parallel humbucker ($L = 1.20\text{ H}, R_{\text{dc}} = 2.20\text{ k}\Omega$)
+* **Control Harness:** Onboard active buffer stage ($R_{\text{in}} = 1\text{ M}\Omega, C_{\text{in}} = 25\text{ pF}$, low-Z output driver $R_{\text{out}} = 100\,\Omega$).
+* **Electrical Parameters:** Active parallel summation: $L_{\text{par}} = 0.96\text{ H}$, $R_{\text{dc,par}} = 1.79\text{ k}\Omega$. Loaded $f_r = 3.4\text{ kHz}$.
+* **Acoustic Character:** Zero cable capacitive loss on the coils. Delivers woody Split-P low-end authority combined with the laser-focused attack, wideband punch, and metallic growl of the Music Man sweet spot. The quintessential modern active slap and fingerstyle tone.
+* **32" Bass Setting:** ABCX Blend at **Center Detent (50/50)** (MMTWX in Dual-Coil Mode - Push/Pull Up).
+
+### 11b. `11b_pmm_hybrid_series` (P/MM Hybrid Series Sum)
+* **Archetype:** Custom P/MM Hybrid in Passive Series
 * **Pickup Architecture:** Dual series pickups:
   * **Precision Neck:** Split-coil Bartolini 8CBP ($L = 4.80\text{ H}$)
-  * **Music Man Bridge:** Dual-coil humbucker MM4CBC ($L = 2.40\text{ H}$)
+  * **Music Man Bridge:** Single coil / custom series stage ($L = 2.40\text{ H}$)
 * **Control Harness:** Modern $500\text{k}\Omega$ volume pot, $500\text{k}\Omega$ tone pot, $47\text{ nF}$ tone capacitor.
 * **Electrical Parameters:** Series-connected SPICE stages; total series $L_{\text{ser}} = 7.20\text{ H}$, $R_{\text{dc}} = 14.10\text{ k}\Omega$, $R_{\text{eddy}} = 250\text{ k}\Omega$, $C_{\text{coil}} = 50\text{ pF}$. Loaded $f_r = 1.6\text{ kHz}$.
 * **Acoustic Character:** Series inductance addition yields a large $+5.8\text{ dB}$ signal boost and a dense, forward $1.6\text{ kHz}$ resonant center. Fills out sparse instrument arrangements with commanding low-mids.
@@ -183,9 +194,9 @@ This catalog details the physical parameters, equivalent RLC circuit values, aco
 ### 13. `13_dingwall_multiscale_bridge` (Fanned-Fret Multi-Scale Bridge)
 * **Archetype:** Dingwall NG Multi-Scale Angled Bridge Position
 * **Coil Model:** Dual-coil humbucker in parallel positioned $48.0\text{ mm}$ from bridge
-* **Control Harness:** Dingwall-spec $500\text{k}\Omega$ volume pot, $500\text{k}\Omega$ tone pot, $47\text{ nF}$ tone capacitor.
-* **Electrical Parameters:** $L = 2.30\text{ H}$, $R_{\text{dc}} = 4.40\text{ k}\Omega$, $R_{\text{eddy}} = 150\text{ k}\Omega$, $C_{\text{coil}} = 120\text{ pF}$. Loaded $f_r = 3.4\text{ kHz}$.
-* **Acoustic Character:** 34"-37" fanned-fret wave-speed scaling with high string tension, angled bridge sweet spot ($48.0\text{ mm}$), FD3 dual-coil parallel resonance ($3.4\text{ kHz}$), and stainless-steel string harmonic extension.
+* **Control Harness:** Dingwall Combustion/NG active onboard buffer ($1\text{ M}\Omega \parallel 25\text{ pF}$ input, $100\,\Omega$ low-Z output driver isolating coils from cable capacitance).
+* **Electrical Parameters:** $L = 2.30\text{ H}$, $R_{\text{dc}} = 4.40\text{ k}\Omega$, $R_{\text{eddy}} = 150\text{ k}\Omega$, $C_{\text{coil}} = 120\text{ pF}$. Active buffered $f_r = 7.3\text{ kHz}$.
+* **Acoustic Character:** 34"-37" fanned-fret wave-speed scaling with high string tension, angled bridge sweet spot ($48.0\text{ mm}$), active buffered FD3 dual-coil parallel sparkle ($7.3\text{ kHz}$), and stainless-steel string harmonic extension.
 * **32" Bass Setting:** ABCX Blend **100% Bridge** (MMTWX in Dual-Coil Mode - Push/Pull Up).
 
 ### 14. `14_upright_bridge_transducer` (Upright Acoustic Bridge Transducer)
@@ -253,7 +264,8 @@ $$\Delta x_{\text{norm\_in}} = \Delta\eta \times 34.0'', \quad \text{tilt}_{\tex
 | **`09_stingray_mm_parallel`**| StingRay Centerline| $66.0\text{ mm}$ | $34.0''$ | $7.64\%$ | $-0.86''$ | $-1.3\text{ dB}$ bridge bite, active 2-band boost, comb notch |
 | **`09b_stingray_mm_series`** | StingRay Centerline| $66.0\text{ mm}$ | $34.0''$ | $7.64\%$ | $-0.86''$ | $-1.3\text{ dB}$ bridge bite, $+4.5\text{ dB}$ series inductive surge |
 | **`10_rickenbacker_bridge_hpf`**| 4003 Bridge Coil | $50.8\text{ mm}$ | $34.0''$ | $5.88\%$ | $-1.46''$ | $-2.2\text{ dB}$ bite tilt, 4.7nF series HPF clank bite |
-| **`11_pmm_hybrid_series`**| P + MM Series Center| $95.5\text{ mm}$ | $34.0''$ | $11.06\%$ | $+0.30''$ | $+0.5\text{ dB}$ forward tilt, high-inductance series surge |
+| **`11_modern_pmm_active`**| P + MM Parallel Center| $95.5\text{ mm}$ | $34.0''$ | $11.06\%$ | $+0.30''$ | $+0.5\text{ dB}$ forward tilt, active buffer cable isolation, slap punch |
+| **`11b_pmm_hybrid_series`**| P + MM Series Center| $95.5\text{ mm}$ | $34.0''$ | $11.06\%$ | $+0.30''$ | $+0.5\text{ dB}$ forward tilt, high-inductance series surge |
 | **`12_mudbucker_ultra_series`**| Sidewinder Center | $95.5\text{ mm}$ | $34.0''$ | $11.06\%$ | $+0.30''$ | Extreme $14.4\text{ H}$ series foundation, $1.25''$ aperture |
 | **`13_dingwall_multiscale_bridge`**| Angled Sweet Spot | $48.0\text{ mm}$ | $37.0''$ | $5.11\%$ | $-1.72''$ | $-2.6\text{ dB}$ bite tilt, multiscale continuum clank |
 | **`14_upright_bridge_transducer`**| Bridge Transducer | $5.0\text{ mm}$ | $41.5''$ | $0.47\%$ | $-3.30''$ | Regularized spatial de-comb, leaky force tilt, body bloom |

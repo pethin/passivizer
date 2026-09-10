@@ -69,11 +69,16 @@ def test_resolve_voice_pickups():
     assert p_pj_pas[1]["fr"] == 2800.0
     assert p_pj_pas[1]["Q"] == 1.3
 
-    # 5. Multi-pickup: 11_pmm_hybrid_series
+    # 5. Multi-pickup: 11_pmm_hybrid_series & 11_modern_pmm_active
     p_pmm = resolve_voice_pickups(VOICES["11_pmm_hybrid_series"])
     assert len(p_pmm) == 2
     assert p_pmm[0]["fr"] == 2200.0
     assert p_pmm[1]["fr"] == 3500.0
+
+    p_pmm_act = resolve_voice_pickups(VOICES["11_modern_pmm_active"])
+    assert len(p_pmm_act) == 2
+    assert p_pmm_act[0]["fr"] == 3200.0
+    assert p_pmm_act[1]["fr"] == 3500.0
 
     # 6. Single-pickup voice auto-wrapping: 04_modern_p_ceramic
     p_p = resolve_voice_pickups(VOICES["04_modern_p_ceramic"])
@@ -115,6 +120,13 @@ def test_resolve_voice_coils():
     assert c11[1]["strings"] == [1, 2]
     assert c11[2]["strings"] == ["all"]
     assert c11[3]["strings"] == ["all"]
+
+    c11_act = resolve_voice_coils(VOICES["11_modern_pmm_active"])
+    assert len(c11_act) == 4
+    assert c11_act[0]["strings"] == [3, 4]
+    assert c11_act[1]["strings"] == [1, 2]
+    assert c11_act[2]["strings"] == ["all"]
+    assert c11_act[3]["strings"] == ["all"]
 
     # Check effective positions are calculated correctly
     eff01 = compute_effective_position(c01)

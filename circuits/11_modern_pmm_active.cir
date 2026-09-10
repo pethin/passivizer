@@ -1,0 +1,46 @@
+* Allomorph Netlist 11: Modern Active P/MM Bass
+* Target: Precision Split-P + Music Man Dual-Coil with Active Buffer (Sandberg California VM / Lakland LH3 Style)
+.options plotwinsize=0 numdgt=7
+
+* 1. Audio Sources: Independent String Motion per Pickup (Channel 0 = P-Neck, Channel 1 = MM-Bridge)
+V_neck in_neck 0 wavefile="T3K-sweep-v3.wav" chan=0
+V_bridge in_bridge 0 wavefile="T3K-sweep-v3.wav" chan=1
+
+* 2. Dynamic Magnetic Core & String Excursion Saturation (Soft-Knee Compliance)
+B_comp_n in_dyn_n 0 V=0.40 * tanh(V(in_neck) / 0.40)
+B_comp_b in_dyn_b 0 V=0.55 * tanh(V(in_bridge) / 0.55)
+
+* 3. Pickup Coils: Dual Parallel Pickup Branches (Ceramic/Alnico Precision Neck || MM Parallel Bridge)
+* --- Branch 1: Bartolini 8CBP Precision Neck (4.8H, 9.5k, 80pF, 110k eddy) ---
+L_neck in_dyn_n node1_n 4.80
+R_dc_n node1_n node2 9.50k
+R_eddy_n in_dyn_n node2 110k
+C_coil_n node2 0 80p
+
+* --- Branch 2: Calibrated Lakland LH44 / Delano MM Bridge (3.60H, 7.40k, 110pF, 125k eddy) ---
+L_bridge in_dyn_b node1_b 3.60
+R_dc_b node1_b node2 7.40k
+R_eddy_b in_dyn_b node2 125k
+C_coil_b node2 0 110p
+
+* 4. Active Preamp Input Stage (High-Z Op-Amp Buffer, Zero Cable Drag on Coils)
+R_preamp_in node2 0 1Meg
+C_preamp_in node2 0 25p
+
+* 5. Active Preamp Buffer Stage (Sandberg / Lakland Active Low-Z Driver)
+* Direct low-Z op-amp output buffer isolating coils from cable capacitance
+* 1.5x active buffer gain restores unity passband gain across parallel summing network
+E_preamp node_buf 0 node2 0 1.5
+R_out node_buf node3 100
+* Preamp voicing: flat buffer
+
+* 6. Instrument Cable Load (15-ft cable ~750pF)
+C_cable node3 0 750p
+
+* 7. Darkglass Anagram Input Stage (1 M-Ohm || 30pF)
+R_anagram node3 0 1Meg
+C_anagram node3 0 30p
+
+* 8. Output Audio Export for NAM Training
+.wave "out_11_modern_pmm_active.wav" 24 48000 V(node3)
+.end

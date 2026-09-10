@@ -264,6 +264,7 @@ class CircuitModel:
         # Active preamp buffer & EQ
         self.has_active_buffer = False
         self.preamp_type = "none"  # "sadowsky_2band", "stingray_2band", or "none"
+        self.preamp_gain = 1.0
         self.R_preamp_in = 1.0e6
         self.C_preamp_in = 25e-12
         self.R_out = 100.0
@@ -471,6 +472,8 @@ def _parse_netlist_cached(cir_path_str: str) -> CircuitModel:
         # Active Preamp Buffer
         elif tag in ["E_PREAMP", "E_BUF"]:
             model.has_active_buffer = True
+            if len(tokens) > 5:
+                model.preamp_gain = parse_spice_val(tokens[5])
         elif tag == "R_PREAMP_IN":
             model.R_preamp_in = parse_spice_val(tokens[3])
             model.has_active_buffer = True
@@ -745,8 +748,9 @@ def compute_circuit_transfer_functions(model: CircuitModel, freqs=FREQS):
         Z_cable_load = 1.0 / (1.0 / model.Ranagram + Y_cable_diel + s * model.Canagram)
         H_buf_to_out = Z_cable_load / (model.R_out + Z_cable_load)
 
-        # Preamp active contour
-        H_eq = compute_active_preamp_eq(model.preamp_type, s)
+        # Preamp active contour & voltage gain scaling
+        preamp_gain = getattr(model, "preamp_gain", 1.0)
+        H_eq = compute_active_preamp_eq(model.preamp_type, s) * preamp_gain
 
         # Coils terminated into high-Z preamp input (R_preamp_in || C_preamp_in)
         Y_preamp_in = 1.0 / model.R_preamp_in + s * model.C_preamp_in
@@ -793,6 +797,27 @@ def compute_circuit_transfer_functions(model: CircuitModel, freqs=FREQS):
 
             H_n = H_n_to_2 * H_eq * H_buf_to_out
             H_b = H_b_to_2 * H_eq * H_buf_to_out
+
+            return [np.abs(H_n).tolist(), np.abs(H_b).tolist()]
+
+        elif model.topology == "series":
+            Z_L = compute_core_impedance(s, model.L, model.L_core, model.R_core, chi_mu=chi_mu, omega_mu=omega_mu, k_skin=k_skin, omega_skin=omega_skin, Rdc=model.Rdc)
+            Z_L_b = compute_core_impedance(s, model.L_b, model.L_core_b, model.R_core_b, chi_mu=chi_mu_b, omega_mu=omega_mu, k_skin=k_skin_b, omega_skin=omega_skin_b, Rdc=model.Rdc_b)
+            Y_br_n = 1.0 / (model.Rdc + Z_L) + 1.0 / model.Reddy
+            Y_br_b = 1.0 / (model.Rdc_b + Z_L_b) + 1.0 / model.Reddy_b
+            Y_cn = Y_c_n
+            Y_cb = Y_c_b
+            Y_2b = Y_br_b + Y_cb
+
+            Y_m = Y_br_n + Y_cn + Y_2b
+            Y_2 = Y_2b + Y_eff2
+            delta = Y_m * Y_2 - Y_2b ** 2
+
+            T2_n = (Y_2b * Y_br_n) / delta
+            T2_b = ((Y_br_n + Y_cn) * Y_br_b) / delta
+
+            H_n = T2_n * H_eq * H_buf_to_out
+            H_b = T2_b * H_eq * H_buf_to_out
 
             return [np.abs(H_n).tolist(), np.abs(H_b).tolist()]
 
@@ -2096,7 +2121,7 @@ def simulate_voice(
         voice_lambda_Ls = None
 
     is_passive = (inst_cfg.get("electronics") == "passive")
-    is_identity = is_voice_matching_source(inst_cfg, voice_id, vcfg)
+    is_spatial_match = is_voice_matching_source(inst_cfg, voice_id, vcfg)
     src_pickup = get_source_pickup(inst_cfg, voice_id)
     src_cir_rel = src_pickup.get("circuit")
     if not src_cir_rel and is_passive:
@@ -2112,6 +2137,8 @@ def simulate_voice(
         diff_curves = compute_differential_circuit_transfer_functions(model, src_model, freqs=FREQS)
 
     has_source_circuit = (diff_curves is not None)
+    is_circuit_match = bool(diff_curves is not None and len(diff_curves) > 0 and np.allclose(diff_curves[0], 1.0, rtol=1e-3))
+    is_identity = is_spatial_match and (is_circuit_match if has_source_circuit else True)
 
     # Differential magnetic softening parameters
     if not is_passive:
