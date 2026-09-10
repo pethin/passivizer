@@ -294,6 +294,29 @@ def compute_differential_string_transfer(freqs, src_string, tgt_string):
 
     return h_damp_ratio * h_bloom
 
+def compute_differential_longitudinal_transfer(freqs, src_string, tgt_string, scale_length_inches: float = 34.0):
+    """
+    Computes differential longitudinal wave transmission and core percussion (H_long(f)).
+    Steel core longitudinal compression waves (cL ≈ 5100 m/s) produce an instantaneous
+    resonant clank peak around f_L = cL / (2 * L) (≈ 2.7 - 3.3 kHz).
+    When target voicing has higher longitudinal clank than source, injects regularized
+    percussive clank resonance. Returns 1.0 when matching source or delta <= 0.
+    """
+    f = np.asarray(freqs, dtype=np.float64)
+    k_long_src = float(src_string.get("k_long", 0.20))
+    k_long_tgt = float(tgt_string.get("k_long", 0.20))
+    delta_k_long = max(k_long_tgt - k_long_src, 0.0)
+    if delta_k_long <= 0.0:
+        return np.ones_like(f)
+
+    L_meters = float(scale_length_inches) * 0.0254
+    c_L = 5100.0
+    f_L = c_L / (2.0 * max(L_meters, 0.50))
+    Q_L = 8.0
+    denom_L = Q_L * np.sqrt((1.0 - (f / f_L) ** 2) ** 2 + (f / (Q_L * f_L)) ** 2)
+    h_long = 1.0 + delta_k_long * (f / f_L) / np.maximum(denom_L, 1e-6) * np.exp(-((f / 6000.0) ** 2))
+    return h_long
+
 BODY_COUPLING_PROPERTIES = {
     "alnico_v": 0.08,
     "alnico_ii": 0.10,
@@ -1200,12 +1223,14 @@ def compute_voice_prefilter_firs(voice_id, instrument="30in", src_scale=None, nu
         # Differential string transfer for specialized target voicing strings (e.g. vintage flats, multiscale)
         if sensor_type != "bridge_force" and cfg.get("target_string") and cfg.get("target_string") != "roundwound_nickel_standard":
             h_str_diff = compute_differential_string_transfer(freqs, src_string, tgt_string)
+            h_long_diff = compute_differential_longitudinal_transfer(freqs, src_string, tgt_string, scale_length_inches=src_scale_in)
         else:
             h_str_diff = np.ones_like(freqs)
+            h_long_diff = np.ones_like(freqs)
 
         h_scale_tension = np.ones_like(freqs) if is_identity else h_tension
         h_body = np.ones_like(freqs) if is_identity else compute_body_microphonic_coupling(freqs, src_pickup, cfg, inst=inst)
-        prefilter_curve = scale_fac * h_acoustic_transfer * h_elec_inv * h_tilt * h_scale_tension * h_str_diff * h_body
+        prefilter_curve = scale_fac * h_acoustic_transfer * h_elec_inv * h_tilt * h_scale_tension * h_str_diff * h_long_diff * h_body
         fir_raw = synthesize_minimum_phase_fir(prefilter_curve, num_taps=num_taps, normalize=False)
 
         # Spatial acoustic wave propagation delay for multi-pickup configurations
@@ -1348,15 +1373,17 @@ def compute_aperture_prefilter_fir(voice_id, instrument="30in", src_scale=None, 
     # Differential string transfer for specialized target voicing strings (e.g. vintage flats, multiscale)
     if sensor_type != "bridge_force" and cfg.get("target_string") and cfg.get("target_string") != "roundwound_nickel_standard":
         h_str_diff = compute_differential_string_transfer(freqs, src_string, tgt_string)
+        h_long_diff = compute_differential_longitudinal_transfer(freqs, src_string, tgt_string, scale_length_inches=src_scale_in)
     else:
         h_str_diff = np.ones_like(freqs)
+        h_long_diff = np.ones_like(freqs)
 
     has_src_circuit = bool(src_pickup.get("circuit"))
     is_passive = (inst.get("electronics") == "passive")
     h_elec_inv = np.ones_like(freqs) if (is_identity or is_passive or has_src_circuit) else resolve_pickup_electrical_deconvolution_np(freqs, src_pickup, inst)
 
     h_body = np.ones_like(freqs) if is_identity else compute_body_microphonic_coupling(freqs, src_pickup, cfg, inst=inst)
-    prefilter_curve = h_acoustic_transfer * h_elec_inv * h_tilt * h_tension * h_str_diff * h_body
+    prefilter_curve = h_acoustic_transfer * h_elec_inv * h_tilt * h_tension * h_str_diff * h_long_diff * h_body
     max_val = np.max(prefilter_curve)
     resp_norm = prefilter_curve / max_val if max_val > 0 else prefilter_curve
 

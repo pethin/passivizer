@@ -102,6 +102,7 @@ To ensure high-fidelity modeling and prevent regressions, all contributors must 
 5. **Dynamic Target Scale Resolution & Tension Snap:** Dynamically resolve effective target scale length ($L_{\text{tgt}} = 37.0''$ for multiscale, $34.0''$ otherwise) and apply proportional tension snap whenever $L_{\text{src}} < L_{\text{tgt}}$:
    $$\text{snap\_db} = \min\left(3.5\text{ dB}, 1.8 \cdot \frac{L_{\text{tgt}} - L_{\text{src}}}{4.0''}\right)$$
 6. **Continuous Wave-Speed Continuum ($f_0 \in [30.87, 100]\text{ Hz}$):** Never constrain acoustic spatial filtering to 4 discrete open-string wave speeds or note-name strings (`["E", "A"]`). Integrate acoustic aperture responses ($H_{\text{composite}}$) across a continuous, log-spaced distribution ($N \ge 24$ points, uniform $1/N$ weight) spanning Low B ($30.87\text{ Hz}$) to open G ($100.00\text{ Hz}$). Route continuum points geometrically via register halves (`[1, 2]` treble vs `[3, 4]` bass), never note names. Derive string stiffness $B_s(f_0)$ logarithmically and calculate mean propagation delay using register centroid $\bar{f}_0 = 66.9045\text{ Hz}$ ($\bar{c} = 2 L \bar{f}_0$). Keep `scripts/train_nam.py` strictly untouched.
+7. **Longitudinal Wave Transmission & Core Percussion ($H_{\text{long}}(f)$):** Model steel core longitudinal compression wave ($c_L \approx 5100\text{ m/s}$) resonant clank at $f_L = c_L / (2L) \approx 2.7\text{--}3.3\text{ kHz}$ when target voicing string has higher longitudinal coupling than source ($\Delta k_{\text{long}} > 0$). Returns exact $1.0000$ ($0.00\text{ dB}$) when source matches target.
 
 ### 5.2 Mathematical Smoothness, Regularization & Boundary Continuity ($C^1 / C^\infty$)
 1. **Regularized Denominators & Soft-Knee Saturation:** Never clamp transfer ratio denominators with premature floors (e.g. `np.maximum(mag, 0.05)`) or apply hard rectangular clipping (`np.clip(..., 0.15, 3.0)`). Use regularized denominators ($\max(\text{mag}, 10^{-6})$) so identical profiles evaluate to exact $1.0000$ ($0.00\text{ dB}$). Bound maximum boosts and damping using asymptotic bidirectional soft-knee saturation:
@@ -126,7 +127,7 @@ To ensure high-fidelity modeling and prevent regressions, all contributors must 
 1. **Differential Magnetic Softening:** Never bypass saturation with blanket conditionals (`is_passive or has_source_circuit`). Evaluate differential metallurgy between source and target:
    $$\Delta\alpha = \max(\alpha_{\text{tgt}} - \alpha_{\text{src}}, 0), \quad \Delta\alpha_3 = \max(\alpha_{3,\text{tgt}} - \alpha_{3,\text{src}}, 0), \quad \Delta\eta_{\text{hyst}} = \max(\eta_{\text{tgt}} - \eta_{\text{src}}, 0), \quad \Delta k_{\text{sag}} = \max(k_{\text{sag,tgt}} - k_{\text{sag,src}}, 0)$$
    $$\Delta k_{\text{eddy}} = \max(k_{\text{eddy,tgt}} - k_{\text{eddy,src}}, 0), \quad \Delta\kappa_{\text{orbit}} = \max(\kappa_{\text{orbit,tgt}} - \kappa_{\text{orbit,src}}, 0), \quad \Delta\beta_{\text{curv}} = \max(\beta_{\text{curv,tgt}} - \beta_{\text{curv,src}}, 0)$$
-   $$\Delta k_{\text{pull}} = \max(k_{\text{pull,tgt}} - k_{\text{pull,src}}, 0), \quad \Delta\tau_{\text{touch}} = \max(\tau_{\text{touch,tgt}} - \tau_{\text{touch,src}}, 0)$$
+   $$\Delta k_{\text{pull}} = \max(k_{\text{pull,tgt}} - k_{\text{pull,src}}, 0), \quad \Delta\tau_{\text{touch}} = \max(\tau_{\text{touch,tgt}} - \tau_{\text{touch,src}}, 0), \quad \Delta\kappa_{\text{geom}} = \max(\kappa_{\text{geom,tgt}} - \kappa_{\text{geom,src}}, 0), \quad \Delta k_{\text{stein}} = \max(k_{\text{stein,tgt}} - k_{\text{stein,src}}, 0)$$
    $$V_{\text{sat,eff}} = \begin{cases} V_{\text{sat,tgt}} & \text{if active source} \\ \frac{V_{\text{sat,tgt}}}{1.0 - \min\left(0.85, \frac{V_{\text{sat,tgt}}}{V_{\text{sat,src}}}\right) + 0.15} & \text{if passive source with } V_{\text{sat,tgt}} < V_{\text{sat,src}} \\ 10.0 & \text{otherwise} \end{cases}$$
    Engage softening if and only if $(\text{not is\_identity}) \land (\text{not is\_passive} \lor \text{is\_target\_more\_saturated})$. Bypass saturation on small signals ($\le 0.10$ peak) to preserve bit-exact test linearity.
 2. **Nonlinear Magnetic String Pull & Attack Pitch Sag ($k_{\text{pull}}$):** Evaluate dynamic pole pull damping and attack pitch sag in `_lenz_velocity_drag_core`:
@@ -143,8 +144,11 @@ To ensure high-fidelity modeling and prevent regressions, all contributors must 
 6. **Thermal Dither & Body Coupling:**
    - Inject calibrated $-108\text{ dBFS}$ RLC-shaped Johnson noise dither to prevent hardware fixed-point neural gating pops (bypassed on small signals $\le 0.10$).
    - Model diffuse body microphonics on unpotted vintage passive pickups: $f_b = 6200.0\text{ Hz}, Q_b = 1.8, f_{\text{damp}} = 9500.0\text{ Hz}$.
+7. **Conformal Geometric Clearance & Dynamic Steinmetz AC Core Loss:**
+   - Rational clearance field divergence: $x_{\text{disp}} / (1 - \kappa_{\text{geom}} \tanh(x_{\text{disp}} / V_{\text{sat}}))$ modeling pole proximity growl and pushback without negative rail clipping.
+   - Dynamic Steinmetz core loss: $\text{stein\_damping} = k_{\text{stein}} \cdot \text{excess} \cdot (|dx_{\text{high}}/dt| / V_{\text{sat}})^{0.6}$ softening harsh flux spikes on attack plucks.
 
-### 4.5 Complex Electrical Impedance & Inter-Coil Transmission Modeling
+### 5.5 Complex Electrical Impedance & Inter-Coil Transmission Modeling
 1. **Fractional-Order Dielectric Absorption:** Model tone capacitor and cable admittance via Cole-Davidson fractional frequency scaling ($\alpha_{\text{tone}} \approx 0.988, \alpha_{\text{cable}} \approx 0.994, \omega_0 = 2\pi \cdot 1000\text{ rad/s}$):
    $$s_{\text{norm}} = \max\left(\frac{\omega}{\omega_0}, 10^{-6}\right), \quad Y_C(s) = s \cdot C \cdot s_{\text{norm}}^{\alpha - 1} \cdot e^{j(\alpha - 1)\pi / 2}$$
 2. **Coupled $2\times 2$ Nodal Transfer Matrix:** For parallel dual-coil configurations, solve the coupled mutual system ($M = k_m \sqrt{L_n L_b}, Z_m = s M, Y_m = s C_m, \Delta_Z = Z_n Z_b - Z_m^2$):
@@ -153,6 +157,7 @@ To ensure high-fidelity modeling and prevent regressions, all contributors must 
    $$\mu_{\text{rel}}(s) = 1.0 - \chi_{\mu} \ln\left(1.0 + \frac{s}{\omega_{\mu}}\right), \quad \omega_{\mu} = 2\pi \cdot 1200.0\text{ rad/s}, \quad Z_L(s) = \mu_{\text{rel}}(s) \cdot \left[s L_{\infty} + \frac{s L_{\text{core}} R_{\text{core}}}{s L_{\text{core}} + R_{\text{core}}}\right]$$
 4. **Distributed Inter-Winding Transmission Line Admittance:** Replace lumped parallel coil admittance with the hyperbolic transmission factor ($k_{\text{dist}} \in [0.00, 0.05], \omega_{\text{dist}} = 2\pi \cdot 10000\text{ rad/s}$):
    $$\gamma_{\text{dist}} = k_{\text{dist}} \sqrt{\frac{s}{\omega_{\text{dist}}}}, \quad Y_{\text{coil}}(s) = (s C_{\text{coil}} + G_{\text{coil}}) \cdot \frac{\tanh(\gamma_{\text{dist}})}{\gamma_{\text{dist}}}$$
+5. **Interactive Potentiometer Wiper Division & Cable Loading:** Model Volume and Tone pot wiper positions ($P_{\text{vol}}, P_{\text{tone}} \in [0, 1]$). Rolling volume down splits $R_{\text{vol}}$ into series $R_{\text{top}}$ and shunt $R_{\text{bot}}$, interacting with cable capacitance $C_{\text{cable}}$; rolling tone down reduces series resistance into $C_{\text{tone}}$. Exactly preserves netlist defaults when $P_{\text{vol}} = 1.0, P_{\text{tone}} = 1.0$.
 
 ---
 

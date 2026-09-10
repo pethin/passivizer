@@ -21,6 +21,7 @@ damping_cutoff_hz = 8500.0
 damping_order = 1.0
 bloom_db = 0.0
 pluck_excursion_factor = 1.0
+k_long = 0.20
 
 # ------------------------------------------------------------------------------
 # 2. Electric Stainless Steel Roundwounds (Dingwall / Modern Clank)
@@ -37,6 +38,7 @@ damping_cutoff_hz = 12000.0
 damping_order = 1.0
 bloom_db = -1.0
 pluck_excursion_factor = 0.90
+k_long = 0.35
 
 # ------------------------------------------------------------------------------
 # 3. La Bella Low Tension Flats (Fretless / Smooth Thump)
@@ -54,6 +56,7 @@ damping_cutoff_hz = 2800.0
 damping_order = 1.8
 bloom_db = 1.8
 pluck_excursion_factor = 1.25    # Lower tension causes ~25% larger string excursion under pluck
+k_long = 0.08
 
 # ------------------------------------------------------------------------------
 # 4. Vintage Deep Flatwounds (Motown / Jamerson 1954 Style)
@@ -70,6 +73,7 @@ damping_cutoff_hz = 1800.0
 damping_order = 2.0
 bloom_db = 2.4
 pluck_excursion_factor = 0.85
+k_long = 0.05
 
 # ------------------------------------------------------------------------------
 # 5. Upright 3/4 Double Bass Strings (Spirocore / Helicore Orchestral/Pizz)
@@ -88,3 +92,4 @@ damping_order = 2.0
 bloom_db = 2.8                   # Cavernous 60-100 Hz body & air cavity bloom
 pluck_excursion_factor = 1.0     # Standard acoustic baseline
 bridge_rocking_compliance = 0.42 # Reference acoustic bridge compliance threshold
+k_long = 0.02

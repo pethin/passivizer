@@ -77,6 +77,8 @@ MAGNET_PROPERTIES = {
         "tau_touch": 0.045,
         "chi_mu": 0.035,
         "k_dist": 0.18,
+        "kappa_geom": 0.20,
+        "k_stein": 0.030,
     },
     "alnico_ii": {
         "k_core": 0.10,
@@ -94,6 +96,8 @@ MAGNET_PROPERTIES = {
         "tau_touch": 0.035,
         "chi_mu": 0.050,
         "k_dist": 0.22,
+        "kappa_geom": 0.24,
+        "k_stein": 0.040,
     },
     "ceramic": {
         "k_core": 0.02,
@@ -111,6 +115,8 @@ MAGNET_PROPERTIES = {
         "tau_touch": 0.025,
         "chi_mu": 0.010,
         "k_dist": 0.12,
+        "kappa_geom": 0.15,
+        "k_stein": 0.015,
     },
     "ceramic_alnico_hybrid": {
         "k_core": 0.05,
@@ -128,6 +134,8 @@ MAGNET_PROPERTIES = {
         "tau_touch": 0.035,
         "chi_mu": 0.020,
         "k_dist": 0.15,
+        "kappa_geom": 0.18,
+        "k_stein": 0.025,
     },
     "neodymium": {
         "k_core": 0.01,
@@ -145,6 +153,8 @@ MAGNET_PROPERTIES = {
         "tau_touch": 0.015,
         "chi_mu": 0.005,
         "k_dist": 0.10,
+        "kappa_geom": 0.10,
+        "k_stein": 0.008,
     },
     "piezo": {
         "k_core": 0.00,
@@ -162,6 +172,8 @@ MAGNET_PROPERTIES = {
         "tau_touch": 0.000,
         "chi_mu": 0.000,
         "k_dist": 0.00,
+        "kappa_geom": 0.00,
+        "k_stein": 0.000,
     },
     "active": {
         "k_core": 0.00,
@@ -179,6 +191,8 @@ MAGNET_PROPERTIES = {
         "tau_touch": 0.000,
         "chi_mu": 0.000,
         "k_dist": 0.00,
+        "kappa_geom": 0.00,
+        "k_stein": 0.000,
     },
 }
 MAGNET_PROPERTIES["hybrid"] = MAGNET_PROPERTIES["ceramic_alnico_hybrid"]
@@ -254,6 +268,37 @@ class CircuitModel:
         self.k_dist = 0.0
         self.k_dist_b = 0.0
         self.omega_dist = 2.0 * math.pi * 10000.0
+
+        # Potentiometer wiper positions (1.0 = full open/bright baseline)
+        self.vol_pos = 1.0
+        self.tone_pos = 1.0
+        self.Rvol_total = 500000.0
+        self.Rtone_total = 250000.0
+
+    def apply_pot_positions(self, vol_pos: float = None, tone_pos: float = None):
+        """
+        Dynamically positions Volume and Tone pot wipers (0.0 to 1.0, default 1.0 full open).
+        At vol_pos < 1.0, splits volume pot into series Rtop and shunt Rbot, loading cable capacitance.
+        At tone_pos < 1.0, reduces series resistance in front of tone capacitor (increasing roll-off).
+        When wipers are at 1.0, preserves exact netlist defaults.
+        """
+        if vol_pos is not None:
+            self.vol_pos = float(np.clip(vol_pos, 0.0, 1.0))
+            if self.vol_pos >= 0.9999 and hasattr(self, "Rtop_default"):
+                self.Rtop = self.Rtop_default
+                self.Rbot = self.Rbot_default
+            else:
+                r_total = getattr(self, "Rvol_total", self.Rtop + self.Rbot)
+                self.Rtop = max(r_total * (1.0 - self.vol_pos), getattr(self, "Rtop_default", 0.01))
+                self.Rbot = max(r_total * self.vol_pos, 1.0)
+
+        if tone_pos is not None:
+            self.tone_pos = float(np.clip(tone_pos, 0.0, 1.0))
+            if self.tone_pos >= 0.9999 and hasattr(self, "Rtone_default"):
+                self.Rtone = self.Rtone_default
+            else:
+                r_tone_tot = getattr(self, "Rtone_total", self.Rtone if self.Rtone > 0.0 else 250000.0)
+                self.Rtone = max(r_tone_tot * self.tone_pos, 0.0)
 
 @functools.lru_cache(maxsize=128)
 def _parse_netlist_cached(cir_path_str: str) -> CircuitModel:
@@ -419,6 +464,12 @@ def _parse_netlist_cached(cir_path_str: str) -> CircuitModel:
             model.C_mutual = 20e-12
     else:
         model.topology = "single"
+
+    model.Rvol_total = model.Rtop + model.Rbot
+    model.Rtone_total = model.Rtone if model.Rtone > 0.0 else 250000.0
+    model.Rtop_default = model.Rtop
+    model.Rbot_default = model.Rbot
+    model.Rtone_default = model.Rtone
 
     return model
 
@@ -921,6 +972,7 @@ if _HAS_NUMBA:
         k_eddy: float = 0.0,
         beta_curv: float = 0.0,
         k_pull: float = 0.0,
+        k_stein: float = 0.0,
     ) -> np.ndarray:
         n = len(x_arr)
         out = np.empty(n, dtype=np.float64)
@@ -937,7 +989,11 @@ if _HAS_NUMBA:
                     excess = 1.0
                 eddy_factor = k_eddy * excess * math.tanh(abs(x_high) / vsat)
                 pull_damping = k_pull * excess * math.tanh(max(val, 0.0) / vsat)
-                drag_high = 1.0 - (k_sag + eddy_factor + pull_damping) * excess
+                flux_rate = abs(x_high - x_high_prev) * 7.639437
+                stein_damping = 0.0
+                if k_stein > 0.0:
+                    stein_damping = k_stein * excess * ((flux_rate / vsat) ** 0.6)
+                drag_high = 1.0 - (k_sag + eddy_factor + pull_damping + stein_damping) * excess
                 drag_low = 1.0 - 0.25 * k_sag * excess
             else:
                 drag_high = 1.0
@@ -1009,6 +1065,7 @@ else:
         k_eddy: float = 0.0,
         beta_curv: float = 0.0,
         k_pull: float = 0.0,
+        k_stein: float = 0.0,
     ) -> np.ndarray:
         n = len(x_arr)
         out = np.empty(n, dtype=np.float64)
@@ -1025,7 +1082,11 @@ else:
                     excess = 1.0
                 eddy_factor = k_eddy * excess * math.tanh(abs(x_high) / vsat)
                 pull_damping = k_pull * excess * math.tanh(max(val, 0.0) / vsat)
-                drag_high = 1.0 - (k_sag + eddy_factor + pull_damping) * excess
+                flux_rate = abs(x_high - x_high_prev) * 7.639437
+                stein_damping = 0.0
+                if k_stein > 0.0:
+                    stein_damping = k_stein * excess * ((flux_rate / vsat) ** 0.6)
+                drag_high = 1.0 - (k_sag + eddy_factor + pull_damping + stein_damping) * excess
                 drag_low = 1.0 - 0.25 * k_sag * excess
             else:
                 drag_high = 1.0
@@ -1114,6 +1175,8 @@ def apply_oversampled_saturation(
     beta_curv: float = 0.0,
     k_pull: float = 0.0,
     tau_touch: float = 0.0,
+    kappa_geom: float = 0.0,
+    k_stein: float = 0.0,
     slew_limit: bool = True,
     f_slew: float = 16000.0,
     oversample: int = 2,
@@ -1128,11 +1191,13 @@ def apply_oversampled_saturation(
     4. Dynamic core inductance curvature (beta_curv excursion-dependent resonant peak wobble).
     5. Nonlinear magnetic string pull dynamics (k_pull localized damping & attack pitch sag).
     6. Excursion-dependent dynamic spectral tilt (tau_touch touch-sensitive attack brightness).
-    7. Transient magnetic slew-rate soft-limiting (f_slew Barkhausen domain-wall damping).
-    8. Higher-order magnetic dipole field expansion (v + alpha * v^2 + alpha3 * v^3).
-    9. Dahl magnetic domain-wall pinning hysteresis in displacement domain (sustain bloom).
-    10. Displacement-domain pre/de-emphasis excursion weighting (suppressing treble IMD hash).
-    11. Multi-rate anti-aliased oversampling (2x or 4x) suppressing ultrasonic harmonic foldback by >100 dB.
+    7. Conformal geometric clearance asymmetry (kappa_geom rational proximity growl).
+    8. Dynamic Steinmetz AC loss damping (k_stein flux-rate damping).
+    9. Transient magnetic slew-rate soft-limiting (f_slew Barkhausen domain-wall damping).
+    10. Higher-order magnetic dipole field expansion (v + alpha * v^2 + alpha3 * v^3).
+    11. Dahl magnetic domain-wall pinning hysteresis in displacement domain (sustain bloom).
+    12. Displacement-domain pre/de-emphasis excursion weighting (suppressing treble IMD hash).
+    13. Multi-rate anti-aliased oversampling (2x or 4x) suppressing ultrasonic harmonic foldback by >100 dB.
     For small-signal linear excitations (e.g. test impulses <= 0.10 peak), bypasses non-linearity
     to preserve 100% exact mathematical impulse response linearity.
     Optimized with single-pass frequency-domain weighting and decimation.
@@ -1150,8 +1215,8 @@ def apply_oversampled_saturation(
         return (vsat * np.tanh(v_asym / vsat)).astype(np.float32)
 
     # 1. Dynamic Lenz-Law Core Flux Sag on forte peak excursions (velocity-proportional high-frequency damping),
-    # dynamic core inductance curvature wobble, and localized magnetic string pull damping / pitch sag
-    if magnet_drag and vsat > 0 and (k_sag > 0.0 or k_eddy > 0.0 or beta_curv > 0.0 or k_pull > 0.0):
+    # dynamic core inductance curvature wobble, localized magnetic string pull damping / pitch sag, and Steinmetz loss
+    if magnet_drag and vsat > 0 and (k_sag > 0.0 or k_eddy > 0.0 or beta_curv > 0.0 or k_pull > 0.0 or k_stein > 0.0):
         tau_att = 0.006  # 6 ms fast attack on string strike
         tau_rel = 0.045  # 45 ms smooth domain relaxation release
         alpha_att = 1.0 - math.exp(-1.0 / (48000.0 * tau_att))
@@ -1159,7 +1224,7 @@ def apply_oversampled_saturation(
         env = _lenz_envelope_core(x, alpha_att, alpha_rel)
         # 1-pole crossover at 750 Hz separating punchy bass fundamental from transient string clank
         alpha_c = 1.0 - math.exp(-2.0 * math.pi * 750.0 / 48000.0)
-        x = _lenz_velocity_drag_core(x, env, vsat, k_sag, alpha_c, k_eddy, beta_curv, k_pull)
+        x = _lenz_velocity_drag_core(x, env, vsat, k_sag, alpha_c, k_eddy, beta_curv, k_pull, k_stein)
 
     if oversample <= 1:
         if displacement_weighting:
@@ -1181,6 +1246,8 @@ def apply_oversampled_saturation(
                 x_disp = apply_dahl_hysteresis(x_disp, eta=eta_hyst)
             if kappa_orbit > 0.0:
                 x_disp = apply_elliptical_orbit_projection(x_disp, vsat=vsat, kappa_orbit=kappa_orbit)
+            if kappa_geom > 0.0 and vsat > 0.0:
+                x_disp = x_disp / (1.0 - kappa_geom * np.tanh(x_disp / vsat))
             v_asym = x_disp + alpha * (x_disp ** 2) + alpha3 * (x_disp ** 3)
             v_sat = vsat * np.tanh(v_asym / vsat)
             if slew_limit and vsat > 0.0 and f_slew > 0.0:
@@ -1192,6 +1259,8 @@ def apply_oversampled_saturation(
                 x = apply_dahl_hysteresis(x, eta=eta_hyst)
             if kappa_orbit > 0.0:
                 x = apply_elliptical_orbit_projection(x, vsat=vsat, kappa_orbit=kappa_orbit)
+            if kappa_geom > 0.0 and vsat > 0.0:
+                x = x / (1.0 - kappa_geom * np.tanh(x / vsat))
             v_asym = x + alpha * (x ** 2) + alpha3 * (x ** 3)
             out = vsat * np.tanh(v_asym / vsat)
             if slew_limit and vsat > 0.0 and f_slew > 0.0:
@@ -1234,6 +1303,8 @@ def apply_oversampled_saturation(
             x_up_disp = apply_dahl_hysteresis(x_up_disp, eta=eta_hyst)
         if kappa_orbit > 0.0:
             x_up_disp = apply_elliptical_orbit_projection(x_up_disp, vsat=vsat, kappa_orbit=kappa_orbit)
+        if kappa_geom > 0.0 and vsat > 0.0:
+            x_up_disp = x_up_disp / (1.0 - kappa_geom * np.tanh(x_up_disp / vsat))
         v_asym = x_up_disp + alpha * (x_up_disp ** 2) + alpha3 * (x_up_disp ** 3)
         v_sat = vsat * np.tanh(v_asym / vsat)
         if slew_limit and vsat > 0.0 and f_slew > 0.0:
@@ -1247,6 +1318,8 @@ def apply_oversampled_saturation(
             x_up = apply_dahl_hysteresis(x_up, eta=eta_hyst)
         if kappa_orbit > 0.0:
             x_up = apply_elliptical_orbit_projection(x_up, vsat=vsat, kappa_orbit=kappa_orbit)
+        if kappa_geom > 0.0 and vsat > 0.0:
+            x_up = x_up / (1.0 - kappa_geom * np.tanh(x_up / vsat))
         v_asym = x_up + alpha * (x_up ** 2) + alpha3 * (x_up ** 3)
         v_sat = vsat * np.tanh(v_asym / vsat)
         if slew_limit and vsat > 0.0 and f_slew > 0.0:
@@ -1291,6 +1364,12 @@ def simulate_circuit_audio(
     k_pulls=None,
     tau_touch: float = 0.0,
     tau_touches=None,
+    kappa_geom: float = 0.0,
+    kappa_geoms=None,
+    k_stein: float = 0.0,
+    k_steins=None,
+    vol_pos: float = None,
+    tone_pos: float = None,
     slew_limit: bool = True,
     f_slew: float = 16000.0,
     is_identity: bool = False,
@@ -1356,6 +1435,9 @@ def simulate_circuit_audio(
         # Aligns standalone/prefiltered inputs with apply_prefilter_to_audio calibration
         target_drive_peak = min(in_peak * 0.687, 0.70)
         audio = (audio / max(in_peak, 1e-9)) * target_drive_peak
+
+    if vol_pos is not None or tone_pos is not None:
+        model.apply_pot_positions(vol_pos=vol_pos, tone_pos=tone_pos)
 
     if circuit_curves is not None:
         mag_curves = circuit_curves
@@ -1435,6 +1517,16 @@ def simulate_circuit_audio(
                 if (isinstance(tau_touches, (list, tuple)) and len(tau_touches) > ch_idx)
                 else tau_touch
             )
+            ch_geom = (
+                kappa_geoms[ch_idx]
+                if (isinstance(kappa_geoms, (list, tuple)) and len(kappa_geoms) > ch_idx)
+                else kappa_geom
+            )
+            ch_stein = (
+                k_steins[ch_idx]
+                if (isinstance(k_steins, (list, tuple)) and len(k_steins) > ch_idx)
+                else k_stein
+            )
 
             if (
                 ch_vsat >= 10.0
@@ -1447,6 +1539,8 @@ def simulate_circuit_audio(
                 and ch_beta <= 0.001
                 and ch_pull <= 0.001
                 and ch_touch <= 0.001
+                and ch_geom <= 0.001
+                and ch_stein <= 0.001
             ):
                 in_dyn = in_ch.copy().astype(np.float32)
             else:
@@ -1462,6 +1556,8 @@ def simulate_circuit_audio(
                     beta_curv=ch_beta,
                     k_pull=ch_pull,
                     tau_touch=ch_touch,
+                    kappa_geom=ch_geom,
+                    k_stein=ch_stein,
                     slew_limit=slew_limit,
                     f_slew=f_slew,
                     oversample=oversample,
@@ -1644,6 +1740,10 @@ def simulate_voice(
     beta_curv: float = None,
     k_pull: float = None,
     tau_touch: float = None,
+    kappa_geom: float = None,
+    k_stein: float = None,
+    vol_pos: float = None,
+    tone_pos: float = None,
     slew_limit: bool = True,
     f_slew: float = 16000.0,
     noise_dither: bool = True,
@@ -1701,6 +1801,8 @@ def simulate_voice(
 
     model = parse_netlist(cir_path)
     apply_magnet_properties_to_model(model, vcfg, eddy_diffusion=eddy_diffusion)
+    if vol_pos is not None or tone_pos is not None:
+        model.apply_pot_positions(vol_pos=vol_pos, tone_pos=tone_pos)
 
     # Dynamic bridge compliance scaling based on source string pluck excursion
     if "upright_bridge_transducer" in voice_id:
@@ -1776,6 +1878,20 @@ def simulate_voice(
         else:
             voice_touch = global_props.get("tau_touch", 0.0)
 
+    voice_geom = kappa_geom
+    if voice_geom is None:
+        if "kappa_geom" in vcfg:
+            voice_geom = float(vcfg["kappa_geom"])
+        else:
+            voice_geom = global_props.get("kappa_geom", 0.0)
+
+    voice_stein = k_stein
+    if voice_stein is None:
+        if "k_stein" in vcfg:
+            voice_stein = float(vcfg["k_stein"])
+        else:
+            voice_stein = global_props.get("k_stein", 0.0)
+
     pickups_cfg = vcfg.get("pickups", [])
     if pickups_cfg and len(pickups_cfg) > 1:
         voice_alphas = []
@@ -1787,6 +1903,8 @@ def simulate_voice(
         voice_beta_curvs = []
         voice_k_pulls = []
         voice_tau_touches = []
+        voice_kappa_geoms = []
+        voice_k_steins = []
         for p in pickups_cfg:
             p_mag = p.get("magnet_type", mag_type_global)
             p_props = MAGNET_PROPERTIES.get(p_mag, MAGNET_PROPERTIES["alnico_v"])
@@ -1799,6 +1917,8 @@ def simulate_voice(
             voice_beta_curvs.append(float(p["beta_curv"]) if "beta_curv" in p else p_props.get("beta_curv", 0.0))
             voice_k_pulls.append(float(p["k_pull"]) if "k_pull" in p else p_props.get("k_pull", 0.0))
             voice_tau_touches.append(float(p["tau_touch"]) if "tau_touch" in p else p_props.get("tau_touch", 0.0))
+            voice_kappa_geoms.append(float(p["kappa_geom"]) if "kappa_geom" in p else p_props.get("kappa_geom", 0.0))
+            voice_k_steins.append(float(p["k_stein"]) if "k_stein" in p else p_props.get("k_stein", 0.0))
     else:
         voice_alphas = None
         voice_alpha3s = None
@@ -1809,6 +1929,8 @@ def simulate_voice(
         voice_beta_curvs = None
         voice_k_pulls = None
         voice_tau_touches = None
+        voice_kappa_geoms = None
+        voice_k_steins = None
 
     is_passive = (inst_cfg.get("electronics") == "passive")
     is_identity = is_voice_matching_source(inst_cfg, voice_id, vcfg)
@@ -1851,6 +1973,8 @@ def simulate_voice(
     src_beta = src_props.get("beta_curv", 0.0)
     src_pull = src_props.get("k_pull", 0.0)
     src_touch = src_props.get("tau_touch", 0.0)
+    src_geom = src_props.get("kappa_geom", 0.0)
+    src_stein = src_props.get("k_stein", 0.0)
     src_vsat = src_props.get("vsat", 0.50)
 
     tgt_vsat = model.vsat
@@ -1863,6 +1987,8 @@ def simulate_voice(
     diff_beta = max(voice_beta - src_beta, 0.0)
     diff_pull = max(voice_pull - src_pull, 0.0)
     diff_touch = max(voice_touch - src_touch, 0.0)
+    diff_geom = max(voice_geom - src_geom, 0.0)
+    diff_stein = max(voice_stein - src_stein, 0.0)
 
     if not is_passive:
         eff_vsat = tgt_vsat
@@ -1882,6 +2008,8 @@ def simulate_voice(
         eff_beta_curvs = []
         eff_k_pulls = []
         eff_tau_touches = []
+        eff_kappa_geoms = []
+        eff_k_steins = []
         eff_vsats = []
         for i in range(len(voice_alphas)):
             ch_a = max(voice_alphas[i] - src_alpha, 0.0)
@@ -1893,6 +2021,8 @@ def simulate_voice(
             ch_beta = max(voice_beta_curvs[i] - src_beta, 0.0) if voice_beta_curvs else diff_beta
             ch_pull = max(voice_k_pulls[i] - src_pull, 0.0) if voice_k_pulls else diff_pull
             ch_touch = max(voice_tau_touches[i] - src_touch, 0.0) if voice_tau_touches else diff_touch
+            ch_geom = max(voice_kappa_geoms[i] - src_geom, 0.0) if voice_kappa_geoms else diff_geom
+            ch_stein = max(voice_k_steins[i] - src_stein, 0.0) if voice_k_steins else diff_stein
             eff_alphas.append(ch_a)
             eff_alpha3s.append(ch_a3)
             eff_eta_hysts.append(ch_eta)
@@ -1902,6 +2032,8 @@ def simulate_voice(
             eff_beta_curvs.append(ch_beta)
             eff_k_pulls.append(ch_pull)
             eff_tau_touches.append(ch_touch)
+            eff_kappa_geoms.append(ch_geom)
+            eff_k_steins.append(ch_stein)
 
             ch_tgt_vsat = model.vsat_n if i == 0 else model.vsat_b
             if not is_passive:
@@ -1925,6 +2057,8 @@ def simulate_voice(
         eff_beta_curvs = None
         eff_k_pulls = None
         eff_tau_touches = None
+        eff_kappa_geoms = None
+        eff_k_steins = None
         eff_vsats = None
         check_alpha = diff_alpha
         check_eta = diff_eta
@@ -1940,6 +2074,8 @@ def simulate_voice(
         or (diff_beta > 0.005)
         or (diff_pull > 0.005)
         or (diff_touch > 0.005)
+        or (diff_geom > 0.01)
+        or (diff_stein > 0.005)
         or (check_vsat < src_vsat - 0.03)
     )
 
@@ -1962,7 +2098,7 @@ def simulate_voice(
     else:
         stage_desc = "Circuit Simulation (Pre-filtered Input)"
 
-    print(f"  -> Simulating Native VA ({stage_desc}): {cir_path.name} (Topology: {model.topology}, Source: {inst_id}, Soften: {should_soften}, Alpha: {diff_alpha:.2f}, Alpha3: {diff_alpha3:.2f}, Eta: {diff_eta:.2f}, Sag: {diff_sag:.2f}, Eddy: {diff_eddy:.2f}, Orbit: {diff_orbit:.2f}, Beta: {diff_beta:.3f}, Pull: {diff_pull:.3f}, Touch: {diff_touch:.3f}, Vsat: {eff_vsat:.2f})...")
+    print(f"  -> Simulating Native VA ({stage_desc}): {cir_path.name} (Topology: {model.topology}, Source: {inst_id}, Soften: {should_soften}, Alpha: {diff_alpha:.2f}, Alpha3: {diff_alpha3:.2f}, Eta: {diff_eta:.2f}, Sag: {diff_sag:.2f}, Eddy: {diff_eddy:.2f}, Orbit: {diff_orbit:.2f}, Beta: {diff_beta:.3f}, Pull: {diff_pull:.3f}, Touch: {diff_touch:.3f}, Geom: {diff_geom:.2f}, Stein: {diff_stein:.3f}, Vsat: {eff_vsat:.2f})...")
     simulate_circuit_audio(
         input_wav,
         output_wav,
@@ -1996,6 +2132,12 @@ def simulate_voice(
         k_pulls=eff_k_pulls,
         tau_touch=diff_touch,
         tau_touches=eff_tau_touches,
+        kappa_geom=diff_geom,
+        kappa_geoms=eff_kappa_geoms,
+        k_stein=diff_stein,
+        k_steins=eff_k_steins,
+        vol_pos=vol_pos,
+        tone_pos=tone_pos,
         slew_limit=slew_limit,
         f_slew=f_slew,
         noise_dither=noise_dither,
@@ -2101,6 +2243,30 @@ def main():
         help="Explicit dynamic touch spectral tilt factor tau_touch (default: resolved from magnet_type in voices.toml)",
     )
     parser.add_argument(
+        "--kappa-geom",
+        type=float,
+        default=None,
+        help="Explicit conformal geometric clearance asymmetry factor kappa_geom (default: resolved from magnet_type)",
+    )
+    parser.add_argument(
+        "--k-stein",
+        type=float,
+        default=None,
+        help="Explicit dynamic Steinmetz AC core loss damping factor k_stein (default: resolved from magnet_type)",
+    )
+    parser.add_argument(
+        "--vol",
+        type=float,
+        default=None,
+        help="Volume pot wiper position (0.0 to 1.0, default 1.0 full open)",
+    )
+    parser.add_argument(
+        "--tone",
+        type=float,
+        default=None,
+        help="Tone pot wiper position (0.0 to 1.0, default 1.0 full open/bright)",
+    )
+    parser.add_argument(
         "--no-spectral-tilt",
         action="store_true",
         help="Disable dynamic excursion-dependent touch spectral tilt",
@@ -2184,6 +2350,10 @@ def main():
         beta_curv=args.beta_curv,
         k_pull=args.k_pull,
         tau_touch=tau_touch,
+        kappa_geom=args.kappa_geom,
+        k_stein=args.k_stein,
+        vol_pos=args.vol,
+        tone_pos=args.tone,
         slew_limit=slew_limit,
         f_slew=args.f_slew,
         noise_dither=noise_dither,

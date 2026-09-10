@@ -41,6 +41,7 @@ from model_physics import (
     get_instrument_string,
     get_voice_string,
     compute_differential_string_transfer,
+    compute_differential_longitudinal_transfer,
     compute_voice_prefilter_firs,
     synthesize_minimum_phase_fir,
 )
@@ -131,12 +132,15 @@ def build_voice_dataframe(voice_id, cfg, instrument="30in", src_scale=None, mode
 
         # String voicing for target instrument (relative to standard nickel roundwound)
         if sensor_type != "bridge_force" and cfg.get("target_string") and cfg.get("target_string") != "roundwound_nickel_standard":
-            std_str = {"bloom_db": 0.0, "damping_factor": 1.0, "type": "roundwound_nickel"}
+            std_str = {"bloom_db": 0.0, "damping_factor": 1.0, "type": "roundwound_nickel", "k_long": 0.20}
+            scale_in = 37.0 if tgt_scale == "multiscale" else 34.0
             h_str = compute_differential_string_transfer(freqs, std_str, tgt_string)
+            h_long = compute_differential_longitudinal_transfer(freqs, std_str, tgt_string, scale_length_inches=scale_in)
         else:
             h_str = np.ones_like(freqs)
+            h_long = np.ones_like(freqs)
 
-        mag_raw = h_tgt_total * h_tension * h_str
+        mag_raw = h_tgt_total * h_tension * h_str * h_long
 
     else:
         # 2. Input/Output Difference: H_diff = H_target / H_source

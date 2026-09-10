@@ -1884,3 +1884,85 @@ def test_distributed_coil_transmission_line():
     # Ratio between distributed and lumped should be smooth and bounded within +/- 3 dB
     ratio_db = 20.0 * np.log10(dist_curve[hf_idx] / lumped_curve[hf_idx])
     assert np.all(np.abs(ratio_db) < 3.0), "Distributed transmission factor must be bounded and physically realistic"
+
+
+def test_conformal_geometric_clearance_asymmetry():
+    """Verify conformal geometric clearance asymmetry creates proximity growl on positive excursions and linear bypass on small signals."""
+    from scripts.simulate_circuits import apply_oversampled_saturation
+
+    sr = 48000
+    vsat = 0.45
+    kappa_geom = 0.22
+
+    t = np.linspace(0, 0.1, int(sr * 0.1), endpoint=False)
+
+    # 1. Forte signal: positive excursions diverge as string approaches pole piece
+    forte_in = (0.75 * np.sin(2.0 * np.pi * 120.0 * t)).astype(np.float32)
+    out_base = apply_oversampled_saturation(forte_in, vsat=vsat, kappa_geom=0.0)
+    out_geom = apply_oversampled_saturation(forte_in, vsat=vsat, kappa_geom=kappa_geom)
+
+    # Positive peak should be pulled higher (proximity field divergence)
+    pos_max_base = np.max(out_base)
+    pos_max_geom = np.max(out_geom)
+    assert pos_max_geom > pos_max_base, "Positive excursion must increase due to pole proximity divergence"
+
+    # Must be bounded, no NaNs
+    assert not np.any(np.isnan(out_geom))
+    assert np.max(np.abs(out_geom)) < 2.0
+
+    # 2. Small signal (<= 0.10): exact linear bypass
+    quiet_in = (0.05 * np.sin(2.0 * np.pi * 120.0 * t)).astype(np.float32)
+    out_q_base = apply_oversampled_saturation(quiet_in, vsat=vsat, kappa_geom=0.0)
+    out_q_geom = apply_oversampled_saturation(quiet_in, vsat=vsat, kappa_geom=kappa_geom)
+    assert np.allclose(out_q_base, out_q_geom, atol=1e-5), "Small signal must linearly bypass geometric clearance"
+
+
+def test_dynamic_steinmetz_ac_core_loss():
+    """Verify Steinmetz AC loss damps high-frequency flux transients during hard attack plucks."""
+    from scripts.simulate_circuits import _lenz_velocity_drag_core
+
+    vsat = 0.40
+    k_stein = 0.035
+    n = 1024
+    # Fast forte transient with rapid high-frequency displacement changes (high dB/dt)
+    t = np.linspace(0, 0.02, n, endpoint=False)
+    x_transient = (0.80 * np.sin(2.0 * np.pi * 800.0 * t)).astype(np.float64)
+    env = np.full(n, 0.80, dtype=np.float64)
+
+    out_nostein = _lenz_velocity_drag_core(x_transient, env, vsat, k_sag=0.05, alpha_c=0.1, k_eddy=0.0, beta_curv=0.0, k_pull=0.0, k_stein=0.0)
+    out_stein = _lenz_velocity_drag_core(x_transient, env, vsat, k_sag=0.05, alpha_c=0.1, k_eddy=0.0, beta_curv=0.0, k_pull=0.0, k_stein=k_stein)
+
+    # Steinmetz loss adds high-frequency damping on rapid flux changes
+    rms_nostein = np.sqrt(np.mean(out_nostein ** 2))
+    rms_stein = np.sqrt(np.mean(out_stein ** 2))
+    assert rms_stein < rms_nostein, "Steinmetz loss must damp high dB/dt transient flux spikes"
+    assert not np.any(np.isnan(out_stein))
+
+
+def test_potentiometer_wiper_positions():
+    """Verify dynamic Volume and Tone pot wiper positions and cable interaction."""
+    from scripts.simulate_circuits import parse_netlist, compute_circuit_transfer_functions, CIRCUITS_DIR
+
+    # 1. 100% open matches default baseline bit-exact
+    m_default = parse_netlist(CIRCUITS_DIR / "05_vintage_62_p_alnico.cir")
+    m_open = parse_netlist(CIRCUITS_DIR / "05_vintage_62_p_alnico.cir")
+    m_open.apply_pot_positions(vol_pos=1.0, tone_pos=1.0)
+
+    h_def = compute_circuit_transfer_functions(m_default, freqs=FREQS)[0]
+    h_open = compute_circuit_transfer_functions(m_open, freqs=FREQS)[0]
+    assert np.allclose(h_def, h_open, atol=1e-6), "Wiper at 1.0, 1.0 must match default netlist exactly"
+
+    # 2. Tone rolled off (tone_pos = 0.2) increases roll-off around 1-3 kHz
+    m_tone_rolled = parse_netlist(CIRCUITS_DIR / "05_vintage_62_p_alnico.cir")
+    m_tone_rolled.apply_pot_positions(vol_pos=1.0, tone_pos=0.2)
+    h_rolled = compute_circuit_transfer_functions(m_tone_rolled, freqs=FREQS)[0]
+
+    freqs_arr = np.asarray(FREQS)
+    idx_3k = np.argmin(np.abs(freqs_arr - 3000.0))
+    assert h_rolled[idx_3k] < h_open[idx_3k], "Tone pot rolled off must attenuate 3 kHz resonance"
+
+    # 3. Volume rolled off (vol_pos = 0.7) inserts series resistance loading cable capacitance
+    m_vol_rolled = parse_netlist(CIRCUITS_DIR / "05_vintage_62_p_alnico.cir")
+    m_vol_rolled.apply_pot_positions(vol_pos=0.7, tone_pos=1.0)
+    h_vol = compute_circuit_transfer_functions(m_vol_rolled, freqs=FREQS)[0]
+    assert np.max(h_vol) < np.max(h_open), "Volume attenuation must reduce overall output gain"

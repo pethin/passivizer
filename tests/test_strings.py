@@ -10,6 +10,7 @@ from scripts.model_physics import (
     get_instrument_string,
     get_voice_string,
     compute_differential_string_transfer,
+    compute_differential_longitudinal_transfer,
     compute_voice_prefilter_firs,
     NUM_TAPS,
 )
@@ -160,3 +161,25 @@ def test_string_transfer_smooth_saturation():
     assert np.min(h_cut_db) < -20.0
     assert np.all(np.diff(h_cut_db) < 0.0)
     assert not np.any(np.diff(h_cut_db) == 0.0)
+
+
+def test_differential_longitudinal_transfer():
+    """Verify longitudinal wave transmission clank resonance peak around ~2.95 kHz for 34in and identity when identical."""
+    freqs = np.asarray(FREQS, dtype=np.float64)
+    s_std = STRINGS["roundwound_nickel_standard"]
+    s_clank = STRINGS["roundwound_stainless_clank"]
+
+    # 1. Matching string preset: exact 1.0 identity
+    h_ident = compute_differential_longitudinal_transfer(freqs, s_std, s_std, scale_length_inches=34.0)
+    assert np.allclose(h_ident, 1.0, atol=1e-5), "Longitudinal transfer between identical strings must be exact 1.0"
+
+    # 2. Nickel -> Stainless (higher k_long = 0.35 vs 0.20): resonant clank peak around ~2.95 kHz
+    h_clank = compute_differential_longitudinal_transfer(freqs, s_std, s_clank, scale_length_inches=34.0)
+    assert np.all(h_clank >= 1.0), "Longitudinal clank should be additive excitation"
+    peak_idx = np.argmax(h_clank)
+    peak_freq = freqs[peak_idx]
+    assert 2700.0 <= peak_freq <= 3200.0, f"Expected clank peak around 2.95 kHz, got {peak_freq:.1f} Hz"
+
+    # 3. Stainless -> Nickel (delta <= 0): returns 1.0 without false anti-resonance
+    h_reverse = compute_differential_longitudinal_transfer(freqs, s_clank, s_std, scale_length_inches=34.0)
+    assert np.allclose(h_reverse, 1.0, atol=1e-5)
