@@ -23,6 +23,7 @@ from scripts.simulate_circuits import (
     MAGNET_PROPERTIES,
     simulate_circuit_audio,
     simulate_voice,
+    compute_differential_circuit_transfer_functions,
     CircuitModel,
 )
 from scripts.model_physics import VOICES, FREQS, NUM_TAPS, write_wav_24bit, compute_voice_prefilter_firs
@@ -944,6 +945,28 @@ def test_string_mass_momentum_weighting():
     impulse[0] = 0.08
     out_small = apply_oversampled_saturation(impulse, vsat=0.50, alpha=0.20, oversample=1, displacement_weighting=True)
     assert np.allclose(impulse, out_small, atol=1e-7)
+
+def test_differential_circuit_hf_limiter_smoothness():
+    """
+    Verify that differential circuit transfer functions crossing 0.0 dB above 8 kHz
+    transition smoothly with strictly continuous first derivative and zero slope kinks.
+    """
+    tgt_model = parse_netlist(CIRCUITS_DIR / "03_jazz_bridge_60s.cir")
+    src_model = parse_netlist(CIRCUITS_DIR / "sources" / "source_standard_p.cir")
+
+    curves = compute_differential_circuit_transfer_functions(tgt_model, src_model, freqs=FREQS)
+    assert len(curves) > 0
+    h_c = np.asarray(curves[0], dtype=np.float64)
+    h_db = 20.0 * np.log10(h_c / h_c[0])
+
+    f_arr = np.asarray(FREQS, dtype=np.float64)
+    hf_mask = (f_arr >= 8000.0)
+    # Check that the derivative d(h_db)/df does not have sudden jump steps across 0 dB
+    dh = np.gradient(h_db[hf_mask], f_arr[hf_mask])
+    # The rate of change of derivative should be well-behaved
+    d2h = np.gradient(dh, f_arr[hf_mask])
+    assert np.max(np.abs(d2h)) < 1e-4, "Derivative of differential curve should be smooth without piecewise kinks"
+
 
 
 

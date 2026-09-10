@@ -127,3 +127,36 @@ def test_voices_01_to_04_string_identity_for_roundwounds():
     s_std = STRINGS["roundwound_nickel_standard"]
     h_diff = compute_differential_string_transfer(freqs, s_std, s_std)
     assert np.allclose(h_diff, 1.0, atol=1e-5), "String transfer between identical standard strings must be exactly 1.0"
+
+def test_all_strings_identity():
+    """Verify that comparing ANY string preset to itself yields exact 1.0 (0.00 dB) across all frequencies."""
+    freqs = np.asarray(FREQS, dtype=np.float64)
+    for name, s_cfg in STRINGS.items():
+        h_diff = compute_differential_string_transfer(freqs, s_cfg, s_cfg)
+        assert np.allclose(h_diff, 1.0, atol=1e-5), f"String transfer for identical string '{name}' must be exactly 1.0, got min={np.min(h_diff):.4f}, max={np.max(h_diff):.4f}"
+
+def test_string_transfer_smooth_saturation():
+    """
+    Verify that extreme string transitions (vintage flats <-> stainless roundwounds)
+    saturate smoothly without hard horizontal clipping plateaus or derivative kinks.
+    """
+    freqs = np.asarray(FREQS, dtype=np.float64)
+    s_flats = STRINGS["flatwound_vintage_heavy"]
+    s_stainless = STRINGS["roundwound_stainless_clank"]
+
+    # Flats -> Stainless (Treble boost)
+    h_boost = compute_differential_string_transfer(freqs, s_flats, s_stainless)
+    h_boost_db = 20.0 * np.log10(h_boost)
+    # Must be bounded by +8.0 dB without tabletop clipping
+    assert np.max(h_boost_db) <= 8.01
+    # Check that high frequencies are strictly monotonic and never freeze into an identical flat plateau
+    assert np.all(np.diff(h_boost_db) > 0.0)
+    assert not np.any(np.diff(h_boost_db) == 0.0)
+
+    # Stainless -> Flats (Treble cut)
+    h_cut = compute_differential_string_transfer(freqs, s_stainless, s_flats)
+    h_cut_db = 20.0 * np.log10(h_cut)
+    # Must roll off naturally below -16.5 dB without a hard tabletop shelf
+    assert np.min(h_cut_db) < -20.0
+    assert np.all(np.diff(h_cut_db) < 0.0)
+    assert not np.any(np.diff(h_cut_db) == 0.0)

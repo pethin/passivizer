@@ -651,7 +651,10 @@ def compute_differential_circuit_transfer_functions(
         f_end = 20000.0
         t = np.clip((f_arr - f_start) / (f_end - f_start), 0.0, 1.0)
         w = 0.5 * (1.0 + np.cos(np.pi * t))
-        h_db_final = np.where(h_db_soft > 0.0, h_db_soft * (0.25 + 0.75 * w), h_db_soft)
+        s = 0.25 + 0.75 * w
+        # Smooth C^inf transition: softplus ensures strictly monotonic, C^1 smooth blending across 0 dB
+        excess_boost = (1.0 / 1.2) * np.logaddexp(0.0, 1.2 * h_db_soft)
+        h_db_final = h_db_soft - (1.0 - s) * excess_boost
 
         h_diff_smooth = ref_gain * (10.0 ** (h_db_final / 20.0))
         diff_curves.append(h_diff_smooth.tolist())
@@ -1035,7 +1038,38 @@ def simulate_circuit_audio(
         channel_outputs.append(out_ch)
 
     # Sum all pickup contributions
-    out_total = np.sum(channel_outputs, axis=0)
+    if len(channel_outputs) > 1 and prefilter_firs is not None and len(prefilter_firs) > 1:
+        peaks = [int(np.argmax(np.abs(fir))) for fir in prefilter_firs]
+        delta_samples = max(peaks) - min(peaks) if len(peaks) > 1 else 0
+        has_spatial_delay = (delta_samples > 5)
+        if has_spatial_delay:
+            # Acoustic inter-pickup spatial coherence decay:
+            # Multi-string wave dispersion across the 4 strings naturally bounds the fundamental
+            # acoustic mid-scoop to an authentic ~11-12 dB depth (gamma_max ≈ 0.88) rather than an
+            # artificial single-frequency infinite notch.
+            # Dynamically derive transition window from actual impulse peak delay:
+            n_fft_sum = 1 << len(channel_outputs[0]).bit_length()
+            X_chs = [np.fft.rfft(ch, n_fft_sum) for ch in channel_outputs]
+            X_coh = np.sum(X_chs, axis=0)
+            P_coh = np.abs(X_coh) ** 2
+            P_incoh = np.sum([np.abs(X) ** 2 for X in X_chs], axis=0)
+
+            f_bins = np.fft.rfftfreq(n_fft_sum, 1.0 / sr)
+            delta_tau = delta_samples / float(sr)
+            f_notch = 1.0 / (2.0 * delta_tau)
+            f_start = f_notch
+            f_end = 1.7 * f_notch
+            t = np.clip((f_bins - f_start) / (f_end - f_start), 0.0, 1.0)
+            gamma = 0.88 * 0.5 * (1.0 + np.cos(np.pi * t))
+            M_blend = np.sqrt(gamma * P_coh + (1.0 - gamma) * P_incoh)
+
+            eps = 1e-9
+            X_out = M_blend * (X_coh / (np.abs(X_coh) + eps))
+            out_total = np.fft.irfft(X_out, n_fft_sum)[:len(channel_outputs[0])].astype(np.float32)
+        else:
+            out_total = np.sum(channel_outputs, axis=0)
+    else:
+        out_total = np.sum(channel_outputs, axis=0)
 
     # Sub-Audible DC-Blocking High-Pass Filter (fc ≈ 8.0 Hz):
     # Eliminates DC offset introduced by asymmetric quadratic saturation (v + alpha * v^2)

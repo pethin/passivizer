@@ -261,8 +261,16 @@ def compute_differential_string_transfer(freqs, src_string, tgt_string):
     src_mag = 1.0 / np.sqrt(1.0 + (f / f_damp_src) ** (2.0 * n_src))
     tgt_mag = 1.0 / np.sqrt(1.0 + (f / f_damp_tgt) ** (2.0 * n_tgt))
 
-    ratio = tgt_mag / np.maximum(src_mag, 0.05)
-    h_damp_ratio = np.clip(ratio, 0.15, 3.0)
+    ratio = tgt_mag / np.maximum(src_mag, 1e-6)
+    r_db = 20.0 * np.log10(np.maximum(ratio, 1e-6))
+    g_max_db = 8.0
+    g_min_db = -36.0
+    r_soft_db = np.where(
+        r_db > 0.0,
+        g_max_db * np.tanh(r_db / g_max_db),
+        g_min_db * np.tanh(r_db / g_min_db),
+    )
+    h_damp_ratio = 10.0 ** (r_soft_db / 20.0)
 
     bloom_src = float(src_string.get("bloom_db", 0.0))
     bloom_tgt = float(tgt_string.get("bloom_db", 0.0))
@@ -586,6 +594,8 @@ def numpy_pickup_acoustic_response(freqs, coils, string_speeds, string_names=Non
 
         # Complex phasor sum relative to active coil centroid
         coil_sum = np.zeros_like(f, dtype=np.complex128)
+        p_incoh = np.zeros_like(f, dtype=np.float64)
+
         for c in active:
             pos_m = c["position_from_bridge_m"]
             w_m = c.get("aperture_width_in", 0.75) * 0.0254
@@ -594,18 +604,44 @@ def numpy_pickup_acoustic_response(freqs, coils, string_speeds, string_names=Non
 
             delta_x = pos_m - center_pos
             phase = 2.0 * math.pi * f * delta_x / v
-            sinc_w = np.sinc(w_m * f / v)
+            # Smooth physical magnetic aperture roll-off without unphysical knife-edge sinc sidelobes
+            ap_w = 1.0 / np.sqrt(1.0 + (1.0 / 3.0) * (np.pi * w_m * f / v) ** 2)
+            w_eff = weight * ap_w
 
-            coil_sum += weight * polarity * sinc_w * np.exp(-1j * phase)
+            coil_sum += w_eff * polarity * np.exp(-1j * phase)
+            p_incoh += w_eff ** 2
 
-        acc += np.abs(coil_sum)
+        p_coh = np.abs(coil_sum) ** 2
+
+        if len(active) > 1:
+            # Physical spatial cross-coherence decay for multi-coil pickups:
+            # Once string wavelength becomes comparable to or shorter than the coil spacing
+            # (lambda <= delta_x_span), transverse wave motion across dual pole pieces becomes
+            # diffuse and incoherent. Transition begins per string at f_start = v / delta_x_span
+            # (lambda = delta_x_span) and completes at f_end = 1.8 * v / delta_x_span,
+            # eliminating artificial secondary harmonic comb nulls and kinks above 5 kHz
+            # while preserving the authentic fundamental mid-scoop at f = v / (2 * delta_x_span).
+            delta_x_span = max(c["position_from_bridge_m"] for c in active) - min(c["position_from_bridge_m"] for c in active)
+            if delta_x_span > 0.002:
+                f_start = v / delta_x_span
+                f_end = 1.8 * v / delta_x_span
+                t = np.clip((f - f_start) / (f_end - f_start), 0.0, 1.0)
+                gamma = 0.5 * (1.0 + np.cos(np.pi * t))
+                m_blend = np.sqrt(gamma * p_coh + (1.0 - gamma) * p_incoh)
+            else:
+                m_blend = np.abs(coil_sum)
+        else:
+            m_blend = np.abs(coil_sum)
+
+        acc += m_blend
 
     return acc / len(string_speeds)
 
 def numpy_pickup_macro_aperture(freqs, coils, string_speeds):
     """
-    Computes the macro sensing aperture response (sinc envelope of the individual coil aperture)
-    averaged across string wave speeds, without inter-coil phase cancellation nulls.
+    Computes the macro sensing aperture response (smooth spatial low-pass envelope
+    of the individual coil aperture) averaged across string wave speeds, without
+    inter-coil phase cancellation nulls or unphysical sinc sidelobes.
     Used for safe, non-inverting deconvolution of multi-coil source pickups.
     """
     f = np.asarray(freqs, dtype=np.float64)
@@ -613,7 +649,7 @@ def numpy_pickup_macro_aperture(freqs, coils, string_speeds):
     w_m = w_in * 0.0254
     acc = np.zeros_like(f, dtype=np.float64)
     for v in string_speeds:
-        acc += np.abs(np.sinc(w_m * f / v))
+        acc += 1.0 / np.sqrt(1.0 + (1.0 / 3.0) * (np.pi * w_m * f / v) ** 2)
     return acc / len(string_speeds)
 
 def numpy_aperture(freqs, w_in, d_in, speeds):
@@ -758,6 +794,7 @@ def compute_voice_prefilter_firs(voice_id, instrument="30in", src_scale=None, nu
 
     # Scale-Length Tension & Body Bloom Filter
     src_scale_in = inst.get("scale_length_in", 34.0)
+    tgt_scale_in = 37.0 if target_scale_key in ["multiscale", "37in"] else 34.0
     if target_scale_key == "upright":
         # Upright string physics & body bloom: deep fundamental, woody low-mids
         # Modulated by differential bloom between target double-bass strings and source instrument strings
@@ -765,8 +802,9 @@ def compute_voice_prefilter_firs(voice_id, instrument="30in", src_scale=None, nu
         g_bloom = 10.0 ** (max(delta_bloom, 0.5) / 20.0)
         h_bloom = np.sqrt((g_bloom ** 2 + (freqs / 100.0) ** 2) / (1.0 + (freqs / 100.0) ** 2))
         h_tension = h_bloom
-    elif target_scale_key == "34in" and src_scale_in != 34.0:
-        g_snap = 10.0 ** (1.8 / 20.0)
+    elif src_scale_in < tgt_scale_in:
+        snap_db = min(3.5, 1.8 * (tgt_scale_in - src_scale_in) / 4.0)
+        g_snap = 10.0 ** (snap_db / 20.0)
         h_tension = np.sqrt((1.0 + g_snap ** 2 * (freqs / 2800.0) ** 2) / (1.0 + (freqs / 2800.0) ** 2))
     else:
         h_tension = np.ones_like(freqs)
@@ -804,15 +842,18 @@ def compute_voice_prefilter_firs(voice_id, instrument="30in", src_scale=None, nu
             b_src_acoustic = h_src_acoustic
 
         if sensor_type == "bridge_force":
-            # 1. Band-limited de-combing: active in 100 Hz - 1.8 kHz passband, smoothly tapering
-            # to 1.0 between 1.8 kHz and 3.2 kHz to eliminate high-frequency comb ripples
+            # 1. Band-limited de-combing: smoothly tapers off after the source pickup's first
+            # constructive peak (c_mean / x_src) to eliminate higher-order spatial comb ripples
             eps = 0.08
             h_decomb_raw = b_src_acoustic / (b_src_acoustic ** 2 + eps)
             mid_mask = (freqs >= 100.0) & (freqs <= 1000.0)
             h_decomb_raw = h_decomb_raw / np.median(h_decomb_raw[mid_mask])
 
-            f_taper_start = 1800.0
-            f_taper_end = 3200.0
+            c_mean_src = float(np.mean(src_speeds)) if src_speeds else 113.7
+            pos_eff = max(b_src_pos_eff, 0.035)
+            f_peak_src = c_mean_src / pos_eff
+            f_taper_start = min(f_peak_src, 2500.0)
+            f_taper_end = min(1.8 * f_taper_start, 4500.0)
             t = np.clip((freqs - f_taper_start) / (f_taper_end - f_taper_start), 0.0, 1.0)
             w = 0.5 * (1.0 + np.cos(np.pi * t))
             h_decomb = w * h_decomb_raw + (1.0 - w) * 1.0
@@ -822,8 +863,9 @@ def compute_voice_prefilter_firs(voice_id, instrument="30in", src_scale=None, nu
             f_damp = 4200.0 if is_flatwound else 3600.0
             h_damp = 1.0 / np.sqrt((1.0 - (freqs / f_damp) ** 2) ** 2 + 2.0 * (freqs / f_damp) ** 2)
 
-            # 3. Subsonic rumble cut (32 Hz with -16.5 dB DC shelf floor to prevent cepstral zero)
-            h_sub = np.maximum(freqs / np.sqrt(freqs ** 2 + 32.0 ** 2), 0.15)
+            # 3. Subsonic rumble cut (32 Hz with smooth -16.5 dB DC shelf floor to prevent cepstral zero)
+            g_sub = 0.15
+            h_sub = np.sqrt((g_sub ** 2 * 32.0 ** 2 + freqs ** 2) / (32.0 ** 2 + freqs ** 2))
 
             h_acoustic_transfer = h_decomb * h_damp * h_sub
 
@@ -836,10 +878,23 @@ def compute_voice_prefilter_firs(voice_id, instrument="30in", src_scale=None, nu
         else:
             h_tgt_acoustic = numpy_pickup_acoustic_response(freqs, p_coils, tgt_speeds)
             h_src_macro = numpy_pickup_macro_aperture(freqs, b_src_coils, src_speeds)
-            h_ratio = h_tgt_acoustic / np.maximum(h_src_macro, 0.08)
-            h_acoustic_transfer = np.clip(h_ratio, 0.25, 2.5)
+            eps = 0.01
+            h_quotient = (h_tgt_acoustic * h_src_macro) / (h_src_macro ** 2 + eps ** 2)
+            q_db = 20.0 * np.log10(np.maximum(h_quotient, 1e-6))
+            g_max_db = 8.0
+            g_min_db = -14.0
+            q_soft_db = np.where(
+                q_db > 0.0,
+                g_max_db * np.tanh(q_db / g_max_db),
+                g_min_db * np.tanh(q_db / g_min_db),
+            )
+            h_acoustic_transfer = 10.0 ** (q_soft_db / 20.0)
 
-            delta_in = (tgt_pos_eff - b_src_pos_eff) / 0.0254
+            src_scale_m = inst.get("scale_length_m", inst.get("scale_length_in", 34.0) * 0.0254)
+            tgt_scale_m = tgt.get("scale_m", tgt.get("scale_length_m", 0.8636))
+            eta_tgt = tgt_pos_eff / tgt_scale_m
+            eta_src = b_src_pos_eff / src_scale_m
+            delta_in = (eta_tgt - eta_src) * 34.0
             tilt_db = delta_in * 1.5
             g_low = 10.0 ** (tilt_db / 20.0)
             g_hi = 10.0 ** (-tilt_db / 20.0)
@@ -862,7 +917,20 @@ def compute_voice_prefilter_firs(voice_id, instrument="30in", src_scale=None, nu
         fir_raw = synthesize_minimum_phase_fir(prefilter_curve, num_taps=num_taps, normalize=False)
 
         # Spatial acoustic wave propagation delay for multi-pickup configurations
-        tau_i = (pos_max - positions[i]) / c_mean if len(pickups) > 1 else 0.0
+        if is_identity:
+            tau_i = 0.0
+        elif use_branch_matching:
+            src_positions = [compute_effective_position(resolve_pickup_coils(inst["pickups"][c["pickup"]], inst)) for c in src_components]
+            src_pos_max = max(src_positions) if src_positions else 0.0
+            src_c_mean = float(np.mean(src_speeds)) if src_speeds else 113.7
+            tau_src_i = (src_pos_max - src_positions[i]) / src_c_mean if i < len(src_positions) else 0.0
+            tau_tgt_i = (pos_max - positions[i]) / c_mean
+            tau_i = max(0.0, tau_tgt_i - tau_src_i)
+        elif len(pickups) > 1:
+            tau_i = (pos_max - positions[i]) / c_mean
+        else:
+            tau_i = 0.0
+
         if tau_i > 0.0:
             n_fft_delay = 1 << (len(fir_raw) * 2 - 1).bit_length()
             H_fir = np.fft.rfft(fir_raw, n_fft_delay)
@@ -918,15 +986,18 @@ def compute_aperture_prefilter_fir(voice_id, instrument="30in", src_scale=None, 
     sensor_type = cfg.get("sensor_type", "magnetic")
     is_identity = (sensor_type != "bridge_force") and is_voice_matching_source(inst, voice_id, cfg)
     if sensor_type == "bridge_force":
-        # 1. Band-limited de-combing: active in 100 Hz - 1.8 kHz passband, smoothly tapering
-        # to 1.0 between 1.8 kHz and 3.2 kHz to eliminate high-frequency comb ripples
+        # 1. Band-limited de-combing: smoothly tapers off after the source pickup's first
+        # constructive peak (c_mean / x_src) to eliminate higher-order spatial comb ripples
         eps = 0.08
         h_decomb_raw = h_src_acoustic / (h_src_acoustic ** 2 + eps)
         mid_mask = (freqs >= 100.0) & (freqs <= 1000.0)
         h_decomb_raw = h_decomb_raw / np.median(h_decomb_raw[mid_mask])
 
-        f_taper_start = 1800.0
-        f_taper_end = 3200.0
+        c_mean_src = float(np.mean(src_speeds)) if src_speeds else 113.7
+        pos_eff = max(src_pos_eff, 0.035)
+        f_peak_src = c_mean_src / pos_eff
+        f_taper_start = min(f_peak_src, 2500.0)
+        f_taper_end = min(1.8 * f_taper_start, 4500.0)
         t = np.clip((freqs - f_taper_start) / (f_taper_end - f_taper_start), 0.0, 1.0)
         w = 0.5 * (1.0 + np.cos(np.pi * t))
         h_decomb = w * h_decomb_raw + (1.0 - w) * 1.0
@@ -936,8 +1007,9 @@ def compute_aperture_prefilter_fir(voice_id, instrument="30in", src_scale=None, 
         f_damp = 4200.0 if is_flatwound else 3600.0
         h_damp = 1.0 / np.sqrt((1.0 - (freqs / f_damp) ** 2) ** 2 + 2.0 * (freqs / f_damp) ** 2)
 
-        # 3. Subsonic rumble cut (32 Hz with -16.5 dB DC shelf floor to prevent cepstral zero)
-        h_sub = np.maximum(freqs / np.sqrt(freqs ** 2 + 32.0 ** 2), 0.15)
+        # 3. Subsonic rumble cut (32 Hz with smooth -16.5 dB DC shelf floor to prevent cepstral zero)
+        g_sub = 0.15
+        h_sub = np.sqrt((g_sub ** 2 * 32.0 ** 2 + freqs ** 2) / (32.0 ** 2 + freqs ** 2))
 
         h_acoustic_transfer = h_decomb * h_damp * h_sub
 
@@ -950,10 +1022,23 @@ def compute_aperture_prefilter_fir(voice_id, instrument="30in", src_scale=None, 
     else:
         h_tgt_acoustic = numpy_pickup_acoustic_response(freqs, tgt_coils, tgt_speeds)
         h_src_macro = numpy_pickup_macro_aperture(freqs, src_coils, src_speeds)
-        h_ratio = h_tgt_acoustic / np.maximum(h_src_macro, 0.08)
-        h_acoustic_transfer = np.clip(h_ratio, 0.25, 2.5)
+        eps = 0.01
+        h_quotient = (h_tgt_acoustic * h_src_macro) / (h_src_macro ** 2 + eps ** 2)
+        q_db = 20.0 * np.log10(np.maximum(h_quotient, 1e-6))
+        g_max_db = 8.0
+        g_min_db = -14.0
+        q_soft_db = np.where(
+            q_db > 0.0,
+            g_max_db * np.tanh(q_db / g_max_db),
+            g_min_db * np.tanh(q_db / g_min_db),
+        )
+        h_acoustic_transfer = 10.0 ** (q_soft_db / 20.0)
 
-        delta_in = (tgt_pos_eff - src_pos_eff) / 0.0254
+        src_scale_m = inst.get("scale_length_m", inst.get("scale_length_in", 34.0) * 0.0254)
+        tgt_scale_m = tgt.get("scale_m", tgt.get("scale_length_m", 0.8636))
+        eta_tgt = tgt_pos_eff / tgt_scale_m
+        eta_src = src_pos_eff / src_scale_m
+        delta_in = (eta_tgt - eta_src) * 34.0
         tilt_db = delta_in * 1.5
         g_low = 10.0 ** (tilt_db / 20.0)
         g_hi = 10.0 ** (-tilt_db / 20.0)
@@ -962,6 +1047,7 @@ def compute_aperture_prefilter_fir(voice_id, instrument="30in", src_scale=None, 
         h_tilt = h_low_tilt * h_hi_tilt
 
     src_scale_in = inst.get("scale_length_in", 34.0)
+    tgt_scale_in = 37.0 if target_scale_key in ["multiscale", "37in"] else 34.0
     if is_identity:
         h_tension = np.ones_like(freqs)
     elif target_scale_key == "upright":
@@ -970,8 +1056,9 @@ def compute_aperture_prefilter_fir(voice_id, instrument="30in", src_scale=None, 
         g_bloom = 10.0 ** (max(delta_bloom, 0.5) / 20.0)
         h_bloom = np.sqrt((g_bloom ** 2 + (freqs / 100.0) ** 2) / (1.0 + (freqs / 100.0) ** 2))
         h_tension = h_bloom
-    elif target_scale_key == "34in" and src_scale_in != 34.0:
-        g_snap = 10.0 ** (1.8 / 20.0)
+    elif src_scale_in < tgt_scale_in:
+        snap_db = min(3.5, 1.8 * (tgt_scale_in - src_scale_in) / 4.0)
+        g_snap = 10.0 ** (snap_db / 20.0)
         h_tension = np.sqrt((1.0 + g_snap ** 2 * (freqs / 2800.0) ** 2) / (1.0 + (freqs / 2800.0) ** 2))
     else:
         h_tension = np.ones_like(freqs)

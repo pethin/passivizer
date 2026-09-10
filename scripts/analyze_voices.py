@@ -99,37 +99,25 @@ def build_voice_dataframe(voice_id, cfg, instrument="30in", src_scale=None, mode
                     h_el = h_el * (f_lin / np.sqrt(f_lin ** 2 + fc_hpf ** 2))
                 circuit_curves.append(h_el.tolist())
 
-        positions = [compute_effective_position(p["coils"]) for p in pickups]
-        pos_max = max(positions) if positions else 0.0
-        c_mean = float(np.mean(tgt_speeds)) if tgt_speeds else 113.7
-
-        N = 8192
-        f_bins = np.fft.rfftfreq(N, 1.0 / 48000.0)
-        H_tot = np.zeros(N // 2 + 1, dtype=complex)
+        h_tgt_total = np.zeros_like(freqs)
         for i, (p, c_curve) in enumerate(zip(pickups, circuit_curves)):
             p_weight = p.get("weight", 1.0)
             p_pol = p.get("polarity", 1.0)
             weight_fac = 1.0 if (cir_path.exists() and len(circuit_curves) > 1) else p_weight
             if sensor_type == "bridge_force":
-                f_lin = np.asarray(FREQS, dtype=np.float64)
+                f_lin = freqs
                 is_flatwound = "flat" in tgt_string.get("type", "")
                 f_damp = 4200.0 if is_flatwound else 3600.0
                 h_damp = 1.0 / np.sqrt((1.0 - (f_lin / f_damp) ** 2) ** 2 + 2.0 * (f_lin / f_damp) ** 2)
-                h_sub = np.maximum(f_lin / np.sqrt(f_lin ** 2 + 32.0 ** 2), 0.15)
+                g_sub = 0.15
+                h_sub = np.sqrt((g_sub ** 2 * 32.0 ** 2 + f_lin ** 2) / (32.0 ** 2 + f_lin ** 2))
                 h_tilt_raw = np.sqrt((1.0 + (f_lin / 250.0) ** 2) / (1.0 + (f_lin / 70.0) ** 2))
                 h_tilt = h_tilt_raw / np.max(h_tilt_raw)
-                branch = np.asarray(c_curve, dtype=np.float64) * h_damp * h_sub * h_tilt
+                branch = np.interp(freqs, FREQS, np.asarray(c_curve, dtype=np.float64)) * h_damp * h_sub * h_tilt
             else:
-                branch = np.asarray(c_curve, dtype=np.float64) * (weight_fac * p_pol)
+                branch = np.interp(freqs, FREQS, np.asarray(c_curve, dtype=np.float64)) * (weight_fac * p_pol)
 
-            fir_b = synthesize_minimum_phase_fir(branch, num_taps=2048, normalize=False)
-            tau_i = (pos_max - positions[i]) / c_mean if len(pickups) > 1 else 0.0
-            H_b = np.fft.rfft(fir_b, N)
-            if tau_i > 0.0:
-                H_b = H_b * np.exp(-1j * 2.0 * np.pi * f_bins * tau_i)
-            H_tot += H_b
-
-        h_tgt_total = np.interp(freqs, f_bins, np.abs(H_tot))
+            h_tgt_total += branch
 
         # Tension / Bloom for target instrument
         if tgt_scale == "upright":
@@ -184,12 +172,38 @@ def build_voice_dataframe(voice_id, cfg, instrument="30in", src_scale=None, mode
         prefilter_firs = compute_voice_prefilter_firs(voice_id, instrument=inst, num_taps=2048)
         N = 8192
         f_bins = np.fft.rfftfreq(N, 1.0 / 48000.0)
-        H_tot = np.zeros(N // 2 + 1, dtype=complex)
+        H_channels = []
         for i in range(len(prefilter_firs)):
             pf = np.array(prefilter_firs[i], dtype=np.float32)
             cf = np.array(synthesize_minimum_phase_fir(circuit_curves[i], num_taps=2048, normalize=False), dtype=np.float32)
-            H_tot += np.fft.rfft(pf, N) * np.fft.rfft(cf, N)
-        mag_raw = np.interp(freqs, f_bins, np.abs(H_tot))
+            H_channels.append(np.fft.rfft(pf, N) * np.fft.rfft(cf, N))
+
+        H_channels = np.array(H_channels)
+        peaks = [int(np.argmax(np.abs(fir))) for fir in prefilter_firs]
+        delta_samples = max(peaks) - min(peaks) if len(peaks) > 1 else 0
+        has_spatial_delay = (len(prefilter_firs) > 1 and delta_samples > 5)
+
+        if has_spatial_delay:
+            # Acoustic inter-pickup spatial coherence decay:
+            # Multi-string wave dispersion across the 4 strings naturally bounds the fundamental
+            # acoustic mid-scoop to an authentic ~11-12 dB depth (gamma_max ≈ 0.88) rather than an
+            # artificial single-frequency infinite notch.
+            # Dynamically derive transition window from actual impulse peak delay:
+            P_coherent = np.abs(np.sum(H_channels, axis=0)) ** 2
+            P_incoherent = np.sum(np.abs(H_channels) ** 2, axis=0)
+            delta_tau = delta_samples / 48000.0
+            f_notch = 1.0 / (2.0 * delta_tau)
+            f_start = f_notch
+            f_end = 1.7 * f_notch
+            t = np.clip((f_bins - f_start) / (f_end - f_start), 0.0, 1.0)
+            gamma = 0.88 * 0.5 * (1.0 + np.cos(np.pi * t))
+            mag_spectrum = np.sqrt(gamma * P_coherent + (1.0 - gamma) * P_incoherent)
+        elif len(H_channels) > 1:
+            mag_spectrum = np.abs(np.sum(H_channels, axis=0))
+        else:
+            mag_spectrum = np.abs(H_channels[0])
+
+        mag_raw = np.interp(freqs, f_bins, mag_spectrum)
 
     if cfg.get("hpf") and cfg.get("hpf") >= 80.0:
         ref_idx = np.argmin(np.abs(freqs - 1000.0))
@@ -679,7 +693,7 @@ def generate_interactive_chart(instrument="30in", out_html=None, mode="unified")
         chart_title = "Passivizer Master Voices: Input/Output Differential Transfer Functions"
         chart_subtitle = f"Source: {inst_name} -> Target: 34\" Standard & 37\" Multi-Scale Datums (Δ Transfer Filter)"
         y_title = "Differential Transfer Magnitude (dB)"
-        y_domain = [-28, 12]
+        y_domain = [-28, 15]
         params = [voice_selection]
         filters = []
     else:  # mode == "unified"
@@ -689,7 +703,7 @@ def generate_interactive_chart(instrument="30in", out_html=None, mode="unified")
         chart_title = "Passivizer Master Voices: Acoustic & Electrical Response Curves"
         chart_subtitle = f"Interactive View ({inst_name}) — Switch between Input/Output Difference and Output Voice"
         y_title = "Normalized Magnitude / Differential Gain (dB)"
-        y_domain = [-30, 12]
+        y_domain = [-30, 15]
         mode_selection = alt.selection_point(
             fields=["mode"],
             bind=alt.binding_radio(

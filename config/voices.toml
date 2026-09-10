@@ -468,8 +468,8 @@ coils = [
 [voices.12_mudbucker_ultra_series]
 name = "12. Mudbucker Ultra Series"
 circuit = "circuits/12_mudbucker_ultra_series.cir"
-topology = "Ultra-High Inductance Series"
-description = "Overwound dual-coil series humbucker (14.4H, Gibson 500k V/T 22nF)"
+topology = "Sidewinder Series Humbucker"
+description = "Overwound sidewinder humbucker with central pole line (14.4H, Gibson 500k V/T 22nF)"
 magnet_type = "alnico_ii"
 alpha = 0.32
 fr = 1200.0
@@ -477,8 +477,7 @@ Q = 1.6
 gain_db = 6.2
 scale = "34in"
 coils = [
-    { strings = ["all"], position_from_bridge_m = 0.1745, aperture_width_in = 0.75, weight = 0.5 }, # Front coil
-    { strings = ["all"], position_from_bridge_m = 0.1555, aperture_width_in = 0.75, weight = 0.5 }  # Rear coil
+    { strings = ["all"], position_from_bridge_m = 0.1650, aperture_width_in = 1.25, weight = 1.0 }
 ]
 
 # ------------------------------------------------------------------------------

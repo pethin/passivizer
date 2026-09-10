@@ -204,14 +204,14 @@
     </div>
 
     <div class="tabs-container" id="tabs">
-    <button class="tab-btn active" data-id="30in_emg_mmtw" onclick="selectInstrument('30in_emg_mmtw')"><span>30" Short Scale MM (EMG MMTW)</span></button>
+    <button class="tab-btn" data-id="30in_emg_mmtw" onclick="selectInstrument('30in_emg_mmtw')"><span>30" Short Scale MM (EMG MMTW)</span></button>
     <button class="tab-btn" data-id="32in_custom_pmm" onclick="selectInstrument('32in_custom_pmm')"><span>32" Medium Scale Custom (EMG PX + MMTWX)</span></button>
     <button class="tab-btn" data-id="32in_fretless_pmm" onclick="selectInstrument('32in_fretless_pmm')"><span>32" Fretless Custom (EMG PCSX + MMTWX)</span></button>
     <button class="tab-btn" data-id="34in_active_jazz" onclick="selectInstrument('34in_active_jazz')"><span>34" Active Jazz Bass (EMG JX Pair)</span></button>
     <button class="tab-btn" data-id="34in_active_p" onclick="selectInstrument('34in_active_p')"><span>34" Active P-Bass (EMG PX)</span></button>
     <button class="tab-btn" data-id="34in_active_pj" onclick="selectInstrument('34in_active_pj')"><span>34" Active P/J Bass (EMG PX + JX)</span></button>
     <button class="tab-btn" data-id="34in_standard_jazz" onclick="selectInstrument('34in_standard_jazz')"><span>34" Standard Jazz Bass</span></button>
-    <button class="tab-btn" data-id="34in_standard_p" onclick="selectInstrument('34in_standard_p')"><span>34" Standard P-Bass</span></button>
+    <button class="tab-btn active" data-id="34in_standard_p" onclick="selectInstrument('34in_standard_p')"><span>34" Standard P-Bass</span></button>
     <button class="tab-btn" data-id="34in_standard_pj" onclick="selectInstrument('34in_standard_pj')"><span>34" Standard P/J Bass</span></button>
     </div>
 
@@ -227,36 +227,36 @@
         </button>
       </div>
       <div class="mode-hint" id="mode-hint">
-        Displaying regularized differential transfer function (H_target / H_source) applied to transform 30" Short Scale MM (EMG MMTW) into each voice.
+        Displaying regularized differential transfer function (H_target / H_source) applied to transform 34" Standard P-Bass into each voice.
       </div>
     </div>
 
     <div class="meta-panel">
       <div class="meta-item">
         <div class="label">Source Instrument</div>
-        <div class="value" id="meta-name">30" Short Scale MM (EMG MMTW)</div>
+        <div class="value" id="meta-name">34" Standard P-Bass</div>
       </div>
       <div class="meta-item">
         <div class="label">Scale Length & Wave Speeds</div>
-        <div class="value" id="meta-scale">30.0" scale (0.762 m) | 62.8 m/s, 83.8 m/s, 111.9 m/s, 149.3 m/s</div>
+        <div class="value" id="meta-scale">34.0" scale (0.8636 m) | 71.2 m/s, 95.0 m/s, 126.8 m/s, 169.3 m/s</div>
       </div>
       <div class="meta-item">
         <div class="label">Pickup Complement & Placement</div>
-        <div class="value" id="meta-pickups">EMG MMTW Dual-Coil (Centerline) (@ 77.5mm) | EMG MMTW Single-Coil (Bridge Coil) (@ 66.1mm)</div>
+        <div class="value" id="meta-pickups">Standard Split-Coil P (@ 125.0mm)</div>
       </div>
       <div class="meta-item">
         <div class="label">Response View</div>
         <div class="value" id="meta-view-mode">Input / Output Difference (&Delta; Filter)</div>
       </div>
       <div>
-        <a id="standalone-link" class="open-standalone-btn" href="./30in_emg_mmtw_diff.html" target="_blank">
+        <a id="standalone-link" class="open-standalone-btn" href="./34in_standard_p_diff.html" target="_blank">
           Open Standalone Chart ↗
         </a>
       </div>
     </div>
 
     <div class="chart-card">
-      <iframe id="chart-frame" src="./30in_emg_mmtw_diff.html" title="Interactive Vega Frequency Response Chart"></iframe>
+      <iframe id="chart-frame" src="./34in_standard_p_diff.html" title="Interactive Vega Frequency Response Chart"></iframe>
     </div>
   </div>
 
@@ -345,7 +345,7 @@
   }
 };
     const baseUrlPrefix = "./";
-    let currentId = "30in_emg_mmtw";
+    let currentId = "34in_standard_p";
     let currentMode = "difference";
 
     function getChartUrl(id, mode) {

@@ -84,6 +84,14 @@ $$f_{\text{notch}} \approx \frac{95}{2 \times 0.01905} \approx 2,493\text{ Hz}$$
 
 This spatial notch around $2.5\text{ kHz}$ is the acoustic fingerprint of a Music Man humbucker—it creates the mid-scoop that gives the StingRay its open, aggressive "growl" and slap clarity.
 
+#### Physical Spatial Cross-Coherence Decay ($f > \frac{v}{d}$)
+In an idealized 1D string model, the cosine comb pattern repeats indefinitely at odd harmonics ($f = 3 f_{\text{notch}}, 5 f_{\text{notch}}, \dots$). However, on physical wound bass strings, transverse vibration across dual pole pieces becomes diffuse and incoherent once the acoustic wavelength becomes comparable to or shorter than the coil spacing ($\lambda \le d$):
+* **Coherent Regime ($\lambda > 2d$, $f < \frac{v}{2d}$):** Phasic wave interference dominates. The fundamental acoustic comb notch ($f_{\text{notch}}$) and the constructive rise ($f_{\text{peak}} = \frac{v}{d}$) are 100% preserved ($\gamma = 1.0$).
+* **Wavelength-Dependent Transition ($\frac{v}{d} \le f \le 1.8 \frac{v}{d}$):** As frequency passes the fundamental constructive peak ($f_{\text{start}} = v/d$), the coherence decay transitions smoothly from coherent phase sum ($P_{\text{coh}} = |\sum w_i H_i|^2$) to incoherent power summation ($P_{\text{incoh}} = \sum w_i^2 |H_i|^2$):
+  $$\gamma(f, v) = \frac{1}{2} \left[ 1 + \cos\left( \pi \cdot \text{clip}\left( \frac{f - f_{\text{start}}}{0.8 f_{\text{start}}}, 0, 1 \right) \right) \right]$$
+  $$|H_{\text{blend}}(f)| = \sqrt{\gamma P_{\text{coh}} + (1 - \gamma) P_{\text{incoh}}}$$
+* **Result:** Secondary harmonic nulls (such as the unphysical E-string notch at $5.6\text{ kHz}$) are naturally eliminated, producing a smooth, organic high-frequency response while strictly preserving the authentic low-mid humbucker scoop.
+
 ---
 
 ## 4. Scale-Length Transformation & Multi-Scale Physics (30"/32" $\to$ 34" / 37")
@@ -118,6 +126,25 @@ Passivizer models this acoustic transformation with a multi-band tension transfe
 
 ### C. Angled Multi-Scale Pickup Geometry
 On fanned-fret instruments like the Dingwall NG2/NG3, pickups are mounted parallel to the fanned bridge saddles. This ensures that the sensing point relative to the scale line ($x / L$) remains uniform across all strings, eliminating the flubby low-end of straight pickups on low B and E strings while maintaining smooth treble on the G string. Passivizer compensates for this geometric alignment across string channels.
+
+### D. Scale-Normalized Spatial Bridge Proximity Tilt ($\Delta\eta$)
+String standing-wave vibrational modes obey $y_n(x) \propto \sin(n\pi x / L) = \sin(n\pi \eta)$, where $\eta = x / L$ is the fractional distance along the vibrating string length from the bridge.
+Because harmonic node locations scale proportionally with vibrating length $L$, bridge proximity must be evaluated in **scale-normalized fractional positions** rather than raw millimeters:
+
+$$\eta_{\text{tgt}} = \frac{x_{\text{tgt}}}{L_{\text{tgt}}}, \quad \eta_{\text{src}} = \frac{x_{\text{src}}}{L_{\text{src}}}$$
+
+$$\Delta\eta = \eta_{\text{tgt}} - \eta_{\text{src}}$$
+
+$$\Delta x_{\text{norm\_in}} = \Delta\eta \times 34.0''$$
+
+$$\text{tilt}_{\text{dB}} = \Delta x_{\text{norm\_in}} \times 1.5$$
+
+This ensures that:
+1. **Identical proportional sweet spots** (e.g. 32" MM @ $62.2\text{ mm} \implies \eta = 7.65\%$ vs 34" MM @ $66.0\text{ mm} \implies \eta = 7.64\%$) have $\Delta\eta \approx 0$ and receive **zero spurious tilt**, preventing the $+0.15''$ distortion that raw millimeters previously introduced.
+2. **Short-scale proportions** (e.g. 30" MM @ $77.5\text{ mm} \implies \eta = 10.17\%$) correctly reflect the true fractional shift relative to 34" ($\Delta\eta = -0.0253 \implies \Delta x_{\text{norm\_in}} = -0.86''$, rather than $-0.45''$ from unnormalized subtraction).
+3. **Scale tension snap** scales proportionally with the scale deficit:
+   $$\text{snap}_{\text{dB}} = 1.8 \times \frac{34.0'' - L_{\text{src}}}{4.0''}$$
+   yielding $+1.8\text{ dB}$ for 30" short scale, $+0.9\text{ dB}$ for 32" medium scale, and $0.0\text{ dB}$ for 34" standard scale.
 
 ---
 
