@@ -612,6 +612,54 @@ def test_multiscale_sp1_wave_speed_continuum_endpoints():
     assert all(scales[i] >= scales[i+1] for i in range(len(scales)-1))
 
 
+def test_cylindrical_rod_vs_blade_aperture():
+    """Verify 2D cylindrical rod aperture (Airy/Bessel) and 1D blade aperture properties."""
+    from scripts.model_physics import compute_coil_aperture, FREQS
+    freqs = np.asarray(FREQS, dtype=np.float64)
+    v_disp = np.full_like(freqs, 100.0)
+    w_m = 0.75 * 0.0254
+
+    ap_rod = compute_coil_aperture(freqs, v_disp, w_m, pole_type="rod")
+    ap_blade = compute_coil_aperture(freqs, v_disp, w_m, pole_type="blade")
+
+    # 1. Exact unity at DC
+    assert math.isclose(ap_rod[0], 1.0, abs_tol=1e-6)
+    assert math.isclose(ap_blade[0], 1.0, abs_tol=1e-6)
+
+    # 2. Both must be strictly monotonic decreasing
+    assert np.all(np.diff(ap_rod) <= 1e-9)
+    assert np.all(np.diff(ap_blade) <= 1e-9)
+
+    # 3. Rod pole piece (2D disc) has slightly higher high-frequency response than a full-width blade
+    idx_4k = np.argmin(np.abs(freqs - 4000.0))
+    assert ap_rod[idx_4k] > ap_blade[idx_4k], "Cylindrical rod should exhibit crisper top-end transmission than a solid blade"
+
+
+def test_saddle_witness_point_boundary_stiffness():
+    """Verify bridge saddle boundary layer stiffness behavior."""
+    from scripts.model_physics import compute_saddle_boundary_coupling, FREQS
+    freqs = np.asarray(FREQS, dtype=np.float64)
+
+    # 1. Distances >= 75 mm (e.g. neck pickup or P-bass at 125 mm) must return exact 1.0
+    h_p = compute_saddle_boundary_coupling(freqs, pos_m=0.125)
+    assert np.all(h_p == 1.0), "Pickups >= 75 mm from bridge must not be attenuated by saddle boundary"
+
+    # 2. Close bridge pickup (e.g. 60s Jazz bridge at 63.5 mm)
+    h_bridge = compute_saddle_boundary_coupling(freqs, pos_m=0.0635)
+    assert math.isclose(h_bridge[0], 1.0, abs_tol=1e-6), "Saddle coupling must be exact 1.0 at DC"
+    assert np.all(np.diff(h_bridge) <= 1e-9), "Saddle coupling must be monotonically decreasing"
+
+    # Attenuation at 10 kHz should be subtle (< 1.5 dB)
+    idx_10k = np.argmin(np.abs(freqs - 10000.0))
+    att_db = 20.0 * np.log10(h_bridge[idx_10k])
+    assert -1.8 < att_db < -0.3, f"Saddle attenuation at 10 kHz was {att_db:.2f} dB (expected -1.8 to -0.3 dB)"
+
+    # 3. Very close bridge pickup (e.g. Dingwall bridge at 48 mm)
+    h_dingwall = compute_saddle_boundary_coupling(freqs, pos_m=0.048)
+    assert h_dingwall[idx_10k] < h_bridge[idx_10k], "Pickups closer to bridge should experience slightly greater boundary stiffness damping"
+
+
+
 
 
 

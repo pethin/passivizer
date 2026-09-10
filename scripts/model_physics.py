@@ -373,6 +373,62 @@ def compute_body_microphonic_coupling(freqs, src_pickup, tgt_voice, inst=None):
 
     return 1.0 + delta_k * resonance * damping
 
+def compute_coil_aperture(freqs, v_disp, w_m: float, pole_type: str = "rod") -> np.ndarray:
+    """
+    Computes spatial sensing aperture response across frequencies:
+    - 'rod': 2D cylindrical pole piece (Airy / Bessel J1(x)/x algebraic approximation)
+      ap(f) = 1 / sqrt(1 + 0.25 * (2*pi*r_p*f / v)^2) where r_p = w_m / 2.0
+    - 'blade': 1D continuous bar/blade rectangular slit
+      ap(f) = 1 / sqrt(1 + (1/3) * (pi*w_m*f / v)^2)
+    Evaluates with C^inf smoothness, exact 1.000 at f=0, and 0.00 dB identity.
+    """
+    f = np.asarray(freqs, dtype=np.float64)
+    if pole_type == "blade":
+        arg = (math.pi * w_m * f) / v_disp
+        return 1.0 / np.sqrt(1.0 + (1.0 / 3.0) * (arg ** 2))
+    else:
+        r_p = w_m / 2.0
+        k = 2.0 * math.pi * f / v_disp
+        return 1.0 / np.sqrt(1.0 + 0.25 * ((k * r_p) ** 2))
+
+def compute_saddle_boundary_coupling(freqs, pos_m: float, scale_m: float = 0.8636) -> np.ndarray:
+    """
+    Models the exponential boundary layer (l_b ≈ sqrt(B_s) * L) of flexural rigidity
+    at the bridge saddle witness point for pickups situated close to the bridge (pos_m < 0.075 m).
+    Smoothly transitions to 1.000 (0.00 dB) as distance increases to >= 75 mm.
+    """
+    f = np.asarray(freqs, dtype=np.float64)
+    if pos_m >= 0.075 or pos_m <= 0.0:
+        return np.ones_like(f)
+    ratio = np.clip(pos_m / 0.075, 0.0, 1.0)
+    shelf_db = -4.0 * (1.0 - ratio)
+    g = 10.0 ** (shelf_db / 20.0)
+    f0 = 4500.0
+    return np.sqrt((1.0 + (g ** 2) * (f / f0) ** 2) / (1.0 + (f / f0) ** 2))
+
+def _infer_pole_type(pickup_or_voice=None, coil=None) -> str:
+    """
+    Infers magnetic pole geometry: 'rod' (cylindrical Alnico rod, Airy/Bessel spatial window)
+    or 'blade' (continuous steel/ceramic bar blade, 1D rectangular slit).
+    """
+    if coil and coil.get("pole_type"):
+        return str(coil["pole_type"]).lower()
+    if pickup_or_voice:
+        if pickup_or_voice.get("pole_type"):
+            return str(pickup_or_voice["pole_type"]).lower()
+        mag = str(pickup_or_voice.get("magnet_type", pickup_or_voice.get("magnet", ""))).lower()
+        p_type = str(pickup_or_voice.get("type", pickup_or_voice.get("topology", ""))).lower()
+        p_name = str(pickup_or_voice.get("name", "")).lower()
+        if "blade" in p_name or "blade" in p_type or "bar" in p_name:
+            return "blade"
+        if "emg" in p_name or "emg" in p_type:
+            return "blade"
+        if "active" in mag:
+            return "blade"
+        if "alnico" in mag or "single_coil" in p_type or "split" in p_type:
+            return "rod"
+    return "rod"
+
 # Global registries initialized from modular configuration files
 SCALES = load_scales()
 VOICES = load_voices_config()
@@ -437,6 +493,8 @@ def resolve_pickup_coils(pickup_dict, instrument=None):
                     sc_copy = sc.copy()
                     sc_copy["weight"] = sc.get("weight", 1.0) * c_weight
                     sc_copy["polarity"] = sc.get("polarity", 1.0) * c_pol
+                    if "pole_type" not in sc_copy:
+                        sc_copy["pole_type"] = _infer_pole_type(pickups_map[p_ref], sc)
                     resolved.append(sc_copy)
             elif "position_from_bridge_m" in comp:
                 resolved.append({
@@ -444,7 +502,8 @@ def resolve_pickup_coils(pickup_dict, instrument=None):
                     "aperture_width_in": comp.get("aperture_width_in", 0.75),
                     "weight": c_weight,
                     "polarity": c_pol,
-                    "strings": comp.get("strings", ["all"])
+                    "strings": comp.get("strings", ["all"]),
+                    "pole_type": _infer_pole_type(pickup_dict, comp),
                 })
         if resolved:
             return resolved
@@ -458,7 +517,8 @@ def resolve_pickup_coils(pickup_dict, instrument=None):
                 "aperture_width_in": c.get("aperture_width_in", pickup_dict.get("aperture_width_in", 0.75)),
                 "weight": c.get("weight", 1.0),
                 "polarity": c.get("polarity", 1.0),
-                "strings": c.get("strings", ["all"])
+                "strings": c.get("strings", ["all"]),
+                "pole_type": _infer_pole_type(pickup_dict, c),
             })
         return coils
 
@@ -467,6 +527,7 @@ def resolve_pickup_coils(pickup_dict, instrument=None):
     w_in = pickup_dict.get("aperture_width_in", 0.75)
     d_in = pickup_dict.get("coil_spacing_in", 0.0)
     d_m = d_in * 0.0254
+    p_pole = _infer_pole_type(pickup_dict)
     if d_in > 0:
         return [
             {
@@ -474,14 +535,16 @@ def resolve_pickup_coils(pickup_dict, instrument=None):
                 "aperture_width_in": w_in / 2.0,
                 "weight": 0.5,
                 "polarity": 1.0,
-                "strings": ["all"]
+                "strings": ["all"],
+                "pole_type": p_pole,
             },
             {
                 "position_from_bridge_m": pos_m + d_m / 2.0,
                 "aperture_width_in": w_in / 2.0,
                 "weight": 0.5,
                 "polarity": 1.0,
-                "strings": ["all"]
+                "strings": ["all"],
+                "pole_type": p_pole,
             }
         ]
 
@@ -492,7 +555,8 @@ def resolve_pickup_coils(pickup_dict, instrument=None):
             "aperture_width_in": w_in,
             "weight": 1.0,
             "polarity": 1.0,
-            "strings": ["all"]
+            "strings": ["all"],
+            "pole_type": p_pole,
         }
     ]
 
@@ -528,6 +592,7 @@ def resolve_voice_pickups(voice_cfg):
                     "weight": float(c.get("weight", 1.0)),
                     "polarity": float(c.get("polarity", 1.0)),
                     "strings": list(c.get("strings", ["all"])),
+                    "pole_type": _infer_pole_type(p, c),
                 })
             resolved.append({
                 "name": str(p.get("name", "Pickup")),
@@ -568,6 +633,7 @@ def resolve_voice_coils(voice_cfg, _from_pickups=True):
                     "weight": float(c.get("weight", 1.0)) * p_weight,
                     "polarity": float(c.get("polarity", 1.0)) * p_pol,
                     "strings": list(c.get("strings", ["all"])),
+                    "pole_type": _infer_pole_type(p, c),
                 })
         if all_coils:
             return all_coils
@@ -581,12 +647,14 @@ def resolve_voice_coils(voice_cfg, _from_pickups=True):
                 "weight": float(c.get("weight", 1.0)),
                 "polarity": float(c.get("polarity", 1.0)),
                 "strings": list(c.get("strings", ["all"])),
+                "pole_type": _infer_pole_type(voice_cfg, c),
             })
         return normalized
     pos_m = float(voice_cfg.get("pos_34", 0.088))
     w_in = float(voice_cfg.get("w", 0.75))
     d_in = float(voice_cfg.get("d", 0.0))
     d_m = d_in * 0.0254
+    v_pole = _infer_pole_type(voice_cfg)
     if d_in > 0:
         return [
             {
@@ -594,14 +662,16 @@ def resolve_voice_coils(voice_cfg, _from_pickups=True):
                 "aperture_width_in": w_in / 2.0,
                 "weight": 0.5,
                 "polarity": 1.0,
-                "strings": ["all"]
+                "strings": ["all"],
+                "pole_type": v_pole,
             },
             {
                 "position_from_bridge_m": pos_m + d_m / 2.0,
                 "aperture_width_in": w_in / 2.0,
                 "weight": 0.5,
                 "polarity": 1.0,
-                "strings": ["all"]
+                "strings": ["all"],
+                "pole_type": v_pole,
             }
         ]
     return [
@@ -610,7 +680,8 @@ def resolve_voice_coils(voice_cfg, _from_pickups=True):
             "aperture_width_in": w_in,
             "weight": 1.0,
             "polarity": 1.0,
-            "strings": ["all"]
+            "strings": ["all"],
+            "pole_type": v_pole,
         }
     ]
 
@@ -967,7 +1038,8 @@ def numpy_pickup_acoustic_response(freqs, coils, scale_length_m: float = None, s
 
             delta_x = pos_m - center_pos
             phase = 2.0 * math.pi * f * delta_x / v_disp
-            ap_w = 1.0 / np.sqrt(1.0 + (1.0 / 3.0) * (np.pi * w_m * f / v_disp) ** 2)
+            c_pole = c.get("pole_type", "rod")
+            ap_w = compute_coil_aperture(f, v_disp, w_m, pole_type=c_pole)
             w_eff = weight * ap_w
 
             coil_sum += w_eff * polarity * np.exp(-1j * phase)
@@ -1024,13 +1096,14 @@ def numpy_pickup_macro_aperture(freqs, coils, scale_length_m: float = None, stri
 
     acc = np.zeros_like(f, dtype=np.float64)
     total_w = 0.0
+    c_pole = coils[0].get("pole_type", "rod") if coils else "rod"
     for pt in continuum:
         f0 = pt["f0"]
         v = pt["v0"]
         weight = pt.get("weight", 1.0)
         pt_scale_m = pt.get("scale_m", l_eff)
         v_disp = compute_dispersive_wave_speed(f, v, f0=f0, scale_length_m=pt_scale_m)
-        acc += weight * (1.0 / np.sqrt(1.0 + (1.0 / 3.0) * (np.pi * w_m * f / v_disp) ** 2))
+        acc += weight * compute_coil_aperture(f, v_disp, w_m, pole_type=c_pole)
         total_w += weight
     return acc / total_w if total_w > 0 else acc
 
@@ -1308,7 +1381,16 @@ def compute_voice_prefilter_firs(voice_id, instrument="30in", src_scale=None, nu
 
         h_scale_tension = np.ones_like(freqs) if is_identity else h_tension
         h_body = np.ones_like(freqs) if is_identity else compute_body_microphonic_coupling(freqs, src_pickup, cfg, inst=inst)
-        prefilter_curve = scale_fac * h_acoustic_transfer * h_elec_inv * h_tilt * h_scale_tension * h_str_diff * h_long_diff * h_body
+
+        # Differential bridge saddle witness-point boundary layer coupling
+        if is_identity or sensor_type == "bridge_force":
+            h_saddle_diff = np.ones_like(freqs)
+        else:
+            h_saddle_tgt = compute_saddle_boundary_coupling(freqs, tgt_pos_eff, tgt_scale_m)
+            h_saddle_src = compute_saddle_boundary_coupling(freqs, b_src_pos_eff, src_scale_m)
+            h_saddle_diff = np.minimum(h_saddle_tgt / np.maximum(h_saddle_src, 1e-6), 1.0)
+
+        prefilter_curve = scale_fac * h_acoustic_transfer * h_elec_inv * h_tilt * h_scale_tension * h_str_diff * h_long_diff * h_body * h_saddle_diff
         fir_raw = synthesize_minimum_phase_fir(prefilter_curve, num_taps=num_taps, normalize=False)
 
         # Spatial acoustic wave propagation delay for multi-pickup configurations
@@ -1460,7 +1542,16 @@ def compute_aperture_prefilter_fir(voice_id, instrument="30in", src_scale=None, 
     h_elec_inv = np.ones_like(freqs) if (is_identity or is_passive or has_src_circuit) else resolve_pickup_electrical_deconvolution_np(freqs, src_pickup, inst)
 
     h_body = np.ones_like(freqs) if is_identity else compute_body_microphonic_coupling(freqs, src_pickup, cfg, inst=inst)
-    prefilter_curve = h_acoustic_transfer * h_elec_inv * h_tilt * h_tension * h_str_diff * h_long_diff * h_body
+
+    # Differential bridge saddle witness-point boundary layer coupling
+    if is_identity or sensor_type == "bridge_force":
+        h_saddle_diff = np.ones_like(freqs)
+    else:
+        h_saddle_tgt = compute_saddle_boundary_coupling(freqs, tgt_pos_eff, tgt_scale_m)
+        h_saddle_src = compute_saddle_boundary_coupling(freqs, src_pos_eff, src_scale_m)
+        h_saddle_diff = np.minimum(h_saddle_tgt / np.maximum(h_saddle_src, 1e-6), 1.0)
+
+    prefilter_curve = h_acoustic_transfer * h_elec_inv * h_tilt * h_tension * h_str_diff * h_long_diff * h_body * h_saddle_diff
     max_val = np.max(prefilter_curve)
     resp_norm = prefilter_curve / max_val if max_val > 0 else prefilter_curve
 

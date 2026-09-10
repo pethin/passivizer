@@ -1966,3 +1966,33 @@ def test_potentiometer_wiper_positions():
     m_vol_rolled.apply_pot_positions(vol_pos=0.7, tone_pos=1.0)
     h_vol = compute_circuit_transfer_functions(m_vol_rolled, freqs=FREQS)[0]
     assert np.max(h_vol) < np.max(h_open), "Volume attenuation must reduce overall output gain"
+
+
+def test_register_dependent_string_pull():
+    """Verify register-dependent weighting: low register fundamental experiences stronger pull damping than high register."""
+    from scripts.simulate_circuits import _lenz_velocity_drag_core
+    sr = 48000
+    vsat = 0.4
+    k_pull = 0.05
+    k_sag = 0.02
+    t = np.linspace(0, 0.05, int(sr * 0.05), endpoint=False)
+
+    # 1. Low register note (40 Hz fundamental) + upper harmonic clank
+    low_note = (0.80 * np.sin(2.0 * np.pi * 40.0 * t) + 0.30 * np.sin(2.0 * np.pi * 1200.0 * t)).astype(np.float64)
+    env_low = np.full_like(low_note, 0.80)
+
+    out_low_nopull = _lenz_velocity_drag_core(low_note, env_low, vsat, k_sag=k_sag, alpha_c=0.1, k_pull=0.0)
+    out_low_pull = _lenz_velocity_drag_core(low_note, env_low, vsat, k_sag=k_sag, alpha_c=0.1, k_pull=k_pull)
+    diff_low = np.max(np.abs(out_low_pull - out_low_nopull))
+
+    # 2. High register note (400 Hz fundamental) + upper harmonic clank
+    high_note = (0.80 * np.sin(2.0 * np.pi * 400.0 * t) + 0.30 * np.sin(2.0 * np.pi * 1200.0 * t)).astype(np.float64)
+    env_high = np.full_like(high_note, 0.80)
+
+    out_high_nopull = _lenz_velocity_drag_core(high_note, env_high, vsat, k_sag=k_sag, alpha_c=0.1, k_pull=0.0)
+    out_high_pull = _lenz_velocity_drag_core(high_note, env_high, vsat, k_sag=k_sag, alpha_c=0.1, k_pull=k_pull)
+    diff_high = np.max(np.abs(out_high_pull - out_high_nopull))
+
+    # Low register has higher |x_low| so w_reg is higher, resulting in greater pull modulation
+    assert diff_low > diff_high, f"Low register pull diff ({diff_low:.4f}) must exceed high register ({diff_high:.4f})"
+

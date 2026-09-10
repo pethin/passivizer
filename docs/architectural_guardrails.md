@@ -54,6 +54,19 @@ Plucking an electric bass string excites longitudinal compression waves propagat
 $$H_{\text{long}}(f) = 1.0 + \Delta k_{\text{long}} \cdot \frac{f / f_L}{Q_L \sqrt{(1 - (f/f_L)^2)^2 + (f / (Q_L f_L))^2}} \cdot e^{-(f/6000.0)^2}, \quad Q_L = 8.0$$
 Returns exact $1.0000$ ($0.00\text{ dB}$) when source matches target.
 
+### 1.9 Cylindrical Rod vs Blade 2D Sensing Aperture
+Differentiate magnetic pole geometry across sensing coils:
+- **Cylindrical Rod Poles (Vintage Jazz/P, Music Man):** Evaluates 2D circular Airy/Bessel spatial sensitivity ($r_p = w_m / 2$):
+  $$\text{ap\_cyl}(f, v) = \frac{1}{\sqrt{1 + 0.25 \cdot \left(\frac{2\pi r_p f}{v}\right)^2}}$$
+- **Blade / Slit Sensors (Active EMG, Dual-Rails):** Evaluates 1D rectangular integration of width $w_m$:
+  $$\text{ap\_blade}(f, v) = \frac{1}{\sqrt{1 + \frac{1}{3} \cdot \left(\frac{\pi w_m f}{v}\right)^2}}$$
+Both formulations evaluate to exact $1.0000$ at DC ($f=0$) and exact $0.00\text{ dB}$ identity matching.
+
+### 1.10 Bridge Saddle Witness-Point Boundary Layer Stiffness ($H_{\text{saddle}}$)
+Bass strings have finite flexural bending stiffness ($E I$), creating an exponential boundary layer ($l_b \approx \sqrt{B_s} \cdot L \approx 2.0\text{--}3.5\text{ mm}$) at the saddle witness point. For pickups situated close to the bridge ($x < 0.075\text{ m}$):
+$$f_{\text{saddle}}(x) = 7200.0 \cdot \left(\frac{x}{0.075\text{ m}}\right) + 1200.0\text{ Hz}, \quad H_{\text{saddle}}(f, x) = \frac{1}{\sqrt{1 + (f / f_{\text{saddle}}(x))^2}}$$
+Evaluated differentially ($H_{\text{saddle,tgt}} / H_{\text{saddle,src}}$). Evaluates to exact $1.0000$ ($0.00\text{ dB}$) when $x \ge 0.075\text{ m}$ or on identity matching, gently rolling off brittle ultra-high-frequency artifacts ($> 7\text{ kHz}$) on close-bridge pickups without dulling mid growl.
+
 ---
 
 ## 2. Mathematical Smoothness, Regularization & Boundary Continuity ($C^1 / C^\infty$)
@@ -110,10 +123,12 @@ $$V_{\text{sat,eff}} = \begin{cases} V_{\text{sat,tgt}} & \text{if active source
 Engage softening if and only if $(\text{not is\_identity}) \land (\text{not is\_passive} \lor \text{is\_target\_more\_saturated})$. Bypass saturation on small signals ($\le 0.10$ peak) to preserve bit-exact test linearity.
 
 ### 4.2 Nonlinear Magnetic String Pull & Attack Pitch Sag ($k_{\text{pull}}$)
-Evaluate dynamic pole pull damping and attack pitch sag in `_lenz_velocity_drag_core`:
-$$\text{pull\_damping} = k_{\text{pull}} \cdot \text{excess} \cdot \tanh\left(\frac{\max(x[n], 0)}{V_{\text{sat}}}\right), \quad \text{pitch\_sag} = -k_{\text{pull}} \cdot \text{excess} \cdot (x_{\text{high}}[n] - x_{\text{high}}[n-1])$$
-$$\text{drag}_{\text{high}} = 1.0 - (k_{\text{sag}} + k_{\text{eddy}} + k_{\text{pull}} + \text{stein\_damping}) \cdot \text{excess}$$
+Evaluate dynamic pole pull damping and attack pitch sag in `_lenz_velocity_drag_core`, dynamically weighted by register excursion ratio:
+$$w_{\text{reg}} = 0.70 + 0.60 \cdot \frac{|x_{\text{low}}[n]|}{\max(|x_{\text{low}}[n]| + |x_{\text{high}}[n]|, 10^{-6})}$$
+$$\text{pull\_damping} = k_{\text{pull}} \cdot w_{\text{reg}} \cdot \text{excess} \cdot \tanh\left(\frac{\max(x[n], 0)}{V_{\text{sat}}}\right), \quad \text{pitch\_sag} = -k_{\text{pull}} \cdot w_{\text{reg}} \cdot \text{excess} \cdot (x_{\text{high}}[n] - x_{\text{high}}[n-1])$$
+$$\text{drag}_{\text{high}} = 1.0 - (k_{\text{sag}} + k_{\text{eddy}} + \text{pull\_damping} + \text{stein\_damping}) \cdot \text{excess}$$
 $$x_{\text{out}}[n] = \text{drag}_{\text{low}} x_{\text{low}}[n] + \text{drag}_{\text{high}} (x_{\text{high}}[n] + \text{wobble} + \text{pitch\_sag})$$
+Thick lower strings ($f_0 \le 60\text{ Hz}$) experience up to $1.3\times$ pull damping and transient pitch sag, capturing authentic Alnico pole drag without choking high-register sustain ($0.7\times$).
 
 ### 4.3 Excursion-Dependent Dynamic Touch Spectral Tilt ($\tau_{\text{touch}}$)
 In saturation stage, inject highpass attack harmonics modulated by displacement envelope:

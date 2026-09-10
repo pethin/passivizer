@@ -46,7 +46,23 @@ The Darkglass Anagram allows up to 24 simultaneous blocks in series or parallel.
 
 ---
 
-## 2. Gain Staging & Volume Normalization
+## 2. Hardware Input Gain Staging & Headroom Calibration
+
+Active 18V EMG pickups provide immense dynamic headroom, delivering up to $+14\text{ dBu}$ of peak voltage on aggressive slap or heavy finger plucks. To preserve 100% linear conversion before neural processing in **Block 1 (Passivizer NAM)**:
+
+1. **Adjust the Anagram Global Input Level / Pad:**
+   * Navigate to the Anagram global I/O settings.
+   * Play your most aggressive thumb slap and heavy finger strokes on the lowest string (Low B or E).
+   * Adjust the analog input gain so that maximum peaks register cleanly between **$-6.0\text{ and } -3.0\text{ dBFS}$** on the hardware input meter.
+2. **Prevent Hardware A/D Converter Clipping:**
+   * Setting the input gain too hot will hard-clip the pedalboard's physical analog-to-digital converters before Block 1, introducing harsh inter-sample distortion that the NAM model cannot undo.
+   * Setting the input gain too low will lower signal-to-noise ratio and prevent the model from engaging dynamic Alnico magnetic saturation.
+3. **Downstream Processing in Block 2 (Preamp/Drive):**
+   * Keeping input peaks at $-6.0\text{ to } -3.0\text{ dBFS}$ ensures the signal entering Block 1 mirrors the calibrated $[-1.0, +1.0]$ float window used during model training, allowing the downstream Darkglass drive in Block 2 (Microtubes B7K, Vintage Ultra) to distort organically.
+
+---
+
+## 3. Block 1 Level Trim & Perceived Loudness Matching
 
 Passive and active multi-coil instruments often present notable level disparities:
 * Splitting an MM humbucker to a single coil drops output level by $\sim 3\text{--}4\text{ dB}$.
@@ -77,7 +93,7 @@ In your presets, use the Block 1 output level trim to normalize all voices to an
 
 ---
 
-## 3. Footswitching & Bank Organization
+## 4. Footswitching & Bank Organization
 
 Group the pickup profiles into dedicated 3-button banks on the Anagram hardware:
 

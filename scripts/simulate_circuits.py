@@ -984,13 +984,16 @@ if _HAS_NUMBA:
                 if excess > 1.0:
                     excess = 1.0
                 eddy_factor = k_eddy * excess * math.tanh(abs(x_high) / vsat)
-                pull_damping = k_pull * excess * math.tanh(max(val, 0.0) / vsat)
+                abs_low = abs(x_low_prev)
+                abs_high = abs(x_high)
+                w_reg = 0.70 + 0.60 * (abs_low / (abs_low + abs_high + 1e-6))
+                pull_damping = k_pull * w_reg * excess * math.tanh(max(val, 0.0) / vsat)
                 flux_rate = abs(x_high - x_high_prev) * 7.639437
                 stein_damping = 0.0
                 if k_stein > 0.0:
                     stein_damping = k_stein * excess * ((flux_rate / vsat) ** 0.6)
                 drag_high = 1.0 - (k_sag + eddy_factor + pull_damping + stein_damping) * excess
-                drag_low = 1.0 - 0.25 * k_sag * excess
+                drag_low = 1.0 - (0.25 * k_sag + 0.50 * pull_damping) * excess
             else:
                 drag_high = 1.0
                 drag_low = 1.0
@@ -1001,7 +1004,10 @@ if _HAS_NUMBA:
                 wobble = 0.0
 
             if k_pull > 0.0 and vsat > 0.0 and e > vsat:
-                pitch_sag = -k_pull * excess * (x_high - x_high_prev)
+                abs_low = abs(x_low_prev)
+                abs_high = abs(x_high)
+                w_reg = 0.70 + 0.60 * (abs_low / (abs_low + abs_high + 1e-6))
+                pitch_sag = -k_pull * w_reg * excess * (x_high - x_high_prev)
             else:
                 pitch_sag = 0.0
 
@@ -1077,13 +1083,16 @@ else:
                 if excess > 1.0:
                     excess = 1.0
                 eddy_factor = k_eddy * excess * math.tanh(abs(x_high) / vsat)
-                pull_damping = k_pull * excess * math.tanh(max(val, 0.0) / vsat)
+                abs_low = abs(x_low_prev)
+                abs_high = abs(x_high)
+                w_reg = 0.70 + 0.60 * (abs_low / (abs_low + abs_high + 1e-6))
+                pull_damping = k_pull * w_reg * excess * math.tanh(max(val, 0.0) / vsat)
                 flux_rate = abs(x_high - x_high_prev) * 7.639437
                 stein_damping = 0.0
                 if k_stein > 0.0:
                     stein_damping = k_stein * excess * ((flux_rate / vsat) ** 0.6)
                 drag_high = 1.0 - (k_sag + eddy_factor + pull_damping + stein_damping) * excess
-                drag_low = 1.0 - 0.25 * k_sag * excess
+                drag_low = 1.0 - (0.25 * k_sag + 0.50 * pull_damping) * excess
             else:
                 drag_high = 1.0
                 drag_low = 1.0
@@ -1094,7 +1103,10 @@ else:
                 wobble = 0.0
 
             if k_pull > 0.0 and vsat > 0.0 and e > vsat:
-                pitch_sag = -k_pull * excess * (x_high - x_high_prev)
+                abs_low = abs(x_low_prev)
+                abs_high = abs(x_high)
+                w_reg = 0.70 + 0.60 * (abs_low / (abs_low + abs_high + 1e-6))
+                pitch_sag = -k_pull * w_reg * excess * (x_high - x_high_prev)
             else:
                 pitch_sag = 0.0
 
