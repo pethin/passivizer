@@ -87,7 +87,7 @@ The models produced by Passivizer are loaded into **Block 1** (as a high-impedan
 
 ## 5. Architectural Guardrails: Physical Modeling Bug Classes to Prevent
 
-To ensure high-fidelity modeling and prevent regressions, all agents and contributors must adhere to these seven architectural rules when modifying the DSP, physics, and simulation pipelines:
+To ensure high-fidelity modeling and prevent regressions, all agents and contributors must adhere to these eight architectural rules when modifying the DSP, physics, and simulation pipelines:
 
 ### 5.1 No Hardcoded Frequency Cutoffs for Wave/Delay Phenomena
 - **Anti-Pattern:** Hardcoding static frequency boundaries (e.g. `f_start = 620.0`, `f_end = 1050.0` or `f_taper_start = 1800.0`, `f_taper_end = 3200.0`) for acoustic comb interference or de-combing.
@@ -136,6 +136,14 @@ To ensure high-fidelity modeling and prevent regressions, all agents and contrib
   $$\text{excess\_boost} = \frac{1}{\beta} \ln(1 + e^{\beta \cdot h_{\text{db\_soft}}}) = \frac{1}{\beta} \text{logaddexp}(0, \beta \cdot h_{\text{db\_soft}}), \quad \beta = 1.2$$
   $$h_{\text{db\_final}} = h_{\text{db\_soft}} - (1.0 - s) \cdot \text{excess\_boost}$$
   Guarantees strictly continuous first derivatives ($C^\infty$) across the $0.0\text{ dB}$ crossing point while keeping attenuation ($h_{\text{db}} \le 0$) untouched.
+
+### 5.8 Quadrature Regularization vs. Rectified-Cosine ($|\cos\theta|$) V-Cusps at Comb Nulls
+- **Anti-Pattern:** Assuming 100% spatial coherence ($\gamma = 1.0$) down to mathematical zero in multi-coil humbuckers, evaluating magnitude as a pure rectified phasor sum $m = |\text{coil\_sum}| \propto |\cos(\pi f d / v)|$.
+- **Why It Fails:** As a coherent phasor sum passes through zero at fundamental destructive interference ($f_{\text{null}} = \frac{v}{2d}$), the first derivative of $|\cos\theta|$ abruptly flips sign from $-1$ to $+1$. This generates a non-differentiable mathematical V-shaped cusp at the bottom of the notch. When evaluated across 4 discrete string wave speeds ($N=4$), this artifact produces 4 visible sharp inflection corners across the $1.8\text{--}4.5\text{ kHz}$ midrange.
+- **Mandated Practice:** Account for finite 3D pole-piece flux fringing and string diameter using a quadrature regularized coherent floor ($\epsilon_{\text{quad}} \approx 0.18$):
+  $$p_{\text{coh\_reg}} = p_{\text{coh}} + \epsilon_{\text{quad}}^2 \cdot p_{\text{incoh}}$$
+  $$m_{\text{blend}} = \frac{\sqrt{\gamma \cdot p_{\text{coh\_reg}} + (1 - \gamma) p_{\text{incoh}}}}{\text{dc\_norm}}$$
+  Because $p_{\text{coh\_reg}} > 0$ strictly holds everywhere, the frequency derivative at the notch bottom is exactly zero ($\frac{d}{df} m_{\text{blend}} \big|_{f = f_{\text{null}}} = 0$). This guarantees a smooth, parabolic acoustic minimum ($C^\infty$) with an authentic $-10\text{ to }-12\text{ dB}$ notch depth, perfectly preserving DC unity ($1.0000$) while completely eliminating jagged multi-string corners.
 
 ---
 

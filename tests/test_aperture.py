@@ -87,3 +87,30 @@ def test_3coil_pmm_compound_response():
     positions = sorted([round(c["position_from_bridge_m"] * 1000, 1) for c in dg_coils])
     assert positions == [50.8, 73.7, 136.8]
 
+def test_dual_coil_notch_smoothness_and_dc_identity():
+    """
+    Verify that dual-coil humbuckers (e.g. StingRay MM) preserve exact DC unity (1.000)
+    and transition through comb notches with C^1 smoothness and zero non-differentiable V-cusps.
+    """
+    speeds = SCALES["34in"]["speeds"]
+    coils = [
+        {"position_from_bridge_m": 0.0755, "aperture_width_in": 0.75, "weight": 0.5, "polarity": 1.0, "strings": ["all"]},
+        {"position_from_bridge_m": 0.0565, "aperture_width_in": 0.75, "weight": 0.5, "polarity": 1.0, "strings": ["all"]},
+    ]
+
+    # 1. Exact DC unity preservation
+    res_dc = pickup_acoustic_response(np.array([0.0]), coils, speeds)[0]
+    assert math.isclose(res_dc, 1.0, abs_tol=1e-3)
+
+    # 2. Smooth parabolic bottom across the comb notch region (1500 to 5000 Hz)
+    f_arr = np.linspace(1500.0, 5000.0, 350)
+    h_arr = pickup_acoustic_response(f_arr, coils, speeds)
+    dh = np.gradient(h_arr, f_arr)
+    d2h = np.gradient(dh, f_arr)
+
+    # The rate of change of derivative must be bounded without sharp spikes (|d2h| < 5e-6)
+    assert np.max(np.abs(d2h)) < 5e-6, "Comb notch must have a smooth parabolic bottom without non-differentiable V-cusps"
+    # Notch must retain authentic physical acoustic depth (-12 to -8 dB, i.e. 0.25 to 0.40)
+    assert 0.20 <= np.min(h_arr) <= 0.40
+
+

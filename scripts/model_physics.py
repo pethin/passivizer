@@ -623,11 +623,18 @@ def numpy_pickup_acoustic_response(freqs, coils, string_speeds, string_names=Non
             # while preserving the authentic fundamental mid-scoop at f = v / (2 * delta_x_span).
             delta_x_span = max(c["position_from_bridge_m"] for c in active) - min(c["position_from_bridge_m"] for c in active)
             if delta_x_span > 0.002:
+                # Finite 3D pole-piece fringing and string width (quadrature floor)
+                # Prevents non-differentiable V-shaped cusps when coil_sum passes through zero (p_coh = 0)
+                eps_quad = 0.18
+                p_coh_reg = p_coh + (eps_quad ** 2) * p_incoh
+                dc_incoh = sum(abs(c.get("weight", 1.0)) ** 2 for c in active)
+                dc_norm = math.sqrt(total_w ** 2 + (eps_quad ** 2) * dc_incoh) / total_w
+
                 f_start = v / delta_x_span
                 f_end = 1.8 * v / delta_x_span
                 t = np.clip((f - f_start) / (f_end - f_start), 0.0, 1.0)
                 gamma = 0.5 * (1.0 + np.cos(np.pi * t))
-                m_blend = np.sqrt(gamma * p_coh + (1.0 - gamma) * p_incoh)
+                m_blend = np.sqrt(gamma * p_coh_reg + (1.0 - gamma) * p_incoh) / dc_norm
             else:
                 m_blend = np.abs(coil_sum)
         else:
