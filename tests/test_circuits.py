@@ -101,11 +101,11 @@ def test_tone_rolloff_transfer_function():
     curves = compute_circuit_transfer_functions(model, freqs=FREQS)
     mag = curves[0]
 
-    # With 47nF shunt, resonant peak collapses into low-mids (200-500 Hz)
+    # With 47nF shunt, resonant peak collapses into low-mids (180-500 Hz)
     max_val = max(mag)
     peak_idx = mag.index(max_val)
     peak_freq = FREQS[peak_idx]
-    assert 200.0 <= peak_freq <= 500.0
+    assert 180.0 <= peak_freq <= 500.0
 
     # Treble above 3 kHz is completely rolled off
     idx_3k = min(range(len(FREQS)), key=lambda i: abs(FREQS[i] - 3000.0))
@@ -384,13 +384,13 @@ def test_upright_voicing_simulation_vs_theory_consistency():
 
 def test_tone_pot_series_admittance():
     """Verify that series Rtone allows wide-open tone pots to preserve pickup resonance."""
-    # 1. Voice 05c: Rtone = 3.3 Ohm ESR floor, Ctone = 47nF -> collapses peak to 200-500 Hz
+    # 1. Voice 05c: Rtone = 3.3 Ohm ESR floor, Ctone = 47nF -> collapses peak to 180-500 Hz
     m_rolled = parse_netlist(CIRCUITS_DIR / "05c_vintage_62_p_47nf.cir")
     assert m_rolled.Rtone == pytest.approx(3.3)
     assert m_rolled.Ctone == pytest.approx(47e-9)
     curves_rolled = compute_circuit_transfer_functions(m_rolled, freqs=FREQS)
     peak_rolled = FREQS[curves_rolled[0].index(max(curves_rolled[0]))]
-    assert 200.0 <= peak_rolled <= 500.0
+    assert 180.0 <= peak_rolled <= 500.0
 
     # 2. Source Standard P: Rtone = 250k, Ctone = 47nF -> loaded peak stays in 2000-2400 Hz range
     m_open = parse_netlist(REPO_ROOT / "circuits" / "sources" / "source_standard_p.cir")
@@ -1635,6 +1635,143 @@ def test_passive_rlc_thermal_noise_dither():
         diff_rms_db = 20.0 * math.log10(diff_rms)
         # Injected noise should be calibrated around -108 dBFS (within 2.0 dB)
         assert abs(diff_rms_db - (-108.0)) < 2.0
+
+
+def test_fractional_order_dielectric_absorption():
+    """Verify Cole-Davidson fractional-order dielectric absorption in capacitors."""
+    from scripts.simulate_circuits import compute_circuit_transfer_functions, parse_netlist, CIRCUITS_DIR
+
+    # Load Voice 05c (47nF rolled tone)
+    m = parse_netlist(CIRCUITS_DIR / "05c_vintage_62_p_47nf.cir")
+
+    # 1. Ideal capacitor (alpha = 1.0)
+    m.alpha_dielectric_tone = 1.0
+    m.alpha_dielectric_cable = 1.0
+    curves_ideal = compute_circuit_transfer_functions(m, freqs=FREQS)
+
+    # 2. Fractional-order film dielectric (alpha = 0.988)
+    m.alpha_dielectric_tone = 0.988
+    m.alpha_dielectric_cable = 0.994
+    curves_dielectric = compute_circuit_transfer_functions(m, freqs=FREQS)
+
+    mag_ideal = np.asarray(curves_ideal[0])
+    mag_dielectric = np.asarray(curves_dielectric[0])
+
+    # Dielectric absorption should create subtle, smooth loss differences (within 0.05 to 1.5 dB across passband)
+    diff_db = 20.0 * np.log10(np.maximum(mag_dielectric, 1e-6) / np.maximum(mag_ideal, 1e-6))
+    assert np.all(np.abs(diff_db) < 2.0), "Dielectric absorption should be a subtle analog nuance"
+    assert np.max(np.abs(diff_db)) > 0.05, "Dielectric absorption must produce non-trivial difference"
+    # At low frequencies (200 Hz), dielectric absorption provides subtle low-mid loss/bloom
+    idx_200 = min(range(len(FREQS)), key=lambda i: abs(FREQS[i] - 200.0))
+    assert diff_db[idx_200] < 0.0, "Dielectric relaxation should introduce low-mid dissipation"
+
+
+def test_dynamic_core_inductance_wobble():
+    """Verify dynamic core inductance curvature beta_curv produces transient modulation on forte signals."""
+    from scripts.simulate_circuits import apply_oversampled_saturation
+
+    sr = 48000
+    t = np.linspace(0, 0.2, int(sr * 0.2), endpoint=False)
+    # Forte signal exceeding vsat (0.75 peak with vsat=0.5)
+    sig_forte = (0.75 * np.sin(2.0 * np.pi * 200.0 * t)).astype(np.float32)
+
+    out_no_curv = apply_oversampled_saturation(
+        sig_forte,
+        vsat=0.5,
+        alpha=0.0,
+        alpha3=0.0,
+        k_sag=0.0,
+        k_eddy=0.0,
+        beta_curv=0.0,
+        slew_limit=False,
+        oversample=1,
+        displacement_weighting=False,
+    )
+    out_with_curv = apply_oversampled_saturation(
+        sig_forte,
+        vsat=0.5,
+        alpha=0.0,
+        alpha3=0.0,
+        k_sag=0.0,
+        k_eddy=0.0,
+        beta_curv=0.035,  # Alnico V
+        slew_limit=False,
+        oversample=1,
+        displacement_weighting=False,
+    )
+
+    diff = out_with_curv - out_no_curv
+    assert np.max(np.abs(diff)) > 1e-5, "Inductance curvature must modulate signal on forte excursions"
+
+    # Small-signal test (<= 0.10): must bypass completely and remain bit-exact
+    sig_small = (0.05 * np.sin(2.0 * np.pi * 200.0 * t)).astype(np.float32)
+    out_small_no = apply_oversampled_saturation(
+        sig_small,
+        vsat=0.5,
+        beta_curv=0.0,
+        slew_limit=False,
+    )
+    out_small_curv = apply_oversampled_saturation(
+        sig_small,
+        vsat=0.5,
+        beta_curv=0.035,
+        slew_limit=False,
+    )
+    assert np.allclose(out_small_curv, out_small_no), "Small-signal must preserve exact linearity"
+
+
+def test_inter_coil_mutual_coupling_matrix():
+    """Verify coupled 2x2 nodal transfer matrix for parallel dual-coil configurations."""
+    from scripts.simulate_circuits import compute_circuit_transfer_functions, parse_netlist, CIRCUITS_DIR
+
+    # Voice 02: Jazz Bass Pair (parallel topology)
+    m = parse_netlist(CIRCUITS_DIR / "02_jazz_bass_pair.cir")
+    assert m.topology == "parallel"
+
+    # 1. Zero mutual coupling (k=0, C=0)
+    m.k_mutual = 0.0
+    m.C_mutual = 0.0
+    curves_uncoupled = compute_circuit_transfer_functions(m, freqs=FREQS)
+
+    # 2. Authentic mutual coupling (k=0.05, C=20pF)
+    m.k_mutual = 0.05
+    m.C_mutual = 20e-12
+    curves_coupled = compute_circuit_transfer_functions(m, freqs=FREQS)
+
+    assert len(curves_coupled) == 2
+    # Check that coupled responses are smooth and well-behaved
+    for ch in range(2):
+        uncoupled_ch = np.asarray(curves_uncoupled[ch])
+        coupled_ch = np.asarray(curves_coupled[ch])
+        ratio_db = 20.0 * np.log10(coupled_ch / uncoupled_ch)
+        # Subtle acoustic coupling within +/- 2.5 dB
+        assert np.all(np.abs(ratio_db) < 2.5), f"Coupling on ch {ch} must be realistic and bounded"
+        assert not np.any(np.isnan(coupled_ch)), f"Coupled matrix must not produce NaNs"
+
+
+def test_transient_magnetic_slew_limiting():
+    """Verify domain-wall slew-rate limiting transparently handles continuous audio while limiting extreme clank."""
+    from scripts.simulate_circuits import _slew_limit_core
+
+    sr = 48000
+    vsat = 0.5
+    f_slew = 16000.0
+    max_delta = 2.0 * np.pi * f_slew * vsat / float(sr)
+
+    # 1. Smooth 1 kHz sine wave: slew rate = 2*pi*1000*0.5/48000 = 0.065 < max_delta (1.047)
+    t = np.linspace(0, 0.05, int(sr * 0.05), endpoint=False)
+    sine = (0.5 * np.sin(2.0 * np.pi * 1000.0 * t)).astype(np.float64)
+    slewed_sine = _slew_limit_core(sine, max_delta)
+    # Should be virtually identical to clean sine
+    assert np.allclose(slewed_sine, sine, atol=1e-3), "Smooth musical audio must pass through slew-limiter untouched"
+
+    # 2. Extreme step discontinuity (e.g. fret clank transient with instantaneous jump from 0.0 to 1.0)
+    step = np.zeros(100, dtype=np.float64)
+    step[50:] = 1.0
+    slewed_step = _slew_limit_core(step, max_delta)
+    diffs = np.abs(np.diff(slewed_step))
+    # Slew limiter must smoothly constrain delta to <= max_delta * tanh(jump/max_delta)
+    assert np.all(diffs <= max_delta + 1e-6), "Slew limiter must strictly bound maximum step delta"
 
 
 

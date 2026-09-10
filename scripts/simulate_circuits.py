@@ -72,6 +72,7 @@ MAGNET_PROPERTIES = {
         "k_eddy": 0.16,
         "kappa_orbit": 0.06,
         "k_body": 0.08,
+        "beta_curv": 0.035,
     },
     "alnico_ii": {
         "k_core": 0.10,
@@ -84,6 +85,7 @@ MAGNET_PROPERTIES = {
         "k_eddy": 0.20,
         "kappa_orbit": 0.07,
         "k_body": 0.10,
+        "beta_curv": 0.050,
     },
     "ceramic": {
         "k_core": 0.02,
@@ -96,6 +98,7 @@ MAGNET_PROPERTIES = {
         "k_eddy": 0.03,
         "kappa_orbit": 0.02,
         "k_body": 0.03,
+        "beta_curv": 0.010,
     },
     "ceramic_alnico_hybrid": {
         "k_core": 0.05,
@@ -108,6 +111,7 @@ MAGNET_PROPERTIES = {
         "k_eddy": 0.08,
         "kappa_orbit": 0.04,
         "k_body": 0.05,
+        "beta_curv": 0.020,
     },
     "neodymium": {
         "k_core": 0.01,
@@ -120,6 +124,7 @@ MAGNET_PROPERTIES = {
         "k_eddy": 0.01,
         "kappa_orbit": 0.01,
         "k_body": 0.01,
+        "beta_curv": 0.005,
     },
     "piezo": {
         "k_core": 0.00,
@@ -132,6 +137,7 @@ MAGNET_PROPERTIES = {
         "k_eddy": 0.00,
         "kappa_orbit": 0.00,
         "k_body": 0.00,
+        "beta_curv": 0.000,
     },
     "active": {
         "k_core": 0.00,
@@ -144,6 +150,7 @@ MAGNET_PROPERTIES = {
         "k_eddy": 0.00,
         "kappa_orbit": 0.00,
         "k_body": 0.00,
+        "beta_curv": 0.000,
     },
 }
 MAGNET_PROPERTIES["hybrid"] = MAGNET_PROPERTIES["ceramic_alnico_hybrid"]
@@ -201,6 +208,14 @@ class CircuitModel:
         # Individual pickup volume pot decoupling (e.g. rolled-off neck pot for Jaco growl)
         self.Rpot_n = 0.0
         self.Rpot_b = 0.0
+
+        # Dielectric absorption (Cole-Davidson fractional-order relaxation)
+        self.alpha_dielectric_tone = 0.988
+        self.alpha_dielectric_cable = 0.994
+
+        # Inter-coil mutual inductive & capacitive coupling for multi-pickup configurations
+        self.k_mutual = 0.0
+        self.C_mutual = 0.0
 
 @functools.lru_cache(maxsize=128)
 def _parse_netlist_cached(cir_path_str: str) -> CircuitModel:
@@ -346,8 +361,24 @@ def _parse_netlist_cached(cir_path_str: str) -> CircuitModel:
         elif tag == "C_ANAGRAM":
             model.Canagram = parse_spice_val(tokens[3])
 
+        # Mutual coupling directives
+        elif tag in ["K_COUPLE", "K_MUTUAL", "K1", "K_COIL"]:
+            model.k_mutual = parse_spice_val(tokens[3]) if len(tokens) > 3 else parse_spice_val(tokens[1])
+        elif tag in ["C_MUTUAL", "C_M"]:
+            model.C_mutual = parse_spice_val(tokens[3]) if len(tokens) > 3 else parse_spice_val(tokens[1])
+
+        # Dielectric absorption overrides
+        elif tag in ["ALPHA_TONE", "ALPHA_DIEL_TONE"]:
+            model.alpha_dielectric_tone = float(tokens[1])
+        elif tag in ["ALPHA_CABLE", "ALPHA_DIEL_CABLE"]:
+            model.alpha_dielectric_cable = float(tokens[1])
+
     if has_neck and has_bridge:
         model.topology = "series" if is_series else "parallel"
+        if model.k_mutual <= 0.0:
+            model.k_mutual = 0.05
+        if model.C_mutual <= 0.0:
+            model.C_mutual = 20e-12
     else:
         model.topology = "single"
 
@@ -461,22 +492,36 @@ def compute_circuit_transfer_functions(model: CircuitModel, freqs=FREQS):
     w = np.where(f == 0.0, 2.0 * np.pi * 1e-3, 2.0 * np.pi * f)
     s = 1j * w
 
+    # Dielectric absorption parameters (Cole-Davidson fractional-order relaxation)
+    alpha_cable = getattr(model, "alpha_dielectric_cable", 0.994)
+    alpha_tone = getattr(model, "alpha_dielectric_tone", 0.988)
+    w0 = 2.0 * np.pi * 1000.0  # 1 kHz calibration reference frequency
+    s_norm = np.maximum(w / w0, 1e-6)
+
+    phase_factor_cable = np.exp(1j * (alpha_cable - 1.0) * (np.pi / 2.0))
+    Y_cable_diel = s * model.Ccable * (s_norm ** (alpha_cable - 1.0)) * phase_factor_cable
+
+    if model.Ctone > 0:
+        phase_factor_tone = np.exp(1j * (alpha_tone - 1.0) * (np.pi / 2.0))
+        Y_c_tone = s * model.Ctone * (s_norm ** (alpha_tone - 1.0)) * phase_factor_tone
+        Y_tone = Y_c_tone / (1.0 + Y_c_tone * model.Rtone) if model.Rtone > 0 else Y_c_tone
+    else:
+        Y_tone = 0.0
+
+    k_m = getattr(model, "k_mutual", 0.0)
+    c_m = getattr(model, "C_mutual", 0.0)
+
     if model.has_active_buffer:
         # Active Preamp Buffer: coils terminate into high-Z buffer, isolating them from cable capacitance.
         # Op-amp buffer drives cable and Anagram pedalboard load through low-Z output stage.
-        Z_cable_load = 1.0 / (1.0 / model.Ranagram + s * (model.Ccable + model.Canagram))
+        Z_cable_load = 1.0 / (1.0 / model.Ranagram + Y_cable_diel + s * model.Canagram)
         H_buf_to_out = Z_cable_load / (model.R_out + Z_cable_load)
 
-        # Preamp active contour
         # Preamp active contour
         H_eq = compute_active_preamp_eq(model.preamp_type, s)
 
         # Coils terminated into high-Z preamp input (R_preamp_in || C_preamp_in)
         Y_preamp_in = 1.0 / model.R_preamp_in + s * model.C_preamp_in
-        if model.Ctone > 0:
-            Y_tone = (s * model.Ctone) / (1.0 + s * model.Rtone * model.Ctone) if model.Rtone > 0 else s * model.Ctone
-        else:
-            Y_tone = 0.0
         Y_eff2 = Y_preamp_in + Y_tone
 
         tan_d_coil = getattr(model, "tan_delta_coil", 0.025)
@@ -506,10 +551,21 @@ def compute_circuit_transfer_functions(model: CircuitModel, freqs=FREQS):
                 Y_br_b = 1.0 / (1.0 / Y_br_b + r_pot_b)
 
             Y_shunt2 = s * (model.Ccoil + model.Ccoil_b) + (G_coil + G_coil_b) + Y_eff2
-            Y_total = Y_br_n + Y_br_b + Y_shunt2
 
-            H_n_to_2 = Y_br_n / Y_total
-            H_b_to_2 = Y_br_b / Y_total
+            if k_m > 0.0 or c_m > 0.0:
+                M = k_m * np.sqrt(model.L * model.L_b) if k_m > 0.0 else 0.0
+                Z_m = s * M
+                Y_m = s * c_m
+                Z_n = 1.0 / Y_br_n
+                Z_b = 1.0 / Y_br_b
+                delta_Z = Z_n * Z_b - (Z_m ** 2)
+                denom_total = delta_Z * (Y_shunt2 + Y_m) + Z_n + Z_b - 2.0 * Z_m
+                H_n_to_2 = (Z_b - Z_m) / denom_total
+                H_b_to_2 = (Z_n - Z_m) / denom_total
+            else:
+                Y_total = Y_br_n + Y_br_b + Y_shunt2
+                H_n_to_2 = Y_br_n / Y_total
+                H_b_to_2 = Y_br_b / Y_total
 
             H_n = H_n_to_2 * H_eq * H_buf_to_out
             H_b = H_b_to_2 * H_eq * H_buf_to_out
@@ -518,16 +574,9 @@ def compute_circuit_transfer_functions(model: CircuitModel, freqs=FREQS):
 
     # Passive RLC Guitar Harness: Coils directly loaded by pots, cable capacitance, and Anagram load
     Rload = (model.Rbot * model.Ranagram) / (model.Rbot + model.Ranagram)
-    Cload = model.Ccable + model.Canagram
     tan_d = getattr(model, "tan_delta", 0.025)
     G_diel = w * model.Ccable * tan_d if tan_d > 0.0 else 0.0
-    Zload = 1.0 / (1.0 / Rload + s * Cload + G_diel)
-
-    # Tone circuit admittance (series R-C branch to ground)
-    if model.Ctone > 0:
-        Y_tone = (s * model.Ctone) / (1.0 + s * model.Rtone * model.Ctone) if model.Rtone > 0 else s * model.Ctone
-    else:
-        Y_tone = 0.0
+    Zload = 1.0 / (1.0 / Rload + Y_cable_diel + s * model.Canagram + G_diel)
 
     # Treble bleed impedance (if configured)
     if model.Ctb > 0 and model.Rtb_par > 0:
@@ -570,11 +619,24 @@ def compute_circuit_transfer_functions(model: CircuitModel, freqs=FREQS):
         Y_shunt2 = s * (model.Ccoil + model.Ccoil_b) + (G_coil + G_coil_b) + Y_tone
         Z23 = Z23_pot
 
-        Y_eff2 = Y_shunt2 + 1.0 / (Z23 + Zload)
-        Y_total = Y_br_n + Y_br_b + Y_eff2
+        Y_out_branch = 1.0 / (Z23 + Zload)
+        Y_eff2 = Y_shunt2 + Y_out_branch
 
-        H_n_to_2 = Y_br_n / Y_total
-        H_b_to_2 = Y_br_b / Y_total
+        if k_m > 0.0 or c_m > 0.0:
+            M = k_m * np.sqrt(model.L * model.L_b) if k_m > 0.0 else 0.0
+            Z_m = s * M
+            Y_m = s * c_m
+            Z_n = 1.0 / Y_br_n
+            Z_b = 1.0 / Y_br_b
+            delta_Z = Z_n * Z_b - (Z_m ** 2)
+            denom_total = delta_Z * (Y_eff2 + Y_m) + Z_n + Z_b - 2.0 * Z_m
+            H_n_to_2 = (Z_b - Z_m) / denom_total
+            H_b_to_2 = (Z_n - Z_m) / denom_total
+        else:
+            Y_total = Y_br_n + Y_br_b + Y_eff2
+            H_n_to_2 = Y_br_n / Y_total
+            H_b_to_2 = Y_br_b / Y_total
+
         H_2_to_3 = Zload / (Z23 + Zload)
 
         return [np.abs(H_n_to_2 * H_2_to_3).tolist(), np.abs(H_b_to_2 * H_2_to_3).tolist()]
@@ -765,10 +827,19 @@ if _HAS_NUMBA:
         return env
 
     @njit(fastmath=True)
-    def _lenz_velocity_drag_core(x_arr: np.ndarray, env: np.ndarray, vsat: float, k_sag: float, alpha_c: float, k_eddy: float = 0.0) -> np.ndarray:
+    def _lenz_velocity_drag_core(
+        x_arr: np.ndarray,
+        env: np.ndarray,
+        vsat: float,
+        k_sag: float,
+        alpha_c: float,
+        k_eddy: float = 0.0,
+        beta_curv: float = 0.0,
+    ) -> np.ndarray:
         n = len(x_arr)
         out = np.empty(n, dtype=np.float64)
         x_low_prev = 0.0
+        x_high_prev = 0.0
         for i in range(n):
             val = x_arr[i]
             x_low_prev += alpha_c * (val - x_low_prev)
@@ -784,7 +855,29 @@ if _HAS_NUMBA:
             else:
                 drag_high = 1.0
                 drag_low = 1.0
-            out[i] = drag_low * x_low_prev + drag_high * x_high
+
+            if beta_curv > 0.0 and vsat > 0.0:
+                wobble = beta_curv * math.tanh((val / vsat) ** 2) * (x_high - x_high_prev)
+            else:
+                wobble = 0.0
+            x_high_prev = x_high
+
+            out[i] = drag_low * x_low_prev + drag_high * (x_high + wobble)
+        return out
+
+    @njit(fastmath=True)
+    def _slew_limit_core(x_arr: np.ndarray, max_delta: float) -> np.ndarray:
+        n = len(x_arr)
+        out = np.empty(n, dtype=np.float64)
+        if n == 0:
+            return out
+        prev = x_arr[0]
+        out[0] = prev
+        for i in range(1, n):
+            diff = x_arr[i] - prev
+            step = max_delta * math.tanh(diff / max_delta)
+            prev += step
+            out[i] = prev
         return out
 else:
     def _dahl_core(x_arr: np.ndarray, eta: float, r: float) -> np.ndarray:
@@ -814,10 +907,19 @@ else:
             env[i] = e_prev
         return env
 
-    def _lenz_velocity_drag_core(x_arr: np.ndarray, env: np.ndarray, vsat: float, k_sag: float, alpha_c: float, k_eddy: float = 0.0) -> np.ndarray:
+    def _lenz_velocity_drag_core(
+        x_arr: np.ndarray,
+        env: np.ndarray,
+        vsat: float,
+        k_sag: float,
+        alpha_c: float,
+        k_eddy: float = 0.0,
+        beta_curv: float = 0.0,
+    ) -> np.ndarray:
         n = len(x_arr)
         out = np.empty(n, dtype=np.float64)
         x_low_prev = 0.0
+        x_high_prev = 0.0
         for i in range(n):
             val = x_arr[i]
             x_low_prev += alpha_c * (val - x_low_prev)
@@ -833,7 +935,28 @@ else:
             else:
                 drag_high = 1.0
                 drag_low = 1.0
-            out[i] = drag_low * x_low_prev + drag_high * x_high
+
+            if beta_curv > 0.0 and vsat > 0.0:
+                wobble = beta_curv * math.tanh((val / vsat) ** 2) * (x_high - x_high_prev)
+            else:
+                wobble = 0.0
+            x_high_prev = x_high
+
+            out[i] = drag_low * x_low_prev + drag_high * (x_high + wobble)
+        return out
+
+    def _slew_limit_core(x_arr: np.ndarray, max_delta: float) -> np.ndarray:
+        n = len(x_arr)
+        out = np.empty(n, dtype=np.float64)
+        if n == 0:
+            return out
+        prev = x_arr[0]
+        out[0] = prev
+        for i in range(1, n):
+            diff = x_arr[i] - prev
+            step = max_delta * math.tanh(diff / max_delta)
+            prev += step
+            out[i] = prev
         return out
 
 def apply_dahl_hysteresis(x: np.ndarray, eta: float = 0.06, r: float = 0.06) -> np.ndarray:
@@ -887,6 +1010,9 @@ def apply_oversampled_saturation(
     k_sag: float = 0.08,
     k_eddy: float = 0.0,
     kappa_orbit: float = 0.0,
+    beta_curv: float = 0.0,
+    slew_limit: bool = True,
+    f_slew: float = 16000.0,
     oversample: int = 2,
     displacement_weighting: bool = True,
     magnet_drag: bool = True,
@@ -896,10 +1022,12 @@ def apply_oversampled_saturation(
     1. Dynamic Lenz-law core flux sag on forte peak excursions (k_sag demagnetization braking).
     2. Dynamic eddy-current transient core de-Qing (k_eddy flux-rate damping).
     3. Elliptical string orbit quadrature second-harmonic bloom (kappa_orbit 2f0 precession).
-    4. Higher-order magnetic dipole field expansion (v + alpha * v^2 + alpha3 * v^3).
-    5. Dahl magnetic domain-wall pinning hysteresis in displacement domain (sustain bloom).
-    6. Displacement-domain pre/de-emphasis excursion weighting (suppressing treble IMD hash).
-    7. Multi-rate anti-aliased oversampling (2x or 4x) suppressing ultrasonic harmonic foldback by >100 dB.
+    4. Dynamic core inductance curvature (beta_curv excursion-dependent resonant peak wobble).
+    5. Transient magnetic slew-rate soft-limiting (f_slew Barkhausen domain-wall damping).
+    6. Higher-order magnetic dipole field expansion (v + alpha * v^2 + alpha3 * v^3).
+    7. Dahl magnetic domain-wall pinning hysteresis in displacement domain (sustain bloom).
+    8. Displacement-domain pre/de-emphasis excursion weighting (suppressing treble IMD hash).
+    9. Multi-rate anti-aliased oversampling (2x or 4x) suppressing ultrasonic harmonic foldback by >100 dB.
     For small-signal linear excitations (e.g. test impulses <= 0.10 peak), bypasses non-linearity
     to preserve 100% exact mathematical impulse response linearity.
     Optimized with single-pass frequency-domain weighting and decimation.
@@ -917,7 +1045,8 @@ def apply_oversampled_saturation(
         return (vsat * np.tanh(v_asym / vsat)).astype(np.float32)
 
     # 1. Dynamic Lenz-Law Core Flux Sag on forte peak excursions (velocity-proportional high-frequency damping)
-    if magnet_drag and vsat > 0 and (k_sag > 0.0 or k_eddy > 0.0):
+    # and dynamic core inductance curvature wobble
+    if magnet_drag and vsat > 0 and (k_sag > 0.0 or k_eddy > 0.0 or beta_curv > 0.0):
         tau_att = 0.006  # 6 ms fast attack on string strike
         tau_rel = 0.045  # 45 ms smooth domain relaxation release
         alpha_att = 1.0 - math.exp(-1.0 / (48000.0 * tau_att))
@@ -925,7 +1054,7 @@ def apply_oversampled_saturation(
         env = _lenz_envelope_core(x, alpha_att, alpha_rel)
         # 1-pole crossover at 750 Hz separating punchy bass fundamental from transient string clank
         alpha_c = 1.0 - math.exp(-2.0 * math.pi * 750.0 / 48000.0)
-        x = _lenz_velocity_drag_core(x, env, vsat, k_sag, alpha_c, k_eddy)
+        x = _lenz_velocity_drag_core(x, env, vsat, k_sag, alpha_c, k_eddy, beta_curv)
 
     if oversample <= 1:
         if displacement_weighting:
@@ -944,6 +1073,9 @@ def apply_oversampled_saturation(
                 x_disp = apply_elliptical_orbit_projection(x_disp, vsat=vsat, kappa_orbit=kappa_orbit)
             v_asym = x_disp + alpha * (x_disp ** 2) + alpha3 * (x_disp ** 3)
             v_sat = vsat * np.tanh(v_asym / vsat)
+            if slew_limit and vsat > 0.0 and f_slew > 0.0:
+                max_delta = 2.0 * math.pi * f_slew * vsat / 48000.0
+                v_sat = _slew_limit_core(v_sat, max_delta)
             out = np.fft.irfft(np.fft.rfft(v_sat) * (H_de / scale), n_sig)
         else:
             if eta_hyst > 0.0:
@@ -952,6 +1084,9 @@ def apply_oversampled_saturation(
                 x = apply_elliptical_orbit_projection(x, vsat=vsat, kappa_orbit=kappa_orbit)
             v_asym = x + alpha * (x ** 2) + alpha3 * (x ** 3)
             out = vsat * np.tanh(v_asym / vsat)
+            if slew_limit and vsat > 0.0 and f_slew > 0.0:
+                max_delta = 2.0 * math.pi * f_slew * vsat / 48000.0
+                out = _slew_limit_core(out, max_delta)
         return out.astype(np.float32)
 
     # Oversampling (2x or 4x)
@@ -986,6 +1121,9 @@ def apply_oversampled_saturation(
             x_up_disp = apply_elliptical_orbit_projection(x_up_disp, vsat=vsat, kappa_orbit=kappa_orbit)
         v_asym = x_up_disp + alpha * (x_up_disp ** 2) + alpha3 * (x_up_disp ** 3)
         v_sat = vsat * np.tanh(v_asym / vsat)
+        if slew_limit and vsat > 0.0 and f_slew > 0.0:
+            max_delta = 2.0 * math.pi * f_slew * vsat / float(sr_up)
+            v_sat = _slew_limit_core(v_sat, max_delta)
         # Direct single-pass frequency-domain de-emphasis and anti-aliasing filter (saves 2 full 9M-point FFTs)
         Y_up = np.fft.rfft(v_sat) * (H_de / scale) * aa_mask
     else:
@@ -996,6 +1134,9 @@ def apply_oversampled_saturation(
             x_up = apply_elliptical_orbit_projection(x_up, vsat=vsat, kappa_orbit=kappa_orbit)
         v_asym = x_up + alpha * (x_up ** 2) + alpha3 * (x_up ** 3)
         v_sat = vsat * np.tanh(v_asym / vsat)
+        if slew_limit and vsat > 0.0 and f_slew > 0.0:
+            max_delta = 2.0 * math.pi * f_slew * vsat / float(sr_up)
+            v_sat = _slew_limit_core(v_sat, max_delta)
         Y_up = np.fft.rfft(v_sat) * aa_mask
 
     # Decimate back to 48 kHz
@@ -1029,6 +1170,10 @@ def simulate_circuit_audio(
     k_eddys=None,
     kappa_orbit: float = 0.0,
     kappa_orbits=None,
+    beta_curv: float = 0.0,
+    beta_curvs=None,
+    slew_limit: bool = True,
+    f_slew: float = 16000.0,
     is_identity: bool = False,
     noise_dither: bool = True,
     vsat: float = None,
@@ -1156,8 +1301,22 @@ def simulate_circuit_audio(
                 if (isinstance(kappa_orbits, (list, tuple)) and len(kappa_orbits) > ch_idx)
                 else kappa_orbit
             )
+            ch_beta = (
+                beta_curvs[ch_idx]
+                if (isinstance(beta_curvs, (list, tuple)) and len(beta_curvs) > ch_idx)
+                else beta_curv
+            )
 
-            if ch_vsat >= 10.0 and ch_alpha <= 0.001 and ch_alpha3 <= 0.001 and ch_eta <= 0.001 and ch_sag <= 0.001 and ch_eddy <= 0.001 and ch_orbit <= 0.001:
+            if (
+                ch_vsat >= 10.0
+                and ch_alpha <= 0.001
+                and ch_alpha3 <= 0.001
+                and ch_eta <= 0.001
+                and ch_sag <= 0.001
+                and ch_eddy <= 0.001
+                and ch_orbit <= 0.001
+                and ch_beta <= 0.001
+            ):
                 in_dyn = in_ch.copy().astype(np.float32)
             else:
                 in_dyn = apply_oversampled_saturation(
@@ -1169,6 +1328,9 @@ def simulate_circuit_audio(
                     k_sag=ch_sag,
                     k_eddy=ch_eddy,
                     kappa_orbit=ch_orbit,
+                    beta_curv=ch_beta,
+                    slew_limit=slew_limit,
+                    f_slew=f_slew,
                     oversample=oversample,
                     displacement_weighting=displacement_weighting,
                     magnet_drag=magnet_drag,
@@ -1346,6 +1508,9 @@ def simulate_voice(
     k_sag: float = None,
     k_eddy: float = None,
     kappa_orbit: float = None,
+    beta_curv: float = None,
+    slew_limit: bool = True,
+    f_slew: float = 16000.0,
     noise_dither: bool = True,
     eddy_diffusion: bool = True,
     dc_block: bool = True,
@@ -1455,6 +1620,13 @@ def simulate_voice(
         else:
             voice_orbit = global_props["kappa_orbit"]
 
+    voice_beta = beta_curv
+    if voice_beta is None:
+        if "beta_curv" in vcfg:
+            voice_beta = float(vcfg["beta_curv"])
+        else:
+            voice_beta = global_props.get("beta_curv", 0.0)
+
     pickups_cfg = vcfg.get("pickups", [])
     if pickups_cfg and len(pickups_cfg) > 1:
         voice_alphas = []
@@ -1463,6 +1635,7 @@ def simulate_voice(
         voice_k_sags = []
         voice_k_eddys = []
         voice_kappa_orbits = []
+        voice_beta_curvs = []
         for p in pickups_cfg:
             p_mag = p.get("magnet_type", mag_type_global)
             p_props = MAGNET_PROPERTIES.get(p_mag, MAGNET_PROPERTIES["alnico_v"])
@@ -1472,6 +1645,7 @@ def simulate_voice(
             voice_k_sags.append(float(p["k_sag"]) if "k_sag" in p else p_props["k_sag"])
             voice_k_eddys.append(float(p["k_eddy"]) if "k_eddy" in p else p_props["k_eddy"])
             voice_kappa_orbits.append(float(p["kappa_orbit"]) if "kappa_orbit" in p else p_props["kappa_orbit"])
+            voice_beta_curvs.append(float(p["beta_curv"]) if "beta_curv" in p else p_props.get("beta_curv", 0.0))
     else:
         voice_alphas = None
         voice_alpha3s = None
@@ -1479,6 +1653,7 @@ def simulate_voice(
         voice_k_sags = None
         voice_k_eddys = None
         voice_kappa_orbits = None
+        voice_beta_curvs = None
 
     is_passive = (inst_cfg.get("electronics") == "passive")
     is_identity = is_voice_matching_source(inst_cfg, voice_id, vcfg)
@@ -1518,6 +1693,7 @@ def simulate_voice(
     src_sag = src_props["k_sag"]
     src_eddy = src_props["k_eddy"]
     src_orbit = src_props["kappa_orbit"]
+    src_beta = src_props.get("beta_curv", 0.0)
     src_vsat = src_props.get("vsat", 0.50)
 
     tgt_vsat = model.vsat
@@ -1527,6 +1703,7 @@ def simulate_voice(
     diff_sag = max(voice_sag - src_sag, 0.0)
     diff_eddy = max(voice_eddy - src_eddy, 0.0)
     diff_orbit = max(voice_orbit - src_orbit, 0.0)
+    diff_beta = max(voice_beta - src_beta, 0.0)
 
     if not is_passive:
         eff_vsat = tgt_vsat
@@ -1543,6 +1720,7 @@ def simulate_voice(
         eff_k_sags = []
         eff_k_eddys = []
         eff_kappa_orbits = []
+        eff_beta_curvs = []
         eff_vsats = []
         for i in range(len(voice_alphas)):
             ch_a = max(voice_alphas[i] - src_alpha, 0.0)
@@ -1551,12 +1729,14 @@ def simulate_voice(
             ch_sag = max(voice_k_sags[i] - src_sag, 0.0)
             ch_eddy = max(voice_k_eddys[i] - src_eddy, 0.0)
             ch_orbit = max(voice_kappa_orbits[i] - src_orbit, 0.0)
+            ch_beta = max(voice_beta_curvs[i] - src_beta, 0.0) if voice_beta_curvs else diff_beta
             eff_alphas.append(ch_a)
             eff_alpha3s.append(ch_a3)
             eff_eta_hysts.append(ch_eta)
             eff_k_sags.append(ch_sag)
             eff_k_eddys.append(ch_eddy)
             eff_kappa_orbits.append(ch_orbit)
+            eff_beta_curvs.append(ch_beta)
 
             ch_tgt_vsat = model.vsat_n if i == 0 else model.vsat_b
             if not is_passive:
@@ -1577,6 +1757,7 @@ def simulate_voice(
         eff_k_sags = None
         eff_k_eddys = None
         eff_kappa_orbits = None
+        eff_beta_curvs = None
         eff_vsats = None
         check_alpha = diff_alpha
         check_eta = diff_eta
@@ -1589,6 +1770,7 @@ def simulate_voice(
         or (check_sag > 0.01)
         or (diff_eddy > 0.01)
         or (diff_orbit > 0.01)
+        or (diff_beta > 0.005)
         or (check_vsat < src_vsat - 0.03)
     )
 
@@ -1611,7 +1793,7 @@ def simulate_voice(
     else:
         stage_desc = "Circuit Simulation (Pre-filtered Input)"
 
-    print(f"  -> Simulating Native VA ({stage_desc}): {cir_path.name} (Topology: {model.topology}, Source: {inst_id}, Soften: {should_soften}, Alpha: {diff_alpha:.2f}, Alpha3: {diff_alpha3:.2f}, Eta: {diff_eta:.2f}, Sag: {diff_sag:.2f}, Eddy: {diff_eddy:.2f}, Orbit: {diff_orbit:.2f}, Vsat: {eff_vsat:.2f})...")
+    print(f"  -> Simulating Native VA ({stage_desc}): {cir_path.name} (Topology: {model.topology}, Source: {inst_id}, Soften: {should_soften}, Alpha: {diff_alpha:.2f}, Alpha3: {diff_alpha3:.2f}, Eta: {diff_eta:.2f}, Sag: {diff_sag:.2f}, Eddy: {diff_eddy:.2f}, Orbit: {diff_orbit:.2f}, Beta: {diff_beta:.3f}, Vsat: {eff_vsat:.2f})...")
     simulate_circuit_audio(
         input_wav,
         output_wav,
@@ -1639,6 +1821,10 @@ def simulate_voice(
         k_eddys=eff_k_eddys,
         kappa_orbit=diff_orbit,
         kappa_orbits=eff_kappa_orbits,
+        beta_curv=diff_beta,
+        beta_curvs=eff_beta_curvs,
+        slew_limit=slew_limit,
+        f_slew=f_slew,
         noise_dither=noise_dither,
         vsat=eff_vsat,
         vsats=eff_vsats,
@@ -1724,6 +1910,23 @@ def main():
         help="Explicit elliptical string orbit projection factor kappa_orbit (default: resolved from magnet_type in voices.toml)",
     )
     parser.add_argument(
+        "--beta-curv",
+        type=float,
+        default=None,
+        help="Explicit dynamic core inductance curvature factor beta_curv (default: resolved from magnet_type in voices.toml)",
+    )
+    parser.add_argument(
+        "--no-slew-limit",
+        action="store_true",
+        help="Disable transient magnetic slew-rate limiting",
+    )
+    parser.add_argument(
+        "--f-slew",
+        type=float,
+        default=16000.0,
+        help="Magnetic domain-wall slew threshold frequency in Hz (default: 16000.0)",
+    )
+    parser.add_argument(
         "--no-eddy-diffusion",
         action="store_true",
         help="Disable Foster 2-stage core eddy diffusion (fall back to ideal frequency-independent L)",
@@ -1763,6 +1966,7 @@ def main():
     eddy_diffusion = not args.no_eddy_diffusion
     eta_hyst = 0.0 if args.no_hysteresis else args.eta_hyst
     noise_dither = not args.no_dither
+    slew_limit = not args.no_slew_limit
 
     voices = resolve_voices(args.voice)
     in_path = Path(args.input) if args.input else None
@@ -1786,6 +1990,9 @@ def main():
         k_sag=args.k_sag,
         k_eddy=args.k_eddy,
         kappa_orbit=args.kappa_orbit,
+        beta_curv=args.beta_curv,
+        slew_limit=slew_limit,
+        f_slew=args.f_slew,
         noise_dither=noise_dither,
         eddy_diffusion=eddy_diffusion,
         dc_block=dc_block,

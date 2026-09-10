@@ -245,6 +245,31 @@ To ensure high-fidelity modeling and prevent regressions, all agents and contrib
      $$H_{\text{body}}(f) = 1.0 + \Delta k_{\text{body}} \cdot \frac{f / f_b}{Q_b \sqrt{(1 - (f/f_b)^2)^2 + (f / (Q_b f_b))^2}} \cdot e^{-(f / f_{\text{damp}})^2}$$
      with $f_b = 6200.0\text{ Hz}, Q_b = 1.8, f_{\text{damp}} = 9500.0\text{ Hz}$, evaluated differentially ($\Delta k_{\text{body}} = \max(k_{\text{tgt}} - k_{\text{src}}, 0.0)$).
 
+### 5.16 Advanced Analog Acoustics: Cole-Davidson Dielectric Absorption, Inductance Curvature Wobble, Mutual Coupling Matrix, and Slew-Rate Limiting
+- **Anti-Pattern:**
+  1. Modeling tone capacitors and cables with ideal, loss-free integer frequency powers ($s^1$), creating sterile digital lowpass roll-offs.
+  2. Assuming coil inductance is static regardless of excursion ($L(i) \equiv L_0$), missing the dynamic $+20\text{ to } +45\text{ Hz}$ resonant peak shift on forte string plucks.
+  3. Treating parallel dual-coil pickups (Jazz Bass pair, P/J, StingRay) as two completely isolated non-interacting branches ($k_m = 0, C_m = 0$).
+  4. Allowing mathematical step discontinuities from severe fret clank or pick transients to produce unphysical infinite-derivative flux jumps into downstream saturation.
+- **Why It Fails:** Real paper-in-oil, polyester film, and ceramic capacitors exhibit Cole-Davidson dielectric absorption ($\alpha \approx 0.988$) where dissipation factor $\tan\delta$ subtly rises and effective capacitance relaxes at low frequencies, producing an organic "woody" tone pot sweep. Ferromagnetic pickup cores undergo dynamic permeability reduction under high excursion ($L(i) = L_0(1 - \beta \tanh(i^2 / V_{\text{sat}}^2))$), causing transient resonant peak wobble. Dual coils share mutual magnetic flux ($M = k\sqrt{L_1 L_2}$) and inter-coil capacitance ($C_m \approx 20\text{ pF}$), altering high-frequency inter-pickup phase air. Extreme clanks exceed the maximum domain-wall Barkhausen jump rate in iron/alnico pole pieces.
+- **Mandated Practice:**
+  1. **Fractional-Order Dielectric Absorption:** Model capacitor admittance using Cole-Davidson fractional frequency scaling normalized to $\omega_0 = 2\pi \cdot 1000.0\text{ rad/s}$:
+     $$s_{\text{norm}} = \max\left(\frac{\omega}{\omega_0}, 10^{-6}\right), \quad Y_C(s) = s \cdot C \cdot s_{\text{norm}}^{\alpha - 1} \cdot e^{j(\alpha - 1)\pi / 2}$$
+     with $\alpha_{\text{tone}} \approx 0.988$ and $\alpha_{\text{cable}} \approx 0.994$.
+  2. **Dynamic Core Inductance Curvature:** Modulate high-frequency velocity drag inside the JIT core (`_lenz_velocity_drag_core`) with quadratic flux wobble:
+     $$\text{wobble} = \beta_{\text{curv}} \cdot \tanh\left(\frac{x^2}{V_{\text{sat}}^2}\right) \cdot (x_{\text{high}}[n] - x_{\text{high}}[n-1])$$
+     $$x_{\text{out}}[n] = \text{drag}_{\text{low}} \cdot x_{\text{low}}[n] + \text{drag}_{\text{high}} \cdot (x_{\text{high}}[n] + \text{wobble})$$
+     with $\beta_{\text{curv}} \in [0.005, 0.050]$ based on core metallurgy, evaluated differentially.
+  3. **Coupled 2x2 Nodal Transfer Matrix:** In parallel dual-coil configurations, solve the coupled mutual system:
+     $$M = k_m \sqrt{L_n L_b}, \quad Z_m = s M, \quad Y_m = s C_m, \quad \Delta_Z = Z_n Z_b - Z_m^2$$
+     $$H_{n \to 2}(s) = \frac{Z_b - Z_m}{\Delta_Z(Y_{\text{eff}2} + Y_m) + Z_n + Z_b - 2 Z_m}, \quad H_{b \to 2}(s) = \frac{Z_n - Z_m}{\Delta_Z(Y_{\text{eff}2} + Y_m) + Z_n + Z_b - 2 Z_m}$$
+     yielding authentic 3D spatial air and mutual phase cancellation nuances.
+  4. **Transient Magnetic Slew-Rate Limiting:** Bound domain-wall displacement delta via soft-knee saturation (`_slew_limit_core`):
+     $$\Delta x_{\text{max}} = \frac{2\pi f_{\text{slew}} V_{\text{sat}}}{f_s}, \quad f_{\text{slew}} = 16000.0\text{ Hz}$$
+     $$\Delta x_{\text{slew}}[n] = \Delta x_{\text{max}} \cdot \tanh\left(\frac{x[n] - x_{\text{slewed}}[n-1]}{\Delta x_{\text{max}}}\right)$$
+     $$x_{\text{slewed}}[n] = x_{\text{slewed}}[n-1] + \Delta x_{\text{slew}}[n]$$
+     transparently passing musical audio while smoothly eliminating harsh supersonic clank spikes.
+
 ---
 
 ## 6. Architectural Guardrails: High-Performance Audio DSP & SIMD Engineering
