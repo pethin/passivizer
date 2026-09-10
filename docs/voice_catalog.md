@@ -174,9 +174,10 @@ This catalog details the physical parameters, equivalent RLC circuit values, aco
 ### 12. `12_mudbucker_ultra_series` (Ultra-High Inductance Overwound Series)
 * **Archetype:** Gibson EB-0 Mudbucker / Overwound Series Dual-Coil
 * **Coil Model:** Extreme dual-coil overwound series network
+* **Physical Placement:** Mounted directly against the 20th-fret neck heel ($266.8\text{ mm}$ from bridge / $165.0\text{ mm}$ forward from the 12th fret datum).
 * **Control Harness:** Gibson-spec $500\text{k}\Omega$ volume pot, $500\text{k}\Omega$ tone pot, $22\text{ nF}$ tone capacitor.
-* **Electrical Parameters:** $L = 14.40\text{ H}$, $R_{\text{dc}} = 27.90\text{ k}\Omega$, $R_{\text{eddy}} = 80\text{ k}\Omega$, $C_{\text{coil}} = 80\text{ pF}$. Loaded $f_r = 1.2\text{ kHz}$.
-* **Acoustic Character:** Resonant peak pulls down to $1.2\text{ kHz}$, naturally rolling off high frequencies. Deep, massive low end with zero high-frequency fizz, ideal for heavy fuzz and saturated drive stages.
+* **Electrical Parameters:** $L = 14.40\text{ H}$, $R_{\text{dc}} = 27.90\text{ k}\Omega$, $R_{\text{eddy}} = 450\text{ k}\Omega$, $C_{\text{coil}} = 80\text{ pF}$. Loaded $f_r = 1.2\text{ kHz}$.
+* **Acoustic Character:** Resonant peak pulls down to $1.2\text{ kHz}$, naturally rolling off high frequencies with steep second-order attenuation. Deep, subterranean low end with zero high-frequency fizz, ideal for heavy fuzz and saturated drive stages.
 * **32" Bass Setting:** ABCX Blend **100% Neck (PX/PCSX)**.
 
 ### 13. `13_dingwall_multiscale_bridge` (Fanned-Fret Multi-Scale Bridge)

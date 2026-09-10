@@ -305,7 +305,7 @@ def test_multicoil_wavelength_dependent_coherence_and_mudbucker():
     diffs_09 = np.diff(m_09[treble_mask])
     assert np.all(diffs_09 >= -0.05), "Treble rise must be smooth and monotonic without kinks or plateaus"
 
-    # 2. Voice 12 (Mudbucker) on 34in Active StingRay
+    # 2. Voice 12 (Mudbucker) on 34in Active StingRay and 34in Standard P-Bass
     p_inst = load_instrument("34in_active_stingray")
     df_12 = build_voice_dataframe("12_mudbucker_ultra_series", VOICES["12_mudbucker_ultra_series"], instrument=p_inst, mode="difference")
     f_12 = df_12["frequency"].to_numpy()
@@ -317,7 +317,18 @@ def test_multicoil_wavelength_dependent_coherence_and_mudbucker():
     # Strictly monotonic rolloff above 1.5 kHz (no zigzag comb teeth)
     rolloff_mask = (f_12 >= 1500.0) & (f_12 <= 18000.0)
     diffs_12 = np.diff(m_12[rolloff_mask])
-    assert np.all(diffs_12 <= 0.05), "Mudbucker response must roll off monotonically without secondary peaks or teeth"
+    assert np.all(diffs_12 <= 0.05), "Mudbucker response on active StingRay must roll off monotonically without secondary peaks or teeth"
+
+    # Also strictly monotonic rolloff on passive 34in Standard P-Bass (no 10 kHz treble scoop or fizz)
+    p_inst_p = load_instrument("34in_standard_p")
+    df_12_p = build_voice_dataframe("12_mudbucker_ultra_series", VOICES["12_mudbucker_ultra_series"], instrument=p_inst_p, mode="difference")
+    f_12_p = df_12_p["frequency"].to_numpy()
+    m_12_p = df_12_p["magnitude_db"].to_numpy()
+
+    assert m_12_p[0] > 5.5
+    rolloff_mask_p = (f_12_p >= 1500.0) & (f_12_p <= 18000.0)
+    diffs_12_p = np.diff(m_12_p[rolloff_mask_p])
+    assert np.all(diffs_12_p <= 0.05), "Mudbucker response on passive P-Bass must roll off monotonically without 10 kHz fizz"
 
 
 def test_dynamic_coherence_decay_and_multiscale_snap():

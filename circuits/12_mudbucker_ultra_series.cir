@@ -11,7 +11,7 @@ B_comp in_dyn 0 V=0.35 * tanh(V(in) / 0.35)
 * 3. Pickup Coils (Ultra-High Inductance Dark Series Coils)
 L_coil in_dyn node1 14.4
 R_dc node1 node2 27.9k
-R_eddy in_dyn node2 80k
+R_eddy in_dyn node2 450k
 C_coil node2 0 80p
 
 * 4. Historic Gibson Tone Pot (500k Audio with 22nF Capacitor)

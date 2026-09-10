@@ -558,7 +558,7 @@ coils = [
 # 12. MUDBUCKER ULTRA SERIES
 # ------------------------------------------------------------------------------
 # Gibson EB-0/EB-3 style sidewinder series humbucker mounted right against the
-# neck heel (165.0mm datum), with extreme 14.4H inductance and Gibson 500k V/T 22nF.
+# neck heel (266.8mm from bridge / 165.0mm from 12th fret datum), with extreme 14.4H inductance and Gibson 500k V/T 22nF.
 [voices.12_mudbucker_ultra_series]
 name = "12. Mudbucker Ultra Series"
 circuit = "circuits/12_mudbucker_ultra_series.cir"
@@ -571,7 +571,7 @@ Q = 1.6
 gain_db = 6.2
 scale = "34in"
 coils = [
-    { strings = ["all"], position_from_bridge_m = 0.1650, aperture_width_in = 1.25, weight = 1.0 }
+    { strings = ["all"], position_from_bridge_m = 0.2668, aperture_width_in = 1.25, weight = 1.0 }
 ]
 
 # ------------------------------------------------------------------------------
