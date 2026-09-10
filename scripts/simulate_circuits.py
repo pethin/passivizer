@@ -2277,7 +2277,8 @@ def simulate_voice(
     else:
         stage_desc = "Circuit Simulation (Pre-filtered Input)"
 
-    print(f"  -> Simulating Native VA ({stage_desc}): {cir_path.name} (Topology: {model.topology}, Source: {inst_id}, Soften: {should_soften}, Alpha: {diff_alpha:.2f}, Alpha3: {diff_alpha3:.2f}, Eta: {diff_eta:.2f}, Sag: {diff_sag:.2f}, Eddy: {diff_eddy:.2f}, Orbit: {diff_orbit:.2f}, Beta: {diff_beta:.3f}, Pull: {diff_pull:.3f}, Touch: {diff_touch:.3f}, Geom: {diff_geom:.2f}, Stein: {diff_stein:.3f}, EMF: {diff_emf:.2f}, Lambda: {diff_lambda:.2f}, Vsat: {eff_vsat:.2f})...")
+    samples_desc = f", Samples: {max_samples}" if max_samples is not None else ""
+    print(f"  -> Simulating Native VA ({stage_desc}{samples_desc}): {cir_path.name} (Topology: {model.topology}, Source: {inst_id}, Soften: {should_soften}, Alpha: {diff_alpha:.2f}, Alpha3: {diff_alpha3:.2f}, Eta: {diff_eta:.2f}, Sag: {diff_sag:.2f}, Eddy: {diff_eddy:.2f}, Orbit: {diff_orbit:.2f}, Beta: {diff_beta:.3f}, Pull: {diff_pull:.3f}, Touch: {diff_touch:.3f}, Geom: {diff_geom:.2f}, Stein: {diff_stein:.3f}, EMF: {diff_emf:.2f}, Lambda: {diff_lambda:.2f}, Vsat: {eff_vsat:.2f})...")
     simulate_circuit_audio(
         input_wav,
         output_wav,
@@ -2497,6 +2498,12 @@ def main():
         default=None,
         help="Number of parallel worker processes for batch simulation (default: min(4, CPU count))",
     )
+    parser.add_argument(
+        "--max-samples",
+        type=int,
+        default=None,
+        help="Maximum audio sample frames to simulate (default: None for full file)",
+    )
     args = parser.parse_args()
 
     displacement_weighting = not args.no_displacement_weighting
@@ -2542,6 +2549,7 @@ def main():
         noise_dither=noise_dither,
         eddy_diffusion=eddy_diffusion,
         dc_block=dc_block,
+        max_samples=args.max_samples,
     )
 
     max_workers = args.jobs if args.jobs is not None else min(4, os.cpu_count() or 4)

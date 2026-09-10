@@ -10,6 +10,7 @@ import argparse
 import os
 import subprocess
 import sys
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
 
 # Paths
@@ -41,7 +42,7 @@ def run_visualization(instrument="30in"):
         print(f"Interactive charts generated in {resp_dir}/")
         print(f"Master interactive portal updated at {DOCS_DIR / 'frequency_responses.html'}")
 
-def run_prep_audio(input_wav=None, instrument="30in", voice="03_modern_p_ceramic"):
+def run_prep_audio(input_wav=None, instrument="30in", voice="04_modern_p_ceramic"):
     """Pre-filters NAM calibration audio through acoustic and spatial transfer functions."""
     if not input_wav or not (REPO_ROOT / input_wav).exists():
         for candidate in ["T3K-sweep-v3.wav", "v3_0_0.wav", "input.wav"]:
@@ -61,11 +62,11 @@ def run_prep_audio(input_wav=None, instrument="30in", voice="03_modern_p_ceramic
     if res.returncode != 0:
         print(f"Notice: Pre-filtering returned code {res.returncode}")
 
-def run_circuit_simulation(voice, instrument="30in", input_wav=None, backend="native", ltspice_bin=DEFAULT_LTSPICE_BIN):
+def run_circuit_simulation(voice, instrument="30in", input_wav=None, backend="native", ltspice_bin=DEFAULT_LTSPICE_BIN, max_samples=None):
     """Executes circuit simulation for a single target voice netlist."""
     if backend == "native":
         try:
-            return simulate_voice(voice, input_wav=input_wav, instrument=instrument, prefiltered=False)
+            return simulate_voice(voice, input_wav=input_wav, instrument=instrument, prefiltered=False, max_samples=max_samples)
         except Exception as e:
             print(f"Error during native circuit simulation: {e}")
             return False
@@ -74,7 +75,7 @@ def run_circuit_simulation(voice, instrument="30in", input_wav=None, backend="na
     run_prep_audio(input_wav=input_wav, instrument=instrument, voice=voice)
     if not os.path.exists(ltspice_bin):
         print(f"Notice: LTspice executable not found at '{ltspice_bin}'. Falling back to native VA backend.")
-        return simulate_voice(voice, input_wav=input_wav, instrument=instrument, prefiltered=False)
+        return simulate_voice(voice, input_wav=input_wav, instrument=instrument, prefiltered=False, max_samples=max_samples)
 
     vcfg = VOICES.get(voice, {})
     cir_rel = vcfg.get("circuit", f"circuits/{voice}.cir")
@@ -104,19 +105,73 @@ def run_circuit_simulation(voice, instrument="30in", input_wav=None, backend="na
         print(f"     Warning: Simulation of {cir_path.name} timed out after 300s")
         return False
 
-def run_spice_voice(voice, instrument="30in", input_wav=None, ltspice_bin=DEFAULT_LTSPICE_BIN, backend="native"):
+def _run_circuit_simulation_task(task_args):
+    """Top-level picklable task runner for multiprocessing."""
+    voice, instrument, input_wav, backend, ltspice_bin, max_samples = task_args
+    success = run_circuit_simulation(
+        voice=voice,
+        instrument=instrument,
+        input_wav=input_wav,
+        backend=backend,
+        ltspice_bin=ltspice_bin,
+        max_samples=max_samples,
+    )
+    return voice, success
+
+def run_spice_voice(voice, instrument="30in", input_wav=None, ltspice_bin=DEFAULT_LTSPICE_BIN, backend="native", max_samples=None):
     """Legacy alias for run_circuit_simulation."""
-    return run_circuit_simulation(voice, instrument=instrument, input_wav=input_wav, backend=backend, ltspice_bin=ltspice_bin)
+    return run_circuit_simulation(voice, instrument=instrument, input_wav=input_wav, backend=backend, ltspice_bin=ltspice_bin, max_samples=max_samples)
 
-def run_spice_batch(voices=None, instrument="30in", input_wav=None, backend="native", ltspice_bin=DEFAULT_LTSPICE_BIN):
-    """Executes batch simulation of specified voice circuit models."""
-    print(f"\n[Stage 3] Executing circuit simulations (Backend: {backend})...")
+def run_spice_batch(voices=None, instrument="30in", input_wav=None, backend="native", ltspice_bin=DEFAULT_LTSPICE_BIN, jobs=None, max_samples=None):
+    """Executes batch simulation of specified voice circuit models with multi-process concurrency."""
     target_voices = voices if voices else list(VOICES.keys())
-    for voice in target_voices:
-        run_circuit_simulation(voice, instrument=instrument, input_wav=input_wav, backend=backend, ltspice_bin=ltspice_bin)
-    print("Batch circuit simulation finished.")
+    max_workers = jobs if jobs is not None else min(4, os.cpu_count() or 4)
+    samples_str = str(max_samples) if max_samples is not None else "full"
 
-def run_training(instrument="30in", voice="03_modern_p_ceramic", input_wav=None, epochs=100, goal_esr=0.0005, fast_dev_run=False):
+    if len(target_voices) > 1 and max_workers > 1:
+        print(f"\n[Stage 3] Executing circuit simulations in parallel ({len(target_voices)} voices, {max_workers} workers, Backend: {backend}, Max Samples: {samples_str})...")
+        tasks = [(v, instrument, input_wav, backend, ltspice_bin, max_samples) for v in target_voices]
+        failed = []
+        with ProcessPoolExecutor(max_workers=max_workers) as executor:
+            futures = [executor.submit(_run_circuit_simulation_task, task) for task in tasks]
+            completed = 0
+            for future in as_completed(futures):
+                completed += 1
+                try:
+                    v, success = future.result()
+                    if not success:
+                        failed.append(v)
+                        print(f"  [{completed}/{len(target_voices)}] Voice simulation FAILED: {v}")
+                    else:
+                        print(f"  [{completed}/{len(target_voices)}] Voice simulation finished: {v}")
+                except Exception as e:
+                    failed.append(f"unknown (error: {e})")
+                    print(f"  [{completed}/{len(target_voices)}] Voice simulation worker error: {e}")
+        if failed:
+            print(f"Warning: {len(failed)} voice simulations failed: {', '.join(failed)}")
+            return False
+        print("Batch circuit simulation finished.")
+        return True
+    else:
+        mode_desc = "sequentially" if len(target_voices) > 1 else "single voice"
+        print(f"\n[Stage 3] Executing circuit simulation {mode_desc} ({len(target_voices)} voice{'s' if len(target_voices) > 1 else ''}, Backend: {backend}, Max Samples: {samples_str})...")
+        all_ok = True
+        for idx, voice in enumerate(target_voices, 1):
+            print(f"\n[{idx}/{len(target_voices)}] Circuit simulation: {voice} (Backend: {backend})...")
+            ok = run_circuit_simulation(
+                voice,
+                instrument=instrument,
+                input_wav=input_wav,
+                backend=backend,
+                ltspice_bin=ltspice_bin,
+                max_samples=max_samples,
+            )
+            if not ok:
+                all_ok = False
+        print("Batch circuit simulation finished.")
+        return all_ok
+
+def run_training(instrument="30in", voice="04_modern_p_ceramic", input_wav=None, epochs=100, goal_esr=0.0005, fast_dev_run=False):
     """Trains a Neural Amp Modeler (NAM) Architecture 2 model locally with MPS GPU acceleration."""
     print(f"\n[Training] Training Neural Amp Modeler A2 model for {voice} (Instrument: {instrument})...")
     script = SCRIPTS_DIR / "train_nam.py"
@@ -180,9 +235,21 @@ def main():
         help="Circuit simulation engine: 'native' (built-in Apple Silicon WAV SPICE simulator) or 'ltspice' (legacy external app)"
     )
     parser.add_argument(
-        "--voice",
-        default="03_modern_p_ceramic",
-        help="Target pickup voice for audio pre-filtering and training (voice ID, comma-separated list, or 'all')"
+        "--voice", "-v",
+        default=None,
+        help="Target pickup voice for audio pre-filtering and training (voice ID, comma-separated list, or 'all'; default for sim/spice is 'all', for train/all is '04_modern_p_ceramic')"
+    )
+    parser.add_argument(
+        "--jobs", "-j",
+        type=int,
+        default=None,
+        help="Number of parallel worker processes for batch simulation (default: min(4, CPU count))"
+    )
+    parser.add_argument(
+        "--max-samples",
+        type=int,
+        default=None,
+        help="Maximum audio sample frames to simulate (default: None for full file)"
     )
     parser.add_argument(
         "--input-wav",
@@ -236,14 +303,28 @@ def main():
         list_voices()
         return
 
+    if args.jobs is not None and args.jobs < 1:
+        parser.error("--jobs must be a positive integer >= 1")
+
+    if args.max_samples is not None and args.max_samples < 1:
+        parser.error("--max-samples must be a positive integer >= 1")
+
     effective_goal_esr = None if args.no_goal_esr or (args.goal_esr is not None and args.goal_esr <= 0) else args.goal_esr
-    voices_to_run = resolve_voices(args.voice)
+    if args.voice:
+        voices_to_run = resolve_voices(args.voice)
+    elif args.stage in ["spice", "sim", "simulate"]:
+        voices_to_run = list(VOICES.keys())
+    else:
+        voices_to_run = resolve_voices("04_modern_p_ceramic")
+
+    samples_str = str(args.max_samples) if args.max_samples is not None else "full"
 
     print("========================================")
     print("  PASSIVIZER SPICE -> NAM PIPELINE")
-    print(f"  Instrument: {args.instrument}")
-    print(f"  Stage:      {args.stage}")
-    print(f"  Backend:    {args.backend}")
+    print(f"  Instrument:  {args.instrument}")
+    print(f"  Stage:       {args.stage}")
+    print(f"  Backend:     {args.backend}")
+    print(f"  Max Samples: {samples_str}")
     print(f"  Voices ({len(voices_to_run)}): {', '.join(voices_to_run)}")
     print("========================================")
 
@@ -263,15 +344,15 @@ def main():
             run_prep_audio(input_wav=input_wav, instrument=args.instrument, voice=voice)
 
     elif args.stage in ["spice", "sim", "simulate"]:
-        for idx, voice in enumerate(voices_to_run, 1):
-            print(f"\n[{idx}/{len(voices_to_run)}] Circuit simulation: {voice} (Backend: {args.backend})...")
-            run_circuit_simulation(
-                voice=voice,
-                instrument=args.instrument,
-                input_wav=input_wav,
-                backend=args.backend,
-                ltspice_bin=args.ltspice_path,
-            )
+        run_spice_batch(
+            voices=voices_to_run,
+            instrument=args.instrument,
+            input_wav=input_wav,
+            backend=args.backend,
+            ltspice_bin=args.ltspice_path,
+            jobs=args.jobs,
+            max_samples=args.max_samples,
+        )
 
     elif args.stage == "train":
         for idx, voice in enumerate(voices_to_run, 1):
@@ -296,6 +377,7 @@ def main():
                 input_wav=input_wav,
                 backend=args.backend,
                 ltspice_bin=args.ltspice_path,
+                max_samples=args.max_samples,
             )
             run_training(
                 instrument=args.instrument,

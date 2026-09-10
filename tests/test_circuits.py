@@ -2123,3 +2123,78 @@ def test_active_character_differential_cable_isolation():
     assert h_diff[idx_8k] > 1.0, "Active buffer must deconvolve passive cable loading at 8 kHz"
 
 
+def test_run_spice_batch_parallel():
+    """Verify that run_spice_batch executes multiple voices concurrently across ProcessPoolExecutor workers."""
+    from scripts.run_pipeline import run_spice_batch
+    from scripts.simulate_circuits import AUDIO_DIR
+    from scripts.model_physics import load_instrument
+
+    test_voices = ["04_modern_p_ceramic", "05_vintage_62_p_alnico"]
+    inst = "30in"
+    inst_cfg = load_instrument(inst)
+    inst_id = inst_cfg.get("id", "30in_emg_mmtw")
+    audio_dir = AUDIO_DIR / inst_id
+
+    # Execute batch with jobs=2 and max_samples=4800 (fast test bounding)
+    ok = run_spice_batch(
+        voices=test_voices,
+        instrument=inst,
+        backend="native",
+        jobs=2,
+        max_samples=4800,
+    )
+    assert ok is True
+
+    # Verify both outputs exist and are valid non-empty audio files
+    for v in test_voices:
+        out_wav = audio_dir / f"out_{v}.wav"
+        assert out_wav.exists(), f"Expected output {out_wav} to be created by parallel batch simulation"
+        assert out_wav.stat().st_size > 44, f"Output {out_wav} is too small"
+
+
+def test_run_pipeline_cli_jobs_and_voices():
+    """Verify CLI argument parsing and default voice resolution across pipeline stages."""
+    import argparse
+    from scripts.model_physics import resolve_voices, VOICES
+
+    # Simulate parser logic
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--stage", choices=["all", "viz", "prep", "spice", "sim", "simulate", "train"], default="all")
+    parser.add_argument("--voice", "-v", default=None)
+    parser.add_argument("--jobs", "-j", type=int, default=None)
+
+    # 1. When --stage sim is invoked with no voice, it must resolve to all voices
+    args = parser.parse_args(["--stage", "sim"])
+    if args.voice:
+        voices = resolve_voices(args.voice)
+    elif args.stage in ["spice", "sim", "simulate"]:
+        voices = list(VOICES.keys())
+    else:
+        voices = resolve_voices("04_modern_p_ceramic")
+    assert len(voices) == len(VOICES)
+    assert "04_modern_p_ceramic" in voices
+    assert "01_modern_jazz_active" in voices
+
+    # 2. When --stage sim is invoked with explicit -v
+    args = parser.parse_args(["--stage", "sim", "-v", "04_modern_p_ceramic", "-j", "4"])
+    if args.voice:
+        voices = resolve_voices(args.voice)
+    elif args.stage in ["spice", "sim", "simulate"]:
+        voices = list(VOICES.keys())
+    else:
+        voices = resolve_voices("04_modern_p_ceramic")
+    assert voices == ["04_modern_p_ceramic"]
+    assert args.jobs == 4
+
+    # 3. When --stage train is invoked with no voice, default to 04_modern_p_ceramic
+    args = parser.parse_args(["--stage", "train"])
+    if args.voice:
+        voices = resolve_voices(args.voice)
+    elif args.stage in ["spice", "sim", "simulate"]:
+        voices = list(VOICES.keys())
+    else:
+        voices = resolve_voices("04_modern_p_ceramic")
+    assert voices == ["04_modern_p_ceramic"]
+
+
+
