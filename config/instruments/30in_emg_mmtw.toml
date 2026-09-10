@@ -85,6 +85,7 @@ coils = [
 "07_modern_pj_active" = "mmtw_dual"   # Modern Active P/J
 "08_vintage_pj_passive" = "mmtw_dual"  # Vintage Alnico P/J
 "09_stingray_mm_parallel" = "mmtw_dual"   # Uses dual-coil mode for StingRay authority
+"09b_stingray_mm_series" = "mmtw_dual"
 "10_rickenbacker_bridge_hpf" = "mmtw_single" # Uses single-coil mode for Rickenbacker presence
 "11_pmm_hybrid_series" = "mmtw_dual"
 "12_mudbucker_ultra_series" = "mmtw_dual"

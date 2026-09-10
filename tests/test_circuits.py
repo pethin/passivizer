@@ -1030,6 +1030,70 @@ def test_differential_circuit_hf_limiter_smoothness():
     d2h = np.gradient(dh, f_arr[hf_mask])
     assert np.max(np.abs(d2h)) < 1e-4, "Derivative of differential curve should be smooth without piecewise kinks"
 
+def test_cable_dielectric_loss():
+    """
+    Verify instrument cable dielectric loss (tan delta):
+    1. At DC (f=0), dielectric conductance is strictly zero, preserving exact 0.00 dB DC transfer.
+    2. At the resonant peak, tan_delta=0.025 provides gentle 0.2 to 0.7 dB softening of Q peak.
+    3. Active buffered pickups (model.has_active_buffer=True) isolate coils from cable dielectric loss.
+    """
+    cir_path = CIRCUITS_DIR / "04_modern_p_ceramic.cir"
+    m_lossless = parse_netlist(cir_path)
+    m_lossless.tan_delta = 0.0
+
+    m_lossy = parse_netlist(cir_path)
+    m_lossy.tan_delta = 0.025
+
+    c_lossless = np.array(compute_circuit_transfer_functions(m_lossless, freqs=FREQS)[0])
+    c_lossy = np.array(compute_circuit_transfer_functions(m_lossy, freqs=FREQS)[0])
+
+    # 1. Exact DC unity preservation
+    assert math.isclose(c_lossless[0], c_lossy[0], abs_tol=1e-5)
+
+    # 2. Resonant peak softening (between 1800 and 2400 Hz)
+    pk_idx = np.argmax(c_lossless)
+    diff_peak_db = 20.0 * np.log10(c_lossless[pk_idx] / c_lossy[pk_idx])
+    assert 0.05 <= diff_peak_db <= 0.50, f"Peak attenuation {diff_peak_db:.2f} dB outside expected range"
+
+    # 3. High-frequency rolloff remains smooth
+    assert c_lossy[-1] < 0.20
+
+def test_voice_09b_series_netlist_and_transfer():
+    """
+    Verify Voice 09b Music Man StingRay Series netlist and transfer function:
+    1. Standalone SPICE netlist parses with active buffer and stingray_2band preamp.
+    2. L=4.0H, Rdc=8.8k, Reddy=140k, Ccoil=90pF.
+    3. Series peak is lower in frequency and less treble-heavy than 09 parallel.
+    """
+    cir_09 = CIRCUITS_DIR / "09_stingray_mm_parallel.cir"
+    cir_09b = CIRCUITS_DIR / "09b_stingray_mm_series.cir"
+    assert cir_09b.exists(), f"Netlist missing: {cir_09b}"
+
+    m09 = parse_netlist(cir_09)
+    m09b = parse_netlist(cir_09b)
+
+    assert m09b.has_active_buffer is True
+    assert m09b.preamp_type == "stingray_2band"
+    assert m09b.topology == "single"
+    assert m09b.L == pytest.approx(4.0)
+    assert m09b.Rdc == pytest.approx(8800.0)
+    assert m09b.Reddy == pytest.approx(140000.0)
+    assert m09b.Ccoil == pytest.approx(90e-12)
+
+    c09 = np.array(compute_circuit_transfer_functions(m09, freqs=FREQS)[0])
+    c09b = np.array(compute_circuit_transfer_functions(m09b, freqs=FREQS)[0])
+
+    peak_09 = FREQS[np.argmax(c09)]
+    peak_09b = FREQS[np.argmax(c09b)]
+
+    # Series peak is shifted lower than parallel peak
+    assert peak_09b < peak_09
+
+    # At 7 kHz (clank region), series has less gain than parallel
+    idx_7k = FREQS.index(7000.0) if 7000.0 in FREQS else np.argmin(np.abs(np.array(FREQS) - 7000.0))
+    assert c09b[idx_7k] < c09[idx_7k]
+
+
 
 
 

@@ -157,6 +157,7 @@ class CircuitModel:
 
         # Cable & pedalboard load
         self.Ccable = 750e-12
+        self.tan_delta = 0.025
         self.Ranagram = 1.0e6
         self.Canagram = 30e-12
 
@@ -460,7 +461,9 @@ def compute_circuit_transfer_functions(model: CircuitModel, freqs=FREQS):
     # Passive RLC Guitar Harness: Coils directly loaded by pots, cable capacitance, and Anagram load
     Rload = (model.Rbot * model.Ranagram) / (model.Rbot + model.Ranagram)
     Cload = model.Ccable + model.Canagram
-    Zload = 1.0 / (1.0 / Rload + s * Cload)
+    tan_d = getattr(model, "tan_delta", 0.025)
+    G_diel = w * model.Ccable * tan_d if tan_d > 0.0 else 0.0
+    Zload = 1.0 / (1.0 / Rload + s * Cload + G_diel)
 
     # Tone circuit admittance (series R-C branch to ground)
     if model.Ctone > 0:

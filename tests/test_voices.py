@@ -203,3 +203,14 @@ def test_resolve_voices():
         "05c_vintage_62_p_47nf",
         "05d_vintage_50s_p_100nf",
     ]
+
+    # Shorthand matching specific 09b
+    p9b = resolve_voices("09b")
+    assert p9b == ["09b_stingray_mm_series"]
+
+    # Prefix 09 matches both 09 and 09b
+    p9_all = resolve_voices("09")
+    assert p9_all == [
+        "09_stingray_mm_parallel",
+        "09b_stingray_mm_series",
+    ]

@@ -1,4 +1,4 @@
-# Passivizer Master Voice Catalog (17 Pickup Configurations & Transducers)
+# Passivizer Master Voice Catalog (18 Pickup Configurations & Transducers)
 
 This catalog details the physical parameters, equivalent RLC circuit values, acoustic apertures, control harnesses, and electrical characteristics for the **Passivizer Digital Twin Profiles**.
 
@@ -20,6 +20,7 @@ This catalog details the physical parameters, equivalent RLC circuit values, aco
 | **07** | `07_modern_pj_active` | Modern Active P/J | Active 2-Band | Sadowsky/Spector 2-Band Preamp ($R_{\text{in}}=1\text{M}\Omega, R_{\text{out}}=100\,\Omega$) | $2.06\text{ H}$ (isolated) | $4.28\text{ k}\Omega$ | $7.6\text{ kHz}$ | Active 2-band boost with isolated ceramic P/J coils ($139/111\text{ mm}$ P + $63.5\text{ mm}$ J); punchy sub-bass fundamental, wideband sparkle, and aggressive bridge clank. |
 | **08** | `08_vintage_pj_passive`| Vintage '80s Passive P/J| Parallel Sum | Dual $250\text{k}\Omega$ Vol ($125\text{k}\Omega$ net), $250\text{k}\Omega$ Tone, $47\text{nF}$ Cap | $1.85\text{ H}$ | $4.48\text{ k}\Omega$ | $2.8\text{ kHz}$ | Vintage Alnico V split-P and 60s J-bridge in parallel; authentic '80s Fender Special / Yamaha BB thump with woody mid-punch. |
 | **09** | `09_stingray_mm_parallel`| MM Humbucker Active | Active 2-Band | Music Man 2-Band Preamp ($R_{\text{in}}=1\text{M}\Omega, R_{\text{out}}=100\,\Omega$) | $2.40\text{ H}$ (isolated) | $4.60\text{ k}\Omega$ | $7.2\text{ kHz}$ | Dual-coil parallel humbucker with authentic active MM preamp buffer isolating coils from cable loading; comb notch at $2.5\text{ kHz}$ and clank peak at $7.2\text{ kHz}$. |
+| **09b**| `09b_stingray_mm_series` | MM Series Humbucker Active | Active 2-Band | Music Man 2-Band Preamp ($R_{\text{in}}=1\text{M}\Omega, R_{\text{out}}=100\,\Omega$) | $4.00\text{ H}$ (isolated) | $8.80\text{ k}\Omega$ | $6.1\text{ kHz}$ | Dual-coil series humbucker with active 2-band buffer; $+2.5\text{ dB}$ hotter output, punchy focused $2.1\text{ kHz}$ mid-growl, and softened treble clank (StingRay 5 / Sterling series switch). |
 | **10** | `10_rickenbacker_bridge_hpf`| 4003 Bridge HPF | Series HPF | Factory Rickenbacker $330\text{k}\Omega$ Vol, $330\text{k}\Omega$ Tone, $4.7\text{nF}$ Series HPF | $3.80\text{ H}$ | $8.40\text{ k}\Omega$ | $2.2\text{ kHz}$ | High-output single-coil with vintage $4.7\text{ nF}$ series HPF; removes low-end mud below $150\text{ Hz}$, delivering aggressive pick grit and clang. |
 | **11** | `11_pmm_hybrid_series` | P + MM Hybrid | Series Sum | Modern $500\text{k}\Omega$ Vol, $500\text{k}\Omega$ Tone, $47\text{nF}$ Cap | $7.20\text{ H}$ | $14.10\text{ k}\Omega$ | $1.6\text{ kHz}$ | Split P and MM humbucker in series; $+5.8\text{ dB}$ inductive voltage boost with forward $1.6\text{ kHz}$ punch. |
 | **12** | `12_mudbucker_ultra_series`| Overwound Series| Ultra Series | Gibson $500\text{k}\Omega$ Vol, $500\text{k}\Omega$ Tone, $22\text{nF}$ Cap | $14.40\text{ H}$| $27.90\text{ k}\Omega$ | $1.2\text{ kHz}$ | Extreme dual-coil series network; subterranean low-end focus, steep natural top-end rolloff. |
@@ -130,6 +131,14 @@ This catalog details the physical parameters, equivalent RLC circuit values, aco
 * **Control Harness:** Authentic Music Man active 2-band op-amp preamp buffer ($R_{\text{in}} = 1.0\text{ M}\Omega$, $C_{\text{in}} = 25\text{ pF}$, low-impedance $R_{\text{out}} = 100\,\Omega$). Active EQ provides $+5.0\text{ dB}$ bass boost ($50\text{ Hz}$ shelf) and $+3.0\text{ dB}$ treble boost ($7.0\text{ kHz}$ shelf).
 * **Electrical Parameters:** The active buffer isolates the coils from the $750\text{ pF}$ instrument cable. Pickup self-capacitance ($130\text{ pF}$) plus input capacitance ($25\text{ pF}$) places raw coil resonance at $7.2\text{ kHz}$.
 * **Acoustic Character:** Dual-coil phase comb cancellation notch at $2.5\text{ kHz}$ combined with authoritative active bass punch and signature metallic treble clank.
+* **32" Bass Setting:** ABCX Blend **100% Bridge** (MMTWX in Dual-Coil Mode - Push/Pull Up).
+
+### 09b. `09b_stingray_mm_series` (Music Man Active Dual-Coil Series)
+* **Archetype:** Music Man StingRay 5 / Sterling 4-String Series Humbucker (3-Way Switch Position 1)
+* **Coil Model:** Dual-coil humbucker ($w = 1.50''$, $d = 0.75''$) wired in series
+* **Control Harness:** Authentic Music Man active 2-band op-amp preamp buffer ($R_{\text{in}} = 1.0\text{ M}\Omega$, $C_{\text{in}} = 25\text{ pF}$, low-impedance $R_{\text{out}} = 100\,\Omega$). Active EQ provides $+1.8\text{ dB}$ bass boost ($50\text{ Hz}$ shelf) and $+2.2\text{ dB}$ treble shelf ($4\text{--}7\text{ kHz}$).
+* **Electrical Parameters:** Two $2.0\text{ H}$ coils wired in series; combined $L = 4.00\text{ H}$, $R_{\text{dc}} = 8.80\text{ k}\Omega$, $R_{\text{eddy}} = 140\text{ k}\Omega$, $C_{\text{coil}} = 90\text{ pF}$. Isolated from cable capacitance, the electrical resonance sits at $6.1\text{ kHz}$.
+* **Acoustic Character:** The series coil connection adds $+2.5\text{ dB}$ output gain, filling the midrange with aggressive $2.1\text{ kHz}$ bark while softening the brittle $7\text{ kHz}$ treble clank. The definitive punchy, cut-through-the-mix voice favored for heavy rock, slap thumb punch, and modern gospel.
 * **32" Bass Setting:** ABCX Blend **100% Bridge** (MMTWX in Dual-Coil Mode - Push/Pull Up).
 
 ### 10. `10_rickenbacker_bridge_hpf` (Rickenbacker 4003 Bridge with 4.7nF HPF)

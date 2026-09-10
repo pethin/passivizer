@@ -108,6 +108,7 @@ components = [
 "07_modern_pj_active" = "pair_parallel"   # Modern Active P/J
 "08_vintage_pj_passive" = "pair_parallel"  # Vintage Alnico P/J
 "09_stingray_mm_parallel" = "bridge"            # Solo bridge pickup
+"09b_stingray_mm_series" = "bridge"
 "10_rickenbacker_bridge_hpf" = "bridge"         # Solo bridge pickup
 "11_pmm_hybrid_series" = "pair_parallel"        # Dual pickups in parallel
 "12_mudbucker_ultra_series" = "neck"            # Solo neck pickup

@@ -413,6 +413,29 @@ coils = [
 ]
 
 # ------------------------------------------------------------------------------
+# 09b. MUSIC MAN STINGRAY MM (SERIES HUMBUCKER)
+# ------------------------------------------------------------------------------
+# Dual-coil humbucker wired in series with 0.75" (19.05mm) spacing centered at 66.0mm,
+# paired with authentic active 2-band preamp buffer (+1.8 dB @ 50 Hz, +2.2 dB @ 4-7 kHz).
+# The series connection yields commanding low-mid punch (fr ≈ 2.1 kHz, Q ≈ 1.8),
+# delivering the aggressive midrange growl of the StingRay 5 and Sterling 3-way toggle.
+[voices.09b_stingray_mm_series]
+name = "09b. Music Man MM (Series Humbucker)"
+circuit = "circuits/09b_stingray_mm_series.cir"
+topology = "Dual-Coil Series Active Buffer"
+description = "Dual-coil humbucker in series with authentic active 2-band preamp buffer (2.1 kHz mid-punch)"
+magnet_type = "alnico_v"
+alpha = 0.22
+fr = 2100.0  # Isolated from cable capacitance, series coil resonance
+Q = 1.8
+gain_db = 2.5
+scale = "34in"
+coils = [
+    { strings = ["all"], position_from_bridge_m = 0.0755, aperture_width_in = 0.75, weight = 0.5 }, # Neck coil
+    { strings = ["all"], position_from_bridge_m = 0.0565, aperture_width_in = 0.75, weight = 0.5 }  # Bridge coil
+]
+
+# ------------------------------------------------------------------------------
 # 10. RICKENBACKER 4003 BRIDGE (4.7nF HPF)
 # ------------------------------------------------------------------------------
 # High-output single-coil (1.10" aperture) loaded with vintage 4.7nF series

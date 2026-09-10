@@ -74,6 +74,7 @@ coils = [
 "07_modern_pj_active" = "mm_parallel"
 "08_vintage_pj_passive" = "mm_parallel"
 "09_stingray_mm_parallel" = "mm_parallel"  # Physical identity match!
+"09b_stingray_mm_series" = "mm_parallel"
 "10_rickenbacker_bridge_hpf" = "mm_parallel"
 "11_pmm_hybrid_series" = "mm_parallel"
 "12_mudbucker_ultra_series" = "mm_parallel"

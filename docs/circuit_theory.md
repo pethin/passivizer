@@ -135,6 +135,13 @@ $$C_{\text{tot}} \approx C_{\text{coil}} + C_{\text{cable}} + C_{\text{receiver}
 The Darkglass Anagram hardware input stage presents:
 $$R_{\text{receiver}} = 1.0\text{ M}\Omega, \quad C_{\text{receiver}} \approx 30\text{ pF}$$
 
+### Instrument Cable Dielectric Dissipation Loss ($\tan \delta$)
+Real-world instrument cables insulated with vintage PVC or rubber exhibit a frequency-dependent dielectric loss factor (dissipation factor $\tan \delta \approx 0.025$). This manifests as a frequency-proportional shunt conductance in parallel with the cable capacitance:
+$$G_{\text{cable}}(\omega) = \omega \cdot C_{\text{cable}} \cdot \tan \delta$$
+$$Y_{\text{cable}}(s) = s C_{\text{cable}} + \omega C_{\text{cable}} \tan \delta$$
+
+At DC ($\omega = 0$), $G_{\text{cable}} = 0$, guaranteeing strictly zero DC attenuation ($0.00\text{ dB}$ transfer ratio) in adherence to Architectural Guardrail §5.9. Across the resonant peak ($f_r \approx 2\text{--}3\text{ kHz}$), $G_{\text{cable}}$ introduces a gentle $0.1\text{--}0.3\text{ dB}$ softening of high-Q peaks, preventing artificial metallic harshness while preserving genuine high-frequency clarity. Active buffered pickups isolate the coils from this loss network entirely.
+
 All Passivizer passive SPICE netlists incorporate this complete load network to guarantee zero tonal discrepancy between simulated DAW pipelines and hardware pedalboard operation.
 
 ---
