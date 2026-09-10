@@ -173,8 +173,13 @@ class CircuitModel:
         # Cable & pedalboard load
         self.Ccable = 750e-12
         self.tan_delta = 0.025
+        self.tan_delta_coil = 0.025  # Enameled magnet wire dissipation factor
         self.Ranagram = 1.0e6
         self.Canagram = 30e-12
+
+        # Individual pickup volume pot decoupling (e.g. rolled-off neck pot for Jaco growl)
+        self.Rpot_n = 0.0
+        self.Rpot_b = 0.0
 
 @functools.lru_cache(maxsize=128)
 def _parse_netlist_cached(cir_path_str: str) -> CircuitModel:
@@ -284,6 +289,10 @@ def _parse_netlist_cached(cir_path_str: str) -> CircuitModel:
             model.Rtop = parse_spice_val(tokens[3])
         elif tag == "R_POT_BOT":
             model.Rbot = parse_spice_val(tokens[3])
+        elif tag in ["R_POT_N", "R_POT_NECK"]:
+            model.Rpot_n = parse_spice_val(tokens[3])
+        elif tag in ["R_POT_B", "R_POT_BRIDGE"]:
+            model.Rpot_b = parse_spice_val(tokens[3])
 
         # Treble Bleed
         elif tag == "C_TB":
@@ -438,6 +447,7 @@ def compute_circuit_transfer_functions(model: CircuitModel, freqs=FREQS):
         H_buf_to_out = Z_cable_load / (model.R_out + Z_cable_load)
 
         # Preamp active contour
+        # Preamp active contour
         H_eq = compute_active_preamp_eq(model.preamp_type, s)
 
         # Coils terminated into high-Z preamp input (R_preamp_in || C_preamp_in)
@@ -448,10 +458,14 @@ def compute_circuit_transfer_functions(model: CircuitModel, freqs=FREQS):
             Y_tone = 0.0
         Y_eff2 = Y_preamp_in + Y_tone
 
+        tan_d_coil = getattr(model, "tan_delta_coil", 0.025)
+        G_coil = w * model.Ccoil * tan_d_coil if tan_d_coil > 0.0 else 0.0
+        G_coil_b = w * model.Ccoil_b * tan_d_coil if tan_d_coil > 0.0 else 0.0
+
         if model.topology == "single":
             Z_L = compute_core_impedance(s, model.L, model.L_core, model.R_core)
             Y_branch = 1.0 / (model.Rdc + Z_L) + 1.0 / model.Reddy
-            Y_shunt2 = s * model.Ccoil + Y_eff2
+            Y_shunt2 = s * model.Ccoil + G_coil + Y_eff2
             H_dyn_to_2 = Y_branch / (Y_branch + Y_shunt2)
 
             H_total = H_dyn_to_2 * H_eq * H_buf_to_out
@@ -462,7 +476,15 @@ def compute_circuit_transfer_functions(model: CircuitModel, freqs=FREQS):
             Z_L_b = compute_core_impedance(s, model.L_b, model.L_core_b, model.R_core_b)
             Y_br_n = 1.0 / (model.Rdc + Z_L) + 1.0 / model.Reddy
             Y_br_b = 1.0 / (model.Rdc_b + Z_L_b) + 1.0 / model.Reddy_b
-            Y_shunt2 = s * (model.Ccoil + model.Ccoil_b) + Y_eff2
+
+            r_pot_n = getattr(model, "Rpot_n", 0.0)
+            r_pot_b = getattr(model, "Rpot_b", 0.0)
+            if r_pot_n > 0.0:
+                Y_br_n = 1.0 / (1.0 / Y_br_n + r_pot_n)
+            if r_pot_b > 0.0:
+                Y_br_b = 1.0 / (1.0 / Y_br_b + r_pot_b)
+
+            Y_shunt2 = s * (model.Ccoil + model.Ccoil_b) + (G_coil + G_coil_b) + Y_eff2
             Y_total = Y_br_n + Y_br_b + Y_shunt2
 
             H_n_to_2 = Y_br_n / Y_total
@@ -493,10 +515,14 @@ def compute_circuit_transfer_functions(model: CircuitModel, freqs=FREQS):
     else:
         Z23_pot = model.Rtop
 
+    tan_d_coil = getattr(model, "tan_delta_coil", 0.025)
+    G_coil = w * model.Ccoil * tan_d_coil if tan_d_coil > 0.0 else 0.0
+    G_coil_b = w * model.Ccoil_b * tan_d_coil if tan_d_coil > 0.0 else 0.0
+
     if model.topology == "single":
         Z_L = compute_core_impedance(s, model.L, model.L_core, model.R_core)
         Y_branch = 1.0 / (model.Rdc + Z_L) + 1.0 / model.Reddy
-        Y_shunt2 = s * model.Ccoil + Y_tone
+        Y_shunt2 = s * model.Ccoil + G_coil + Y_tone
 
         Z_rick = 1.0 / (s * model.Crick) if model.Crick > 0 else 0.0
         Z23 = Z_rick + Z23_pot
@@ -513,7 +539,14 @@ def compute_circuit_transfer_functions(model: CircuitModel, freqs=FREQS):
         Y_br_n = 1.0 / (model.Rdc + Z_L) + 1.0 / model.Reddy
         Y_br_b = 1.0 / (model.Rdc_b + Z_L_b) + 1.0 / model.Reddy_b
 
-        Y_shunt2 = s * (model.Ccoil + model.Ccoil_b) + Y_tone
+        r_pot_n = getattr(model, "Rpot_n", 0.0)
+        r_pot_b = getattr(model, "Rpot_b", 0.0)
+        if r_pot_n > 0.0:
+            Y_br_n = 1.0 / (1.0 / Y_br_n + r_pot_n)
+        if r_pot_b > 0.0:
+            Y_br_b = 1.0 / (1.0 / Y_br_b + r_pot_b)
+
+        Y_shunt2 = s * (model.Ccoil + model.Ccoil_b) + (G_coil + G_coil_b) + Y_tone
         Z23 = Z23_pot
 
         Y_eff2 = Y_shunt2 + 1.0 / (Z23 + Zload)
@@ -530,8 +563,8 @@ def compute_circuit_transfer_functions(model: CircuitModel, freqs=FREQS):
         Z_L_b = compute_core_impedance(s, model.L_b, model.L_core_b, model.R_core_b)
         Y_br_n = 1.0 / (model.Rdc + Z_L) + 1.0 / model.Reddy
         Y_br_b = 1.0 / (model.Rdc_b + Z_L_b) + 1.0 / model.Reddy_b
-        Y_cn = s * model.Ccoil
-        Y_cb = s * model.Ccoil_b
+        Y_cn = s * model.Ccoil + G_coil
+        Y_cb = s * model.Ccoil_b + G_coil_b
         Y_2b = Y_br_b + Y_cb
 
         Z23 = Z23_pot
@@ -693,6 +726,20 @@ if _HAS_NUMBA:
             z[i] = z_prev
         z[0] = 0.0
         return (1.0 - eta) * x_arr + eta * z
+
+    @njit(fastmath=True)
+    def _lenz_envelope_core(x_arr: np.ndarray, alpha_att: float, alpha_rel: float) -> np.ndarray:
+        n = len(x_arr)
+        env = np.empty(n, dtype=np.float64)
+        e_prev = 0.0
+        for i in range(n):
+            val = abs(x_arr[i])
+            if val > e_prev:
+                e_prev += alpha_att * (val - e_prev)
+            else:
+                e_prev += alpha_rel * (val - e_prev)
+            env[i] = e_prev
+        return env
 else:
     def _dahl_core(x_arr: np.ndarray, eta: float, r: float) -> np.ndarray:
         n = len(x_arr)
@@ -706,6 +753,19 @@ else:
             z[i] = z_prev
         z[0] = 0.0
         return (1.0 - eta) * x_arr + eta * z
+
+    def _lenz_envelope_core(x_arr: np.ndarray, alpha_att: float, alpha_rel: float) -> np.ndarray:
+        n = len(x_arr)
+        env = np.empty(n, dtype=np.float64)
+        e_prev = 0.0
+        for i in range(n):
+            val = abs(x_arr[i])
+            if val > e_prev:
+                e_prev += alpha_att * (val - e_prev)
+            else:
+                e_prev += alpha_rel * (val - e_prev)
+            env[i] = e_prev
+        return env
 
 def apply_dahl_hysteresis(x: np.ndarray, eta: float = 0.06, r: float = 0.06) -> np.ndarray:
     """
@@ -757,14 +817,13 @@ def apply_oversampled_saturation(
         v_asym = x + alpha * (x ** 2) + alpha3 * (x ** 3)
         return (vsat * np.tanh(v_asym / vsat)).astype(np.float32)
 
-    # 1. Dynamic Lenz-Law Core Flux Sag / Magnet Drag on forte peak excursions
+    # 1. Dynamic Lenz-Law Core Flux Sag on forte peak excursions (asymmetric attack/release envelope)
     if magnet_drag and vsat > 0 and k_sag > 0.0:
-        win_len = int(48000 * 0.030)  # 30 ms
-        t_win = np.arange(win_len) / 48000.0
-        win = np.exp(-t_win / 0.012).astype(np.float64)
-        win /= np.sum(win)
-        n_fft_drag = 1 << (n_sig + win_len - 1).bit_length()
-        env = np.fft.irfft(np.fft.rfft(np.abs(x), n_fft_drag) * np.fft.rfft(win, n_fft_drag), n_fft_drag)[:n_sig]
+        tau_att = 0.006  # 6 ms fast attack on string strike
+        tau_rel = 0.045  # 45 ms smooth domain relaxation release
+        alpha_att = 1.0 - math.exp(-1.0 / (48000.0 * tau_att))
+        alpha_rel = 1.0 - math.exp(-1.0 / (48000.0 * tau_rel))
+        env = _lenz_envelope_core(x, alpha_att, alpha_rel)
         excess = np.maximum(0.0, (env - vsat) / vsat)
         drag = 1.0 - k_sag * np.clip(excess, 0.0, 1.0)
         x = x * drag
@@ -934,7 +993,12 @@ def simulate_circuit_audio(
         if audio.ndim > 1:
             in_ch = audio[ch_idx] if audio.shape[0] > ch_idx else audio[0]
         else:
-            in_ch = audio
+            # When mono input is supplied to a multi-pickup model, scale the bridge channel
+            # by the natural physical excursion ratio (E_rel ≈ 0.75) due to string anchor geometry
+            if ch_idx == 1 and model.topology in ["parallel", "series"]:
+                in_ch = audio * 0.75
+            else:
+                in_ch = audio
 
         # Dynamic magnetic saturation: bypassed when linear or already physically saturated
         if bypass_saturation:

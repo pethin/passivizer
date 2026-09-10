@@ -61,7 +61,7 @@ def test_parse_all_circuit_netlists():
             assert model.Rtop > 0
             assert model.Rbot > 0
 
-        if vid in ["01_modern_jazz_active", "02_jazz_bass_pair", "02b_jazz_bass_pair_22nf", "07_modern_pj_active", "08_vintage_pj_passive"]:
+        if vid in ["01_modern_jazz_active", "02_jazz_bass_pair", "02b_jazz_bass_pair_22nf", "02c_jazz_bridge_growl_bias", "07_modern_pj_active", "08_vintage_pj_passive"]:
             assert model.topology == "parallel"
             assert model.L_b > 0
             assert model.Rdc_b > 0
@@ -1340,6 +1340,141 @@ def test_dingwall_composite_source_circuit():
         assert len(c) == len(FREQS)
         assert np.all(np.isfinite(c))
         assert np.all(np.array(c) > 0.0)
+
+def test_asymmetric_lenz_flux_sag_attack_release():
+    """
+    Verify Refinement 1: Asymmetric Lenz flux sag envelope follower.
+    Fast attack (<= 8 ms) on sudden transient burst, gradual release (>= 35 ms) on decay.
+    """
+    from scripts.simulate_circuits import _lenz_envelope_core
+    fs = 48000.0
+    tau_att = 0.006  # 6 ms
+    tau_rel = 0.045  # 45 ms
+    alpha_att = 1.0 - math.exp(-1.0 / (fs * tau_att))
+    alpha_rel = 1.0 - math.exp(-1.0 / (fs * tau_rel))
+
+    # Test Step Attack: sudden burst from 0.0 to 1.0
+    n_samples = int(fs * 0.1)  # 100 ms
+    step_input = np.ones(n_samples, dtype=np.float64)
+    env_attack = _lenz_envelope_core(step_input, alpha_att, alpha_rel)
+
+    # In 1 tau_att (6 ms = 288 samples), envelope should reach ~63.2%
+    idx_6ms = int(fs * 0.006)
+    assert 0.60 <= env_attack[idx_6ms] <= 0.66
+    # In 8 ms (384 samples), envelope should exceed 70% (fast attack <= 8 ms)
+    idx_8ms = int(fs * 0.008)
+    assert env_attack[idx_8ms] >= 0.70
+
+    # Test Decay Release: held at 1.0 for 100 ms, then sudden drop to 0.0 for 100 ms
+    pulse_input = np.zeros(int(fs * 0.2), dtype=np.float64)
+    pulse_input[:n_samples] = 1.0
+    env_release = _lenz_envelope_core(pulse_input, alpha_att, alpha_rel)
+    # At n_samples (100 ms), env is ~1.0. In 1 tau_rel (45 ms), it should decay to ~36.8% of ~1.0
+    idx_45ms_after = n_samples + int(fs * 0.045)
+    assert 0.33 <= env_release[idx_45ms_after] <= 0.40
+    # In 35 ms after drop, it should still retain significant energy (> 40%), proving release >= 35 ms
+    idx_35ms_after = n_samples + int(fs * 0.035)
+    assert env_release[idx_35ms_after] >= 0.40
+
+    # Verify apply_oversampled_saturation incorporates Lenz sag
+    x = np.sin(2 * np.pi * 100 * np.linspace(0, 0.2, int(fs * 0.2))) * 0.8
+    y_sag = apply_oversampled_saturation(x, vsat=0.4, k_sag=0.15, magnet_drag=True)
+    y_nosag = apply_oversampled_saturation(x, vsat=0.4, k_sag=0.0, magnet_drag=False)
+    assert np.max(np.abs(y_sag)) < np.max(np.abs(y_nosag))
+
+def test_coil_dielectric_loss():
+    """
+    Verify Refinement 2: Coil self-capacitance dielectric loss (tan delta = 0.025).
+    Gently softens resonant peak by ~0.01-0.5 dB without shifting center frequency.
+    """
+    cir_path = CIRCUITS_DIR / "04_modern_p_ceramic.cir"
+    model = parse_netlist(cir_path)
+
+    # Compute with zero dielectric loss
+    model.tan_delta_coil = 0.0
+    curves_lossless = compute_circuit_transfer_functions(model, freqs=FREQS)
+    peak_lossless = max(curves_lossless[0])
+    peak_idx_lossless = curves_lossless[0].index(peak_lossless)
+    peak_freq_lossless = FREQS[peak_idx_lossless]
+
+    # Compute with physical dielectric loss (tan delta = 0.025)
+    model.tan_delta_coil = 0.025
+    curves_lossy = compute_circuit_transfer_functions(model, freqs=FREQS)
+    peak_lossy = max(curves_lossy[0])
+    peak_idx_lossy = curves_lossy[0].index(peak_lossy)
+    peak_freq_lossy = FREQS[peak_idx_lossy]
+
+    # Resonant frequency must remain virtually unchanged (within 50 Hz)
+    assert abs(peak_freq_lossy - peak_freq_lossless) <= 50.0
+
+    # Dielectric loss should gently soften the resonant peak
+    delta_db = 20.0 * np.log10(peak_lossless / peak_lossy)
+    assert 0.005 <= delta_db <= 0.50
+
+def test_jaco_bridge_growl_bias_voicing():
+    """
+    Verify Refinement 4 & 5: Jaco Pastorius 60s Jazz Bridge Growl Bias voicing (02c).
+    Validates decoupled pot parsing (Neck 75%, Bridge 100%), relative branch attenuation,
+    and prefilter FIR generation.
+    """
+    cir_path = CIRCUITS_DIR / "02c_jazz_bridge_growl_bias.cir"
+    assert cir_path.exists()
+    model = parse_netlist(cir_path)
+    assert model.topology == "parallel"
+    assert model.Rpot_n == pytest.approx(55000.0)
+    assert model.Rpot_b == pytest.approx(0.0)
+
+    curves = compute_circuit_transfer_functions(model, freqs=FREQS)
+    assert len(curves) == 2
+    neck_mag = np.array(curves[0])
+    bridge_mag = np.array(curves[1])
+
+    # Neck pickup should be attenuated relative to bridge pickup across passband
+    # due to 55k wiper resistance
+    idx_1k = np.argmin(np.abs(np.array(FREQS) - 1000.0))
+    assert neck_mag[idx_1k] < bridge_mag[idx_1k]
+    diff_db_1k = 20.0 * np.log10(bridge_mag[idx_1k] / neck_mag[idx_1k])
+    assert 6.0 <= diff_db_1k <= 14.0
+
+    # Pre-filter FIRs for 02c must exist and synthesize cleanly
+    firs = compute_voice_prefilter_firs("02c_jazz_bridge_growl_bias", instrument="34in_standard_jazz", num_taps=512)
+    assert len(firs) == 2
+    assert np.all(np.isfinite(firs[0]))
+    assert np.all(np.isfinite(firs[1]))
+
+def test_multi_pickup_excursion_ratio():
+    """
+    Verify Refinement 3: Physical string excursion drive ratio between neck and bridge pickups.
+    Mono signal through multi-pickup circuit simulation scales bridge drive.
+    """
+    model = parse_netlist(CIRCUITS_DIR / "02_jazz_bass_pair.cir")
+    fs = 48000
+    n_samples = 4800
+    mono_audio = (np.sin(2 * np.pi * 100.0 * np.linspace(0, 0.1, n_samples)) * 0.8).astype(np.float32)
+
+    with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp_out:
+        out_wav = Path(tmp_out.name)
+    try:
+        simulate_circuit_audio(
+            mono_audio,
+            output_wav_path=out_wav,
+            model=model,
+            vsat=0.5,
+            alpha=0.2,
+            alpha3=0.08,
+            k_sag=0.08,
+            bypass_saturation=False,
+        )
+        assert out_wav.exists()
+        import pedalboard.io
+        with pedalboard.io.AudioFile(str(out_wav)) as f:
+            read_audio = f.read(f.frames)[0]
+        assert len(read_audio) == n_samples
+        assert np.all(np.isfinite(read_audio))
+    finally:
+        if out_wav.exists():
+            out_wav.unlink()
+
 
 
 

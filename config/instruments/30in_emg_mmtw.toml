@@ -76,6 +76,7 @@ coils = [
 "01_modern_jazz_active" = "mmtw_dual"
 "02_jazz_bass_pair" = "mmtw_dual"
 "02b_jazz_bass_pair_22nf" = "mmtw_dual"
+"02c_jazz_bridge_growl_bias" = "mmtw_single"
 "03_jazz_bridge_60s" = "mmtw_single"      # Uses single-coil mode for authentic 60s J bridge bite
 "04_modern_p_ceramic" = "mmtw_dual"
 "05_vintage_62_p_alnico" = "mmtw_dual"

@@ -183,9 +183,9 @@ def test_resolve_voices():
     p2b = resolve_voices("02b")
     assert p2b == ["02b_jazz_bass_pair_22nf"]
 
-    # Prefix 02 matches both 02 and 02b
+    # Prefix 02 matches 02, 02b, and 02c
     p2_all = resolve_voices("02")
-    assert p2_all == ["02_jazz_bass_pair", "02b_jazz_bass_pair_22nf"]
+    assert p2_all == ["02_jazz_bass_pair", "02b_jazz_bass_pair_22nf", "02c_jazz_bridge_growl_bias"]
 
     # Shorthand matching specific 05b, 05c, 05d
     p5b = resolve_voices("05b")

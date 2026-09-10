@@ -135,6 +135,7 @@ components = [
 "01_modern_jazz_active" = "pj_blend_parallel"   # Dual single-sensing line blend (J-pair scoop)
 "02_jazz_bass_pair" = "pj_blend_parallel"   # Dual single-sensing line blend (J-pair scoop)
 "02b_jazz_bass_pair_22nf" = "pj_blend_parallel" # Dual single-sensing line blend (J-pair scoop, 22nF ToneStyler)
+"02c_jazz_bridge_growl_bias" = "pj_blend_parallel" # Dual single-sensing line blend (Bridge-biased growl)
 "03_jazz_bridge_60s" = "mmtwx_single"       # Solo bridge single-coil (60s J bite)
 "04_modern_p_ceramic" = "px"                # Solo neck PX split
 "05_vintage_62_p_alnico" = "px"             # Solo neck PX split

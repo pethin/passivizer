@@ -108,6 +108,7 @@ components = [
 "01_modern_jazz_active" = "pair_parallel"
 "02_jazz_bass_pair" = "pair_parallel"
 "02b_jazz_bass_pair_22nf" = "pair_parallel"
+"02c_jazz_bridge_growl_bias" = "pair_parallel"
 "03_jazz_bridge_60s" = "j"
 "04_modern_p_ceramic" = "p"
 "05_vintage_62_p_alnico" = "p"
