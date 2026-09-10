@@ -72,6 +72,9 @@ Each entry defines a **physically selectable state** on the instrument (e.g., so
 | `aperture_width_in` | `float` | Inches | Required | Total magnetic sensing aperture width ($w$). |
 | `coil_spacing_in` | `float` | Inches | `0.0` | Center-to-center distance ($d$) between dual coils. `0.0` for single-coils. |
 | `type` | `string` | — | Required | Pickup architecture: `"single_coil"`, `"dual_coil_parallel"`, `"split_coil"`, or `"composite"`. |
+| `pole_type` | `string` | — | `"rod"` | Spatial pole geometry: `"rod"` (2D cylindrical pole disc) or `"blade"` (1D bar slit). |
+| `magnet_type` | `string` | — | `"alnico_v"` | Core magnet alloy: `"alnico_v"`, `"alnico_ii"`, `"ceramic"`, `"hybrid"`, `"neodymium"`, `"piezo"`, or `"active"`. |
+| `circuit` | `string` | Path | Optional | Path to dedicated source SPICE netlist in `circuits/sources/` for active/passive deconvolution. |
 | `resonant_frequency_hz` | `float` | Hz | Optional | Internal electrical resonant peak frequency ($f_r$) of the active preamp. |
 | `q_factor` | `float` | — | `1.35` | Quality factor ($Q$) of the internal active resonant bump. |
 | `coils` | `array[table]`| — | Optional | Array of individual physical coils for precise multi-coil/staggered acoustic modeling. |
@@ -85,11 +88,12 @@ When a pickup consists of multiple or staggered coils (such as a split-coil Prec
 
 | Field | Type | Units | Default | Description |
 | :--- | :--- | :--- | :---: | :--- |
-| `strings` | `array[string]` | — | `["all"]` | String bindings for this coil half: `["all"]`, `["E", "A"]`, or `["D", "G"]`. |
+| `strings` | `array[string\|int]` | — | `["all"]` | String bindings for this coil half: `["all"]`, `["E", "A"]`, `["D", "G"]`, or register halves `[1, 2]` (treble) and `[3, 4]` (bass). |
 | `position_from_bridge_m` | `float` | Meters | Required | Physical distance from bridge saddle to this individual coil center. |
 | `aperture_width_in` | `float` | Inches | Required | Magnetic aperture width of this specific coil. |
 | `weight` | `float` | — | `1.0` | Amplitude contribution (e.g. `0.5` for two coils in parallel). |
 | `polarity` | `float` | — | `1.0` | Phase polarity (`1.0` for in-phase, `-1.0` for reverse phase). |
+| `pole_type` | `string` | — | `"rod"` | Coil-specific spatial geometry override: `"rod"` or `"blade"`. |
 
 #### Example: EMG MMTW Dual-Coil vs. Single-Coil
 ```toml
@@ -203,36 +207,49 @@ $$v_s = 2 \cdot L \cdot f_{0,s}$$
 * **`30in`:** Short scale ($L = 0.762\text{ m}$, $v = [62.79, 83.82, 111.89, 149.35]\text{ m/s}$)
 * **`32in`:** Medium scale ($L = 0.8128\text{ m}$, $v = [66.98, 89.41, 119.35, 159.31]\text{ m/s}$)
 * **`34in`:** Standard long scale ($L = 0.8636\text{ m}$, $v = [71.16, 95.00, 126.81, 169.27]\text{ m/s}$)
-* **`multiscale`:** Fanned-fret Dingwall scale ($34''\text{--}37''$, $v = [77.44, 98.50, 131.00, 169.27]\text{ m/s}$)
+* **`multiscale`:** Fanned-fret Dingwall scale ($34''\text{--}37''$, $L = 0.9398\text{ m}$, $v = [77.44, 98.50, 131.00, 169.27]\text{ m/s}$)
+* **`multiscale_super`:** Compact fanned-fret Dingwall SP1 5-string ($32''\text{--}35''$, $L = 0.889\text{ m}$, $v = [54.88, 71.69, 93.60, 122.14, 159.31]\text{ m/s}$)
+* **`upright`:** Standard 3/4 acoustic double bass ($41.5'' = 1.0541\text{ m}$, $v = [86.86, 115.95, 154.76, 206.59]\text{ m/s}$)
 
 ---
 
 ## 4. Target Voice Definitions (`config/voices.toml`)
 
-`config/voices.toml` links each of the 12 digital twin voices to its WAV SPICE netlist (`circuits/*.cir`) and acoustic parameters. Passivizer's built-in WAV SPICE simulator directly parses and evaluates these netlists on audio streams:
+`config/voices.toml` links each of the 21 digital twin voices to its WAV SPICE netlist (`circuits/*.cir`), acoustic coil geometry, physical strings, and non-linear magnetic properties. Passivizer's built-in WAV SPICE simulator directly parses and evaluates these netlists on audio streams:
 
 | Field | Type | Units | Description |
 | :--- | :--- | :--- | :--- |
-| `name` | `string` | — | Full display name (e.g. `"03. Modern Split-Coil P (Ceramic)"`). |
-| `circuit` | `string` | Path | Relative path to standalone SPICE netlist (`circuits/03_modern_p_ceramic.cir`). |
-| `topology` | `string` | — | Circuit topology classification (e.g. `"Split-Coil Ceramic"`). |
+| `name` | `string` | — | Full display name (e.g. `"04. Modern Split-Coil P (Ceramic)"`). |
+| `circuit` | `string` | Path | Relative path to standalone SPICE netlist (`circuits/04_modern_p_ceramic.cir`). |
+| `topology` | `string` | — | Circuit topology classification (`"Split-Coil Ceramic"`, `"Dual Single-Coil Active Buffer"`, etc.). |
 | `description` | `string` | — | Tonal character, reference pickup model, and hardware notes. |
 | `fr` | `float` | Hz | Target electrical resonant peak frequency under load (composite/single pickup). |
 | `Q` | `float` | — | Target electrical quality factor under pot and cable load (composite/single pickup). |
 | `gain_db` | `float` | dB | Output gain trim for volume normalization. |
-| `scale` | `string` | Key | Target scale key in `scales.toml` (`"34in"` or `"multiscale"`). |
+| `scale` | `string` | Key | Target scale key in `scales.toml` (`"34in"`, `"multiscale"`, or `"upright"`). |
+| `magnet_type` | `string` | Key | Core magnet metallurgy: `"alnico_v"`, `"alnico_ii"`, `"ceramic"`, `"hybrid"`, `"neodymium"`, `"piezo"`. |
+| `alpha` | `float` | — | *(Optional)* Quadratic asymmetry coefficient override for 2nd-harmonic bloom. |
+| `alpha3` | `float` | — | *(Optional)* Cubic dipole proximity factor override for 3rd-harmonic punch. |
+| `k_sag` | `float` | — | *(Optional)* Dynamic Lenz-law core flux sag damping factor. |
+| `k_eddy` | `float` | — | *(Optional)* Dynamic eddy-current core de-Qing factor. |
+| `eta_hyst` | `float` | — | *(Optional)* Dahl magnetic domain-wall pinning hysteresis coupling factor. |
+| `target_string` | `string` | Key | Goal string preset from `config/strings.toml` (e.g. `"flatwound_vintage_heavy"`). |
+| `sensor_type` | `string` | — | `"magnetic"` (default) or `"bridge_force"` (for acoustic bridge transducers). |
+| `no_eq` | `bool` | — | Set `true` for pure non-linear dynamics with exact $0.00\text{ dB}$ flat transfer (e.g. `15_passive_character`). |
+| `preserve_aperture` | `bool` | — | Set `true` to preserve source instrument physical aperture while modeling circuit buffer isolation (e.g. `16_active_character`). |
 | `hpf` | `float` | Hz | *(Optional)* High-pass filter cutoff frequency (e.g. $150.0\text{ Hz}$ for Rickenbacker). |
-| `coils` | `array[table]` | — | **Flattened Coil Array:** Physical sensing coils with string bindings and positions. |
-| `pickups` | `array-of-tables` | — | *(Optional)* **Multi-Pickup Array:** Independent pickups with individual resonant frequencies and quality factors. |
+| `coils` | `array[table]` | — | **Flattened Coil Array:** Physical sensing coils with string bindings, positions, and pole types. |
+| `pickups` | `array-of-tables` | — | *(Optional)* **Multi-Pickup Array:** Independent pickups with individual resonant frequencies, quality factors, and magnet metallurgies. |
 
 ### Multi-Pickup Definitions (`[[voices.<id>.pickups]]`)
 
-For instruments combining multiple pickups (such as P/J, Jazz Bass pairs, and P/MM), each pickup is modeled with its own independent electrical RLC resonant peak ($f_r$, $Q$), blend weight, and physical coils:
+For instruments combining multiple pickups (such as P/J, Jazz Bass pairs, and P/MM), each pickup is modeled with its own independent electrical RLC resonant peak ($f_r$, $Q$), blend weight, magnet metallurgy, and physical coils:
 
 | Key | Type | Default | Description |
 | :--- | :--- | :--- | :--- |
-| `name` | `string` | `"Pickup"` | Display name for the pickup (e.g. `"Precision Split-Coil (Neck)"`). |
+| `name` | `string` | `"Pickup"` | Display name for the pickup (e.g. `"Modern Jazz Single-Coil (Neck)"`). |
 | `type` | `string` | `"single_coil"` | Classification (`"split_coil"`, `"single_coil"`, `"dual_coil_parallel"`). |
+| `magnet_type`| `string` | `"alnico_v"` | Pickup-specific magnet metallurgy. |
 | `fr` | `float` | **Required** | Standalone electrical resonant frequency in Hz under load. |
 | `Q` | `float` | `1.5` | Quality factor under pot and cable load. |
 | `weight` | `float` | `1.0` | Relative blend/sum weight (e.g. `0.5` for 50/50 parallel blend). |
@@ -241,87 +258,126 @@ For instruments combining multiple pickups (such as P/J, Jazz Bass pairs, and P/
 
 ### Target Voice Multi-Pickup Examples
 
-#### 1. Compound 3-Coil P/J Hybrid (Dual Resonances)
+#### 1. Modern Active Jazz Bass Pair (`01_modern_jazz_active`)
 ```toml
-[voices.06_pj_hybrid_parallel]
-name = "06. P/J Hybrid (Parallel)"
-circuit = "circuits/06_pj_hybrid_parallel.cir"
-topology = "P/J Parallel Sum"
+[voices.01_modern_jazz_active]
+name = "01. Modern Active Jazz Bass Pair"
+circuit = "circuits/01_modern_jazz_active.cir"
+topology = "Dual Single-Coil Active Buffer"
 blend_mode = "parallel"
-fr = 3600.0  # Composite equivalent resonant peak
-Q = 1.4
-gain_db = 0.8
+magnet_type = "alnico_v"
+alpha = 0.25
+fr = 4800.0  # High resonant peak due to zero cable capacitive loading on coils
+Q = 1.6
+gain_db = 1.0
 scale = "34in"
 coils = [
-    { strings = ["E", "A"], position_from_bridge_m = 0.1390, aperture_width_in = 1.00, weight = 0.5 },
-    { strings = ["D", "G"], position_from_bridge_m = 0.1110, aperture_width_in = 1.00, weight = 0.5 },
-    { strings = ["all"],    position_from_bridge_m = 0.0406, aperture_width_in = 0.75, weight = 0.5 }
+    { strings = ["all"], position_from_bridge_m = 0.1556, aperture_width_in = 0.75, weight = 0.5 }, # 60s Neck Single-Coil
+    { strings = ["all"], position_from_bridge_m = 0.0635, aperture_width_in = 0.75, weight = 0.5 }  # 60s Bridge Single-Coil
 ]
 
-[[voices.06_pj_hybrid_parallel.pickups]]
-name = "Precision Split-Coil (Neck)"
-type = "split_coil"
-fr = 2200.0
-Q = 1.8
+[[voices.01_modern_jazz_active.pickups]]
+name = "Modern Jazz Single-Coil (Neck)"
+type = "single_coil"
+magnet_type = "alnico_v"
+fr = 5200.0
+Q = 1.7
 weight = 0.5
 coils = [
-    { strings = ["E", "A"], position_from_bridge_m = 0.1390, aperture_width_in = 1.00, weight = 1.0 },
-    { strings = ["D", "G"], position_from_bridge_m = 0.1110, aperture_width_in = 1.00, weight = 1.0 }
+    { strings = ["all"], position_from_bridge_m = 0.1556, aperture_width_in = 0.75, weight = 1.0 }
 ]
 
-[[voices.06_pj_hybrid_parallel.pickups]]
-name = "70s Jazz Single-Coil (Bridge)"
+[[voices.01_modern_jazz_active.pickups]]
+name = "Modern Jazz Single-Coil (Bridge)"
 type = "single_coil"
-fr = 3200.0
+magnet_type = "alnico_v"
+fr = 4500.0
 Q = 1.6
 weight = 0.5
 coils = [
-    { strings = ["all"], position_from_bridge_m = 0.0406, aperture_width_in = 0.75, weight = 1.0 }
+    { strings = ["all"], position_from_bridge_m = 0.0635, aperture_width_in = 0.75, weight = 1.0 }
 ]
 ```
 
-#### 2. Dual Single-Coil Jazz Bass Pair
+#### 2. Vintage 1960s Jazz Bass Pair (`02_jazz_bass_pair`)
 ```toml
-[voices.01_jazz_bass_pair]
-name = "01. Jazz Bass Pair (Parallel)"
-circuit = "circuits/01_jazz_bass_pair.cir"
+[voices.02_jazz_bass_pair]
+name = "02. Vintage 60s Jazz Bass Pair (Parallel)"
+circuit = "circuits/02_jazz_bass_pair.cir"
 topology = "Dual Single-Coil Parallel"
 blend_mode = "parallel"
-fr = 3900.0
-Q = 1.3
+magnet_type = "alnico_v"
+alpha = 0.26
+fr = 2700.0
+Q = 1.4
 gain_db = -0.5
 scale = "34in"
 coils = [
-    { strings = ["all"], position_from_bridge_m = 0.1480, aperture_width_in = 0.75, weight = 0.5 },
-    { strings = ["all"], position_from_bridge_m = 0.0406, aperture_width_in = 0.75, weight = 0.5 }
+    { strings = ["all"], position_from_bridge_m = 0.1556, aperture_width_in = 0.75, weight = 0.5 },
+    { strings = ["all"], position_from_bridge_m = 0.0635, aperture_width_in = 0.75, weight = 0.5 }
 ]
 
-[[voices.01_jazz_bass_pair.pickups]]
-name = "Jazz Single-Coil (Neck)"
+[[voices.02_jazz_bass_pair.pickups]]
+name = "Vintage 60s Jazz Single-Coil (Neck)"
 type = "single_coil"
-fr = 3600.0
+fr = 3100.0
 Q = 1.5
 weight = 0.5
 coils = [
-    { strings = ["all"], position_from_bridge_m = 0.1480, aperture_width_in = 0.75, weight = 1.0 }
+    { strings = ["all"], position_from_bridge_m = 0.1556, aperture_width_in = 0.75, weight = 1.0 }
 ]
 
-[[voices.01_jazz_bass_pair.pickups]]
-name = "70s Jazz Single-Coil (Bridge)"
+[[voices.02_jazz_bass_pair.pickups]]
+name = "Vintage 60s Jazz Single-Coil (Bridge)"
 type = "single_coil"
-fr = 3200.0
-Q = 1.6
+fr = 2800.0
+Q = 1.4
 weight = 0.5
 coils = [
-    { strings = ["all"], position_from_bridge_m = 0.0406, aperture_width_in = 0.75, weight = 1.0 }
+    { strings = ["all"], position_from_bridge_m = 0.0635, aperture_width_in = 0.75, weight = 1.0 }
 ]
 ```
 
-*(Note: Single-pickup configurations specifying top-level `fr`, `Q`, and `coils` are automatically resolved into a canonical single-pickup structure by `resolve_voice_pickups()`.)*
+---
+
+## 5. Physical String Catalog Reference (`config/strings.toml`)
+
+`config/strings.toml` defines the mechanical, viscoelastic, and acoustic properties of physical string sets. These parameters govern high-frequency mechanical damping, inharmonicity/tension class, dynamic bridge compliance, and low-frequency body bloom:
+
+| Field | Type | Units | Description |
+| :--- | :--- | :--- | :--- |
+| `name` | `string` | — | Full human-readable display label (e.g. `"La Bella Low Tension Flats LTF-4A"`). |
+| `type` | `string` | — | Construction classification: `"roundwound"`, `"flatwound"`, `"double_bass"`. |
+| `wrap` | `string` | — | Outer wrap alloy: `"nickel"`, `"stainless"`, `"stainless_flat"`, `"chrome_steel"`. |
+| `core` | `string` | — | Core wire geometry: `"hex"`, `"round"`, `"spiral_rope"`. |
+| `tension_lbs` | `float` | lbs | Total 4-string set tension at pitch. |
+| `damping_cutoff_hz` | `float` | Hz | Viscoelastic high-frequency mechanical roll-off corner frequency ($f_d$). |
+| `damping_order` | `float` | — | High-frequency damping filter order ($n$). |
+| `bloom_db` | `float` | dB | Resonant acoustic low-end cavity and body bloom ($60\text{--}100\text{ Hz}$). |
+| `pluck_excursion_factor` | `float`| Ratio | Physical plucking excursion multiplier relative to standard roundwound baseline ($1.0$). Lower tension strings exhibit higher excursion ($1.25\times$). |
+| `k_long` | `float` | — | Longitudinal core wire percussive clank coupling factor ($0.00\text{ to }0.35$). |
+
+### Built-In String Presets:
+
+1. **`roundwound_nickel_standard` (Global Default Baseline):**
+   * Standard D'Addario EXL / Ernie Ball Slinky $.045\text{--}.105$.
+   * $155.0\text{ lbs}$ tension, $f_d = 8500\text{ Hz}, n = 1.0, \text{bloom} = 0.0\text{ dB}, k_{\text{long}} = 0.20$.
+2. **`roundwound_stainless_clank` (Multi-Scale / Dingwall):**
+   * Dingwall Custom $.045\text{--}.130$ high-tension stainless steel.
+   * $180.0\text{ lbs}$ tension, $f_d = 12000\text{ Hz}, n = 1.0, \text{bloom} = -1.0\text{ dB}, k_{\text{long}} = 0.35$ (massive metallic clank).
+3. **`flatwound_low_tension` (Smooth Fretless Thump):**
+   * La Bella Low Tension Flats LTF-4A $.043\text{--}.100$ round core.
+   * $132.0\text{ lbs}$ low tension, $f_d = 2800\text{ Hz}, n = 1.8, \text{bloom} = +1.8\text{ dB}$, excursion factor $1.25\times$.
+4. **`flatwound_vintage_heavy` (Motown / Jamerson 1954 Spec):**
+   * La Bella 760M $.052\text{--}.110$ heavy hex core.
+   * $195.0\text{ lbs}$ heavy tension, $f_d = 1800\text{ Hz}, n = 2.0, \text{bloom} = +2.4\text{ dB}, k_{\text{long}} = 0.05$.
+5. **`double_bass_spirocore` (3/4 Upright Orchestral/Pizz):**
+   * Thomastik-Infeld Spirocore / D'Addario Helicore Pizzicato $41.5''$ spiral rope core.
+   * $265.0\text{ lbs}$ massive tension, $f_d = 3800\text{ Hz}, n = 2.0, \text{bloom} = +2.8\text{ dB}$, bridge rocking compliance $0.42\text{V}$.
 
 ---
 
-## 5. How to Add a Custom Instrument
+## 6. How to Add a Custom Instrument
 
 To model your own bass in Passivizer:
 
@@ -345,11 +401,13 @@ To model your own bass in Passivizer:
    aperture_width_in = 1.25
    coil_spacing_in = 0.75
    type = "dual_coil_parallel"
+   pole_type = "blade"
+   magnet_type = "ceramic"
    resonant_frequency_hz = 2800.0
    q_factor = 1.35
    coils = [
-       { strings = ["all"], position_from_bridge_m = 0.0645, aperture_width_in = 0.60, weight = 0.5 },
-       { strings = ["all"], position_from_bridge_m = 0.0455, aperture_width_in = 0.60, weight = 0.5 }
+       { strings = ["all"], position_from_bridge_m = 0.0645, aperture_width_in = 0.60, weight = 0.5, pole_type = "blade" },
+       { strings = ["all"], position_from_bridge_m = 0.0455, aperture_width_in = 0.60, weight = 0.5, pole_type = "blade" }
    ]
    ```
 4. Run validation and preview:

@@ -213,45 +213,50 @@ This catalog details the physical parameters, equivalent RLC circuit values, aco
 
 ---
 
-## Geometry & Displacement Mapping (30" EMG MM $\to$ 32" Target Datums)
+## Geometry & Scale-Normalized Displacement Mapping (30" EMG MM $\to$ Target Datums)
 
-When running Passivizer from a **30" short-scale bass with a single 18V EMG MM pickup**, the software compensates for aperture and physical spatial displacement:
+When running Passivizer from a **30" short-scale bass with a single 18V EMG MM pickup**, the software compensates for spatial aperture, standing-wave bridge proximity, and physical scale differences using **scale-normalized fractional coordinates** ($\eta = x / L$) rather than raw millimeter subtractions (adhering strictly to Architectural Guardrail §1.5):
 
 ### Physical Datums:
-* **Source Instrument (30" Bass):**
-  * Scale Length: $30.0'' = 762.0\text{ mm}$
+* **Source Instrument (30" Short Scale Bass):**
+  * Vibrating Scale Length: $L_{\text{src}} = 30.0'' = 762.0\text{ mm}$
   * 12th Fret Datum: $381.0\text{ mm}$ from nut
   * Pickup Center Datum: $303.5\text{ mm}$ from 12th fret toward bridge
-  * **Pickup Center from Bridge ($x_{\text{source}}$):** $381.0 - 303.5 = \mathbf{77.5\text{ mm}}\ (3.051'')$
+  * **Pickup Center from Bridge Saddle ($x_{\text{src}}$):** $381.0 - 303.5 = \mathbf{77.5\text{ mm}}\ (3.051'')$
+  * **Source Fractional Position ($\eta_{\text{src}}$):** $\eta_{\text{src}} = \frac{77.5\text{ mm}}{762.0\text{ mm}} \approx \mathbf{0.1017}\ (10.17\%)$
   * Pickup Architecture: Fixed Dual-Coil Humbucker ($w = 1.50''$, $d = 0.75''$)
 
-* **Target Reference Instrument (32" Bass from `Pickup Placement - P_MM.md`):**
-  * Scale Length: $32.0'' = 812.8\text{ mm}$
-  * Reverse PX Split Center Datum: $\mathbf{122.8\text{ mm}}\ (4.835'')$ from bridge
-  * MMTWX Centerline Datum: $\mathbf{62.2\text{ mm}}\ (2.449'')$ from bridge
-  * MMTWX Bridge-side Coil (Jazz Bridge) Datum: $\mathbf{50.8\text{ mm}}\ (2.000'')$ from bridge
+* **Target Reference Instruments:**
+  * **Standard 34" Scale ($L = 863.6\text{ mm}$):** Standard Fender ($125.0\text{ mm}$ P, $155.6\text{ mm}$ 60s J neck, $63.5\text{ mm}$ 60s J bridge), Music Man ($66.0\text{ mm}$ StingRay), and Rickenbacker ($50.8\text{ mm}$ 4003 bridge).
+  * **37" Multi-Scale ($L = 939.8\text{ mm}$):** Dingwall NG angled bridge sweet spot ($48.0\text{ mm}$).
+  * **41.5" Upright ($L = 1054.1\text{ mm}$):** 3/4 Double Bass acoustic bridge transducer ($5.0\text{ mm}$).
 
-### Spatial Displacement Offsets ($\Delta x = x_{\text{target}} - 77.5\text{ mm}$):
+### Scale-Normalized Displacement & Proximity Tilt Formulation:
+$$\eta_{\text{tgt}} = \frac{x_{\text{tgt}}}{L_{\text{tgt}}}, \quad \Delta\eta = \eta_{\text{tgt}} - \eta_{\text{src}}$$
+$$\Delta x_{\text{norm\_in}} = \Delta\eta \times 34.0'', \quad \text{tilt}_{\text{dB}} = \Delta x_{\text{norm\_in}} \times 1.5\text{ dB/in}$$
 
-| Profile ID | Target Location | Target $x$ | Displacement $\Delta x$ | Acoustic Compensation |
-| :--- | :--- | :--- | :--- | :--- |
-| **`01_modern_jazz_active`** | J-Pair Virtual Center | $86.8\text{ mm}$ | $+9.3\text{ mm}\ (+0.37'')$ | De-humbuck aperture, mild forward tilt, active 2-band boost |
-| **`02_jazz_bass_pair`** | J-Pair Virtual Center | $86.8\text{ mm}$ | $+9.3\text{ mm}\ (+0.37'')$ | De-humbuck aperture, mild forward tilt |
-| **`02b_jazz_bass_pair_22nf`**| J-Pair Virtual Center | $86.8\text{ mm}$ | $+9.3\text{ mm}\ (+0.37'')$ | De-humbuck aperture, mild forward tilt, 22nF ToneStyler |
-| **`03_jazz_bridge_60s`** | MMTWX Bridge Coil (JB) | $50.8\text{ mm}$ | $-26.7\text{ mm}\ (-1.05'')$ | De-humbuck aperture, tighter bridge bite tilt |
-| **`04_modern_p_ceramic`** | Reverse PX Split Center | $122.8\text{ mm}$ | $+45.3\text{ mm}\ (+1.78'')$ | $+2.7\text{ dB}$ low boost, tames bridge bite |
-| **`05_vintage_62_p_alnico`**| Reverse PX Split Center | $122.8\text{ mm}$ | $+45.3\text{ mm}\ (+1.78'')$ | $+2.7\text{ dB}$ low boost, smooth woody rolloff |
-| **`05b_vintage_62_p_22nf`** | Reverse PX Split Center | $122.8\text{ mm}$ | $+45.3\text{ mm}\ (+1.78'')$ | $+2.7\text{ dB}$ low boost, 22nF ToneStyler 440 Hz punch |
-| **`05c_vintage_62_p_47nf`** | Reverse PX Split Center | $122.8\text{ mm}$ | $+45.3\text{ mm}\ (+1.78'')$ | 47nF ToneStyler Motown flatwound deep sub-thump |
-| **`05d_vintage_50s_p_100nf`**| Reverse PX Split Center | $122.8\text{ mm}$ | $+45.3\text{ mm}\ (+1.78'')$ | 100nF ToneStyler 1950s deep sub-bass dub thump |
-| **`07_modern_pj_active`** | P/J Virtual Center | $86.8\text{ mm}$ | $+9.3\text{ mm}\ (+0.37'')$ | Hybrid aperture mix, active 2-band boost, wideband shimmer |
-| **`08_vintage_pj_passive`** | P/J Virtual Center | $86.8\text{ mm}$ | $+9.3\text{ mm}\ (+0.37'')$ | Hybrid aperture mix, vintage Alnico dual-volume warmth |
-| **`09_stingray_mm_parallel`**| MMTWX Centerline | $62.2\text{ mm}$ | $-15.3\text{ mm}\ (-0.60'')$ | Preserves dual-coil comb, active 2-band boost |
-| **`10_rickenbacker_bridge_hpf`** | Bridge Clank Position | $50.8\text{ mm}$ | $-26.7\text{ mm}\ (-1.05'')$ | Series HPF engaged, maximum pick bite |
-| **`11_pmm_hybrid_series`**| Dual Series Center | $92.5\text{ mm}$ | $+15.0\text{ mm}\ (+0.59'')$ | Series inductance boost, thick low-mids |
-| **`12_mudbucker_ultra_series`**| Deep Series Center | $92.5\text{ mm}$ | $+15.0\text{ mm}\ (+0.59'')$ | Extreme $14.4\text{ H}$ low-frequency foundation |
-| **`13_dingwall_multiscale_bridge`**| Angled Sweet Spot | $48.0\text{ mm}$ | $-29.5\text{ mm}\ (-1.16'')$ | High string wave speed, metallic clank |
-| **`14_upright_bridge_transducer`**| Bridge Transducer Datum | $5.0\text{ mm}$ | $-72.5\text{ mm}\ (-2.85'')$ | Bridge force integration, de-comb, body bloom |
-| **`15_passive_character`** | Unchanged Source Datum | $x_{\text{source}}$ | $0.0\text{ mm}\ (0.00'')$ | Zero aperture filtering, zero linear EQ, pure passive dynamics |
-| **`16_active_character`** | Unchanged Source Datum | $x_{\text{source}}$ | $0.0\text{ mm}\ (0.00'')$ | Preserved aperture, active buffer cable isolation |
+| Profile ID | Target Location | Target $x$ | Target Scale | Fractional $\eta_{\text{tgt}}$ | Norm Offset $\Delta x_{\text{norm\_in}}$ | Proximity Tilt & Acoustic Compensation |
+| :--- | :--- | :--- | :--- | :---: | :---: | :--- |
+| **`01_modern_jazz_active`** | 60s J-Pair Center | $109.6\text{ mm}$ | $34.0''$ | $12.69\%$ | $+0.86''$ | $+1.3\text{ dB}$ forward tilt, de-humbuck, active 2-band boost |
+| **`02_jazz_bass_pair`** | 60s J-Pair Center | $109.6\text{ mm}$ | $34.0''$ | $12.69\%$ | $+0.86''$ | $+1.3\text{ dB}$ forward tilt, dual-volume $125\text{k}\Omega$ loading |
+| **`02b_jazz_bass_pair_22nf`**| 60s J-Pair Center | $109.6\text{ mm}$ | $34.0''$ | $12.69\%$ | $+0.86''$ | $+1.3\text{ dB}$ forward tilt, 22nF ToneStyler undamped peak |
+| **`02c_jazz_bridge_growl_bias`**| Bridge-Biased J-Pair | $86.5\text{ mm}$ | $34.0''$ | $10.02\%$ | $-0.05''$ | $-0.1\text{ dB}$ neutral tilt, 75% bridge / 25% neck Jaco growl |
+| **`03_jazz_bridge_60s`** | 60s J Bridge Single | $63.5\text{ mm}$ | $34.0''$ | $7.35\%$ | $-0.96''$ | $-1.4\text{ dB}$ bridge bite tilt, narrow single-coil aperture |
+| **`04_modern_p_ceramic`** | Split-P Centerline | $125.0\text{ mm}$ | $34.0''$ | $14.47\%$ | $+1.46''$ | $+2.2\text{ dB}$ forward tilt, boutique 500k treble bleed |
+| **`05_vintage_62_p_alnico`**| Split-P Centerline | $125.0\text{ mm}$ | $34.0''$ | $14.47\%$ | $+1.46''$ | $+2.2\text{ dB}$ forward tilt, vintage 250k Alnico V bloom |
+| **`05b_vintage_62_p_22nf`** | Split-P Centerline | $125.0\text{ mm}$ | $34.0''$ | $14.47\%$ | $+1.46''$ | $+2.2\text{ dB}$ forward tilt, 22nF ToneStyler 440 Hz punch |
+| **`05c_vintage_62_p_47nf`** | Split-P Centerline | $125.0\text{ mm}$ | $34.0''$ | $14.47\%$ | $+1.46''$ | $+2.2\text{ dB}$ forward tilt, 47nF Motown flatwound thump |
+| **`05d_vintage_50s_p_100nf`**| Split-P Centerline | $125.0\text{ mm}$ | $34.0''$ | $14.47\%$ | $+1.46''$ | $+2.2\text{ dB}$ forward tilt, 100nF deep reggae sub-thump |
+| **`07_modern_pj_active`** | P/J Parallel Center | $94.3\text{ mm}$ | $34.0''$ | $10.91\%$ | $+0.25''$ | $+0.4\text{ dB}$ forward tilt, active 2-band boost, shimmer |
+| **`08_vintage_pj_passive`** | P/J Parallel Center | $94.3\text{ mm}$ | $34.0''$ | $10.91\%$ | $+0.25''$ | $+0.4\text{ dB}$ forward tilt, vintage dual-volume warmth |
+| **`09_stingray_mm_parallel`**| StingRay Centerline| $66.0\text{ mm}$ | $34.0''$ | $7.64\%$ | $-0.86''$ | $-1.3\text{ dB}$ bridge bite, active 2-band boost, comb notch |
+| **`09b_stingray_mm_series`** | StingRay Centerline| $66.0\text{ mm}$ | $34.0''$ | $7.64\%$ | $-0.86''$ | $-1.3\text{ dB}$ bridge bite, $+4.5\text{ dB}$ series inductive surge |
+| **`10_rickenbacker_bridge_hpf`**| 4003 Bridge Coil | $50.8\text{ mm}$ | $34.0''$ | $5.88\%$ | $-1.46''$ | $-2.2\text{ dB}$ bite tilt, 4.7nF series HPF clank bite |
+| **`11_pmm_hybrid_series`**| P + MM Series Center| $95.5\text{ mm}$ | $34.0''$ | $11.06\%$ | $+0.30''$ | $+0.5\text{ dB}$ forward tilt, high-inductance series surge |
+| **`12_mudbucker_ultra_series`**| Sidewinder Center | $95.5\text{ mm}$ | $34.0''$ | $11.06\%$ | $+0.30''$ | Extreme $14.4\text{ H}$ series foundation, $1.25''$ aperture |
+| **`13_dingwall_multiscale_bridge`**| Angled Sweet Spot | $48.0\text{ mm}$ | $37.0''$ | $5.11\%$ | $-1.72''$ | $-2.6\text{ dB}$ bite tilt, multiscale continuum clank |
+| **`14_upright_bridge_transducer`**| Bridge Transducer | $5.0\text{ mm}$ | $41.5''$ | $0.47\%$ | $-3.30''$ | Regularized spatial de-comb, leaky force tilt, body bloom |
+| **`15_passive_character`** | Source Datum | $77.5\text{ mm}$ | $30.0''$ | $10.17\%$ | $0.00''$ | Bit-exact $0.00\text{ dB}$ linear transfer, pure passive dynamics |
+| **`16_active_character`** | Source Datum | $77.5\text{ mm}$ | $30.0''$ | $10.17\%$ | $0.00''$ | Preserved aperture, active buffer cable deconvolution |
+
 

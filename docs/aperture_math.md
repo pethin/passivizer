@@ -52,16 +52,28 @@ For a standard 34" 4-string bass (standard gauge .045 – .105):
 > If an IR uses a single wave speed ($v_E = 71\text{ m/s}$), it forces a deep notch at $2.8\text{ kHz}$. While correct for the open E string, this creates an artificial, hollow notch on the D and G strings where the real notch is well above $5\text{ kHz}$.
 
 ### The Continuous Wave-Speed Continuum Formulation
-Rather than constraining models to fixed 4-string standard tunings ($E, A, D, G$), Passivizer employs a continuous, log-spaced wave-speed continuum $v(f_0) = 2 \cdot L \cdot f_0$ spanning the entire physical operating register of the electric bass ($f_0 \in [30.87\text{ Hz}, 100.00\text{ Hz}]$):
+Rather than constraining models to fixed 4-string standard tunings ($E, A, D, G$), Passivizer employs a continuous, log-spaced wave-speed continuum $v(f_0) = 2 \cdot L(f_0) \cdot f_0$ spanning the entire physical operating register of the electric bass ($f_0 \in [30.87\text{ Hz}, 100.00\text{ Hz}]$, from Low B through High G):
 
-$$H_{\text{composite}}(f) = \frac{1}{N} \sum_{i=1}^N \left| \text{sinc}\left(\frac{f \cdot w}{v(f_{0,i})}\right) \right|$$
+$$H_{\text{composite}}(f) = \frac{1}{N} \sum_{i=1}^N \left| \text{sinc}\left(\frac{f \cdot w}{v_{\text{disp}}(f_{0,i})}\right) \right|, \quad N = 24$$
 
 where each continuum point incorporates:
-1. **Tuning and Gauge Invariance:** Seamlessly accounts for Standard, Drop D, Drop C, C Standard, D Standard, Drop A, 5-string (Low B), and 6-string setups without manual reconfiguration or retuning.
-2. **Dynamic Inharmonicity Dispersion:** High-frequency wave speed expands with flexural string stiffness:
-   $$v_{\text{disp}}(f) = v(f_0) \sqrt{1 + B_s(f_0) \frac{(f / f_0)^2}{1 + (f / 3500\text{ Hz})^2}}$$
-   where $B_s(f_0)$ is continuously interpolated across string registers.
-3. **Geometric Register Half Routing:** Split-coil pickups (like the Precision Bass) dynamically evaluate lower-register continuum points ($i < N/2$) on the forward bass coil half and upper-register points ($i \ge N/2$) on the rearward treble coil half, independent of note names or string gauges.
+1. **Multi-Scale Fanned Fretboard Continuum Interpolation:**
+   On standard single-scale instruments, $L(f_0) = L_{\text{inst}}$.
+   On multi-scale instruments (e.g. $34''\text{--}37''$ Dingwall Combustion/NG, $32''\text{--}35''$ Dingwall SP1), vibrating scale length $L(f_0)$ smoothly and logarithmically interpolates from the longest scale at the lowest register down to the shortest scale at the highest register:
+   $$t(f_0) = \frac{\log_2(f_0) - \log_2(f_{\text{min}})}{\log_2(f_{\text{max}}) - \log_2(f_{\text{min}})}$$
+   $$L(f_0) = L_{\text{max}} - t(f_0) \cdot (L_{\text{max}} - L_{\text{min}})$$
+   $$v_0(f_0) = 2 \cdot L(f_0) \cdot f_0$$
+   where $f_{\text{min}} = 30.87\text{ Hz}$ (Low B) has scale $L_{\text{max}}$ ($37.0'' = 0.9398\text{ m}$ on NG; $35.0'' = 0.8890\text{ m}$ on SP1) and $f_{\text{max}} = 100.00\text{ Hz}$ (High G) has scale $L_{\text{min}}$ ($34.0'' = 0.8636\text{ m}$ on NG; $32.0'' = 0.8128\text{ m}$ on SP1).
+2. **Dynamic Inharmonicity Dispersion ($v_{\text{disp}}(f)$):**
+   High-frequency wave speed expands with flexural string stiffness:
+   $$v_{\text{disp}}(f) = v_0(f_0) \sqrt{1 + B_s(f_0) \frac{(f / f_0)^2}{1 + (f / 3500\text{ Hz})^2}}$$
+   where the string stiffness parameter $B_s(f_0)$ is continuously interpolated in log-frequency space across empirical anchor datums:
+   $$\mathbf{f}_{\text{anchors}} = [27.50, 30.87, 41.20, 55.00, 73.42, 98.00, 130.81, 196.00]\text{ Hz}$$
+   $$\mathbf{B}_{s,\text{anchors}} = [2.8, 2.5, 2.0, 1.2, 0.6, 0.3, 0.15, 0.08] \times 10^{-5}$$
+3. **Geometric Register Half Routing:**
+   Split-coil pickups (like the Precision Bass) dynamically evaluate lower-register continuum points ($i < N/2$) on the forward bass coil half and upper-register points ($i \ge N/2$) on the rearward treble coil half, completely independent of note names, tunings, or string gauges.
+4. **Tuning and Gauge Invariance:**
+   Seamlessly accounts for Standard, Drop D, Drop C, C Standard, D Standard, Drop A, 5-string (Low B), and 6-string setups without manual reconfiguration or retuning.
 
 This eliminates discrete localized comb teeth and guarantees smooth, physically authentic spatial filtering across any instrument configuration.
 
@@ -135,7 +147,7 @@ Passivizer models this acoustic transformation with a multi-band tension transfe
 On fanned-fret instruments like the Dingwall NG2/NG3, pickups are mounted parallel to the fanned bridge saddles. This ensures that the sensing point relative to the scale line ($x / L$) remains uniform across all strings, eliminating the flubby low-end of straight pickups on low B and E strings while maintaining smooth treble on the G string. Passivizer compensates for this geometric alignment across string channels.
 
 ### D. Scale-Normalized Spatial Bridge Proximity Tilt ($\Delta\eta$)
-String standing-wave vibrational modes obey $y_n(x) \propto \sin(n\pi x / L) = \sin(n\pi \eta)$, where $\eta = x / L$ is the fractional distance along the vibrating string length from the bridge.
+String standing-wave vibrational modes obey $y_n(x) \propto \sin(n\pi x / L) = \sin(n\pi \eta)$, where $\eta = x / L$ is the fractional distance along the vibrating string length from the bridge saddle.
 Because harmonic node locations scale proportionally with vibrating length $L$, bridge proximity must be evaluated in **scale-normalized fractional positions** rather than raw millimeters:
 
 $$\eta_{\text{tgt}} = \frac{x_{\text{tgt}}}{L_{\text{tgt}}}, \quad \eta_{\text{src}} = \frac{x_{\text{src}}}{L_{\text{src}}}$$
@@ -144,14 +156,29 @@ $$\Delta\eta = \eta_{\text{tgt}} - \eta_{\text{src}}$$
 
 $$\Delta x_{\text{norm\_in}} = \Delta\eta \times 34.0''$$
 
-$$\text{tilt}_{\text{dB}} = \Delta x_{\text{norm\_in}} \times 1.5$$
+$$\text{tilt}_{\text{dB}} = \Delta x_{\text{norm\_in}} \times 1.5\text{ dB/in}$$
 
-This ensures that:
-1. **Identical proportional sweet spots** (e.g. 32" MM @ $62.2\text{ mm} \implies \eta = 7.65\%$ vs 34" MM @ $66.0\text{ mm} \implies \eta = 7.64\%$) have $\Delta\eta \approx 0$ and receive **zero spurious tilt**, preventing the $+0.15''$ distortion that raw millimeters previously introduced.
-2. **Short-scale proportions** (e.g. 30" MM @ $77.5\text{ mm} \implies \eta = 10.17\%$) correctly reflect the true fractional shift relative to 34" ($\Delta\eta = -0.0253 \implies \Delta x_{\text{norm\_in}} = -0.86''$, rather than $-0.45''$ from unnormalized subtraction).
-3. **Scale tension snap** scales proportionally with the scale deficit:
-   $$\text{snap}_{\text{dB}} = 1.8 \times \frac{34.0'' - L_{\text{src}}}{4.0''}$$
-   yielding $+1.8\text{ dB}$ for 30" short scale, $+0.9\text{ dB}$ for 32" medium scale, and $0.0\text{ dB}$ for 34" standard scale.
+#### The Dual-Band Shelving Tilt Filter:
+To apply this tilt organically without phase kinks or infinite high-frequency divergence, Passivizer implements complementary 1st-order low and high shelving filters:
+
+$$g_{\text{low}} = 10^{\text{tilt}_{\text{dB}} / 20.0}, \quad g_{\text{hi}} = 10^{-\text{tilt}_{\text{dB}} / 20.0}$$
+
+$$H_{\text{low\_tilt}}(f) = \sqrt{\frac{g_{\text{low}}^2 + (f / 250\text{ Hz})^2}{1 + (f / 250\text{ Hz})^2}}$$
+
+$$H_{\text{hi\_tilt}}(f) = \sqrt{\frac{1 + g_{\text{hi}}^2 (f / 2200\text{ Hz})^2}{1 + (f / 2200\text{ Hz})^2}}$$
+
+$$H_{\text{tilt}}(f) = H_{\text{low\_tilt}}(f) \cdot H_{\text{hi\_tilt}}(f)$$
+
+* **Target Forward of Source ($\Delta\eta > 0$):** Boosts low-mid fundamental fullness ($< 250\text{ Hz}$) by $+g_{\text{low}}\text{ dB}$ while softening extreme bridge clank ($> 2.2\text{ kHz}$) by $-g_{\text{hi}}\text{ dB}$.
+* **Target Closer to Bridge ($\Delta\eta < 0$):** Boosts bridge bite and transient growl ($> 2.2\text{ kHz}$) while trimming low-end bloat ($< 250\text{ Hz}$).
+* **Proportional Sweet Spot Invariance:** Identical proportional locations across scales (e.g. 32" MM @ $62.2\text{ mm} \implies \eta = 7.65\%$ vs 34" MM @ $66.0\text{ mm} \implies \eta = 7.64\%$) have $\Delta\eta \approx 0$ and receive **exact zero spurious tilt** ($0.00\text{ dB}$ flat).
+
+#### Proportional Scale Tension Snap ($H_{\text{tension}}$):
+When converting from shorter scales ($L_{\text{src}} < L_{\text{tgt}} - 0.2''$):
+$$\text{snap}_{\text{dB}} = \min\left(3.5\text{ dB}, 1.8 \times \frac{L_{\text{tgt}} - L_{\text{src}}}{4.0''}\right)$$
+$$H_{\text{tension}}(f) = \sqrt{\frac{1 + 10^{\text{snap}_{\text{dB}} / 10.0} \cdot (f / 2800\text{ Hz})^2}{1 + (f / 2800\text{ Hz})^2}}$$
+
+Yields $+1.8\text{ dB}$ for 30" short scale, $+0.9\text{ dB}$ for 32" medium scale, and $0.0\text{ dB}$ for standard 34" scale, restoring the tight piano-like high-frequency snap of higher string tension.
 
 ---
 
@@ -228,12 +255,20 @@ $$H_{\text{string\_transfer}}(f) = \frac{H_{\text{string, target}}(f)}{H_{\text{
 
 ### A. Anti-Double-Damping Spectral Deconvolution
 When an electric bass is strung with flatwounds (such as **La Bella Low Tension Flats** on a 32" fretless), the physical strings already roll off high-frequency harmonics above $2.8\text{ kHz}$. If a static acoustic upright low-pass filter ($f_d \approx 3.8\text{--}4.2\text{ kHz}$) is applied directly, the tone suffers from double-damping:
-1. **Target String & Soundboard Damping:**
-   $$H_{\text{damp, tgt}}(f) = \frac{1}{\sqrt{\left(1 - \left(\frac{f}{f_{d,\text{tgt}}}\right)^2\right)^2 + 2\left(\frac{f}{f_{d,\text{tgt}}}\right)^2}}$$
+1. **Target String Damping:**
+   $$H_{\text{damp, tgt}}(f) = \frac{1}{\sqrt{1 + \left(\frac{f}{f_{d,\text{tgt}}}\right)^{2 n_{\text{tgt}}}}}$$
 2. **Source String Viscoelastic Damping:**
    $$H_{\text{damp, src}}(f) = \frac{1}{\sqrt{1 + \left(\frac{f}{f_{d,\text{src}}}\right)^{2 n_{\text{src}}}}}$$
-3. **Differential Anti-Double-Damping Filter:**
-   $$H_{\text{damp, eff}}(f) = \text{clip}\left(\frac{H_{\text{damp, tgt}}(f)}{\max(H_{\text{damp, src}}(f), \epsilon_{\text{floor}})}, 0.05, 1.80\right)$$
+3. **Differential Anti-Double-Damping Ratio with Bidirectional Soft-Knee Saturation:**
+   $$r_{\text{db}} = 20 \log_{10}\left(\frac{H_{\text{damp, tgt}}(f)}{\max(H_{\text{damp, src}}(f), 10^{-6})}\right)$$
+   $$r_{\text{soft\_db}} = \begin{cases} g_{\text{max}} \cdot \tanh\left(\frac{r_{\text{db}}}{g_{\text{max}}}\right), & r_{\text{db}} > 0.0 \\ g_{\text{min}} \cdot \tanh\left(\frac{r_{\text{db}}}{g_{\text{min}}}\right), & r_{\text{db}} \le 0.0 \end{cases}$$
+   where $g_{\text{max}} = +8.0\text{ dB}$ and $g_{\text{min}} = -36.0\text{ dB}$.
+   $$H_{\text{damp\_ratio}}(f) = 10^{r_{\text{soft\_db}} / 20.0}$$
+4. **Differential String Cavity Bloom ($H_{\text{bloom}}$):**
+   $$\Delta\text{bloom}_{\text{dB}} = \text{bloom}_{\text{tgt}} - \text{bloom}_{\text{src}}$$
+   $$g_{\text{bloom}} = 10^{\Delta\text{bloom}_{\text{dB}} / 20.0}$$
+   $$H_{\text{bloom}}(f) = \sqrt{\frac{g_{\text{bloom}}^2 + \left(\frac{f}{90.0\text{ Hz}}\right)^2}{1 + \left(\frac{f}{90.0\text{ Hz}}\right)^2}}$$
+   $$H_{\text{string\_transfer}}(f) = H_{\text{damp\_ratio}}(f) \cdot H_{\text{bloom}}(f)$$
 
 This automatically preserves the natural woody clarity and fingerboard mwah of flatwounds on fretless basses, while still applying full acoustic damping when fed by clanky roundwound strings.
 
@@ -241,3 +276,115 @@ This automatically preserves the natural woody clarity and fingerboard mwah of f
 Low-tension strings (e.g. La Bella LTF $\sim 132\text{ lbs}$) exhibit larger physical displacement under pizzicato plucking than high-tension strings ($\sim 160\text{--}190\text{ lbs}$). Passivizer dynamically scales the soft-knee bridge compliance saturation threshold:
 $$V_{\text{sat, eff}} = \frac{V_{\text{sat, base}}}{\text{pluck\_excursion\_factor}_{\text{src}}}$$
 For the 32" Fretless ($1.25\times$ excursion), $V_{\text{sat}}$ scales from $0.42\text{ V}$ down to $0.336\text{ V}$, faithfully capturing the increased mechanical bridge rocking and natural acoustic compression.
+
+---
+
+## 8. 2D Cylindrical Rod vs 1D Blade Sensing Apertures
+
+Pickup magnetic pole pieces feature two fundamentally distinct spatial sensing geometries that filter transverse string vibrations differently:
+
+```
+    A. 2D Cylindrical Rod Pole                     B. 1D Continuous Bar Blade
+         (Jazz, Precision, MM)                          (Active EMG, Dual-Rails)
+            ┌─────────┐                                      ┌───────────────┐
+   String: ═│════●════│═════                        String: ═│═══════════════│═════
+            └─────────┘                                      └───────────────┘
+          Airy / Bessel J1                                    Rectangular Sinc
+```
+
+### A. 2D Cylindrical Rod Poles (`pole_type = "rod"`)
+Cylindrical Alnico or steel rod magnets (radius $r_p = w_m / 2$) integrate string vibration over a circular 2D disc. The exact spatial window is governed by the first-order Bessel function of the first kind $J_1(k r_p) / (k r_p)$. Passivizer computes this using the algebraic $C^\infty$ approximation:
+
+$$k = \frac{2\pi f}{v_{\text{disp}}(f)}$$
+$$H_{\text{rod}}(f) = \frac{1}{\sqrt{1 + 0.25 \cdot (k \cdot r_p)^2}}$$
+
+* **Acoustic Character:** Gentler high-frequency rolloff ($6\text{ dB/octave}$ asymptote) without sharp cancellation nulls in the audible passband, preserving pick snap, vowel-like articulation, and touch-sensitive harmonic bite.
+
+### B. 1D Continuous Bar Blade Sensors (`pole_type = "blade"`)
+Bar magnets or steel blades span continuously under the strings with rectangular spatial aperture width $w_m$:
+
+$$H_{\text{blade}}(f) = \frac{1}{\sqrt{1 + \frac{1}{3} \cdot \left(\frac{\pi w_m f}{v_{\text{disp}}(f)}\right)^2}}$$
+
+* **Acoustic Character:** Sharper high-frequency suppression than rod poles, smoothing out high-register harshness and delivering the ultra-consistent, modern active pickup character.
+* **Identity Preservation:** Both formulations evaluate to exact $1.0000$ ($0.00\text{ dB}$) at DC ($f=0$) and evaluate to bit-exact $0.00\text{ dB}$ flat response on identity transformations.
+
+---
+
+## 9. Bridge Saddle Witness-Point Boundary Layer Stiffness ($H_{\text{saddle}}$)
+
+Real bass strings have finite flexural bending stiffness ($E \cdot I > 0$). At the bridge saddle termination point ($x = 0$), string displacement and slope are mechanically constrained, creating an exponential boundary layer:
+
+$$l_b \approx \sqrt{B_s} \cdot L \approx 2.0\text{--}3.5\text{ mm}$$
+
+For pickups located extremely close to the bridge saddle ($x < 0.075\text{ m} = 75\text{ mm}$, such as 60s/70s Jazz bridge pickups at $63.5\text{ mm}$, StingRay bridge coils at $50.8\text{ mm}$, or Dingwall angled bridge sweet spots at $48.0\text{ mm}$), the mechanical boundary layer suppresses extreme high-frequency string modes:
+
+$$\text{ratio} = \text{clip}\left(\frac{x}{0.075\text{ m}}, 0.0, 1.0\right)$$
+$$\text{shelf}_{\text{dB}} = -4.0 \cdot (1.0 - \text{ratio})$$
+$$g_{\text{saddle}} = 10^{\text{shelf}_{\text{dB}} / 20.0}$$
+$$H_{\text{saddle}}(f, x) = \sqrt{\frac{1.0 + g_{\text{saddle}}^2 \cdot \left(\frac{f}{4500\text{ Hz}}\right)^2}{1.0 + \left(\frac{f}{4500\text{ Hz}}\right)^2}}$$
+
+Evaluated differentially:
+$$H_{\text{saddle, eff}}(f) = \min\left( \frac{H_{\text{saddle, tgt}}(f)}{\max(H_{\text{saddle, src}}(f), 10^{-6})}, 1.0 \right)$$
+
+* **Acoustic Consequence:** Softens brittle, piercing ultrasonic pick scratch and fret clatter ($> 7\text{ kHz}$) on bridge-side pickups without dulling the punchy midrange growl ($1.5\text{--}3.5\text{ kHz}$).
+* Evaluates to exact $1.0000$ ($0.00\text{ dB}$) when $x \ge 75\text{ mm}$ or when source geometry matches target.
+
+---
+
+## 10. Longitudinal Core Compression Waves & Percussive Clank ($H_{\text{long}}$)
+
+Plucking a wound bass string excites two distinct acoustic wave modes:
+1. **Transverse Shear Waves:** The primary musical pitch ($v_T = \sqrt{T/\mu} \approx 60\text{--}170\text{ m/s}$).
+2. **Longitudinal Compression Waves:** Compression-dilation pulses propagating through the solid steel core wire with longitudinal speed:
+   $$c_L = \sqrt{\frac{E}{\rho_{\text{steel}}}} \approx 5,100\text{ m/s}$$
+
+The longitudinal compression wave reflects back and forth between the bridge saddle and nut/fret, generating an instantaneous resonant metallic clank at:
+
+$$f_L = \frac{c_L}{2 L} \approx 2.7\text{--}3.3\text{ kHz}, \quad Q_L = 8.0$$
+
+When the target voicing strings (such as Dingwall stainless-steel roundwounds) have higher longitudinal coupling than the source instrument strings ($\Delta k_{\text{long}} = \max(k_{\text{long, tgt}} - k_{\text{long, src}}, 0) > 0$):
+
+$$H_{\text{long}}(f) = 1.0 + \Delta k_{\text{long}} \cdot \frac{f / f_L}{Q_L \sqrt{\left(1 - \left(\frac{f}{f_L}\right)^2\right)^2 + \left(\frac{f}{Q_L f_L}\right)^2}} \cdot e^{-\left(\frac{f}{6000\text{ Hz}}\right)^2}$$
+
+* **Musical Feel:** Reproduces the distinct metallic "piano clank" that cuts through heavy Darkglass drive engines without adding sterile high-frequency EQ boost.
+* Returns exact $1.0000$ ($0.00\text{ dB}$) when source strings match target strings.
+
+---
+
+## 11. Diffuse Mechanical Body-Pickup Microphonic Coupling ($H_{\text{body}}$)
+
+Unlike modern active pickups which are vacuum-encapsulated in dense epoxy resin, vintage passive pickups (such as 1960s Fender Alnico split-coils and single-coils) are unpotted or lightly wax-potted. Acoustic vibrations from the wooden instrument body travel into the pickup bobbins, vibrating the copper windings within the magnetic field:
+
+$$\Delta k_{\text{body}} = \max(k_{\text{body, tgt}} - k_{\text{body, src}}, 0.0)$$
+
+Where $k_{\text{body}} = 0.08$ for Alnico V; $0.10$ for Alnico II; $0.03$ for Ceramic; $0.00$ for epoxy-potted Active pickups:
+
+$$f_b = 6200.0\text{ Hz}, \quad Q_b = 1.8, \quad f_{\text{damp}} = 9500.0\text{ Hz}$$
+$$f_n = \frac{f}{f_b}$$
+$$\text{res}(f) = \frac{f_n}{Q_b \sqrt{\left(1 - f_n^2\right)^2 + \left(\frac{f_n}{Q_b}\right)^2}}$$
+$$H_{\text{body}}(f) = 1.0 + \Delta k_{\text{body}} \cdot \text{res}(f) \cdot e^{-\left(\frac{f}{f_{\text{damp}}}\right)^2}$$
+
+* **Acoustic Consequence:** Adds authentic woody mechanical air and organic body bloom in the $5.5\text{--}7.5\text{ kHz}$ register, imparting vintage realism to sterile active signals.
+
+---
+
+## 12. Multi-Pickup Spatial Propagation Delays & Causal Sample Shifting
+
+In multi-pickup instruments (Jazz Bass pairs, P/J, P/MM), transverse string waves take a physical propagation time $\tau_i$ to travel between pickup positions:
+
+$$\tau_i = \frac{x_{\text{max}} - x_i}{\bar{c}}, \quad \bar{c} = 2 \cdot L \cdot \bar{f}_0 \approx 115.6\text{ m/s}$$
+
+### The Gibbs Truncation Ripple Problem with Circular FFT Rotation:
+Applying this delay in the frequency domain via circular phase rotation ($H(f) \cdot e^{-j 2\pi f \tau_i}$) on minimum-phase FIR filters concentrates the impulse peak at tap 0. Because continuous-time sinc interpolation wraps the negative-time non-causal sinc tail around to the end of the circular buffer, slicing the buffer back to $N$ taps discards this wrapped tail, convolving the frequency spectrum with a Dirichlet kernel and generating periodic Gibbs truncation ripples ($\Delta f = 1/\tau_i \approx 1.2\text{ kHz}$) across the high frequencies ($8\text{--}20\text{ kHz}$).
+
+### The Passivizer Causal Discrete Solution:
+To eliminate Gibbs truncation ripples with $100\%$ mathematical rigor, Passivizer applies spatial propagation delays strictly via **causal integer sample shifts**:
+
+$$\text{delay\_samples} = \left\lfloor \tau_i \cdot f_s + 0.5 \right\rfloor$$
+$$\text{fir}_{\text{delayed}} = [0]^{\text{delay\_samples}} + \text{fir}[:N - \text{delay\_samples}]$$
+
+This guarantees:
+1. Zero high-frequency truncation ripple artifacts in the differential transfer functions.
+2. Exact causal impulse response propagation.
+3. Authentic inter-pickup acoustic phase comb cancellation at $600\text{--}800\text{ Hz}$ when blending neck and bridge pickups in parallel.
+
