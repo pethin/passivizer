@@ -5,7 +5,6 @@
 # to bridge (111.0mm), modeling Bartolini 8CBP with boutique 500k V/T and hybrid treble bleed.
 id = "04_modern_p_ceramic"
 name = "04. Modern Split-Coil P (Ceramic)"
-circuit = "circuits/04_modern_p_ceramic.cir"
 topology = "Split-Coil Ceramic"
 description = "High-inductance ceramic split-coil with boutique 500k V/T harness and hybrid treble bleed"
 magnet_type = "ceramic"
@@ -18,3 +17,17 @@ coils = [
     { strings = [3, 4], position_from_bridge_m = 0.1390, aperture_width_in = 1.00, weight = 1.0 },
     { strings = [1, 2], position_from_bridge_m = 0.1110, aperture_width_in = 1.00, weight = 1.0 }
 ]
+
+[circuit]
+topology = "single"
+L = 4.8
+Rdc = 9500.0
+Reddy = 110000.0
+Ccoil = 8e-11
+vsat = 0.45
+Rvol = 500000.0
+Rtone = 500000.0
+Ctone = 2.2000000000000002e-08
+Ctb = 1e-09
+Rtb_par = 150000.0
+Rtb_ser = 20000.0

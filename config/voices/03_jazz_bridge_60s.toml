@@ -5,7 +5,6 @@
 # 14 1/2" from 12th fret) for articulate bite and balanced midrange punch.
 id = "03_jazz_bridge_60s"
 name = "03. 60s Jazz Bridge Single-Coil"
-circuit = "circuits/03_jazz_bridge_60s.cir"
 topology = "Single-Coil Bridge"
 description = "Narrow single-coil placed in 60s position (2.5\" / 63.5mm datum)"
 magnet_type = "alnico_v"
@@ -17,3 +16,15 @@ scale = "34in"
 coils = [
     { strings = ["all"], position_from_bridge_m = 0.0635, aperture_width_in = 0.75, weight = 1.0 }
 ]
+
+[circuit]
+topology = "single"
+L = 3.6
+Rdc = 7800.0
+Reddy = 125000.0
+Ccoil = 7e-11
+vsat = 0.55
+Rtop = 10.0
+Rbot = 250000.0
+Rtone = 250000.0
+Ctone = 4.7000000000000004e-08

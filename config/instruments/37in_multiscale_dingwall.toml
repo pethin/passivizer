@@ -49,7 +49,6 @@ position_from_bridge_m = 0.0480  # Angled bridge sweet spot 48.0mm
 aperture_width_in = 0.85
 coil_spacing_in = 0.65
 type = "dual_coil_parallel"
-circuit = "circuits/sources/source_dingwall_fd3n.cir"
 magnet_type = "neodymium"
 resonant_frequency_hz = 3400.0   # Active buffered resonance
 q_factor = 1.50
@@ -61,13 +60,23 @@ coils = [
 # ------------------------------------------------------------------------------
 # 2. DINGWALL FD3n NEODYMIUM (Middle Solo)
 # ------------------------------------------------------------------------------
+
+[pickups.bridge.circuit]
+topology = "single"
+L = 2.3
+Rdc = 4400.0
+Reddy = 150000.0
+Ccoil = 1.2e-10
+active = true
+preamp = "none"
+Rvol = 500000.0
+
 [pickups.middle]
 name = "Dingwall FD3n Neodymium (Middle)"
 position_from_bridge_m = 0.0960  # Middle placement 96.0mm
 aperture_width_in = 0.85
 coil_spacing_in = 0.65
 type = "dual_coil_parallel"
-circuit = "circuits/sources/source_dingwall_fd3n.cir"
 magnet_type = "neodymium"
 resonant_frequency_hz = 3400.0
 q_factor = 1.50
@@ -79,13 +88,23 @@ coils = [
 # ------------------------------------------------------------------------------
 # 3. DINGWALL BRIDGE + MIDDLE PARALLEL (Position 2 on Rotary Selector)
 # ------------------------------------------------------------------------------
+
+[pickups.middle.circuit]
+topology = "single"
+L = 2.3
+Rdc = 4400.0
+Reddy = 150000.0
+Ccoil = 1.2e-10
+active = true
+preamp = "none"
+Rvol = 500000.0
+
 [pickups.pair_parallel]
 name = "Dingwall Bridge + Middle Parallel"
 position_from_bridge_m = 0.0720  # Centroid 72.0mm
 aperture_width_in = 0.85
 coil_spacing_in = 0.0
 type = "composite"
-circuit = "circuits/sources/source_dingwall_fd3n.cir"
 magnet_type = "neodymium"
 resonant_frequency_hz = 3600.0
 q_factor = 1.40
@@ -101,6 +120,17 @@ components = [
 #   - Bridge Solo (Pos 1): Voice 13 (Dingwall Multi-Scale Bridge) is an exact 1:1 identity match!
 #   - Parallel (Pos 2): Jazz and P/J dual-coil hybrid voicings
 #   - Middle Solo (Pos 3): Precision bass, Mudbucker, and Upright fullness
+
+
+[pickups.pair_parallel.circuit]
+topology = "single"
+L = 2.3
+Rdc = 4400.0
+Reddy = 150000.0
+Ccoil = 1.2e-10
+active = true
+preamp = "none"
+Rvol = 500000.0
 
 [pickup_mapping]
 "01_modern_jazz_active" = "pair_parallel"

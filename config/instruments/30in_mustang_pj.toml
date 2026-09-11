@@ -50,7 +50,6 @@ position_from_bridge_m = 0.1550  # Centerline 155.0mm
 aperture_width_in = 1.00         # 1.00" aperture per split half
 coil_spacing_in = 0.0
 type = "split_coil"
-circuit = "circuits/sources/source_standard_p.cir"
 magnet_type = "alnico_v"
 resonant_frequency_hz = 2800.0
 q_factor = 1.40
@@ -64,13 +63,24 @@ coils = [
 # ------------------------------------------------------------------------------
 # 2. SINGLE-COIL JAZZ PICKUP (Bridge Solo - Toggle Down)
 # ------------------------------------------------------------------------------
+
+[pickups.p.circuit]
+topology = "single"
+L = 3.8
+Rdc = 10500.0
+Reddy = 180000.0
+Ccoil = 6e-11
+Rtop = 10.0
+Rbot = 250000.0
+Rtone = 250000.0
+Ctone = 4.7000000000000004e-08
+
 [pickups.j]
 name = "Mustang PJ Single-Coil J (Bridge)"
 position_from_bridge_m = 0.0550  # 55.0mm from bridge
 aperture_width_in = 0.75
 coil_spacing_in = 0.0
 type = "single_coil"
-circuit = "circuits/sources/source_standard_jazz_bridge.cir"
 magnet_type = "alnico_v"
 resonant_frequency_hz = 3200.0
 q_factor = 1.60
@@ -81,13 +91,24 @@ coils = [
 # ------------------------------------------------------------------------------
 # 3. MUSTANG P + J PARALLEL (Toggle Middle)
 # ------------------------------------------------------------------------------
+
+[pickups.j.circuit]
+topology = "single"
+L = 3.6
+Rdc = 7800.0
+Reddy = 125000.0
+Ccoil = 7e-11
+Rtop = 10.0
+Rbot = 250000.0
+Rtone = 250000.0
+Ctone = 4.7000000000000004e-08
+
 [pickups.pair_parallel]
 name = "Mustang P + J Parallel"
 position_from_bridge_m = 0.1050  # Centroid 105.0mm
 aperture_width_in = 0.85
 coil_spacing_in = 0.0
 type = "composite"
-circuit = "circuits/sources/source_standard_pj_pair.cir"
 magnet_type = "alnico_v"
 resonant_frequency_hz = 2800.0
 q_factor = 1.20
@@ -103,6 +124,26 @@ components = [
 #   - Toggle Up (Split-P Solo): Precision Bass, Mudbucker, Upright
 #   - Toggle Down (J-Bridge Solo): 60s Jazz Bridge, StingRay, Rickenbacker, Dingwall Bridge
 #   - Toggle Middle (P + J Parallel): Jazz Bass Pair, Modern P/J, Vintage P/J, P/MM
+
+
+[pickups.pair_parallel.circuit]
+topology = "parallel"
+Rtop = 10.0
+Rbot = 125000.0
+Rtone = 250000.0
+Ctone = 4.7000000000000004e-08
+
+[pickups.pair_parallel.circuit.neck]
+L = 3.8
+Rdc = 10500.0
+Reddy = 180000.0
+Ccoil = 6e-11
+
+[pickups.pair_parallel.circuit.bridge]
+L = 3.6
+Rdc = 7800.0
+Reddy = 125000.0
+Ccoil = 7e-11
 
 [pickup_mapping]
 "01_modern_jazz_active" = "pair_parallel"

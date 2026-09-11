@@ -119,13 +119,17 @@ def get_source_pickup(instrument, voice_id):
 
     # 2. Default pickup declared on instrument
     default_key = instrument.get("default_pickup")
-    if default_key and default_key in pickups:
-        p = pickups[default_key].copy()
-        p["id"] = default_key
-        return p
+    if default_key:
+        if default_key in pickups:
+            p = pickups[default_key].copy()
+            p["id"] = default_key
+            return p
+        raise KeyError(
+            f"Instrument '{instrument.get('id', 'unknown')}' default_pickup '{default_key}' "
+            f"not found in pickups: {list(pickups.keys())}"
+        )
 
-    # 3. Fallback to first available pickup
-    first_key = next(iter(pickups.keys()))
-    p = pickups[first_key].copy()
-    p["id"] = first_key
-    return p
+    raise ValueError(
+        f"Instrument '{instrument.get('id', 'unknown')}' defines no 'default_pickup' "
+        f"and has no pickup_mapping for voice '{voice_id}'."
+    )

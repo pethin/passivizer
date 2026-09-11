@@ -33,7 +33,7 @@ from allomorph.physics import (
     numpy_pickup_acoustic_response,
     resolve_pickup_electrical_deconvolution_np,
 )
-from allomorph.circuit.parser import parse_netlist
+from allomorph.circuit.parser import load_circuit, parse_netlist
 from allomorph.circuit.solver import compute_differential_circuit_transfer_functions
 from allomorph.circuit.simulation import (
     CANONICAL_SWEEP_PATH,
@@ -134,15 +134,20 @@ def export_frontend_ir(
     h_aperture_deconv = (h_can_ac * h_src_ac) / (h_src_ac ** 2 + 0.01)
 
     # 3. Circuit deconvolution
-    cir_rel = pickup.get("circuit")
-    can_path = REPO_ROOT / "circuits" / "canonical_intermediate.cir"
-    if cir_rel and (REPO_ROOT / cir_rel).exists() and can_path.exists():
-        can_model = parse_netlist(can_path)
-        src_model = parse_netlist(REPO_ROOT / cir_rel)
+    p_circ = pickup.get("circuit")
+    can_circ = VOICES.get("00_canonical_intermediate", {}).get("circuit")
+    if p_circ and can_circ:
+        can_model = load_circuit(can_circ)
+        src_model = load_circuit(p_circ)
         diff_curves = compute_differential_circuit_transfer_functions(
             can_model, src_model, freqs=f
         )
         h_circuit_deconv = np.asarray(diff_curves[0], dtype=np.float64)
+    elif inst.get("electronics") == "passive":
+        raise ValueError(
+            f"Passive instrument '{inst_id}' pickup '{pickup_key}' does not define a '[pickups.{pickup_key}.circuit]' "
+            f"configuration. Passive source pickups require an explicit circuit model for differential deconvolution."
+        )
     else:
         h_circuit_deconv = resolve_pickup_electrical_deconvolution_np(
             f, pickup, inst, q_target=0.707
@@ -183,7 +188,7 @@ def export_frontend_ir(
 
 def export_all_frontend_irs(output_dir: Path = None):
     """
-    Exports all 33 frontend deconvolution IRs grouped by instrument subdirectories.
+    Exports all 32 native frontend deconvolution IRs grouped by instrument subdirectories.
     """
     out_dir = Path(output_dir) if output_dir else FRONTENDS_DIR
     all_insts = load_all_instruments()
@@ -294,11 +299,6 @@ def main(argv=None):
         help="Input is already pre-filtered through acoustic aperture",
     )
     parser.add_argument(
-        "--save-intermediate",
-        action="store_true",
-        help="Export intermediate pre-filtered audio to audio/<instrument>/aperture_<voice>.wav",
-    )
-    parser.add_argument(
         "--normalize",
         choices=["auto", "rms", "peak", "none"],
         default="auto",
@@ -389,15 +389,31 @@ def main(argv=None):
     )
     parser.add_argument(
         "--vol",
+        "--vol-pos",
         type=float,
         default=None,
+        dest="vol",
         help="Volume pot wiper position (0.0 to 1.0, default 1.0 full open)",
     )
     parser.add_argument(
         "--tone",
+        "--tone-pos",
         type=float,
         default=None,
+        dest="tone",
         help="Tone pot wiper position (0.0 to 1.0, default 1.0 full open/bright)",
+    )
+    parser.add_argument(
+        "--cable-pf",
+        type=float,
+        default=None,
+        help="Cable capacitance loading in pF (default: from circuit config, typically 750 pF)",
+    )
+    parser.add_argument(
+        "--sweep",
+        type=str,
+        default=None,
+        help="Execute continuous parametric sweep (e.g. 'tone', 'vol', 'cable', 'tone_cap', 'bass_boost', 'treble_boost')",
     )
     parser.add_argument(
         "--no-spectral-tilt",
@@ -458,7 +474,7 @@ def main(argv=None):
         "--stage",
         choices=["canonical", "frontends", "targets", "all"],
         default=None,
-        help="Architecture C execution stage: 'canonical' (generate intermediate sweep), 'frontends' (export all 33 IRs), 'targets' (simulate backend sweeps), 'all' (canonical + frontends + targets).",
+        help="Architecture C execution stage: 'canonical' (generate intermediate sweep), 'frontends' (export all 32 native frontend IRs), 'targets' (simulate backend sweeps), 'all' (canonical + frontends + targets).",
     )
     parser.add_argument(
         "--tier",
@@ -473,6 +489,28 @@ def main(argv=None):
         help="Physical pickup setting for source instrument ('auto' to resolve from pickup_mapping, or explicit pickup ID)",
     )
     args = parser.parse_args(argv)
+
+    if args.sweep:
+        import numpy as np
+        from allomorph.circuit.sweeps import compute_parametric_sweep
+
+        target_voices = resolve_voices(args.voice)
+        for vid in target_voices:
+            res = compute_parametric_sweep(vid, param=args.sweep)
+            print(f"\n=======================================================")
+            print(f"  PARAMETRIC SWEEP: {vid} (Param: {args.sweep})")
+            print(f"=======================================================")
+            print(f"Evaluated {len(res.values)} steps ({', '.join(res.labels)}) across {len(res.freqs)} frequencies.")
+            sample_freqs = [100.0, 500.0, 1000.0, 2500.0, 5000.0]
+            header = f"{'Value / Label':<18}" + "".join([f"{f'{f:.0f} Hz':>12}" for f in sample_freqs])
+            print(header)
+            print("-" * len(header))
+            f_arr = np.asarray(res.freqs)
+            f_indices = [int(np.argmin(np.abs(f_arr - sf))) for sf in sample_freqs]
+            for lbl, curve in zip(res.labels, res.curves):
+                row = f"{lbl:<18}" + "".join([f"{curve[idx]:>11.1f}dB" for idx in f_indices])
+                print(row)
+        return
 
     if args.stage == "canonical":
         generate_canonical_sweep(input_wav=args.input, output_wav=args.out)
@@ -510,7 +548,6 @@ def main(argv=None):
         pickup=args.pickup,
         tier=args.tier,
         prefiltered=prefiltered,
-        save_intermediate=args.save_intermediate,
         normalize=args.normalize,
         target_dbfs=args.target_dbfs,
         oversample=args.oversample,
@@ -529,6 +566,7 @@ def main(argv=None):
         k_stein=args.k_stein,
         vol_pos=args.vol,
         tone_pos=args.tone,
+        cable_pf=args.cable_pf,
         slew_limit=slew_limit,
         f_slew=args.f_slew,
         noise_dither=noise_dither,

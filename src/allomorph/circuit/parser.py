@@ -9,7 +9,11 @@ import functools
 import math
 import re
 from pathlib import Path
+from typing import Union, Dict, Any, Optional
 import numpy as np
+
+REPO_ROOT = Path(__file__).resolve().parent.parent.parent.parent
+CIRCUITS_DIR = REPO_ROOT / "circuits"
 
 
 def parse_spice_val(val_str: str) -> float:
@@ -237,6 +241,7 @@ class CircuitModel:
         # Active preamp buffer & EQ
         self.has_active_buffer = False
         self.preamp_type = "none"  # "sadowsky_2band", "stingray_2band", or "none"
+        self.preamp_bands = None
         self.preamp_gain = 1.0
         self.R_preamp_in = 1.0e6
         self.C_preamp_in = 25e-12
@@ -314,6 +319,154 @@ class CircuitModel:
                     self, "Rtone_total", self.Rtone if self.Rtone > 0.0 else 250000.0
                 )
                 self.Rtone = max(r_tone_tot * self.tone_pos, 0.0)
+
+    @classmethod
+    def from_dict(cls, cfg: dict) -> "CircuitModel":
+        """Creates a CircuitModel from a declarative configuration dictionary."""
+        def _val(v, default=0.0):
+            if v is None or isinstance(v, bool):
+                return default
+            if isinstance(v, (int, float)):
+                return float(v)
+            if isinstance(v, str):
+                return parse_spice_val(v)
+            return default
+
+        model = cls()
+        model.topology = str(cfg.get("topology", "single")).lower()
+
+        # Dynamic saturation limit
+        model.vsat = _val(cfg.get("vsat"), 0.50)
+        model.vsat_n = _val(cfg.get("vsat_n"), 0.50)
+        model.vsat_b = _val(cfg.get("vsat_b"), 0.50)
+
+        # Neck / single pickup branch
+        if "neck" in cfg and isinstance(cfg["neck"], dict):
+            neck = cfg["neck"]
+            model.L = _val(neck.get("L"), model.L)
+            model.L_core = _val(neck.get("L_core"), model.L_core)
+            model.R_core = _val(neck.get("R_core"), model.R_core)
+            model.Rdc = _val(neck.get("Rdc"), model.Rdc)
+            model.Reddy = _val(neck.get("Reddy"), model.Reddy)
+            model.Ccoil = _val(neck.get("Ccoil"), model.Ccoil)
+            if "vsat" in neck:
+                model.vsat_n = _val(neck.get("vsat"), model.vsat_n)
+        else:
+            model.L = _val(cfg.get("L"), model.L)
+            model.L_core = _val(cfg.get("L_core"), model.L_core)
+            model.R_core = _val(cfg.get("R_core"), model.R_core)
+            model.Rdc = _val(cfg.get("Rdc"), model.Rdc)
+            model.Reddy = _val(cfg.get("Reddy"), model.Reddy)
+            model.Ccoil = _val(cfg.get("Ccoil"), model.Ccoil)
+
+        # Bridge pickup branch
+        if "bridge" in cfg and isinstance(cfg["bridge"], dict):
+            bridge = cfg["bridge"]
+            model.L_b = _val(bridge.get("L"), model.L_b)
+            model.L_core_b = _val(bridge.get("L_core"), model.L_core_b)
+            model.R_core_b = _val(bridge.get("R_core"), model.R_core_b)
+            model.Rdc_b = _val(bridge.get("Rdc"), model.Rdc_b)
+            model.Reddy_b = _val(bridge.get("Reddy"), model.Reddy_b)
+            model.Ccoil_b = _val(bridge.get("Ccoil"), model.Ccoil_b)
+            if "vsat" in bridge:
+                model.vsat_b = _val(bridge.get("vsat"), model.vsat_b)
+        else:
+            model.L_b = _val(cfg.get("L_b"), model.L_b)
+            model.L_core_b = _val(cfg.get("L_core_b"), model.L_core_b)
+            model.R_core_b = _val(cfg.get("R_core_b"), model.R_core_b)
+            model.Rdc_b = _val(cfg.get("Rdc_b"), model.Rdc_b)
+            model.Reddy_b = _val(cfg.get("Reddy_b"), model.Reddy_b)
+            model.Ccoil_b = _val(cfg.get("Ccoil_b"), model.Ccoil_b)
+
+        # Volume Pot
+        if "Rtop" in cfg or "Rbot" in cfg:
+            model.Rtop = _val(cfg.get("Rtop"), 10.0)
+            model.Rbot = _val(cfg.get("Rbot"), 500000.0)
+        elif "Rvol" in cfg:
+            model.Rtop = 10.0
+            model.Rbot = _val(cfg["Rvol"], 500000.0)
+        else:
+            model.Rtop = 10.0
+            model.Rbot = 500000.0
+
+        # Tone Pot
+        model.Rtone = _val(cfg.get("Rtone"), 0.0)
+        model.Ctone = _val(cfg.get("Ctone"), 0.0)
+
+        # HPF
+        model.Crick = _val(cfg.get("Crick", cfg.get("series_hpf_cap", 0.0)), 0.0)
+        if "series_hpf_cap_nf" in cfg:
+            model.Crick = _val(cfg["series_hpf_cap_nf"]) * 1e-9
+
+        # Treble bleed
+        model.Ctb = _val(cfg.get("Ctb"), 0.0)
+        model.Rtb_par = _val(cfg.get("Rtb_par"), 0.0)
+        model.Rtb_ser = _val(cfg.get("Rtb_ser"), 0.0)
+
+        # Individual pickup volume pot decoupling
+        model.Rpot_n = _val(cfg.get("Rpot_n"), 0.0)
+        model.Rpot_b = _val(cfg.get("Rpot_b"), 0.0)
+
+        # Active preamp & buffer
+        active = bool(cfg.get("active", cfg.get("has_active_buffer", False)))
+        preamp = cfg.get("preamp", cfg.get("preamp_type", "none"))
+        if preamp != "none" or active:
+            model.has_active_buffer = True
+            model.preamp_type = preamp
+
+        model.preamp_gain = _val(cfg.get("preamp_gain"), 1.0)
+        model.R_preamp_in = _val(cfg.get("R_preamp_in", cfg.get("Rin")), 1.0e6)
+        model.C_preamp_in = _val(cfg.get("C_preamp_in", cfg.get("Cin")), 25e-12)
+        model.R_out = _val(cfg.get("R_out", cfg.get("Rout")), 100.0)
+        model.no_eq = bool(cfg.get("no_eq", False))
+        if "preamp_bands" in cfg:
+            model.preamp_bands = cfg["preamp_bands"]
+
+        # Cable & load
+        model.Ccable = _val(cfg.get("Ccable"), 750e-12)
+        model.tan_delta = _val(cfg.get("tan_delta"), 0.025)
+        model.tan_delta_coil = _val(cfg.get("tan_delta_coil"), 0.025)
+        model.Ranagram = _val(cfg.get("Ranagram"), 1.0e6)
+        model.Canagram = _val(cfg.get("Canagram"), 30e-12)
+
+        # Coupling & Dielectrics
+        if model.topology in ("parallel", "series"):
+            model.k_mutual = _val(cfg.get("k_mutual"), 0.05)
+            model.C_mutual = _val(cfg.get("C_mutual"), 20e-12)
+        else:
+            model.k_mutual = _val(cfg.get("k_mutual"), 0.0)
+            model.C_mutual = _val(cfg.get("C_mutual"), 0.0)
+
+        model.alpha_dielectric_tone = _val(
+            cfg.get("alpha_dielectric_tone", cfg.get("alpha_tone")), 0.988
+        )
+        model.alpha_dielectric_cable = _val(
+            cfg.get("alpha_dielectric_cable", cfg.get("alpha_cable")), 0.994
+        )
+
+        # Jordan / skin-effect dispersion
+        model.chi_mu = _val(cfg.get("chi_mu"), 0.0)
+        model.chi_mu_b = _val(cfg.get("chi_mu_b"), 0.0)
+        model.omega_mu = _val(cfg.get("omega_mu"), 2.0 * math.pi * 1200.0)
+        model.k_dist = _val(cfg.get("k_dist"), 0.0)
+        model.k_dist_b = _val(cfg.get("k_dist_b"), 0.0)
+        model.omega_dist = _val(cfg.get("omega_dist"), 2.0 * math.pi * 10000.0)
+        model.k_skin = _val(cfg.get("k_skin"), 0.0)
+        model.f_skin = _val(cfg.get("f_skin"), 3200.0)
+        model.k_skin_b = _val(cfg.get("k_skin_b"), 0.0)
+        model.f_skin_b = _val(cfg.get("f_skin_b"), 3200.0)
+
+        # Pot defaults
+        model.Rvol_total = model.Rtop + model.Rbot
+        model.Rtone_total = model.Rtone if model.Rtone > 0.0 else 250000.0
+        model.Rtop_default = model.Rtop
+        model.Rbot_default = model.Rbot
+        model.Rtone_default = model.Rtone
+
+        if "vol_pos" in cfg or "tone_pos" in cfg:
+            model.apply_pot_positions(cfg.get("vol_pos"), cfg.get("tone_pos"))
+
+        return model
 
 
 @functools.lru_cache(maxsize=128)
@@ -524,8 +677,84 @@ def _parse_netlist_cached(cir_path_str: str) -> CircuitModel:
     return model
 
 
-def parse_netlist(cir_path: Path) -> CircuitModel:
-    """Parses an Allomorph .cir netlist into a CircuitModel (LRU-cached with shallow copy)."""
-    p = Path(cir_path).resolve()
-    cached = _parse_netlist_cached(str(p))
-    return copy.copy(cached)
+def load_circuit(source: Union[CircuitModel, dict, str, Path]) -> CircuitModel:
+    """Loads a CircuitModel from a dict, file path (.toml or .cir), voice ID, or instrument ID."""
+    if isinstance(source, CircuitModel):
+        return copy.copy(source)
+    if isinstance(source, dict):
+        if "circuit" in source and isinstance(source["circuit"], dict):
+            return CircuitModel.from_dict(source["circuit"])
+        if "circuit" in source and isinstance(source["circuit"], (str, Path)):
+            return load_circuit(source["circuit"])
+        return CircuitModel.from_dict(source)
+
+    if isinstance(source, (str, Path)):
+        p = Path(source)
+        if p.exists() and p.is_file():
+            if p.suffix == ".toml":
+                import tomllib
+
+                with open(p, "rb") as f:
+                    data = tomllib.load(f)
+                return load_circuit(data)
+            elif p.suffix == ".cir":
+                return copy.copy(_parse_netlist_cached(str(p.resolve())))
+
+        # Try relative to REPO_ROOT
+        repo_rel = REPO_ROOT / source
+        if repo_rel.exists() and repo_rel.is_file():
+            return load_circuit(repo_rel)
+
+        # Check voices and instruments registry by string or stem
+        stem = Path(source).stem
+        src_map = {
+            "source_standard_p": ("34in_standard_p", "split_p"),
+            "source_standard_jazz_neck": ("34in_standard_jazz", "neck"),
+            "source_standard_jazz_bridge": ("34in_standard_jazz", "bridge"),
+            "source_standard_jazz_pair": ("34in_standard_jazz", "pair_parallel"),
+            "source_standard_pj_pair": ("34in_standard_pj", "pair_parallel"),
+            "source_active_stingray": ("34in_active_stingray", "mm_parallel"),
+            "source_dingwall_fd3n": ("37in_multiscale_dingwall", "bridge"),
+            "source_dingwall_sp1_bridge": ("34in_dingwall_sp1", "bridge"),
+            "source_standard_mustang": ("30in_mustang_pj", "p"),
+        }
+
+        try:
+            from allomorph.config.voices import VOICES
+
+            if str(source) in VOICES:
+                return load_circuit(VOICES[str(source)])
+            if stem in VOICES:
+                return load_circuit(VOICES[stem])
+        except ImportError:
+            pass
+
+        try:
+            from allomorph.config.instruments import INSTRUMENTS
+
+            if stem in src_map:
+                inst_id, p_id = src_map[stem]
+                if inst_id in INSTRUMENTS and p_id in INSTRUMENTS[inst_id].get("pickups", {}):
+                    p_data = INSTRUMENTS[inst_id]["pickups"][p_id]
+                    if "circuit" in p_data:
+                        return load_circuit(p_data["circuit"])
+
+            if str(source) in INSTRUMENTS:
+                inst = INSTRUMENTS[str(source)]
+                default_p = inst.get("default_pickup")
+                if default_p and default_p in inst.get("pickups", {}):
+                    p = inst["pickups"][default_p]
+                    if "circuit" in p:
+                        return load_circuit(p["circuit"])
+                for p in inst.get("pickups", {}).values():
+                    if "circuit" in p:
+                        return load_circuit(p["circuit"])
+        except ImportError:
+            pass
+
+    raise ValueError(f"Could not load circuit from: {source}")
+
+
+def parse_netlist(source: Union[CircuitModel, dict, str, Path]) -> CircuitModel:
+    """Parses a netlist or declarative circuit configuration into a CircuitModel."""
+    return load_circuit(source)

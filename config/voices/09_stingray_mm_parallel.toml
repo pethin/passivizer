@@ -5,7 +5,6 @@
 # authentic active 2-band preamp buffer (+1.8 dB @ 50 Hz, +2.2 dB @ 4-7 kHz).
 id = "09_stingray_mm_parallel"
 name = "09. Music Man MM (Parallel Humbucker)"
-circuit = "circuits/09_stingray_mm_parallel.cir"
 topology = "Dual-Coil Parallel Active Buffer"
 description = "Dual-coil humbucker in parallel with authentic active 2-band preamp buffer (+1.8 dB @ 50 Hz, +2.2 dB @ 4-7 kHz)"
 magnet_type = "alnico_v"
@@ -18,3 +17,13 @@ coils = [
     { strings = ["all"], position_from_bridge_m = 0.0755, aperture_width_in = 0.75, weight = 0.5 }, # Neck coil
     { strings = ["all"], position_from_bridge_m = 0.0565, aperture_width_in = 0.75, weight = 0.5 }  # Bridge coil
 ]
+
+[circuit]
+topology = "single"
+L = 1.2
+Rdc = 2200.0
+Reddy = 75000.0
+Ccoil = 1.8e-10
+active = true
+preamp = "stingray_2band"
+Rvol = 500000.0

@@ -7,7 +7,6 @@
 # dynamic soft-knee bridge compliance, and 100M-Ohm buffer with 15nF rumble cap.
 id = "14_upright_bridge_transducer"
 name = "14. Upright Acoustic Bridge Transducer"
-circuit = "circuits/14_upright_bridge_transducer.cir"
 topology = "Acoustic Bridge Transducer"
 sensor_type = "bridge_force"
 description = "Direct bridge force transducer with 100M-Ohm buffer, 15nF rumble cap, and velocity-to-force leaky integration"
@@ -22,3 +21,17 @@ hpf = 30.0
 coils = [
     { strings = ["all"], position_from_bridge_m = 0.0050, aperture_width_in = 0.25, weight = 1.0 }
 ]
+
+[circuit]
+topology = "single"
+L = 1e-06
+Rdc = 50.0
+Reddy = 1000000.0
+Ccoil = 1.2e-09
+vsat = 0.42
+Rtop = 10.0
+Rbot = 100000000.0
+Crick = 1.5000000000000002e-08
+Ctb = 0.0
+Rtb_par = 100000000.0
+Rtb_ser = 100000000.0

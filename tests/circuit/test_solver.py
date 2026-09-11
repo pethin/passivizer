@@ -8,6 +8,7 @@ import numpy as np
 import pytest
 
 from allomorph.circuit import (
+    load_circuit,
     parse_netlist,
     compute_circuit_transfer_functions,
     compute_differential_circuit_transfer_functions,
@@ -279,12 +280,8 @@ def test_voice_09b_series_netlist_and_transfer():
     3. Active series resonance sits at authentic ~4.1 kHz.
     4. Series connection delivers +5.6 dB output boost over parallel.
     """
-    cir_09 = CIRCUITS_DIR / "09_stingray_mm_parallel.cir"
-    cir_09b = CIRCUITS_DIR / "09b_stingray_mm_series.cir"
-    assert cir_09b.exists(), f"Netlist missing: {cir_09b}"
-
-    m09 = parse_netlist(cir_09)
-    m09b = parse_netlist(cir_09b)
+    m09 = load_circuit("09_stingray_mm_parallel")
+    m09b = load_circuit("09b_stingray_mm_series")
 
     assert m09.L == pytest.approx(1.20)
     assert m09.Rdc == pytest.approx(2200.0)
@@ -334,14 +331,11 @@ def test_dingwall_composite_source_circuit():
     inst = load_instrument("37in_multiscale_dingwall")
     pair_pickup = inst["pickups"]["pair_parallel"]
     assert "circuit" in pair_pickup
-    assert pair_pickup["circuit"] == "circuits/sources/source_dingwall_fd3n.cir"
-    assert (REPO_ROOT / pair_pickup["circuit"]).exists()
+    assert isinstance(pair_pickup["circuit"], dict)
 
     # Differential SPICE transfer functions evaluate cleanly
-    cir_path = REPO_ROOT / "circuits" / "02_jazz_bass_pair.cir"
-    src_cir_path = REPO_ROOT / pair_pickup["circuit"]
-    tgt_model = parse_netlist(cir_path)
-    src_model = parse_netlist(src_cir_path)
+    tgt_model = load_circuit("02_jazz_bass_pair")
+    src_model = load_circuit(pair_pickup["circuit"])
     diff_curves = compute_differential_circuit_transfer_functions(tgt_model, src_model, freqs=FREQS)
     assert len(diff_curves) == 2
     for c in diff_curves:
@@ -457,3 +451,35 @@ def test_solid_pole_eddy_skin_dispersion():
     idx_3k = np.argmin(np.abs(f_arr - 3000.0))
     assert diff_db[idx_3k] <= 0.0, "Alnico skin effect must damp 3 kHz resonance"
     assert np.all(diff_db <= 0.05), "Skin effect must never cause un-damped high-frequency resonance boost"
+
+
+def test_generic_analog_preamp_bands():
+    """Verify that evaluate_analog_band and compute_active_preamp_transfer evaluate continuous s-domain filters."""
+    from allomorph.circuit.solver import evaluate_analog_band, compute_active_preamp_transfer
+
+    # 1. Low shelf boost: +4.0 dB @ 60 Hz
+    s_dc = 1j * 2.0 * math.pi * 1e-4
+    s_hf = 1j * 2.0 * math.pi * 10000.0
+    band_low = {"type": "low_shelf", "freq_hz": 60.0, "gain_db": 4.0}
+
+    h_dc = abs(evaluate_analog_band(band_low, s_dc))
+    h_hf = abs(evaluate_analog_band(band_low, s_hf))
+
+    expected_boost = 10.0 ** (4.0 / 20.0)
+    assert h_dc == pytest.approx(expected_boost, rel=1e-3)
+    assert h_hf == pytest.approx(1.0, rel=1e-3)
+
+    # 2. High shelf boost: +3.0 dB @ 4000 Hz
+    band_high = {"type": "high_shelf", "freq_hz": 4000.0, "gain_db": 3.0}
+    s_inf = 1j * 2.0 * math.pi * 1e7
+    h_high_dc = abs(evaluate_analog_band(band_high, s_dc))
+    h_high_inf = abs(evaluate_analog_band(band_high, s_inf))
+
+    expected_treble = 10.0 ** (3.0 / 20.0)
+    assert h_high_dc == pytest.approx(1.0, rel=1e-3)
+    assert h_high_inf == pytest.approx(expected_treble, rel=1e-3)
+
+    # 3. Composite preamp transfer
+    h_comp = compute_active_preamp_transfer([band_low, band_high], np.array([s_dc, s_inf]))
+    assert abs(h_comp[0]) == pytest.approx(expected_boost, rel=1e-3)
+    assert abs(h_comp[1]) == pytest.approx(expected_treble, rel=1e-3)

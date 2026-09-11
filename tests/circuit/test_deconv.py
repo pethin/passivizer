@@ -250,7 +250,7 @@ def test_source_direct_simulation():
     assert vcfg["vsat"] == 0.50
 
     # Netlist must be a no_eq flat studio buffer
-    model = parse_netlist(REPO_ROOT / vcfg["circuit"])
+    model = parse_netlist(vcfg["circuit"])
     assert getattr(model, "no_eq", False) is True
 
     # Evaluated on canonical intermediate, prefilter FIR must invert the 93.5mm aperture sinc

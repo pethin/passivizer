@@ -6,7 +6,7 @@ from pathlib import Path
 import numpy as np
 
 from allomorph.config import VOICES
-from allomorph.circuit import parse_netlist, compute_circuit_transfer_functions, REPO_ROOT
+from allomorph.circuit import load_circuit, parse_netlist, compute_circuit_transfer_functions, REPO_ROOT
 from allomorph.dsp import NUM_TAPS, FREQS
 from allomorph.physics import compute_voice_prefilter_firs
 from allomorph.visualizer import build_voice_dataframe
@@ -44,9 +44,10 @@ def test_voice_parameter_validity():
 
 def test_voice_netlist_existence():
     for vid, cfg in VOICES.items():
-        assert "circuit" in cfg, f"{vid} missing circuit netlist attribute"
-        circuit_file = Path(cfg["circuit"])
-        assert circuit_file.exists(), f"Circuit file {circuit_file} for {vid} not found on disk"
+        assert "circuit" in cfg, f"{vid} missing circuit attribute"
+        assert isinstance(cfg["circuit"], dict), f"{vid} circuit configuration must be a dict"
+        m = load_circuit(cfg["circuit"])
+        assert m.L > 0
 
 
 def test_voices_have_no_hardcoded_source_datums():
@@ -66,7 +67,7 @@ def test_source_direct_properties():
 
     # 2. Circuit transfer function must be identically 1.0 across all frequencies (no_eq buffer)
     cfg = VOICES["15_source_direct"]
-    model = parse_netlist(REPO_ROOT / cfg["circuit"])
+    model = load_circuit(cfg["circuit"])
     assert getattr(model, "no_eq", False) is True
     curves = compute_circuit_transfer_functions(model, freqs=FREQS)
     assert len(curves) == 1
@@ -89,7 +90,7 @@ def test_active_character_buffer_properties():
 
     # 2. Netlist models active buffer with flat contour
     cfg = VOICES["16_active_character"]
-    model = parse_netlist(REPO_ROOT / cfg["circuit"])
+    model = load_circuit(cfg["circuit"])
     assert model.has_active_buffer is True
     assert model.preamp_type == "none"
     assert model.R_out == 100.0

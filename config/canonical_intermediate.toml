@@ -31,7 +31,18 @@ coil_spacing_in = 0.0
 type = "single_coil"
 resonant_frequency_hz = 20000.0
 q_factor = 0.707
-circuit = "circuits/canonical_intermediate.cir"
 coils = [
     { strings = ["all"], position_from_bridge_m = 0.0935, aperture_width_in = 0.75, weight = 1.0 }
 ]
+
+[pickups.canonical_median.circuit]
+topology = "single"
+L = 4.8
+Rdc = 9500.0
+Reddy = 110000.0
+Ccoil = 8e-11
+active = true
+preamp = "none"
+R_out = 50.0
+no_eq = true
+Rvol = 500000.0

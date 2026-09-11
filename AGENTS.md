@@ -55,14 +55,12 @@ allomorph/
 ├── src/                      # Core reusable library package
 │   └── allomorph/            # Modern package (config/, physics/, circuit/, visualizer/, pipeline/)
 ├── audio/                    # Generated 24-bit audio digital twins (audio/<instrument>/)
-├── circuits/                 # Standalone SPICE circuit netlists (.cir)
-│   ├── sources/              # Active, passive, and commercial source instrument netlists
-│   └── ... (01 through 16)
 ├── config/                   # Modular TOML configuration files
-│   ├── instruments/          # Source bass definitions (scale, pickups, routing)
+│   ├── instruments/          # Source bass definitions with embedded [pickups.<id>.circuit]
+│   ├── preamps.toml          # Reusable active preamp catalog (Sadowsky, StingRay, Aguilar, Dingwall)
 │   ├── scales.toml           # Standard scale wave speeds
 │   ├── strings.toml          # Physical string core/wrap presets
-│   └── voices.toml           # Voice metadata linking to SPICE netlists
+│   └── voices/               # Target voice TOMLs with embedded declarative [circuit] tables
 ├── docs/                     # Technical documentation & interactive charts
 │   ├── architectural_guardrails.md # Master mathematical reference handbook & derivations
 │   ├── voice_catalog.md      # Passive pickup models, RLC parameters, character
@@ -111,10 +109,11 @@ All code contributions must strictly satisfy the following normative invariants 
 2. **Quadrature Null Floors & Absolute Units:** Preserve 3D flux fringing with a quadrature floor ($\epsilon_{\text{quad}} \approx 0.18$) at comb nulls. Evaluate curves in absolute gain units ($20\log_{10}(\max(h_{\text{diff}}, 10^{-6}))$); never normalize by an arbitrary mid-frequency bin.
 
 ### 5.3 True Differential Circuit Deconvolution & Staging Integrity
-1. **True Differential Deconvolution:** Evaluate $H_{\text{diff}} = H_{\text{tgt}} / H_{\text{src}}$ using dedicated netlists in `circuits/sources/` for active/buffered instruments. Exact equality must evaluate to $0.00\text{ dB}$ across all bins.
+1. **True Differential Deconvolution:** Evaluate $H_{\text{diff}} = H_{\text{tgt}} / H_{\text{src}}$ using dedicated declarative circuit models in `config/instruments/` for active/buffered instruments. Exact equality must evaluate to $0.00\text{ dB}$ across all bins.
 2. **Double Voicing Prevention:** Automatically bypass prefiltering if audio file starts with `aperture_`. Multi-channel target circuits evaluate branch FIRs with unity weight ($p_{\text{weight}} = 1.0$), letting the SPICE nodal network evaluate current division.
 3. **Sub-Audible DC Transmission:** Active preamps must feature flat, finite DC transmission ($H_{\text{preamp}}(0) \ge 1.0$). Strictly omit sub-audible AC-coupling differentiators ($s / (s + \omega_{\text{sub}})$) from preamp EQ models to prevent Gibbs truncation ripples ($\Delta f = f_s / N = 23.4\text{ Hz}$) across $20\text{--}300\text{ Hz}$.
 4. **Transducer Taxonomy & Zero-Conditional Deconvolution:** Model all sensors strictly through a first-class physical taxonomy (`sensor_type = "magnetic" | "bridge_force" | "direct"`). Never inject ad-hoc voice ID conditionals (`if voice_id == ...`) or conditional impulse bypasses. Direct sensors define flat acoustic transfer ($H_{\text{tgt, acoustic}} \equiv 1.0$) and flat active circuit response ($H_{\text{circuit}} \equiv 1.0$), naturally solving the inverse macro-aperture ($1 / H_{\text{src}}$) through the universal Wiener regularized quotient.
+5. **Fail-Fast Declarative Integrity & Zero Silent Fallbacks:** Never silently substitute fallback models, arbitrary pickups, assumed scales, or unvoiced circuits when a configuration block or parameter is missing or invalid. Missing passive pickup circuits, invalid voice IDs, unknown scale strings, unmapped pickups, unknown string presets, and unrecognized magnet types must immediately raise explicit, diagnostic `ValueError` or `KeyError` exceptions. Silent fallbacks mask configuration errors, violate declarative reproducibility, and corrupt downstream deconvolution filters.
 
 ### 5.4 Differential Non-Linear Metallurgy & Dynamics
 1. **Differential Metallurgy Softening:** Soften differentially based on relative target vs source metallurgy ($\Delta\alpha, \Delta k_{\text{sag}}, \Delta k_{\text{eddy}}, \Delta\kappa_{\text{geom}}, \Delta k_{\text{stein}}, \Delta k_{\text{emf}}, \Delta\lambda_L$). Bypass on small signals ($\le 0.10$) to preserve bit-exact test linearity.

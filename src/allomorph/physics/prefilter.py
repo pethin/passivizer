@@ -68,8 +68,14 @@ def compute_voice_prefilter_firs(
     src_scale_in = src_scale_m / 0.0254
     tgt_scale_in = tgt_scale_m / 0.0254
 
-    if src_pickup_key and src_pickup_key != "auto" and src_pickup_key in inst.get("pickups", {}):
-        src_pickup = inst["pickups"][src_pickup_key].copy()
+    if src_pickup_key and src_pickup_key != "auto":
+        pickups = inst.get("pickups", {})
+        if src_pickup_key not in pickups:
+            raise KeyError(
+                f"Pickup '{src_pickup_key}' not found on instrument '{inst.get('id', 'unknown')}'. "
+                f"Available pickups: {list(pickups.keys())}"
+            )
+        src_pickup = pickups[src_pickup_key].copy()
         src_pickup["id"] = src_pickup_key
     else:
         src_pickup = get_source_pickup(inst, voice_id)
@@ -106,9 +112,14 @@ def compute_voice_prefilter_firs(
     else:
         h_tension = np.ones_like(freqs)
 
-    cir_rel = cfg.get("circuit")
-    cir_path = (REPO_ROOT / cir_rel) if cir_rel else None
-    has_multichannel_circuit = bool(cir_path and cir_path.exists() and len(pickups) > 1)
+    tgt_circ = cfg.get("circuit")
+    if isinstance(tgt_circ, dict):
+        has_multichannel_circuit = bool(len(pickups) > 1)
+    elif isinstance(tgt_circ, (str, Path)):
+        cir_path = REPO_ROOT / tgt_circ
+        has_multichannel_circuit = bool(cir_path.exists() and len(pickups) > 1)
+    else:
+        has_multichannel_circuit = False
 
     src_components = (
         src_pickup.get("components", []) if src_pickup.get("type") == "composite" else []

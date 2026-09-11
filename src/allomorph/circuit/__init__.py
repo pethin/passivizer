@@ -8,6 +8,7 @@ from allomorph.circuit.parser import (
     MAGNET_PROPERTIES,
     CircuitModel,
     _parse_netlist_cached,
+    load_circuit,
     parse_netlist,
 )
 from allomorph.circuit.solver import (
@@ -59,12 +60,19 @@ from allomorph.circuit.staging import (
     simulate_backend_targets,
     main,
 )
+from allomorph.circuit.sweeps import (
+    ParametricSweepResult,
+    compute_parametric_sweep,
+)
 
 __all__ = [
+    "ParametricSweepResult",
+    "compute_parametric_sweep",
     "parse_spice_val",
     "MAGNET_PROPERTIES",
     "CircuitModel",
     "_parse_netlist_cached",
+    "load_circuit",
     "parse_netlist",
     "compute_core_impedance",
     "apply_magnet_properties_to_model",

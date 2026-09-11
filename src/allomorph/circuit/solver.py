@@ -88,8 +88,16 @@ def apply_magnet_properties_to_model(
         mag_n = mag_type_global
         mag_b = mag_type_global
 
-    props_n = MAGNET_PROPERTIES.get(mag_n, MAGNET_PROPERTIES["alnico_v"])
-    props_b = MAGNET_PROPERTIES.get(mag_b, MAGNET_PROPERTIES["alnico_v"])
+    if mag_n not in MAGNET_PROPERTIES:
+        raise KeyError(
+            f"Unknown magnet type '{mag_n}'. Available magnet types: {list(MAGNET_PROPERTIES.keys())}"
+        )
+    if mag_b not in MAGNET_PROPERTIES:
+        raise KeyError(
+            f"Unknown magnet type '{mag_b}'. Available magnet types: {list(MAGNET_PROPERTIES.keys())}"
+        )
+    props_n = MAGNET_PROPERTIES[mag_n]
+    props_b = MAGNET_PROPERTIES[mag_b]
 
     if model.L_core <= 0.0 and props_n.get("k_core", 0.0) > 0.0:
         model.L_core = props_n["k_core"] * model.L
@@ -119,38 +127,64 @@ def apply_magnet_properties_to_model(
             model.f_skin_b = props_b.get("f_skin", 3200.0)
 
 
-def compute_active_preamp_eq(preamp_type: str, s):
+def evaluate_analog_band(band: dict, s: np.ndarray) -> np.ndarray:
+    """Evaluates continuous s-domain analog transfer function for a single EQ band."""
+    b_type = band.get("type", "bell")
+    f0 = float(band.get("freq_hz", 1000.0))
+    g_db = float(band.get("gain_db", 0.0))
+    w0 = 2.0 * math.pi * f0
+    g = 10.0 ** (g_db / 20.0)
+
+    if b_type == "low_shelf":
+        return (s + g * w0) / (s + w0)
+    elif b_type == "high_shelf":
+        return (g * s + w0) / (s + w0)
+    elif b_type == "bell":
+        q = float(band.get("q", 1.0))
+        num = s**2 + (w0 / q) * g * s + w0**2
+        den = s**2 + (w0 / q) * s + w0**2
+        return num / den
+    elif b_type == "low_pass":
+        return w0 / (s + w0)
+    elif b_type == "high_pass":
+        return s / (s + w0)
+    return np.ones_like(s, dtype=np.complex128)
+
+
+def compute_active_preamp_transfer(bands, s, gain_db: float = 0.0) -> np.ndarray:
+    """Evaluates the composite analog active preamp contour across frequencies with finite DC transmission."""
+    h_total = np.ones_like(s, dtype=np.complex128) * (10.0 ** (gain_db / 20.0))
+    if not bands:
+        return h_total
+    for band in bands:
+        h_total = h_total * evaluate_analog_band(band, s)
+    return h_total
+
+
+def compute_active_preamp_eq(preamp_spec, s):
     """
-    Evaluates analog active preamp contour transfer function:
-    - Sadowsky 2-band boost: +3.5 dB @ 60 Hz shelf, +3.5 dB @ 3.5 kHz shelf
-    - StingRay 2-band boost: +1.8 dB @ 80 Hz shelf, +2.2 dB @ 4 kHz shelf
+    Evaluates analog active preamp contour transfer function.
+    Accepts:
+      - str (preset name): looks up in PREAMPS catalog (e.g. 'sadowsky_2band', 'stingray_2band')
+      - list: evaluates list of band dicts
+      - dict: evaluates preamp dict containing 'bands' and optional 'gain_db'
     """
-    if preamp_type == "sadowsky_2band":
-        wb = 2.0 * math.pi * 60.0
-        gb = 10.0 ** (3.5 / 20.0)
-        h_bass = (s + gb * wb) / (s + wb)
-
-        wt = 2.0 * math.pi * 3500.0
-        gt = 10.0 ** (3.5 / 20.0)
-        h_treble = (gt * s + wt) / (s + wt)
-
-        return h_bass * h_treble
-
-    elif preamp_type == "stingray_2band":
-        wb = 2.0 * math.pi * 80.0
-        gb = 10.0 ** (1.8 / 20.0)
-        h_bass = (s + gb * wb) / (s + wb)
-
-        wt = 2.0 * math.pi * 4000.0
-        gt = 10.0 ** (2.2 / 20.0)
-        h_treble = (gt * s + wt) / (s + wt)
-
-        return h_bass * h_treble
-
-    return 1.0 + 0j
+    if isinstance(preamp_spec, str):
+        from allomorph.config import PREAMPS
+        preset = PREAMPS.get(preamp_spec, {})
+        bands = preset.get("bands", [])
+        gain_db = preset.get("gain_db", 0.0)
+        return compute_active_preamp_transfer(bands, s, gain_db=gain_db)
+    elif isinstance(preamp_spec, list):
+        return compute_active_preamp_transfer(preamp_spec, s)
+    elif isinstance(preamp_spec, dict):
+        bands = preamp_spec.get("bands", [])
+        gain_db = preamp_spec.get("gain_db", 0.0)
+        return compute_active_preamp_transfer(bands, s, gain_db=gain_db)
+    return np.ones_like(s, dtype=np.complex128)
 
 
-def compute_circuit_transfer_functions(model: CircuitModel, freqs=FREQS):
+def compute_circuit_transfer_functions(model: CircuitModel, freqs=FREQS, return_numpy: bool = False):
     """
     Computes closed-form nodal AC transfer functions across frequencies using vectorized NumPy SIMD operations.
     Returns a list of magnitude curves:
@@ -158,9 +192,14 @@ def compute_circuit_transfer_functions(model: CircuitModel, freqs=FREQS):
       - Dual-pickup (parallel or series): [mag_neck, mag_bridge] (length 2)
     Supports both passive high-Z harnesses and active buffered preamps.
     """
+    def _ret(res_list):
+        if return_numpy:
+            return res_list
+        return [np.asarray(x, dtype=np.float64).tolist() for x in res_list]
+
     f = np.asarray(freqs, dtype=np.float64)
     if getattr(model, "no_eq", False):
-        return [np.ones_like(f).tolist()]
+        return _ret([np.ones_like(f)])
 
     w = np.where(f == 0.0, 2.0 * np.pi * 1e-3, 2.0 * np.pi * f)
     s = 1j * w
@@ -228,7 +267,11 @@ def compute_circuit_transfer_functions(model: CircuitModel, freqs=FREQS):
 
         # Preamp active contour & voltage gain scaling
         preamp_gain = getattr(model, "preamp_gain", 1.0)
-        H_eq = compute_active_preamp_eq(model.preamp_type, s) * preamp_gain
+        preamp_bands = getattr(model, "preamp_bands", None)
+        if preamp_bands is not None:
+            H_eq = compute_active_preamp_transfer(preamp_bands, s, gain_db=getattr(model, "preamp_gain_db", 0.0)) * preamp_gain
+        else:
+            H_eq = compute_active_preamp_eq(getattr(model, "preamp_type", "none"), s) * preamp_gain
 
         # Coils terminated into high-Z preamp input (R_preamp_in || C_preamp_in)
         Y_preamp_in = 1.0 / model.R_preamp_in + s * model.C_preamp_in
@@ -251,7 +294,7 @@ def compute_circuit_transfer_functions(model: CircuitModel, freqs=FREQS):
             H_dyn_to_2 = Y_branch / (Y_branch + Y_shunt2)
 
             H_total = H_dyn_to_2 * H_eq * H_buf_to_out
-            return [np.abs(H_total).tolist()]
+            return _ret([np.abs(H_total)])
 
         elif model.topology == "parallel":
             Z_L = compute_core_impedance(
@@ -306,7 +349,7 @@ def compute_circuit_transfer_functions(model: CircuitModel, freqs=FREQS):
             H_n = H_n_to_2 * H_eq * H_buf_to_out
             H_b = H_b_to_2 * H_eq * H_buf_to_out
 
-            return [np.abs(H_n).tolist(), np.abs(H_b).tolist()]
+            return _ret([np.abs(H_n), np.abs(H_b)])
 
         elif model.topology == "series":
             Z_L = compute_core_impedance(
@@ -347,7 +390,7 @@ def compute_circuit_transfer_functions(model: CircuitModel, freqs=FREQS):
             H_n = T2_n * H_eq * H_buf_to_out
             H_b = T2_b * H_eq * H_buf_to_out
 
-            return [np.abs(H_n).tolist(), np.abs(H_b).tolist()]
+            return _ret([np.abs(H_n), np.abs(H_b)])
 
     # Passive RLC Guitar Harness: Coils directly loaded by pots, cable capacitance, and Anagram load
     Rload = (model.Rbot * model.Ranagram) / (model.Rbot + model.Ranagram)
@@ -384,7 +427,7 @@ def compute_circuit_transfer_functions(model: CircuitModel, freqs=FREQS):
         H_dyn_to_2 = Y_branch / (Y_branch + Y_eff2)
         H_2_to_3 = Zload / (Z23 + Zload)
         H_total = np.where((f == 0.0) & (model.Crick > 0), 0.0, np.abs(H_dyn_to_2 * H_2_to_3))
-        return [H_total.tolist()]
+        return _ret([H_total])
 
     elif model.topology == "parallel":
         Z_L = compute_core_impedance(
@@ -442,7 +485,7 @@ def compute_circuit_transfer_functions(model: CircuitModel, freqs=FREQS):
 
         H_2_to_3 = Zload / (Z23 + Zload)
 
-        return [np.abs(H_n_to_2 * H_2_to_3).tolist(), np.abs(H_b_to_2 * H_2_to_3).tolist()]
+        return _ret([np.abs(H_n_to_2 * H_2_to_3), np.abs(H_b_to_2 * H_2_to_3)])
 
     elif model.topology == "series":
         Z_L = compute_core_impedance(
@@ -484,7 +527,7 @@ def compute_circuit_transfer_functions(model: CircuitModel, freqs=FREQS):
         T2_b = ((Y_br_n + Y_cn) * Y_br_b) / delta
         T_2_to_3 = Zload / (Z23 + Zload)
 
-        return [np.abs(T2_n * T_2_to_3).tolist(), np.abs(T2_b * T_2_to_3).tolist()]
+        return _ret([np.abs(T2_n * T_2_to_3), np.abs(T2_b * T_2_to_3)])
 
     raise ValueError(f"Unknown circuit topology: {model.topology}")
 

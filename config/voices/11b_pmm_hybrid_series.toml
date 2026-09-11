@@ -5,7 +5,6 @@
 # in series, generating massive 7.2H inductance and heavy low-mid authority (500k V/T).
 id = "11b_pmm_hybrid_series"
 name = "11b. P/MM Hybrid (Series Sum)"
-circuit = "circuits/11b_pmm_hybrid_series.cir"
 topology = "P/MM Series Sum"
 description = "Split P and MM humbucker wired in series (7.2H high inductive load, 500k V/T)"
 blend_mode = "series"
@@ -21,6 +20,27 @@ coils = [
     { strings = ["all"],    position_from_bridge_m = 0.0755, aperture_width_in = 0.75, weight = 0.5 },
     { strings = ["all"],    position_from_bridge_m = 0.0565, aperture_width_in = 0.75, weight = 0.5 }
 ]
+
+
+[circuit]
+topology = "series"
+Rvol = 500000.0
+Rtone = 500000.0
+Ctone = 4.7000000000000004e-08
+
+[circuit.neck]
+L = 4.8
+Rdc = 9500.0
+Reddy = 110000.0
+Ccoil = 8e-11
+vsat = 0.38
+
+[circuit.bridge]
+L = 2.4
+Rdc = 4600.0
+Reddy = 85000.0
+Ccoil = 9e-11
+vsat = 0.58
 
 [[pickups]]
 name = "Precision Split-Coil (Neck)"

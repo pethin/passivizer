@@ -122,20 +122,23 @@ def test_34in_standard_pj_routing():
     p_pickup = inst["pickups"]["p"]
     assert p_pickup["type"] == "split_coil"
     assert math.isclose(p_pickup["position_from_bridge_m"], 0.1250, abs_tol=1e-4)
-    assert p_pickup["circuit"] == "circuits/sources/source_standard_p.cir"
+    assert isinstance(p_pickup["circuit"], dict)
+    assert p_pickup["circuit"]["topology"] == "single"
     assert len(p_pickup["coils"]) == 2
 
     # Jazz Bridge pickup
     j_pickup = inst["pickups"]["j"]
     assert j_pickup["type"] == "single_coil"
     assert math.isclose(j_pickup["position_from_bridge_m"], 0.0635, abs_tol=1e-4)
-    assert j_pickup["circuit"] == "circuits/sources/source_standard_jazz_bridge.cir"
+    assert isinstance(j_pickup["circuit"], dict)
+    assert j_pickup["circuit"]["topology"] == "single"
     assert len(j_pickup["coils"]) == 1
 
     # Parallel composite pair
     pair = inst["pickups"]["pair_parallel"]
     assert pair["type"] == "composite"
-    assert pair["circuit"] == "circuits/sources/source_standard_pj_pair.cir"
+    assert isinstance(pair["circuit"], dict)
+    assert pair["circuit"]["topology"] == "parallel"
     assert len(pair["components"]) == 2
     assert pair["components"][0]["pickup"] == "p"
     assert pair["components"][1]["pickup"] == "j"

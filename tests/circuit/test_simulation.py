@@ -13,6 +13,7 @@ import pytest
 import pedalboard.io
 
 from allomorph.circuit import (
+    load_circuit,
     parse_netlist,
     compute_circuit_transfer_functions,
     apply_magnet_properties_to_model,
@@ -61,7 +62,6 @@ def test_simulate_voice_end_to_end():
     with tempfile.TemporaryDirectory() as tmpdir:
         input_wav = Path(tmpdir) / "raw_in.wav"
         output_wav = Path(tmpdir) / "final_out.wav"
-        inter_wav = Path(tmpdir) / "intermediate_aperture.wav"
 
         # Generate a test excitation track at 48 kHz
         samples = [0.5 if i % 100 == 0 else 0.0 for i in range(4800)]
@@ -74,11 +74,9 @@ def test_simulate_voice_end_to_end():
             output_wav=output_wav,
             instrument="30in",
             prefiltered=False,
-            save_intermediate=inter_wav,
         )
         assert res is True
         assert output_wav.exists()
-        assert inter_wav.exists()
 
         with wave.open(str(output_wav), "rb") as wf:
             assert wf.getframerate() == 48000
@@ -88,27 +86,21 @@ def test_simulate_voice_end_to_end():
 
         # Multi-pickup voice (Jazz Bass Pair in Parallel)
         output_jazz = Path(tmpdir) / "jazz_out.wav"
-        inter_jazz = Path(tmpdir) / "jazz_aperture.wav"
         res_jazz = simulate_voice(
             "02_jazz_bass_pair",
             input_wav=input_wav,
             output_wav=output_jazz,
             instrument="30in",
             prefiltered=False,
-            save_intermediate=inter_jazz,
         )
         assert res_jazz is True
         assert output_jazz.exists()
-        assert inter_jazz.exists()
 
         with wave.open(str(output_jazz), "rb") as wf:
             assert wf.getframerate() == 48000
             assert wf.getsampwidth() == 3
             assert wf.getnchannels() == 1
             assert wf.getnframes() > 0
-
-        with wave.open(str(inter_jazz), "rb") as wf:
-            assert wf.getnchannels() == 2  # Multi-pickup aperture audio has 2 channels (stereo)
 
 
 def test_circuit_simulation_vs_theory_consistency():
@@ -471,9 +463,7 @@ def test_jaco_bridge_growl_bias_voicing():
     Validates decoupled pot parsing (Neck 75%, Bridge 100%), relative branch attenuation,
     and prefilter FIR generation.
     """
-    cir_path = CIRCUITS_DIR / "02c_jazz_bridge_growl_bias.cir"
-    assert cir_path.exists()
-    model = parse_netlist(cir_path)
+    model = load_circuit("02c_jazz_bridge_growl_bias")
     assert model.topology == "parallel"
     assert model.Rpot_n == pytest.approx(55000.0)
     assert model.Rpot_b == pytest.approx(0.0)
@@ -610,19 +600,19 @@ def test_run_pipeline_cli_jobs_and_voices():
 
     # Simulate parser logic
     parser = argparse.ArgumentParser()
-    parser.add_argument("--stage", choices=["all", "viz", "prep", "spice", "sim", "simulate", "train"], default="all")
+    parser.add_argument("--stage", choices=["all", "viz", "canonical", "frontends", "targets", "train", "bake"], default="all")
     parser.add_argument("--voice", "-v", default="all")
     parser.add_argument("--jobs", "-j", type=int, default=None)
 
     # 1. When no voice is specified, it must resolve to all voices
-    args = parser.parse_args(["--stage", "sim"])
+    args = parser.parse_args(["--stage", "targets"])
     voices = resolve_voices(args.voice)
     assert len(voices) == len(VOICES)
     assert "04_modern_p_ceramic" in voices
     assert "01_modern_jazz_active" in voices
 
     # 2. When explicit -v is passed
-    args = parser.parse_args(["--stage", "sim", "-v", "04_modern_p_ceramic", "-j", "4"])
+    args = parser.parse_args(["--stage", "targets", "-v", "04_modern_p_ceramic", "-j", "4"])
     voices = resolve_voices(args.voice)
     assert voices == ["04_modern_p_ceramic"]
     assert args.jobs == 4
@@ -631,3 +621,44 @@ def test_run_pipeline_cli_jobs_and_voices():
     args = parser.parse_args(["--stage", "train"])
     voices = resolve_voices(args.voice)
     assert len(voices) == len(VOICES)
+
+
+def test_simulate_voice_strict_configuration_errors():
+    """Verify that simulate_voice and apply_magnet_properties_to_model raise strict configuration errors."""
+    import pytest
+    from allomorph.circuit.parser import CircuitModel
+    from allomorph.circuit.solver import apply_magnet_properties_to_model
+
+    # 1. Unknown target voice
+    with pytest.raises(KeyError, match="Target voice 'imaginary_bass_voice' not found"):
+        simulate_voice("imaginary_bass_voice")
+
+    # 2. Unknown pickup on instrument
+    with pytest.raises(KeyError, match="Pickup 'non_existent_pickup' not found on instrument '30in_emg_mmtw'"):
+        simulate_voice("04_modern_p_ceramic", instrument="30in", pickup="non_existent_pickup")
+
+    # 3. Passive source pickup missing a [circuit] block
+    passive_inst_no_cir = {
+        "id": "broken_passive_bass",
+        "electronics": "passive",
+        "default_pickup": "p",
+        "pickups": {
+            "p": {
+                "name": "Passive P",
+                "position_from_bridge_m": 0.125,
+                "aperture_width_in": 0.75,
+                "coil_spacing_in": 0.0,
+                "magnet_type": "alnico_v",
+                # Note: No 'circuit' defined!
+            }
+        },
+        "string_wave_speeds": [73.4, 98.0, 130.8, 174.6],
+        "scale_length_in": 34.0,
+    }
+    with pytest.raises(ValueError, match="does not define a '\\[circuit\\]' block"):
+        simulate_voice("04_modern_p_ceramic", instrument=passive_inst_no_cir, max_samples=100)
+
+    # 4. Unknown magnet type in solver
+    model = CircuitModel()
+    with pytest.raises(KeyError, match="Unknown magnet type 'unobtainium'"):
+        apply_magnet_properties_to_model(model, {"magnet_type": "unobtainium"})

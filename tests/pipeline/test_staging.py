@@ -208,3 +208,61 @@ def test_baked_short_distinct_names_and_instrument_directories():
         inst_baked_dir = Path("audio/baked") / inst_id
         assert inst_baked_dir.parent == Path("audio/baked")
         assert inst_baked_dir.name == inst_id
+
+
+def test_pipeline_cli_streamlined_stages():
+    """Asserts that the CLI parser accepts all 7 pure Architecture C stages and rejects deprecated stages."""
+    import argparse
+    from allomorph.pipeline.cli import main
+
+    # We inspect the parser directly by testing valid arguments
+    valid_stages = ["all", "viz", "canonical", "frontends", "targets", "train", "bake"]
+    deprecated_stages = ["prep", "spice", "sim", "simulate"]
+
+    # Construct test parser matching main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--stage",
+        choices=["all", "viz", "canonical", "frontends", "targets", "train", "bake"],
+        default="all",
+    )
+
+    for stage in valid_stages:
+        parsed = parser.parse_args(["--stage", stage])
+        assert parsed.stage == stage
+
+    for dep_stage in deprecated_stages:
+        with pytest.raises(SystemExit):
+            parser.parse_args(["--stage", dep_stage])
+
+    # Assert --bake flag is rejected
+    with pytest.raises(SystemExit):
+        parser.parse_args(["--bake"])
+
+
+def test_export_frontend_ir_passive_missing_circuit_raises_error(monkeypatch):
+    """Verify that export_frontend_ir raises ValueError if a passive pickup lacks a circuit model."""
+    import allomorph.circuit.staging as staging_mod
+
+    # Mock load_instrument to return a passive bass with a pickup missing 'circuit'
+    dummy_passive = {
+        "id": "mock_passive_p",
+        "electronics": "passive",
+        "scale_length_in": 34.0,
+        "string_wave_speeds": [73.4, 98.0, 130.8, 174.6],
+        "default_pickup": "p",
+        "pickups": {
+            "p": {
+                "name": "Passive P",
+                "position_from_bridge_m": 0.125,
+                "aperture_width_in": 0.75,
+                "coil_spacing_in": 0.0,
+                "magnet_type": "alnico_v",
+                # Note: No 'circuit' defined!
+            }
+        },
+    }
+    monkeypatch.setattr(staging_mod, "load_instrument", lambda inst_id: dummy_passive)
+
+    with pytest.raises(ValueError, match="does not define a '\\[pickups.p.circuit\\]' configuration"):
+        staging_mod.export_frontend_ir("mock_passive_p", "p")

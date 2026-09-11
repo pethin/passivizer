@@ -19,6 +19,7 @@ import numpy as np
 from allomorph.circuit import (
     compute_active_preamp_eq,
     compute_differential_circuit_transfer_functions,
+    load_circuit,
     parse_netlist,
     CIRCUITS_DIR,
     REPO_ROOT,
@@ -97,8 +98,9 @@ def test_guardrail_zero_high_frequency_gibbs_ripples():
 def test_guardrail_identity_model_flatness():
     """Guardrail 5.3.1: Pairing an instrument with its matching target voice must evaluate
     to exact 0.00 dB identity across all frequency bins."""
-    m_src_ray = parse_netlist(CIRCUITS_DIR / "sources" / "source_active_stingray.cir")
-    m_tgt_ray = parse_netlist(CIRCUITS_DIR / "09_stingray_mm_parallel.cir")
+    inst_ray = load_instrument("34in_active_stingray")
+    m_src_ray = load_circuit(inst_ray["pickups"]["mm_parallel"]["circuit"])
+    m_tgt_ray = load_circuit(VOICES["09_stingray_mm_parallel"]["circuit"])
 
     diff_ray = compute_differential_circuit_transfer_functions(m_tgt_ray, m_src_ray, freqs=FREQS)
     h_diff = np.asarray(diff_ray[0])
@@ -233,3 +235,51 @@ def test_guardrail_transducer_taxonomy_and_zero_conditional_deconvolution():
         if (diffs[i] > 1e-5 and diffs[i + 1] < -1e-5) or (diffs[i] < -1e-5 and diffs[i + 1] > 1e-5)
     )
     assert sign_flips == 0, f"Deconvolution curve had {sign_flips} sign flips in 20-5000 Hz band (must be smoothly monotonic)"
+
+
+def test_guardrail_fail_fast_zero_silent_fallbacks():
+    """Guardrail 5.3.5: Missing configuration models, invalid scale names, unknown pickups,
+    unknown string presets, or unrecognized magnet types must immediately raise explicit
+    ValueError or KeyError exceptions instead of silently applying default fallbacks."""
+    import pytest
+    from allomorph.circuit import simulate_voice
+    from allomorph.config.scales import resolve_scale_range
+    from allomorph.config.strings import get_instrument_string
+    from allomorph.circuit.solver import apply_magnet_properties_to_model
+    from allomorph.circuit.parser import CircuitModel
+
+    # 1. Passive instrument with missing pickup circuit must raise ValueError
+    dummy_passive = {
+        "id": "mock_passive_bass",
+        "electronics": "passive",
+        "default_pickup": "p",
+        "pickups": {
+            "p": {
+                "name": "Passive P",
+                "position_from_bridge_m": 0.125,
+                "aperture_width_in": 0.75,
+                "coil_spacing_in": 0.0,
+                "magnet_type": "alnico_v",
+            }
+        },
+        "string_wave_speeds": [73.4, 98.0, 130.8, 174.6],
+        "scale_length_in": 34.0,
+    }
+    with pytest.raises(ValueError, match="does not define a '\\[circuit\\]' block"):
+        simulate_voice("04_modern_p_ceramic", instrument=dummy_passive, max_samples=100)
+
+    # 2. Unknown target voice ID must raise KeyError
+    with pytest.raises(KeyError, match="Target voice 'nonexistent_voice' not found"):
+        simulate_voice("nonexistent_voice")
+
+    # 3. Unknown scale string must raise ValueError
+    with pytest.raises(ValueError, match="Unknown scale or instrument identifier"):
+        resolve_scale_range("99in_fictional_scale")
+
+    # 4. Unknown string preset must raise KeyError
+    with pytest.raises(KeyError, match="String preset 'imaginary_flats' not found"):
+        get_instrument_string({"strings": {"preset": "imaginary_flats"}})
+
+    # 5. Unknown magnet type must raise KeyError
+    with pytest.raises(KeyError, match="Unknown magnet type 'kryptonite'"):
+        apply_magnet_properties_to_model(CircuitModel(), {"magnet_type": "kryptonite"})

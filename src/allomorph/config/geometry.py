@@ -46,7 +46,13 @@ def resolve_pickup_coils(pickup_dict, instrument=None):
             p_ref = comp.get("pickup")
             c_weight = comp.get("weight", 1.0)
             c_pol = comp.get("polarity", 1.0)
-            if p_ref in pickups_map:
+            if p_ref:
+                if p_ref not in pickups_map:
+                    raise KeyError(
+                        f"Composite pickup references non-existent pickup '{p_ref}' in instrument "
+                        f"'{instrument.get('id', 'unknown') if instrument else 'unknown'}'. "
+                        f"Available pickups: {list(pickups_map.keys())}"
+                    )
                 sub_coils = resolve_pickup_coils(pickups_map[p_ref], instrument)
                 for sc in sub_coils:
                     sc_copy = sc.copy()
@@ -64,6 +70,11 @@ def resolve_pickup_coils(pickup_dict, instrument=None):
                     "strings": comp.get("strings", ["all"]),
                     "pole_type": _infer_pole_type(pickup_dict, comp),
                 })
+            else:
+                raise ValueError(
+                    f"Composite pickup component in '{instrument.get('id', 'unknown') if instrument else 'unknown'}' "
+                    f"must specify either 'pickup' or 'position_from_bridge_m'."
+                )
         if resolved:
             return resolved
 

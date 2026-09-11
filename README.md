@@ -192,8 +192,8 @@ uv run allomorph-sim --voice all --instrument 30in -j 8
 # Rapid prototyping run on first 2 seconds (96,000 samples):
 uv run allomorph-sim --voice 09_stingray_mm_parallel --max-samples 96000
 
-# Run via master pipeline:
-uv run allomorph --stage sim --voice 04_modern_p_ceramic
+# Run via master pipeline (Architecture C backend targets):
+uv run allomorph --stage targets --voice 04_modern_p_ceramic
 ```
 
 ### 3. NAM Neural Model Training (Architecture 2 / A2)
@@ -217,24 +217,24 @@ uv run allomorph --stage train --instrument 30in --voice 04_modern_p_ceramic --n
 Execute the entire pipeline or specific stages with a single command:
 
 ```bash
-# Run complete pipeline for 30" source instrument (using native VA circuit engine):
+# Run complete pipeline for 30" source instrument (canonical -> 32 frontends -> targets -> viz):
 uv run allomorph --instrument 30in
 
-# Run only visualization:
+# Generate the Canonical Intermediate baseline sweep:
+uv run allomorph --stage canonical
+
+# Export all 32 native frontend deconvolution IRs:
+uv run allomorph --stage frontends
+
+# Simulate 3-tier backend universal target sweeps:
+uv run allomorph --stage targets --voice 09_stingray_mm_parallel
+
+# Generate interactive Altair frequency visualizations:
 uv run allomorph --stage viz
 
-# Run audio pre-filtering for a specific voice:
-uv run allomorph --stage prep --voice 07_stingray_mm_parallel
-
-# Run circuit simulation stage (with automatic output level normalization based on input sweep dBFS):
-uv run allomorph --stage sim --voice 07_stingray_mm_parallel
-
-# Or run native circuit simulation directly with automatic sweep level normalization:
-uv run allomorph-sim --instrument 30in --voice all --normalize auto
-
 # On-demand single-block monolithic bake (directly models source instrument to target voice into a single NAM capture):
-uv run allomorph --instrument 30in --bake --voice 04_modern_p_ceramic --train
-# (By default, --bake uses --tier dynamic to model saturation differentially between source and target,
+uv run allomorph --stage bake --instrument 30in --voice 04_modern_p_ceramic --train
+# (By default, --stage bake uses --tier dynamic to model saturation differentially between source and target,
 #  and --pickup auto to automatically resolve the mapped pickup switch position).
 ```
 
@@ -276,39 +276,22 @@ allomorph/
 │   ├── circuit_theory.md                  # RLC, eddy current, and cable impedance math
 │   ├── aperture_math.md                   # Magnetic aperture sinc, multi-string & scale physics
 │   └── anagram_workflow.md                # Darkglass Anagram Block 1 routing & gain staging
-├── circuits/                              # Standalone SPICE netlists (.cir)
-│   ├── sources/                           # Active, passive, and commercial source instrument netlists
-│   ├── 01_modern_jazz_active.cir          # Sadowsky active 2-band isolated Jazz pair
-│   ├── 02_jazz_bass_pair.cir              # Dual single-coils in parallel (tone open)
-│   ├── 02b_jazz_bass_pair_22nf.cir        # Vintage J-pair with 22nF ToneStyler
-│   ├── 02c_jazz_bridge_growl_bias.cir     # Jaco bridge-biased Jazz pair (55k pot decoupling)
-│   ├── 03_jazz_bridge_60s.cir             # 60s bridge single-coil
-│   ├── 04_modern_p_ceramic.cir            # Modern ceramic split-coil P (500k)
-│   ├── 05_vintage_62_p_alnico.cir         # Vintage '62 Alnico V split-P (tone open)
-│   ├── 05b_vintage_62_p_22nf.cir          # Vintage '62 split-P with 22nF ToneStyler
-│   ├── 05c_vintage_62_p_47nf.cir          # Vintage '62 split-P with 47nF ToneStyler (Motown)
-│   ├── 05d_vintage_50s_p_100nf.cir        # Vintage '50s split-P with 100nF ToneStyler
-│   ├── 07_modern_pj_active.cir            # Modern active P/J
-│   ├── 08_vintage_pj_passive.cir          # Vintage '80s passive P/J
-│   ├── 09_stingray_mm_parallel.cir        # Music Man parallel humbucker
-│   ├── 09b_stingray_mm_series.cir         # Music Man series humbucker with active buffer
-│   ├── 10_rickenbacker_bridge_hpf.cir     # 4003 bridge with 4.7nF series HPF
-│   ├── 11_modern_pmm_active.cir           # Modern active parallel P/MM (Sandberg VM / Lakland)
-│   ├── 11b_pmm_hybrid_series.cir          # P/MM hybrid in series sum (specialty mod)
-│   ├── 12_mudbucker_ultra_series.cir      # Overwound series humbucker
-│   ├── 13_dingwall_multiscale_bridge.cir  # Multi-scale angled bridge position
-│   ├── 14_upright_bridge_transducer.cir   # Upright piezo bridge transducer
-│   ├── 15_source_direct.cir               # Source Direct (restores unvoiced input with tier dynamics)
-│   └── 16_active_character.cir            # Studio active buffer digital twin (cable isolation)
 ├── config/                                # Modular TOML configuration files
-│   ├── instruments/                       # Source bass geometries, pickups & routing
+│   ├── instruments/                       # Source bass geometries, pickups & embedded circuits
 │   │   ├── 30in_emg_mmtw.toml             # 30" active EMG MMTW dual-mode bass
 │   │   ├── 32in_custom_pmm.toml           # 32" custom PX + MMTWX bass
 │   │   ├── 34in_standard_p.toml           # 34" standard P-bass template
 │   │   └── 34in_standard_jazz.toml        # 34" standard Jazz bass template
+│   ├── preamps.toml                       # Reusable active preamp catalog (Sadowsky, StingRay, Aguilar, Dingwall)
 │   ├── scales.toml                        # Scale lengths & baseline string wave speeds
 │   ├── strings.toml                       # Physical string core/wrap mechanical presets
-│   └── voices.toml                        # Voice metadata linking to SPICE netlists
+│   └── voices/                            # 23 Target voice TOMLs with embedded [circuit] tables
+│       ├── 01_modern_jazz_active.toml     # Sadowsky active 2-band isolated Jazz pair
+│       ├── 02_jazz_bass_pair.toml         # Dual single-coils in parallel (tone open)
+│       ├── 04_modern_p_ceramic.toml       # Modern ceramic split-coil P (500k)
+│       ├── 05_vintage_62_p_alnico.toml    # Vintage '62 Alnico V split-P (tone open)
+│       ├── 09_stingray_mm_parallel.toml   # Music Man parallel humbucker
+│       └── ...                            # 23 total declarative voice models
 ├── src/                                   # Core reusable library package
 │   └── allomorph/
 │       ├── config/                        # Modular TOML configurations & geometry

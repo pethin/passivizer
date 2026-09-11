@@ -40,6 +40,7 @@ from allomorph.physics import (
 from allomorph.circuit.parser import (
     CircuitModel,
     MAGNET_PROPERTIES,
+    load_circuit,
     parse_netlist,
 )
 from allomorph.circuit.solver import (
@@ -72,7 +73,6 @@ def simulate_circuit_audio(
     output_wav_path: Path,
     model: CircuitModel,
     prefilter_firs=None,
-    save_intermediate: Path = None,
     circuit_curves=None,
     is_passive: bool = False,
     bypass_saturation: bool = None,
@@ -164,19 +164,6 @@ def simulate_circuit_audio(
 
     if prefilter_firs is not None:
         audio = apply_prefilter_to_audio(audio, sr, prefilter_firs)
-        if save_intermediate:
-            save_path = Path(save_intermediate)
-            save_path.parent.mkdir(parents=True, exist_ok=True)
-            with AudioFile(
-                str(save_path), "w", samplerate=sr, num_channels=audio.shape[0], bit_depth=24
-            ) as out:
-                out.write(audio)
-            with wave.open(str(save_path), "rb") as wf:
-                params = wf.getparams()
-                frames = wf.readframes(wf.getnframes())
-            with wave.open(str(save_path), "wb") as wf:
-                wf.setparams(params)
-                wf.writeframes(frames)
     elif not bypass_saturation and in_peak > 0.10:
         target_drive_peak = min(in_peak * 0.687, 0.70)
         audio = (audio / max(in_peak, 1e-9)) * target_drive_peak
@@ -474,7 +461,6 @@ def simulate_voice(
     tier: str = None,
     prefiltered: bool = False,
     cir_path: Path = None,
-    save_intermediate=None,
     normalize: str = "auto",
     target_dbfs: float = None,
     oversample: int = 2,
@@ -495,6 +481,7 @@ def simulate_voice(
     lambda_L: float = None,
     vol_pos: float = None,
     tone_pos: float = None,
+    cable_pf: float = None,
     slew_limit: bool = True,
     f_slew: float = 16000.0,
     noise_dither: bool = True,
@@ -508,18 +495,29 @@ def simulate_voice(
     end-to-end in memory from raw calibration audio.
     Outputs are saved by default to audio/{instrument_id}/out_{voice_id}.wav.
     """
-    vcfg = VOICES.get(voice_id, {})
-    if not cir_path:
-        cir_rel = vcfg.get("circuit", f"circuits/{voice_id}.cir")
-        cir_path = REPO_ROOT / cir_rel
-        if not cir_path.exists():
-            cir_path = CIRCUITS_DIR / f"{voice_id}.cir"
-
-    if not cir_path.exists():
-        raise FileNotFoundError(f"Circuit netlist '{cir_path}' not found.")
+    if cir_path:
+        model = load_circuit(cir_path)
+        vcfg = VOICES.get(voice_id, {})
+    else:
+        if voice_id not in VOICES:
+            raise KeyError(
+                f"Target voice '{voice_id}' not found in voice catalog. "
+                f"Available voices: {list(VOICES.keys())}"
+            )
+        vcfg = VOICES[voice_id]
+        if "circuit" in vcfg:
+            model = load_circuit(vcfg["circuit"])
+        elif vcfg.get("no_eq", False) or vcfg.get("sensor_type") == "direct":
+            model = load_circuit(voice_id)
+        else:
+            raise ValueError(
+                f"Target voice '{voice_id}' does not define a '[circuit]' configuration."
+            )
 
     inst_cfg = load_instrument(instrument) if not isinstance(instrument, dict) else instrument
-    inst_id = inst_cfg.get("id", "30in_emg_mmtw")
+    if "id" not in inst_cfg:
+        raise ValueError("Instrument configuration missing required 'id' field.")
+    inst_id = inst_cfg["id"]
     inst_audio_dir = AUDIO_DIR / inst_id
     inst_audio_dir.mkdir(parents=True, exist_ok=True)
 
@@ -545,15 +543,11 @@ def simulate_voice(
     else:
         output_wav = Path(output_wav)
 
-    if save_intermediate is True:
-        save_intermediate = inst_audio_dir / f"aperture_{voice_id}.wav"
-    elif save_intermediate:
-        save_intermediate = Path(save_intermediate)
-
-    model = parse_netlist(cir_path)
     apply_magnet_properties_to_model(model, vcfg, eddy_diffusion=eddy_diffusion)
     if vol_pos is not None or tone_pos is not None:
         model.apply_pot_positions(vol_pos=vol_pos, tone_pos=tone_pos)
+    if cable_pf is not None:
+        model.Ccable = cable_pf * 1e-12 if cable_pf > 1e-6 else cable_pf
 
     # Dynamic bridge compliance scaling based on source string pluck excursion
     if "upright_bridge_transducer" in voice_id:
@@ -682,15 +676,17 @@ def simulate_voice(
 
     is_passive = inst_cfg.get("electronics") == "passive"
     is_spatial_match = is_voice_matching_source(inst_cfg, voice_id, vcfg)
-    if pickup and pickup != "auto" and pickup in inst_cfg.get("pickups", {}):
-        src_pickup = inst_cfg["pickups"][pickup].copy()
+    if pickup and pickup != "auto":
+        pickups = inst_cfg.get("pickups", {})
+        if pickup not in pickups:
+            raise KeyError(
+                f"Pickup '{pickup}' not found on instrument '{inst_id}'. "
+                f"Available pickups: {list(pickups.keys())}"
+            )
+        src_pickup = pickups[pickup].copy()
         src_pickup["id"] = pickup
     else:
         src_pickup = get_source_pickup(inst_cfg, voice_id)
-    src_cir_rel = src_pickup.get("circuit")
-    if not src_cir_rel and is_passive:
-        src_cir_rel = "circuits/sources/source_standard_p.cir"
-    src_cir_path = (REPO_ROOT / src_cir_rel) if src_cir_rel else None
 
     diff_curves = None
     if (
@@ -699,11 +695,17 @@ def simulate_voice(
         or (voice_id == "16_active_character" and not is_passive)
     ):
         diff_curves = [np.ones(len(FREQS), dtype=np.float64).tolist()]
-    elif src_cir_path and src_cir_path.exists():
-        src_model = parse_netlist(src_cir_path)
+    elif src_pickup.get("circuit"):
+        src_model = load_circuit(src_pickup["circuit"])
         apply_magnet_properties_to_model(src_model, src_pickup, eddy_diffusion=eddy_diffusion)
         diff_curves = compute_differential_circuit_transfer_functions(
             model, src_model, freqs=FREQS
+        )
+    elif is_passive:
+        raise ValueError(
+            f"Passive instrument '{inst_id}' pickup '{src_pickup.get('id', 'unknown')}' "
+            f"does not define a '[circuit]' block. Passive source pickups require an explicit "
+            f"circuit model for differential deconvolution."
         )
 
     has_source_circuit = diff_curves is not None
@@ -726,8 +728,18 @@ def simulate_voice(
                     src_mag = c_p.get("magnet_type")
                     break
         if not src_mag:
-            src_mag = inst_cfg.get("magnet_type", "alnico_v")
-        src_props = MAGNET_PROPERTIES.get(src_mag, MAGNET_PROPERTIES["alnico_v"])
+            src_mag = inst_cfg.get("magnet_type")
+        if not src_mag:
+            raise KeyError(
+                f"Passive pickup '{src_pickup.get('id', 'unknown')}' on instrument '{inst_id}' "
+                f"does not specify 'magnet_type'. Available magnet types: {list(MAGNET_PROPERTIES.keys())}"
+            )
+        if src_mag not in MAGNET_PROPERTIES:
+            raise KeyError(
+                f"Unknown magnet type '{src_mag}' on pickup '{src_pickup.get('id', 'unknown')}'. "
+                f"Available magnet types: {list(MAGNET_PROPERTIES.keys())}"
+            )
+        src_props = MAGNET_PROPERTIES[src_mag]
 
     src_alpha = src_props["alpha"]
     src_alpha3 = src_props["alpha3"]
@@ -942,15 +954,15 @@ def simulate_voice(
         stage_desc = "Circuit Simulation (Pre-filtered Input)"
 
     samples_desc = f", Samples: {max_samples}" if max_samples is not None else ""
+    cir_label = cir_path.name if cir_path else f"{voice_id}.toml"
     print(
-        f"  -> Simulating Native VA ({stage_desc}{samples_desc}): {cir_path.name} (Topology: {model.topology}, Source: {inst_id}, Soften: {should_soften}, Alpha: {diff_alpha:.2f}, Alpha3: {diff_alpha3:.2f}, Eta: {diff_eta:.2f}, Sag: {diff_sag:.2f}, Eddy: {diff_eddy:.2f}, Orbit: {diff_orbit:.2f}, Beta: {diff_beta:.3f}, Pull: {diff_pull:.3f}, Touch: {diff_touch:.3f}, Geom: {diff_geom:.2f}, Stein: {diff_stein:.3f}, EMF: {diff_emf:.2f}, Lambda: {diff_lambda:.2f}, Vsat: {eff_vsat:.2f})..."
+        f"  -> Simulating Native VA ({stage_desc}{samples_desc}): {cir_label} (Topology: {model.topology}, Source: {inst_id}, Soften: {should_soften}, Alpha: {diff_alpha:.2f}, Alpha3: {diff_alpha3:.2f}, Eta: {diff_eta:.2f}, Sag: {diff_sag:.2f}, Eddy: {diff_eddy:.2f}, Orbit: {diff_orbit:.2f}, Beta: {diff_beta:.3f}, Pull: {diff_pull:.3f}, Touch: {diff_touch:.3f}, Geom: {diff_geom:.2f}, Stein: {diff_stein:.3f}, EMF: {diff_emf:.2f}, Lambda: {diff_lambda:.2f}, Vsat: {eff_vsat:.2f})..."
     )
     simulate_circuit_audio(
         input_wav,
         output_wav,
         model,
         prefilter_firs=prefilter_firs,
-        save_intermediate=save_intermediate,
         circuit_curves=diff_curves,
         bypass_saturation=bypass_saturation,
         is_passive=bypass_saturation,

@@ -32,10 +32,8 @@ from allomorph.circuit import (
 )
 from allomorph.pipeline.stages import (
     run_visualization,
-    run_prep_audio,
     run_training,
 )
-from allomorph.pipeline.batch import run_spice_batch
 
 
 def list_instruments():
@@ -74,35 +72,50 @@ def main(argv: Optional[Sequence[str]] = None):
     )
     parser.add_argument(
         "--stage",
-        choices=["all", "viz", "canonical", "frontends", "targets", "prep", "spice", "sim", "simulate", "train"],
+        choices=["all", "viz", "canonical", "frontends", "targets", "train", "bake"],
         default="all",
-        help="Pipeline stage to execute: 'canonical' (intermediate sweep), 'frontends' (export 33 IRs), 'targets' (simulate backend sweeps), 'train' (train models), 'viz' (visualizer), 'all' (canonical + frontends + targets + viz)."
+        help="Pipeline stage to execute: 'viz' (interactive frequency charts & portal), 'canonical' (calibrated intermediate baseline sweep), 'frontends' (export 32 native frontend IRs), 'targets' (simulate 3-tier backend universal target sweeps), 'train' (train NAM A2 neural models), 'bake' (on-demand single-block monolithic model), or 'all' (canonical + frontends + targets + viz; default: 'all')."
     )
     parser.add_argument(
         "--tier",
         choices=["clean", "standard", "std", "hotrod", "dynamic", "all"],
         default=None,
-        help="Dynamic tier: 'standard' / 'std' (100%% nominal target saturation; default for Architecture C targets), 'clean' (0%% saturation), 'hotrod' (175%% overwound), 'dynamic' (differential source/target saturation; default when using --bake), 'all'."
-    )
-    parser.add_argument(
-        "--bake",
-        action="store_true",
-        help="On-demand single-block monolithic bake mode: directly models the source instrument to target voice transformation in a single .nam model."
+        help="Dynamic tier: 'standard' / 'std' (100%% nominal target saturation; default for Architecture C targets), 'clean' (0%% saturation), 'hotrod' (175%% overwound), 'dynamic' (differential source/target saturation; default when using --stage bake), 'all'."
     )
     parser.add_argument(
         "--train",
         action="store_true",
-        help="Train NAM model locally with Apple Silicon Metal/MPS acceleration after simulation (used with --bake)"
+        help="Train NAM model locally with Apple Silicon Metal/MPS acceleration after simulation (used with --stage bake)"
     )
     parser.add_argument(
         "--pickup", "-p",
         default=None,
-        help="Physical pickup setting for source instrument ('auto' to resolve from pickup_mapping, or explicit pickup ID; default when using --bake is 'auto')"
+        help="Physical pickup setting for source instrument ('auto' to resolve from pickup_mapping, or explicit pickup ID; default when using --stage bake is 'auto')"
     )
     parser.add_argument(
         "--voice", "-v",
         default="all",
         help="Target pickup voice for audio pre-filtering, simulation, and training (voice ID, comma-separated list, or 'all'; default: 'all')"
+    )
+    parser.add_argument(
+        "--vol-pos", "--vol",
+        type=float,
+        default=None,
+        dest="vol_pos",
+        help="Volume pot wiper position (0.0 to 1.0, default 1.0 full open)"
+    )
+    parser.add_argument(
+        "--tone-pos", "--tone",
+        type=float,
+        default=None,
+        dest="tone_pos",
+        help="Tone pot wiper position (0.0 to 1.0, default 1.0 full open/bright)"
+    )
+    parser.add_argument(
+        "--cable-pf",
+        type=float,
+        default=None,
+        help="Cable capacitance loading in pF (default: from circuit config, typically 750 pF)"
     )
     parser.add_argument(
         "--jobs", "-j",
@@ -179,7 +192,6 @@ def main(argv: Optional[Sequence[str]] = None):
     print("  ALLOMORPH SPICE -> NAM PIPELINE")
     print(f"  Instruments ({len(instruments_to_run)}): {', '.join(instruments_to_run)}")
     print(f"  Stage:       {args.stage}")
-    print(f"  Backend:     {args.backend}")
     print(f"  Max Samples: {samples_str}")
     print(f"  Voices ({len(voices_to_run)}): {', '.join(voices_to_run)}")
     print("========================================")
@@ -191,7 +203,7 @@ def main(argv: Optional[Sequence[str]] = None):
                 input_wav = candidate
                 break
 
-    if args.bake:
+    if args.stage == "bake":
         effective_tier = args.tier if args.tier is not None else "dynamic"
         pickup_setting = args.pickup if args.pickup is not None else "auto"
 
@@ -238,6 +250,9 @@ def main(argv: Optional[Sequence[str]] = None):
                     tier=effective_tier,
                     normalize="none",
                     max_samples=args.max_samples,
+                    vol_pos=args.vol_pos,
+                    tone_pos=args.tone_pos,
+                    cable_pf=args.cable_pf,
                 )
                 print(f"Baked simulation exported: {baked_wav}")
 
@@ -268,31 +283,14 @@ def main(argv: Optional[Sequence[str]] = None):
         simulate_backend_targets(tier=args.tier or "standard", voice_id=args.voice)
         return
 
-    if args.stage in ["all", "viz"]:
+    if args.stage == "viz":
         if len(instruments_to_run) == 1 and args.instrument != "all":
             run_visualization(instrument=instruments_to_run[0])
         else:
             run_visualization(instrument="all")
-        if args.stage == "viz":
-            return
+        return
 
-    if args.stage == "prep":
-        for inst in instruments_to_run:
-            for idx, voice in enumerate(voices_to_run, 1):
-                print(f"\n[{idx}/{len(voices_to_run)}] Pre-filtering audio: {inst} -> {voice}...")
-                run_prep_audio(input_wav=input_wav, instrument=inst, voice=voice)
-
-    elif args.stage in ["spice", "sim", "simulate"]:
-        for inst in instruments_to_run:
-            run_spice_batch(
-                voices=voices_to_run,
-                instrument=inst,
-                input_wav=input_wav,
-                jobs=args.jobs,
-                max_samples=args.max_samples,
-            )
-
-    elif args.stage == "train":
+    if args.stage == "train":
         tiers_to_train = ["clean", "standard", "hotrod"] if args.tier == "all" else [args.tier or "standard"]
         for inst in instruments_to_run:
             for t in tiers_to_train:
@@ -307,12 +305,19 @@ def main(argv: Optional[Sequence[str]] = None):
                         goal_esr=effective_goal_esr,
                         fast_dev_run=args.fast_dev_run,
                     )
+        return
 
-    elif args.stage == "all":
+    if args.stage == "all":
         print("\n--- Step 1: Canonical Intermediate Baseline Sweep ---")
         generate_canonical_sweep(input_wav=input_wav)
-        print("\n--- Step 2: Export All 33 Frontend Deconvolution IRs ---")
+        print("\n--- Step 2: Export All 32 Frontend Deconvolution IRs ---")
         export_all_frontend_irs()
         print("\n--- Step 3: Simulate Backend Targets ---")
         simulate_backend_targets(tier=args.tier or "standard", voice_id=args.voice)
-        print("\n[Pipeline Complete: 33 Frontend IRs + Backend Sweeps + Interactive Portal Ready]")
+        print("\n--- Step 4: Interactive Altair Frequency Visualization ---")
+        if len(instruments_to_run) == 1 and args.instrument != "all":
+            run_visualization(instrument=instruments_to_run[0])
+        else:
+            run_visualization(instrument="all")
+        print("\n[Pipeline Complete: 32 Frontend IRs + Backend Sweeps + Interactive Portal Ready]")
+        return

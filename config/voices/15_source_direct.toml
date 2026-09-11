@@ -10,7 +10,6 @@
 
 id = "15_source_direct"
 name = "15. Source Direct"
-circuit = "circuits/15_source_direct.cir"
 topology = "Source Direct (Dynamic Studio DI)"
 description = "Deconvolutes Canonical Intermediate to restore the uncolored input signal of Block 1 (pure studio DI) with tier dynamics"
 blend_mode = "direct"
@@ -40,3 +39,15 @@ scale = "34in"
 coils = [
     { strings = ["all"], position_from_bridge_m = 0.0935, aperture_width_in = 0.75, weight = 1.0 }
 ]
+
+[circuit]
+topology = "single"
+L = 4.8
+Rdc = 9500.0
+Reddy = 110000.0
+Ccoil = 8e-11
+active = true
+preamp = "none"
+R_out = 50.0
+no_eq = true
+Rvol = 500000.0

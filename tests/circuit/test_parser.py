@@ -8,7 +8,9 @@ import pytest
 
 from allomorph.circuit import (
     parse_spice_val,
+    load_circuit,
     parse_netlist,
+    CircuitModel,
     find_default_input_audio,
     simulate_voice,
     AUDIO_DIR,
@@ -29,11 +31,10 @@ def test_parse_spice_val():
     assert parse_spice_val("10") == pytest.approx(10.0)
 
 
-def test_parse_all_circuit_netlists():
+def test_load_all_voice_circuits():
     for vid, cfg in VOICES.items():
-        cir_path = REPO_ROOT / cfg["circuit"]
-        assert cir_path.exists(), f"Netlist missing: {cir_path}"
-        model = parse_netlist(cir_path)
+        assert "circuit" in cfg, f"Voice {vid} missing [circuit] configuration"
+        model = load_circuit(cfg["circuit"])
 
         assert model.L > 0
         assert model.Rdc > 0
@@ -67,6 +68,52 @@ def test_parse_all_circuit_netlists():
             assert model.Rdc_b > 0
         else:
             assert model.topology == "single"
+
+
+def test_circuit_from_dict_and_shorthand():
+    """Verify CircuitModel.from_dict parses shorthand strings and nested tables properly."""
+    cfg = {
+        "topology": "parallel",
+        "neck": {
+            "L": "3.2",
+            "Rdc": "7.2k",
+            "Reddy": "135k",
+            "Ccoil": "70p",
+            "vsat": 0.45,
+        },
+        "bridge": {
+            "L": "3.6",
+            "Rdc": "7.8k",
+            "Reddy": "125k",
+            "Ccoil": "70p",
+            "vsat": 0.55,
+        },
+        "Rvol": "500k",
+        "Rtone": "250k",
+        "Ctone": "47n",
+        "Ccable": "750p",
+        "active": True,
+        "preamp": "sadowsky_2band",
+    }
+    m = CircuitModel.from_dict(cfg)
+    assert m.topology == "parallel"
+    assert m.L == pytest.approx(3.2)
+    assert m.Rdc == pytest.approx(7200.0)
+    assert m.Reddy == pytest.approx(135000.0)
+    assert m.Ccoil == pytest.approx(70e-12)
+    assert m.vsat_n == pytest.approx(0.45)
+    assert m.L_b == pytest.approx(3.6)
+    assert m.Rdc_b == pytest.approx(7800.0)
+    assert m.Reddy_b == pytest.approx(125000.0)
+    assert m.Ccoil_b == pytest.approx(70e-12)
+    assert m.vsat_b == pytest.approx(0.55)
+    assert m.Rtop == pytest.approx(10.0)
+    assert m.Rbot == pytest.approx(500000.0)
+    assert m.Rtone == pytest.approx(250000.0)
+    assert m.Ctone == pytest.approx(47e-9)
+    assert m.Ccable == pytest.approx(750e-12)
+    assert m.has_active_buffer is True
+    assert m.preamp_type == "sadowsky_2band"
 
 
 def test_default_output_directories():

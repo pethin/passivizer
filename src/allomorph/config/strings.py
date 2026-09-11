@@ -32,7 +32,12 @@ def get_instrument_string(instrument):
         inst = instrument
     s_block = inst.get("strings", {})
     preset = s_block.get("preset", "roundwound_nickel_standard")
-    base = STRINGS.get(preset, STRINGS.get("roundwound_nickel_standard", {})).copy()
+    if preset not in STRINGS:
+        raise KeyError(
+            f"String preset '{preset}' not found in strings catalog ({STRINGS_FILE}). "
+            f"Available presets: {list(STRINGS.keys())}"
+        )
+    base = STRINGS[preset].copy()
     base.update(s_block)
     return base
 
@@ -40,4 +45,9 @@ def get_instrument_string(instrument):
 def get_voice_string(voice_cfg):
     """Resolves target string configuration dictionary for a target voice."""
     preset = voice_cfg.get("target_string", "roundwound_nickel_standard")
-    return STRINGS.get(preset, STRINGS.get("roundwound_nickel_standard", {})).copy()
+    if preset not in STRINGS:
+        raise KeyError(
+            f"String preset '{preset}' not found in strings catalog ({STRINGS_FILE}). "
+            f"Available presets: {list(STRINGS.keys())}"
+        )
+    return STRINGS[preset].copy()

@@ -147,3 +147,26 @@ def test_resolve_voice_coils():
     c_legacy = resolve_voice_coils(legacy_cfg)
     assert len(c_legacy) == 2
     assert c_legacy[0]["strings"] == ["all"]
+
+
+def test_resolve_pickup_coils_strict_errors():
+    """Verify that composite pickups with invalid references raise KeyError/ValueError."""
+    import pytest
+
+    inst = load_instrument("34in_standard_p")
+
+    # 1. References non-existent pickup
+    bad_composite = {
+        "type": "composite",
+        "components": [{"pickup": "non_existent_pickup"}],
+    }
+    with pytest.raises(KeyError, match="references non-existent pickup 'non_existent_pickup'"):
+        resolve_pickup_coils(bad_composite, inst)
+
+    # 2. Component missing both 'pickup' and 'position_from_bridge_m'
+    empty_component = {
+        "type": "composite",
+        "components": [{"weight": 1.0}],
+    }
+    with pytest.raises(ValueError, match="must specify either 'pickup' or 'position_from_bridge_m'"):
+        resolve_pickup_coils(empty_component, inst)

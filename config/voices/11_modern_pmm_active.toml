@@ -7,7 +7,6 @@
 # (Sandberg California VM / Lakland 44-02 / Delano archetype).
 id = "11_modern_pmm_active"
 name = "11. Modern Active P/MM Bass (Parallel)"
-circuit = "circuits/11_modern_pmm_active.cir"
 topology = "P/MM Parallel Active Buffer"
 description = "Split P-neck and MM parallel humbucker with active high-Z buffer, zero cable drag, and punchy modern slap growl"
 blend_mode = "parallel"
@@ -23,6 +22,28 @@ coils = [
     { strings = ["all"], position_from_bridge_m = 0.0755, aperture_width_in = 0.75, weight = 0.25 },
     { strings = ["all"], position_from_bridge_m = 0.0565, aperture_width_in = 0.75, weight = 0.25 }
 ]
+
+
+[circuit]
+topology = "parallel"
+active = true
+preamp = "none"
+preamp_gain = 1.5
+Rvol = 500000.0
+
+[circuit.neck]
+L = 4.8
+Rdc = 9500.0
+Reddy = 110000.0
+Ccoil = 8e-11
+vsat = 0.4
+
+[circuit.bridge]
+L = 3.6
+Rdc = 7400.0
+Reddy = 125000.0
+Ccoil = 1.1e-10
+vsat = 0.55
 
 [[pickups]]
 name = "Precision Split-Coil (Neck)"

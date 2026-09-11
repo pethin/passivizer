@@ -18,6 +18,12 @@ from allomorph.config.strings import (
     get_voice_string,
     STRINGS,
 )
+from allomorph.config.preamps import (
+    PREAMPS_FILE,
+    load_preamps_config,
+    get_preamp,
+    PREAMPS,
+)
 from allomorph.config.voices import (
     VOICES_DIR,
     VOICES_FILE,
@@ -49,10 +55,12 @@ __all__ = [
     "VOICES_DIR",
     "VOICES_FILE",
     "STRINGS_FILE",
+    "PREAMPS_FILE",
     "SCALES",
     "VOICES",
     "INSTRUMENTS",
     "STRINGS",
+    "PREAMPS",
     "INSTRUMENT_ALIASES",
     "VoiceRegistry",
     "load_scales",
@@ -62,6 +70,8 @@ __all__ = [
     "get_source_pickup",
     "load_voices_config",
     "load_strings_config",
+    "load_preamps_config",
+    "get_preamp",
     "get_instrument_string",
     "get_voice_string",
     "_infer_pole_type",

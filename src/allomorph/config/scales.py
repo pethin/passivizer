@@ -36,6 +36,7 @@ def resolve_scale_range(inst_or_scale):
     """
     Resolves the vibrating scale length range (scale_min_m, scale_max_m) in meters.
     Returns (L, L) for standard single-scale instruments, or (min_m, max_m) for multi-scale.
+    If None is provided, defaults to the canonical standard 34" reference scale (0.8636 m).
     """
     if inst_or_scale is None:
         return (0.8636, 0.8636)
@@ -43,8 +44,7 @@ def resolve_scale_range(inst_or_scale):
     if isinstance(inst_or_scale, (tuple, list)):
         if len(inst_or_scale) == 2 and all(float(v) <= 5.0 for v in inst_or_scale):
             return (float(min(inst_or_scale)), float(max(inst_or_scale)))
-        elif any(float(v) > 10.0 for v in inst_or_scale):
-            return (0.8636, 0.8636)
+        raise ValueError(f"Invalid scale length tuple/list: {inst_or_scale}")
 
     if isinstance(inst_or_scale, (int, float)):
         val = float(inst_or_scale)
@@ -64,8 +64,8 @@ def resolve_scale_range(inst_or_scale):
             from allomorph.config.instruments import load_instrument
             inst = load_instrument(inst_or_scale)
             return resolve_scale_range(inst)
-        except Exception:
-            return (0.8636, 0.8636)
+        except Exception as e:
+            raise ValueError(f"Unknown scale or instrument identifier '{inst_or_scale}': {e}")
 
     if isinstance(inst_or_scale, dict):
         if inst_or_scale.get("is_multiscale"):
@@ -74,7 +74,11 @@ def resolve_scale_range(inst_or_scale):
             if min_in is not None and max_in is not None:
                 return (float(min_in) * 0.0254, float(max_in) * 0.0254)
         l_in = inst_or_scale.get("scale_length_in")
-        l_m = inst_or_scale.get("scale_length_m", float(l_in) * 0.0254 if l_in else 0.8636)
-        return (l_m, l_m)
+        if l_in is not None:
+            return (float(l_in) * 0.0254, float(l_in) * 0.0254)
+        l_m = inst_or_scale.get("scale_length_m", inst_or_scale.get("scale_m"))
+        if l_m is not None:
+            return (float(l_m), float(l_m))
+        raise ValueError(f"Dictionary configuration has no valid scale specification: {inst_or_scale}")
 
-    return (0.8636, 0.8636)
+    raise TypeError(f"Cannot resolve scale range from object of type {type(inst_or_scale)}: {inst_or_scale}")

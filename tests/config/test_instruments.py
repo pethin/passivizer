@@ -255,3 +255,62 @@ def test_resolve_voices():
     assert resolve_voices("09") == ["09_stingray_mm_parallel", "09b_stingray_mm_series"]
     assert resolve_voices("15") == ["15_source_direct"]
     assert resolve_voices("16") == ["16_active_character"]
+
+
+def test_get_source_pickup_strict_errors():
+    """Verify that get_source_pickup raises clear configuration errors instead of silent fallbacks."""
+    import pytest
+
+    # 1. Empty pickups dictionary
+    with pytest.raises(ValueError, match="has no pickups defined"):
+        get_source_pickup({"id": "broken_bass", "pickups": {}}, "04_modern_p_ceramic")
+
+    # 2. No default_pickup and no mapping
+    no_default = {
+        "id": "no_default_bass",
+        "pickups": {"neck": {"name": "Neck"}},
+    }
+    with pytest.raises(ValueError, match="defines no 'default_pickup' and has no pickup_mapping"):
+        get_source_pickup(no_default, "04_modern_p_ceramic")
+
+    # 3. default_pickup specifies a non-existent pickup key
+    bad_default = {
+        "id": "bad_default_bass",
+        "default_pickup": "non_existent",
+        "pickups": {"neck": {"name": "Neck"}},
+    }
+    with pytest.raises(KeyError, match="default_pickup 'non_existent' not found in pickups"):
+        get_source_pickup(bad_default, "04_modern_p_ceramic")
+
+
+def test_string_preset_strict_errors():
+    """Verify that invalid string presets raise KeyError instead of silent fallbacks."""
+    import pytest
+    from allomorph.config.strings import get_instrument_string, get_voice_string
+
+    with pytest.raises(KeyError, match="String preset 'imaginary_flats' not found"):
+        get_instrument_string({"strings": {"preset": "imaginary_flats"}})
+
+    with pytest.raises(KeyError, match="String preset 'unknown_target_wire' not found"):
+        get_voice_string({"target_string": "unknown_target_wire"})
+
+
+def test_scale_resolution_strict_errors():
+    """Verify that invalid scale parameters raise ValueError/TypeError instead of silent 34in fallback."""
+    import pytest
+    from allomorph.config.scales import resolve_scale_range
+
+    # 1. Valid None returns standard 34" baseline
+    assert resolve_scale_range(None) == (0.8636, 0.8636)
+
+    # 2. Unknown scale name
+    with pytest.raises(ValueError, match="Unknown scale or instrument identifier '99in_super_bass'"):
+        resolve_scale_range("99in_super_bass")
+
+    # 3. Dictionary missing scale keys
+    with pytest.raises(ValueError, match="no valid scale specification"):
+        resolve_scale_range({"name": "No Scale Bass"})
+
+    # 4. Invalid types
+    with pytest.raises(TypeError, match="Cannot resolve scale range"):
+        resolve_scale_range(object())

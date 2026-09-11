@@ -47,7 +47,6 @@ position_from_bridge_m = 0.0660  # Sweet spot centerline 66.0mm
 aperture_width_in = 1.25         # 1.25" overall aperture envelope
 coil_spacing_in = 0.75           # 0.75" (19.05mm) spacing between coil centers
 type = "dual_coil_parallel"
-circuit = "circuits/sources/source_active_stingray.cir"
 magnet_type = "alnico_v"
 resonant_frequency_hz = 4200.0   # Active 2-band buffered resonance (cable isolated)
 q_factor = 1.60                  # Resonant peak Q
@@ -61,6 +60,17 @@ coils = [
 # ------------------------------------------------------------------------------
 # Single sweet-spot humbucker: all target voices map to the active parallel humbucker.
 # Voice 09 (Music Man StingRay) is a true 1:1 physical and electrical identity match (0.0 dB flat).
+
+[pickups.mm_parallel.circuit]
+topology = "single"
+L = 1.2
+Rdc = 2200.0
+Reddy = 75000.0
+Ccoil = 1.8e-10
+active = true
+preamp = "stingray_2band"
+Rvol = 500000.0
+
 [pickup_mapping]
 "01_modern_jazz_active" = "mm_parallel"
 "02_jazz_bass_pair" = "mm_parallel"

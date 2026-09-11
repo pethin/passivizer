@@ -1,0 +1,87 @@
+# ==============================================================================
+# ALLOMORPH ONBOARD PREAMP & ACTIVE BUFFER CATALOG
+# ==============================================================================
+# Defines reusable analog transfer functions for active onboard preamps and buffers.
+# Evaluated continuously in the s-domain with zero digital warping and finite DC
+# transmission (H(0) >= 1.0) satisfying Guardrail 5.3.3.
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# 1. Flat Studio Active Buffer (Clean Low-Z Line Driver)
+# ------------------------------------------------------------------------------
+# High-impedance FET / op-amp input (1.0 MΩ) with 100 Ω low-impedance output.
+# Used in EMG systems, active blend stages, and studio DI baseline.
+[preamps.flat_buffer]
+id = "flat_buffer"
+name = "Flat Studio Active Buffer"
+description = "Transparent low-impedance FET buffer with zero frequency coloration"
+input_impedance_meg = 1.0
+output_impedance_ohm = 100.0
+gain_db = 0.0
+bands = []
+
+# ------------------------------------------------------------------------------
+# 2. Sadowsky 2-Band Boost-Only Preamp
+# ------------------------------------------------------------------------------
+# Iconic modern NYC Jazz bass active preamp. Boost-only analog shelving filters.
+# Nominal sweet-spot: +3.5 dB @ 60 Hz bass shelf, +3.5 dB @ 3.5 kHz treble shelf.
+[preamps.sadowsky_2band]
+id = "sadowsky_2band"
+name = "Sadowsky 2-Band Boost-Only Preamp"
+description = "NYC modern jazz contour with 60 Hz bass boost and 3.5 kHz treble sparkle"
+input_impedance_meg = 1.0
+output_impedance_ohm = 100.0
+gain_db = 0.0
+bands = [
+    { type = "low_shelf", freq_hz = 60.0, gain_db = 3.5 },
+    { type = "high_shelf", freq_hz = 3500.0, gain_db = 3.5 }
+]
+
+# ------------------------------------------------------------------------------
+# 3. Music Man StingRay 2-Band Classic Preamp
+# ------------------------------------------------------------------------------
+# Classic late 70s discrete op-amp active preamp with interactive shelving contours.
+# Center-detent sweet spot: +1.8 dB @ 80 Hz bass shelf, +2.2 dB @ 4.0 kHz treble shelf.
+[preamps.stingray_2band]
+id = "stingray_2band"
+name = "Music Man StingRay 2-Band Preamp"
+description = "Classic Music Man discrete 2-band EQ with 80 Hz bass and 4.0 kHz treble shelves"
+input_impedance_meg = 1.0
+output_impedance_ohm = 100.0
+gain_db = 0.0
+bands = [
+    { type = "low_shelf", freq_hz = 80.0, gain_db = 1.8 },
+    { type = "high_shelf", freq_hz = 4000.0, gain_db = 2.2 }
+]
+
+# ------------------------------------------------------------------------------
+# 4. Aguilar OBP-3 / Modern 3-Band Preamp
+# ------------------------------------------------------------------------------
+[preamps.aguilar_3band]
+id = "aguilar_3band"
+name = "Aguilar OBP-3 Modern 3-Band Preamp"
+description = "Wideband 3-band active preamp with selectable 400/800 Hz mid scoop/boost"
+input_impedance_meg = 1.0
+output_impedance_ohm = 100.0
+gain_db = 0.0
+bands = [
+    { type = "low_shelf", freq_hz = 40.0, gain_db = 2.0 },
+    { type = "bell", freq_hz = 800.0, gain_db = -2.0, q = 1.2 },
+    { type = "high_shelf", freq_hz = 6500.0, gain_db = 2.0 }
+]
+
+# ------------------------------------------------------------------------------
+# 5. Dingwall FD3 Active Preamp
+# ------------------------------------------------------------------------------
+[preamps.dingwall_active]
+id = "dingwall_active"
+name = "Dingwall Active Tone Capsule / Glockenklang"
+description = "Ultra-transparent multi-scale preamp with low-mid punch and high treble air"
+input_impedance_meg = 1.0
+output_impedance_ohm = 100.0
+gain_db = 0.0
+bands = [
+    { type = "low_shelf", freq_hz = 40.0, gain_db = 1.5 },
+    { type = "bell", freq_hz = 500.0, gain_db = 1.0, q = 1.0 },
+    { type = "high_shelf", freq_hz = 8000.0, gain_db = 2.0 }
+]

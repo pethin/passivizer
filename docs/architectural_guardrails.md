@@ -139,6 +139,17 @@ $$h_{\text{db}} = 20 \log_{10}\left(\max(h_{\text{diff}}, 10^{-6})\right)$$
 3. **Direct Output Invariant:**
    In output mode, direct sensor targets must evaluate to bit-exact $0.00\text{ dB}$ across all frequency bins.
 
+### 3.6 Fail-Fast Declarative Integrity & Zero Silent Fallbacks Invariant
+1. **Zero Silent Fallback Policy:**
+   Every physical entity in Allomorph (instruments, pickups, coils, circuits, scales, strings, and magnet types) is defined declaratively through validated configuration schemas. The simulation, visualizer, and deconvolution pipelines must adhere to a strict fail-fast invariant: never substitute silent defaults, heuristics, or unverified hardware configurations when an explicit parameter or table is missing or invalid.
+2. **Normative Invariants:**
+   - **Passive Pickup Circuits:** Any passive instrument (`electronics = "passive"`) evaluated in circuit simulation, visualizer difference mode, or frontend IR export must declare an explicit `[circuit]` model for the requested source pickup. A missing circuit model must immediately raise a `ValueError` identifying the missing block. Never default to an arbitrary 34" P-Bass split coil or generic biquad.
+   - **Pickup Option Validation:** Specifying a pickup via CLI or API (`--pickup <name>` or `pickup="<name>"`) must resolve to a valid key in the instrument's `[pickups]` table. Unrecognized pickup names must raise `KeyError` listing available pickups. Never silently fall back to `default_pickup`.
+   - **Instrument Default Pickups:** An instrument's `default_pickup` must exist in its `[pickups]` table. If an instrument specifies neither `default_pickup` nor a matching `pickup_mapping`, resolving the source pickup must raise `ValueError`. Never pick the first dictionary key arbitrarily.
+   - **Scale Resolution:** Scale lengths and multi-scale boundaries must resolve to valid presets in `config/scales.toml` or explicit numeric dimensions. Unknown scale names or malformed scale dictionaries must raise `ValueError`. Never silently default unknown scale names to 34" ($0.8636\text{ m}$).
+   - **String Presets & Magnet Metallurgy:** String presets and magnet types must exist in `config/strings.toml` and `MAGNET_PROPERTIES`. Unknown presets or magnet strings must raise `KeyError` listing available options. Never silently default unknown strings to standard nickel roundwounds or unknown magnets to Alnico V.
+   - **Composite Pickup Geometry:** All components in composite pickups referencing other pickups via `pickup = "<name>"` must exist in the parent instrument. Unrecognized references must raise `KeyError`.
+
 ---
 
 ## 4. Differential Non-Linear Metallurgy, Magnetic Dynamics & Analog Realism

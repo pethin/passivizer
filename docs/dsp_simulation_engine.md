@@ -334,7 +334,7 @@ uv run python scripts/simulate_circuits.py -v 04_modern_p_ceramic --max-samples 
 ```bash
 usage: simulate_circuits.py [-h] [--voice VOICE] [--instrument INSTRUMENT]
                             [--input INPUT] [--out OUT] [--prefiltered]
-                            [--save-intermediate] [--normalize {auto,rms,peak,none}]
+                            [--normalize {auto,rms,peak,none}]
                             [--target-dbfs TARGET_DBFS] [--oversample {1,2,4}]
                             [--no-displacement-weighting] [--no-magnet-drag]
                             [--alpha ALPHA] [--alpha3 ALPHA3] [--k-sag K_SAG]

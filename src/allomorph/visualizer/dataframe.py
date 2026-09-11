@@ -38,6 +38,7 @@ from allomorph.physics import (
 )
 from allomorph.circuit import (
     CIRCUITS_DIR,
+    load_circuit,
     parse_netlist,
     compute_circuit_transfer_functions,
     compute_differential_circuit_transfer_functions,
@@ -73,10 +74,7 @@ def build_voice_dataframe(
 
     freqs = np.asarray(log_freqs, dtype=np.float64)
     pickups = resolve_voice_pickups(cfg)
-    cir_rel = cfg.get("circuit", f"circuits/{voice_id}.cir")
-    cir_path = REPO_ROOT / cir_rel
-    if not cir_path.exists():
-        cir_path = CIRCUITS_DIR / f"{voice_id}.cir"
+    tgt_circuit = cfg.get("circuit")
 
     sensor_type = cfg.get("sensor_type", "magnetic")
     tgt_string = get_voice_string(cfg)
@@ -111,8 +109,8 @@ def build_voice_dataframe(
 
     if mode == "output":
         # 1. Output Voice: Target acoustic aperture + loaded SPICE circuit + string + body bloom
-        if cir_path.exists():
-            model = parse_netlist(cir_path)
+        if tgt_circuit:
+            model = load_circuit(tgt_circuit)
             apply_magnet_properties_to_model(model, cfg)
             circuit_curves = compute_circuit_transfer_functions(model, freqs=FREQS)
         else:
@@ -158,7 +156,7 @@ def build_voice_dataframe(
                 c_curve = circuit_curves[i] if i < len(circuit_curves) else [1.0] * len(FREQS)
                 p_weight = p.get("weight", 1.0)
                 p_pol = p.get("polarity", 1.0)
-                weight_fac = 1.0 if (cir_path.exists() and len(circuit_curves) > 1) else p_weight
+                weight_fac = 1.0 if (tgt_circuit and len(circuit_curves) > 1) else p_weight
 
                 ac = numpy_pickup_acoustic_response(f_bins, p["coils"], scale_length_m=tgt_scale_range) * (weight_fac * p_pol)
                 fir_ac = synthesize_minimum_phase_fir(ac, num_taps=2048, normalize=False)
@@ -214,20 +212,25 @@ def build_voice_dataframe(
     else:
         # 2. Input/Output Difference: H_diff = H_target / H_source
         src_pickup = get_source_pickup(inst, voice_id)
+        src_circuit = src_pickup.get("circuit")
 
-        src_cir_rel = src_pickup.get("circuit")
-        if not src_cir_rel and is_passive:
-            src_cir_rel = "circuits/sources/source_standard_p.cir"
-        src_cir_path = (REPO_ROOT / src_cir_rel) if src_cir_rel else None
+        if not src_circuit and is_passive:
+            raise ValueError(
+                f"Passive instrument '{inst.get('id', 'unknown')}' pickup '{src_pickup.get('id', 'unknown')}' "
+                f"does not define a '[circuit]' block. Passive source pickups require an explicit "
+                f"circuit model for differential deconvolution."
+            )
 
-        if src_cir_path and src_cir_path.exists() and cir_path.exists():
-            model = parse_netlist(cir_path)
+        if src_circuit and tgt_circuit:
+            model = load_circuit(tgt_circuit)
             apply_magnet_properties_to_model(model, cfg)
-            src_model = parse_netlist(src_cir_path)
+            src_model = load_circuit(src_circuit)
             apply_magnet_properties_to_model(src_model, src_pickup)
-            circuit_curves = compute_differential_circuit_transfer_functions(model, src_model, freqs=FREQS)
-        elif cir_path.exists():
-            model = parse_netlist(cir_path)
+            circuit_curves = compute_differential_circuit_transfer_functions(
+                model, src_model, freqs=FREQS
+            )
+        elif tgt_circuit:
+            model = load_circuit(tgt_circuit)
             apply_magnet_properties_to_model(model, cfg)
             circuit_curves = compute_circuit_transfer_functions(model, freqs=FREQS)
         else:
@@ -388,11 +391,11 @@ def build_frontend_deconvolutions_dataframe() -> pl.DataFrame:
 
             h_aperture_deconv = (h_can_norm * h_src_norm) / (h_src_norm**2 + 0.01)
 
-            cir_rel = p_cfg.get("circuit")
-            can_path = REPO_ROOT / "circuits" / "canonical_intermediate.cir"
-            if cir_rel and (REPO_ROOT / cir_rel).exists() and can_path.exists():
-                can_model = parse_netlist(can_path)
-                src_model = parse_netlist(REPO_ROOT / cir_rel)
+            can_circuit = VOICES.get("00_canonical_intermediate", {}).get("circuit")
+            cir_circuit = p_cfg.get("circuit")
+            if cir_circuit and can_circuit:
+                can_model = load_circuit(can_circuit)
+                src_model = load_circuit(cir_circuit)
                 diff_curves = compute_differential_circuit_transfer_functions(can_model, src_model, freqs=FREQS)
                 h_c_front = np.interp(freqs, FREQS, np.asarray(diff_curves[0], dtype=np.float64))
                 h_front = h_aperture_deconv * h_c_front
@@ -442,11 +445,11 @@ def build_instrument_frontend_dataframe(inst: Dict[str, Any]) -> pl.DataFrame:
 
         h_aperture_deconv = (h_can_norm * h_src_norm) / (h_src_norm**2 + 0.01)
 
-        cir_rel = p_cfg.get("circuit")
-        can_path = REPO_ROOT / "circuits" / "canonical_intermediate.cir"
-        if cir_rel and (REPO_ROOT / cir_rel).exists() and can_path.exists():
-            can_model = parse_netlist(can_path)
-            src_model = parse_netlist(REPO_ROOT / cir_rel)
+        can_circuit = VOICES.get("00_canonical_intermediate", {}).get("circuit")
+        cir_circuit = p_cfg.get("circuit")
+        if cir_circuit and can_circuit:
+            can_model = load_circuit(can_circuit)
+            src_model = load_circuit(cir_circuit)
             diff_curves = compute_differential_circuit_transfer_functions(can_model, src_model, freqs=FREQS)
             h_c_front = np.interp(freqs, FREQS, np.asarray(diff_curves[0], dtype=np.float64))
             h_front = h_aperture_deconv * h_c_front
@@ -503,8 +506,8 @@ def build_composite_instrument_dataframe(inst: Dict[str, Any]) -> pl.DataFrame:
             target_dfs[vid] = (vname, np.asarray(vdf["magnitude_db"], dtype=np.float64))
 
     rows = []
-    can_path = REPO_ROOT / "circuits" / "canonical_intermediate.cir"
-    can_model = parse_netlist(can_path) if can_path.exists() else None
+    can_circuit = VOICES.get("00_canonical_intermediate", {}).get("circuit")
+    can_model = load_circuit(can_circuit) if can_circuit else None
 
     for p_key, p_cfg in sorted(pickups.items()):
         p_name = p_cfg.get("name", p_key)
@@ -513,9 +516,9 @@ def build_composite_instrument_dataframe(inst: Dict[str, Any]) -> pl.DataFrame:
         h_src_norm = h_src_ac / max(h_src_ac[0], 1e-9)
         h_aperture_deconv = (h_can_norm * h_src_norm) / (h_src_norm**2 + 0.01)
 
-        cir_rel = p_cfg.get("circuit")
-        if cir_rel and (REPO_ROOT / cir_rel).exists() and can_model:
-            src_model = parse_netlist(REPO_ROOT / cir_rel)
+        cir_circuit = p_cfg.get("circuit")
+        if cir_circuit and can_model:
+            src_model = load_circuit(cir_circuit)
             diff_curves = compute_differential_circuit_transfer_functions(can_model, src_model, freqs=FREQS)
             h_c_front = np.interp(freqs, FREQS, np.asarray(diff_curves[0], dtype=np.float64))
             h_front = h_aperture_deconv * h_c_front
