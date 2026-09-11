@@ -1,15 +1,13 @@
 """
-Allomorph - SPICE Netlist Parser & Circuit Model
-Parses Allomorph .cir SPICE netlists into structured CircuitModel instances
-with LRU caching, engineering unit suffixes, and pot wiper positioning.
+Allomorph - Circuit Model & Declarative Netlist Parser
+Parses Allomorph declarative circuit configurations into structured CircuitModel instances
+with engineering unit suffixes, continuous pot tapers, and wiper positioning.
 """
 
 import copy
-import functools
 import math
-import re
 from pathlib import Path
-from typing import Union, Dict, Any, Optional
+from typing import Union, Optional
 import numpy as np
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent.parent

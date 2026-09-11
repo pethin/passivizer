@@ -35,7 +35,7 @@ When contributing to or maintaining this repository, strictly adhere to these ar
   - Do **NOT** add `scipy` or `soundfile` as dependencies (they carry legacy C/Fortran bloat).
 - **Git & Contribution Governance:** All commits must be signed off using `git commit -s` (or `Signed-off-by: Legal Name <email>`) to satisfy `CLA.md` and pass automated DCO CI checks.
 - **Circuit Simulation Engine:**
-  - **Native WAV SPICE Engine:** Built-in Apple Silicon (`arm64`) WAV SPICE circuit simulation engine (`scripts/simulate_circuits.py`) providing zero-external-dependency SPICE netlist parsing, analytical nodal RLC solving, regularized differential SPICE transfer functions ($H_{\text{diff}} = H_{\text{target}} / H_{\text{source}}$), dynamic core saturation bypass, and vector soft-knee saturation ($V_{\text{sat}} \cdot \tanh(v/V_{\text{sat}})$) directly on audio waveforms at >1500x speed.
+  - **Native WAV SPICE Engine:** Built-in Apple Silicon (`arm64`) WAV SPICE circuit simulation engine (`src/allomorph/circuit/`, `allomorph-sim`) providing zero-external-dependency SPICE netlist parsing, analytical nodal RLC solving, regularized differential SPICE transfer functions ($H_{\text{diff}} = H_{\text{target}} / H_{\text{source}}$), dynamic core saturation bypass, and vector soft-knee saturation ($V_{\text{sat}} \cdot \tanh(v/V_{\text{sat}})$) directly on audio waveforms at >1500x speed.
 
 ---
 

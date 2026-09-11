@@ -133,15 +133,15 @@ To convert an active instrument into an authentic passive digital twin without c
 
 $$H_{\text{diff}}(\omega) = \frac{H_{\text{target}}(\omega)}{H_{\text{source}}(\omega)}$$
 
-### 3.1 Source Instrument SPICE Netlists (`circuits/sources/`)
-Source instruments are represented by exact standalone SPICE netlists:
-* `30in_emg_mmtw_dual.cir`: 18V active EMG MMTW dual-coil mode ($f_r = 2.8\text{ kHz}, Q = 1.35$).
-* `30in_emg_mmtw_single.cir`: Active EMG MMTW single-coil mode ($f_r = 4.2\text{ kHz}, Q = 1.50$).
-* `32in_emg_px_split.cir`: Active EMG PX reverse-split configuration ($f_r = 3.2\text{ kHz}, Q = 1.40$).
-* `32in_emg_mmtwx_dual.cir`: Active EMG MMTWX bridge humbucker ($f_r = 2.9\text{ kHz}, Q = 1.30$).
-* `passive_p_baseline.cir`: Standard passive P-Bass baseline ($f_r = 3.0\text{ kHz}, Q = 1.40$).
-* `passive_jazz_baseline.cir`: Standard passive 60s Jazz Bass baseline ($f_r = 3.9\text{ kHz}, Q = 1.30$).
-* `passive_stingray_baseline.cir`: Standard passive StingRay humbucker ($f_r = 3.5\text{ kHz}, Q = 1.60$).
+### 3.1 Source Instrument Declarative Circuit Models (`config/instruments/*.toml`)
+Source instruments are represented by exact declarative circuit tables configured per pickup:
+* `30in_emg_mmtw` (`mmtw_dual`): 18V active EMG MMTW dual-coil mode ($f_r = 2.8\text{ kHz}, Q = 1.35$).
+* `30in_emg_mmtw` (`mmtw_single`): Active EMG MMTW single-coil mode ($f_r = 4.2\text{ kHz}, Q = 1.50$).
+* `32in_custom_pmm` (`px_split`): Active EMG PX reverse-split configuration ($f_r = 3.2\text{ kHz}, Q = 1.40$).
+* `32in_custom_pmm` (`mmtwx_dual`): Active EMG MMTWX bridge humbucker ($f_r = 2.9\text{ kHz}, Q = 1.30$).
+* `34in_standard_p` (`split_p`): Standard passive P-Bass baseline ($f_r = 3.0\text{ kHz}, Q = 1.40$).
+* `34in_standard_jazz` (`pair_parallel`): Standard passive 60s Jazz Bass baseline ($f_r = 3.9\text{ kHz}, Q = 1.30$).
+* `34in_active_stingray` (`mm_parallel`): Active 2-band StingRay humbucker ($f_r = 4.2\text{ kHz}, Q = 1.60$).
 
 ### 3.2 Mathematical Invariants
 1. **Exact Unity Equality:** When target pickup equals source pickup ($H_{\text{tgt}} \equiv H_{\text{src}}$), $H_{\text{diff}}(\omega)$ evaluates to exactly $0.00\text{ dB}$ across all 512 frequency bins.

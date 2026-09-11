@@ -76,7 +76,7 @@ Each entry defines a **physically selectable state** on the instrument (e.g., so
 | `type` | `string` | — | Required | Pickup architecture: `"single_coil"`, `"dual_coil_parallel"`, `"split_coil"`, or `"composite"`. |
 | `pole_type` | `string` | — | `"rod"` | Spatial pole geometry: `"rod"` (2D cylindrical pole disc) or `"blade"` (1D bar slit). |
 | `magnet_type` | `string` | — | `"alnico_v"` | Core magnet alloy: `"alnico_v"`, `"alnico_ii"`, `"ceramic"`, `"hybrid"`, `"neodymium"`, `"piezo"`, or `"active"`. |
-| `circuit` | `string` | Path | Optional | Path to dedicated source SPICE netlist in `circuits/sources/` for active/passive deconvolution. |
+| `circuit` | `table` | — | Optional | Embedded declarative SPICE netlist table (`[pickups.<id>.circuit]`) defining RLC parameters. |
 | `resonant_frequency_hz` | `float` | Hz | Optional | Internal electrical resonant peak frequency ($f_r$) of the active preamp. |
 | `q_factor` | `float` | — | `1.35` | Quality factor ($Q$) of the internal active resonant bump. |
 | `coils` | `array[table]`| — | Optional | Array of individual physical coils for precise multi-coil/staggered acoustic modeling. |
@@ -321,9 +321,8 @@ coils = [
 
 #### 2. Vintage 1960s Jazz Bass Pair (`02_jazz_bass_pair`)
 ```toml
-[voices.02_jazz_bass_pair]
+# config/voices/02_jazz_bass_pair.toml
 name = "02. Vintage 60s Jazz Bass Pair (Parallel)"
-circuit = "circuits/02_jazz_bass_pair.cir"
 topology = "Dual Single-Coil Parallel"
 blend_mode = "parallel"
 magnet_type = "alnico_v"
@@ -336,6 +335,24 @@ coils = [
     { strings = ["all"], position_from_bridge_m = 0.1556, aperture_width_in = 0.75, weight = 0.5 },
     { strings = ["all"], position_from_bridge_m = 0.0635, aperture_width_in = 0.75, weight = 0.5 }
 ]
+
+[circuit]
+topology = "parallel"
+Rvol = 125000.0
+Rtone = 250000.0
+Ctone = 47e-9
+
+[circuit.neck]
+L = 3.2
+Rdc = 7200.0
+Reddy = 135000.0
+Ccoil = 7e-11
+
+[circuit.bridge]
+L = 3.6
+Rdc = 7800.0
+Reddy = 125000.0
+Ccoil = 7e-11
 
 [[voices.02_jazz_bass_pair.pickups]]
 name = "Vintage 60s Jazz Single-Coil (Neck)"

@@ -4,21 +4,13 @@ Individual execution stages for visualization, audio pre-filtering,
 circuit simulation, and neural model training.
 """
 
-import os
 import subprocess
 import sys
 from pathlib import Path
-from typing import Optional, Union, Dict, Any
+from typing import Optional, Union
 
-from allomorph.config import (
-    REPO_ROOT,
-    load_instrument,
-)
-from allomorph.physics import compute_voice_prefilter_firs
-from allomorph.circuit import (
-    AUDIO_DIR,
-    simulate_voice,
-)
+from allomorph.config import REPO_ROOT
+from allomorph.circuit import simulate_voice
 
 DOCS_DIR = REPO_ROOT / "docs"
 SCRIPTS_DIR = REPO_ROOT / "scripts"

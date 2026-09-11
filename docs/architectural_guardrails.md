@@ -93,9 +93,9 @@ $$h_{\text{db}} = 20 \log_{10}\left(\max(h_{\text{diff}}, 10^{-6})\right)$$
 ## 3. True Differential Circuit Deconvolution & Staging Integrity
 
 ### 3.1 True Differential Deconvolution ($H_{\text{diff}} = H_{\text{target}} / H_{\text{source}}$)
-- Never use ad-hoc identity bypass conditionals (`if is_identity: return 1.0`) in place of true deconvolution, and never treat active instruments as unvoiced generic EMGs. Define explicit source SPICE netlists in `circuits/sources/` for all active instruments with onboard preamps (StingRay 2-band, Dingwall FD3n) and link them in `config/instruments/*.toml`.
+- Never use ad-hoc identity bypass conditionals (`if is_identity: return 1.0`) in place of true deconvolution, and never treat active instruments as unvoiced generic EMGs. Define explicit source circuit models in `[pickups.<id>.circuit]` for all active instruments with onboard preamps (StingRay 2-band, Dingwall FD3n) directly in `config/instruments/*.toml`.
 - Directly evaluate model equality: $\text{if } \text{allclose}(H_{\text{tgt}}, H_{\text{src}}): H_{\text{diff}} \equiv 1.000$ ($0.00\text{ dB}$ identity across all frequencies).
-- In both `analyze_voices.py` and `simulate_circuits.py`, universally evaluate differential transfer functions whenever `src_cir_path` is present.
+- Universally evaluate differential transfer functions whenever a source circuit is present.
 
 ### 3.2 Strict Prevention of Double Voicing
 - Automatically inspect input filenames: if `Path(input_wav).name.startswith("aperture_")`, automatically set `prefiltered = True` to guarantee `compute_voice_prefilter_firs` is never re-convolved.

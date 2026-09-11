@@ -18,19 +18,9 @@ from allomorph.dsp import (
 from allomorph.config import (
     REPO_ROOT,
     VOICES,
-    SCALES,
-    STRINGS,
-    INSTRUMENTS,
     load_instrument,
-    load_all_instruments,
-    resolve_scale_range,
-    resolve_pickup_coils,
     get_instrument_string,
     get_source_pickup,
-)
-from allomorph.naming import (
-    resolve_instruments,
-    resolve_voices,
 )
 from allomorph.physics import (
     compute_voice_prefilter_firs,
@@ -52,7 +42,6 @@ from allomorph.circuit.saturation import (
 
 from allomorph.circuit.audio import (
     apply_prefilter_to_audio,
-    prefilter_audio,
     find_default_input_audio,
 )
 

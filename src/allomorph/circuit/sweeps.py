@@ -7,7 +7,7 @@ Supports tone pot, volume pot, cable capacitance, tone capacitor, and active EQ 
 from dataclasses import dataclass
 import copy
 from pathlib import Path
-from typing import List, Optional, Union
+from typing import Optional, Union
 
 import numpy as np
 import polars as pl

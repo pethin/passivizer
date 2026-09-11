@@ -9,7 +9,7 @@ import math
 import numpy as np
 
 from allomorph.dsp import FREQS
-from allomorph.circuit.parser import CircuitModel, MAGNET_PROPERTIES
+from allomorph.circuit.parser import CircuitModel, MAGNET_PROPERTIES, eval_pot_taper
 
 
 def compute_core_impedance(
@@ -352,7 +352,6 @@ def compute_circuit_transfer_functions(model: CircuitModel, freqs=FREQS, return_
             blend_pos = getattr(model, "blend_pos", 0.5)
             if abs(blend_pos - 0.5) >= 1e-4:
                 taper = getattr(model, "pot_taper", "audio")
-                from allomorph.circuit.parser import eval_pot_taper
 
                 if blend_pos < 0.5:
                     gain_n = 1.0
@@ -409,7 +408,6 @@ def compute_circuit_transfer_functions(model: CircuitModel, freqs=FREQS, return_
             blend_pos = getattr(model, "blend_pos", 0.5)
             if abs(blend_pos - 0.5) >= 1e-4:
                 taper = getattr(model, "pot_taper", "audio")
-                from allomorph.circuit.parser import eval_pot_taper
 
                 if blend_pos < 0.5:
                     gain_n = 1.0
@@ -522,7 +520,6 @@ def compute_circuit_transfer_functions(model: CircuitModel, freqs=FREQS, return_
         blend_pos = getattr(model, "blend_pos", 0.5)
         if abs(blend_pos - 0.5) >= 1e-4:
             taper = getattr(model, "pot_taper", "audio")
-            from allomorph.circuit.parser import eval_pot_taper
 
             if blend_pos < 0.5:
                 gain_n = 1.0
@@ -583,7 +580,6 @@ def compute_circuit_transfer_functions(model: CircuitModel, freqs=FREQS, return_
         blend_pos = getattr(model, "blend_pos", 0.5)
         if abs(blend_pos - 0.5) >= 1e-4:
             taper = getattr(model, "pot_taper", "audio")
-            from allomorph.circuit.parser import eval_pot_taper
 
             if blend_pos < 0.5:
                 gain_n = 1.0

@@ -4,11 +4,9 @@ Provides vectorized FFT convolution for aperture pre-filtering, 24-bit PCM WAV
 I/O, and calibration audio discovery.
 """
 
-import math
-import os
 import wave
 from pathlib import Path
-from typing import Optional, Union, Sequence
+from typing import Optional, Union
 
 import numpy as np
 

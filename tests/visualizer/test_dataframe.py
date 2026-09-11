@@ -31,7 +31,7 @@ def test_build_voice_dataframe():
 
 
 def test_circuit_simulation_integration():
-    """Verify that build_voice_dataframe accurately incorporates the exact .cir netlist transfer functions."""
+    """Verify that build_voice_dataframe accurately incorporates the exact circuit transfer functions."""
     # 1. 47nF tone capacitor rolloff on P-Bass
     df_tone = build_voice_dataframe("05c_vintage_62_p_47nf", VOICES["05c_vintage_62_p_47nf"], src_scale="30in")
     df_p = build_voice_dataframe("04_modern_p_ceramic", VOICES["04_modern_p_ceramic"], src_scale="30in")
