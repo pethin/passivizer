@@ -5,6 +5,8 @@ Defines schemas for pipeline CLI arguments, Tone3000 storefront pack listings,
 and Neural Amp Modeler (.nam) Architecture 2 export container metadata.
 """
 
+from collections.abc import Callable
+from pathlib import Path
 from typing import Any, Literal
 
 from pydantic import Field
@@ -12,9 +14,11 @@ from pydantic import Field
 from allomorph.base import AllomorphBaseModel
 
 __all__ = [
+    "ArtworkPackConfig",
     "NamExportMetadata",
     "NamSourceInstrumentMeta",
     "NamTargetVoiceMeta",
+    "NamTrainingConfig",
     "PipelineCliConfig",
     "Tone3000PackListing",
 ]
@@ -86,3 +90,37 @@ class NamExportMetadata(AllomorphBaseModel):
     author: str
     source_instrument: NamSourceInstrumentMeta
     target_voice: NamTargetVoiceMeta
+
+
+class NamTrainingConfig(AllomorphBaseModel):
+    """Training hyperparameters and execution flags for NAM Architecture 2 local training."""
+
+    instrument: str = "all"
+    voice: str = "all"
+    input_wav: Path | str | None = None
+    output_wav: Path | str | None = None
+    models_dir: Path | str = Field(default=Path("models"))
+    epochs: int = Field(default=100, gt=0)
+    goal_esr: float | None = Field(default=0.0005, ge=0.0)
+    no_goal_esr: bool = False
+    batch_size: int = Field(default=16, gt=0)
+    show_plot: bool = False
+    save_plot: bool = False
+    tier: Literal["clean", "standard", "std", "hotrod", "dynamic"] | None = None
+    basename: str | None = None
+    fast_dev_run: bool = False
+    gui: bool = False
+
+
+class ArtworkPackConfig(AllomorphBaseModel):
+    """Validated CAD artwork and typography configuration for Tone3000 storefront pack."""
+
+    accent: str = Field(..., pattern=r"^#[0-9a-fA-F]{6}$")
+    title: str
+    desc_line1: str
+    desc_line2: str
+    scale: str
+    badge2: str
+    badge3: str
+    content: Callable[[str], str]
+

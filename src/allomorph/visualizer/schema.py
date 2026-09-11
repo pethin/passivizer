@@ -4,10 +4,14 @@ Allomorph Visualizer - Pydantic Configuration Schemas.
 Defines schemas for interactive visualizer portals and chart exports.
 """
 
+from pathlib import Path
+from typing import Literal
+
 from allomorph.base import AllomorphBaseModel
 
 __all__ = [
     "PortalInstrumentMeta",
+    "VisualizerCliConfig",
 ]
 
 
@@ -21,3 +25,13 @@ class PortalInstrumentMeta(AllomorphBaseModel):
     speeds_str: str
     pickups_summary: str
     default_pickup: str
+
+
+class VisualizerCliConfig(AllomorphBaseModel):
+    """Validated command-line configuration for interactive Altair visualizer."""
+
+    instrument: str = "all"
+    mode: Literal["composite", "unified", "output", "difference", "targets", "frontends"] = "composite"
+    all: bool = False
+    out: Path | str | None = None
+

@@ -18,6 +18,7 @@ from allomorph.config.geometry import (
 )
 from allomorph.config.instruments import get_source_pickup, load_instrument
 from allomorph.config.scales import REPO_ROOT, SCALES
+from allomorph.config.schema import PickupConfig
 from allomorph.config.strings import get_instrument_string
 from allomorph.config.voices import VOICES
 from allomorph.dsp import FREQS, NUM_TAPS, synthesize_minimum_phase_fir
@@ -81,7 +82,8 @@ def compute_voice_prefilter_firs(
                 f"Pickup '{src_pickup_key}' not found on instrument '{inst.get('id', 'unknown')}'. "
                 f"Available pickups: {list(pickups.keys())}"
             )
-        src_pickup = pickups[src_pickup_key].copy()
+        p_raw = pickups[src_pickup_key]
+        src_pickup = p_raw.model_copy() if isinstance(p_raw, PickupConfig) else p_raw.copy()
         src_pickup["id"] = src_pickup_key
     else:
         src_pickup = get_source_pickup(inst, voice_id)

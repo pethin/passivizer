@@ -37,6 +37,7 @@ from allomorph.visualizer.portal import (
     format_instrument_meta,
     generate_portal_pages,
 )
+from allomorph.visualizer.schema import VisualizerCliConfig
 
 __all__ = [
     "DOCS_DIR",
@@ -91,11 +92,17 @@ def main(argv: Sequence[str] | None = None) -> None:
         help="Output HTML file or directory path (default: docs/frequency_responses/<instrument_id>.html)"
     )
     args = parser.parse_args(argv)
+    cli_cfg = VisualizerCliConfig(
+        instrument=args.instrument,
+        mode=args.mode,
+        all=args.all,
+        out=args.out,
+    )
 
-    if args.all or (isinstance(args.instrument, str) and args.instrument.lower() == "all"):
-        generate_all_charts(output_dir=args.out)
+    if cli_cfg.all or (isinstance(cli_cfg.instrument, str) and cli_cfg.instrument.lower() == "all"):
+        generate_all_charts(output_dir=cli_cfg.out)
     else:
-        inst = load_instrument(args.instrument)
-        generate_interactive_chart(instrument=inst, out_html=args.out, mode=args.mode)
-        if args.out is None or (Path(args.out).resolve() == RESPONSES_DIR.resolve()):
+        inst = load_instrument(cli_cfg.instrument)
+        generate_interactive_chart(instrument=inst, out_html=cli_cfg.out, mode=cli_cfg.mode)
+        if cli_cfg.out is None or (Path(cli_cfg.out).resolve() == RESPONSES_DIR.resolve()):
             generate_portal_pages(output_dir=RESPONSES_DIR, default_id=inst.get("id"))

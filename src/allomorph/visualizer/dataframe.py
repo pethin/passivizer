@@ -27,6 +27,7 @@ from allomorph.config.instruments import (
     load_instrument,
 )
 from allomorph.config.scales import SCALES, resolve_scale_range
+from allomorph.config.schema import InstrumentConfig, VoiceConfig
 from allomorph.config.strings import get_voice_string
 from allomorph.config.voices import VOICES
 from allomorph.dsp import (
@@ -52,9 +53,9 @@ log_freqs = [F_MIN * (F_MAX / F_MIN) ** (i / (NUM_POINTS - 1)) for i in range(NU
 
 def build_voice_dataframe(
     voice_id: str,
-    cfg: dict[str, Any] | AllomorphBaseModel,
-    instrument: str | dict[str, Any] | AllomorphBaseModel = "30in",
-    src_scale: str | dict[str, Any] | AllomorphBaseModel | None = None,
+    cfg: VoiceConfig | dict[str, Any] | AllomorphBaseModel,
+    instrument: InstrumentConfig | str | dict[str, Any] | AllomorphBaseModel = "30in",
+    src_scale: InstrumentConfig | str | dict[str, Any] | AllomorphBaseModel | None = None,
     mode: str = "difference",
     include_mode_col: bool = False,
 ) -> pl.DataFrame:
@@ -419,7 +420,7 @@ def build_frontend_deconvolutions_dataframe() -> pl.DataFrame:
     return pl.DataFrame(rows)
 
 
-def build_instrument_frontend_dataframe(inst: dict[str, Any] | AllomorphBaseModel) -> pl.DataFrame:
+def build_instrument_frontend_dataframe(inst: InstrumentConfig | dict[str, Any] | AllomorphBaseModel) -> pl.DataFrame:
     """
     Calculates magnitude frequency responses for all pickup switch positions of a source instrument:
     H_frontend = H_canonical / H_source.
@@ -471,7 +472,7 @@ def build_instrument_frontend_dataframe(inst: dict[str, Any] | AllomorphBaseMode
     return pl.DataFrame(rows)
 
 
-def build_composite_instrument_dataframe(inst: dict[str, Any] | AllomorphBaseModel) -> pl.DataFrame:
+def build_composite_instrument_dataframe(inst: InstrumentConfig | dict[str, Any] | AllomorphBaseModel) -> pl.DataFrame:
     """
     Calculates the 5-stage physical signal flow progression for a source instrument:
       1. Source Bass Input: Physical response of the source pickup entering Block 1.

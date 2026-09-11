@@ -12,6 +12,7 @@ import numpy as np
 
 from allomorph.base import AllomorphBaseModel
 from allomorph.config.scales import SCALES, resolve_scale_range
+from allomorph.config.schema import InstrumentConfig, ScaleConfig, StringPresetConfig
 from allomorph.config.strings import get_voice_string
 from allomorph.physics.schema import WaveSpeedContinuumPoint
 
@@ -57,8 +58,8 @@ MEAN_BASS_F0 = 66.9045  # Mean open-string fundamental frequency (E1=41.203, A1=
 
 def compute_differential_string_transfer(
     freqs: Sequence[float] | np.ndarray,
-    src_string: dict[str, Any] | AllomorphBaseModel,
-    tgt_string: dict[str, Any] | AllomorphBaseModel,
+    src_string: StringPresetConfig | dict[str, Any] | AllomorphBaseModel,
+    tgt_string: StringPresetConfig | dict[str, Any] | AllomorphBaseModel,
 ) -> np.ndarray:
     """
     Computes differential transfer function between source instrument strings
@@ -102,8 +103,8 @@ def compute_differential_string_transfer(
 
 def compute_differential_longitudinal_transfer(
     freqs: Sequence[float] | np.ndarray,
-    src_string: dict[str, Any] | AllomorphBaseModel,
-    tgt_string: dict[str, Any] | AllomorphBaseModel,
+    src_string: StringPresetConfig | dict[str, Any] | AllomorphBaseModel,
+    tgt_string: StringPresetConfig | dict[str, Any] | AllomorphBaseModel,
     scale_length_inches: float = 34.0,
 ) -> np.ndarray:
     """
@@ -155,7 +156,7 @@ def get_inharmonicity_for_f0(f0: float) -> float:
 
 
 def generate_wave_speed_continuum(
-    scale_length_m: float | tuple[float, float] | list[float] | dict[str, Any] | AllomorphBaseModel | str | None = 0.8636,
+    scale_length_m: float | tuple[float, float] | list[float] | ScaleConfig | InstrumentConfig | dict[str, Any] | AllomorphBaseModel | str | None = 0.8636,
     num_points: int = 24,
 ) -> list[WaveSpeedContinuumPoint]:
     """

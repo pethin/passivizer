@@ -15,6 +15,8 @@ import xml.etree.ElementTree as ET
 from collections.abc import Callable
 from pathlib import Path
 
+from allomorph.pipeline.schema import ArtworkPackConfig
+
 
 def _svg_content(fn: Callable[[str], str]) -> Callable[[str], str]:
     return fn
@@ -532,8 +534,8 @@ def generate_pack_svg(model_key: str) -> str:
         },
     }
 
-    cfg = configs[model_key]
-    acc = cfg["accent"]
+    cfg = ArtworkPackConfig.model_validate(configs[model_key])
+    acc = cfg.accent
 
     svg = f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 1200" width="1200" height="1200">
   <defs>

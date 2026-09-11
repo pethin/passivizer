@@ -4,16 +4,16 @@ Parses Allomorph declarative circuit configurations into structured CircuitModel
 with engineering unit suffixes, continuous pot tapers, and wiper positioning.
 """
 
-import copy
 import math
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal, cast
 
 import numpy as np
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
 
-from allomorph.base import parse_spice_unit
+from allomorph.base import AllomorphBaseModel, SpiceFloat, parse_spice_unit
 from allomorph.circuit.schema import MagnetPropertiesConfig
+from allomorph.config.schema import PreampBandConfig
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 
@@ -227,170 +227,112 @@ def eval_pot_taper(pos: float, taper: str = "audio") -> float:
     return float(np.expm1(gamma * theta) / np.expm1(gamma))
 
 
-class CircuitModel:
+class CircuitModel(AllomorphBaseModel):
     """Represents a parsed RLC guitar circuit digital twin."""
 
-    topology: str
-    vsat: float
-    vsat_n: float
-    vsat_b: float
-    L: float
-    L_core: float
-    R_core: float
-    Rdc: float
-    Reddy: float
-    Ccoil: float
-    L_b: float
-    L_core_b: float
-    R_core_b: float
-    Rdc_b: float
-    Reddy_b: float
-    Ccoil_b: float
-    Ctone: float
-    Rtone: float
-    Crick: float
-    Rtop: float
-    Rbot: float
-    Ctb: float
-    Rtb_par: float
-    Rtb_ser: float
-    has_active_buffer: bool
-    preamp_type: str
-    preamp_bands: list[dict[str, Any]] | None
-    preamp_gain: float
-    R_preamp_in: float
-    C_preamp_in: float
-    R_out: float
-    no_eq: bool
-    Ccable: float
-    tan_delta: float
-    tan_delta_coil: float
-    Ranagram: float
-    Canagram: float
-    Rpot_n: float
-    Rpot_b: float
-    alpha_dielectric_tone: float
-    alpha_dielectric_cable: float
-    k_mutual: float
-    C_mutual: float
-    chi_mu: float
-    chi_mu_b: float
-    omega_mu: float
-    k_dist: float
-    k_dist_b: float
-    omega_dist: float
-    k_skin: float
-    f_skin: float
-    k_skin_b: float
-    f_skin_b: float
-    vol_pos: float
-    tone_pos: float
-    blend_pos: float
-    pot_taper: str
-    Rvol_total: float
-    Rtone_total: float
-    Rblend_total: float
-    Rtop_default: float
-    Rbot_default: float
-    Rtone_default: float
-    Rpot_n_default: float
-    Rpot_b_default: float
+    topology: Literal["single", "parallel", "series"] = "single"
+    vsat: float = 0.50
+    vsat_n: float = 0.50
+    vsat_b: float = 0.50
 
-    def __init__(self):
-        self.topology = "single"  # "single", "parallel", "series"
-        self.vsat = 0.50
-        self.vsat_n = 0.50
-        self.vsat_b = 0.50
+    # Branch parameters (single or neck)
+    L: SpiceFloat = Field(default=4.8, gt=0.0)
+    L_core: SpiceFloat = Field(default=0.0, ge=0.0)
+    R_core: SpiceFloat = Field(default=0.0, ge=0.0)
+    Rdc: SpiceFloat = Field(default=9500.0, gt=0.0)
+    Reddy: SpiceFloat = Field(default=110000.0, gt=0.0)
+    Ccoil: SpiceFloat = Field(default=80e-12, ge=0.0)
 
-        # Branch parameters (single or neck)
-        self.L = 4.8
-        self.L_core = 0.0
-        self.R_core = 0.0
-        self.Rdc = 9500.0
-        self.Reddy = 110000.0
-        self.Ccoil = 80e-12
+    # Bridge branch (for parallel or series)
+    L_b: SpiceFloat = Field(default=3.6, gt=0.0)
+    L_core_b: SpiceFloat = Field(default=0.0, ge=0.0)
+    R_core_b: SpiceFloat = Field(default=0.0, ge=0.0)
+    Rdc_b: SpiceFloat = Field(default=7800.0, gt=0.0)
+    Reddy_b: SpiceFloat = Field(default=125000.0, gt=0.0)
+    Ccoil_b: SpiceFloat = Field(default=70e-12, ge=0.0)
 
-        # Bridge branch (for parallel or series)
-        self.L_b = 3.6
-        self.L_core_b = 0.0
-        self.R_core_b = 0.0
-        self.Rdc_b = 7800.0
-        self.Reddy_b = 125000.0
-        self.Ccoil_b = 70e-12
+    # Optional tone / HPF
+    Ctone: SpiceFloat = Field(default=0.0, ge=0.0)
+    Rtone: SpiceFloat = Field(default=0.0, ge=0.0)
+    Crick: SpiceFloat = Field(default=0.0, ge=0.0)
 
-        # Optional tone / HPF
-        self.Ctone = 0.0
-        self.Rtone = 0.0
-        self.Crick = 0.0
+    # Volume pot & treble bleed (disabled by default unless specified in netlist)
+    Rtop: SpiceFloat = Field(default=10.0, ge=0.0)
+    Rbot: SpiceFloat = Field(default=500000.0, ge=0.0)
+    Ctb: SpiceFloat = Field(default=0.0, ge=0.0)
+    Rtb_par: SpiceFloat = Field(default=0.0, ge=0.0)
+    Rtb_ser: SpiceFloat = Field(default=0.0, ge=0.0)
 
-        # Volume pot & treble bleed (disabled by default unless specified in netlist)
-        self.Rtop = 10.0
-        self.Rbot = 500000.0
-        self.Ctb = 0.0
-        self.Rtb_par = 0.0
-        self.Rtb_ser = 0.0
+    # Active preamp buffer & EQ
+    has_active_buffer: bool = False
+    preamp_type: str = "none"  # "sadowsky_2band", "stingray_2band", or "none"
+    preamp_bands: list[PreampBandConfig] | None = None
+    preamp_gain: float = 1.0
+    R_preamp_in: SpiceFloat = Field(default=1.0e6, gt=0.0)
+    C_preamp_in: SpiceFloat = Field(default=25e-12, ge=0.0)
+    R_out: SpiceFloat = Field(default=100.0, ge=0.0)
 
-        # Active preamp buffer & EQ
-        self.has_active_buffer = False
-        self.preamp_type = "none"  # "sadowsky_2band", "stingray_2band", or "none"
-        self.preamp_bands = None
-        self.preamp_gain = 1.0
-        self.R_preamp_in = 1.0e6
-        self.C_preamp_in = 25e-12
-        self.R_out = 100.0
+    # Transparent zero-EQ mode
+    no_eq: bool = False
 
-        # Transparent zero-EQ mode
-        self.no_eq = False
+    # Cable & pedalboard load
+    Ccable: SpiceFloat = Field(default=750e-12, ge=0.0)
+    tan_delta: float = 0.025
+    tan_delta_coil: float = 0.025  # Enameled magnet wire dissipation factor
+    Ranagram: SpiceFloat = Field(default=1.0e6, gt=0.0)
+    Canagram: SpiceFloat = Field(default=30e-12, ge=0.0)
 
-        # Cable & pedalboard load
-        self.Ccable = 750e-12
-        self.tan_delta = 0.025
-        self.tan_delta_coil = 0.025  # Enameled magnet wire dissipation factor
-        self.Ranagram = 1.0e6
-        self.Canagram = 30e-12
+    # Individual pickup volume pot decoupling (e.g. rolled-off neck pot for Jaco growl)
+    Rpot_n: SpiceFloat = Field(default=0.0, ge=0.0)
+    Rpot_b: SpiceFloat = Field(default=0.0, ge=0.0)
 
-        # Individual pickup volume pot decoupling (e.g. rolled-off neck pot for Jaco growl)
-        self.Rpot_n = 0.0
-        self.Rpot_b = 0.0
+    # Dielectric absorption (Cole-Davidson fractional-order relaxation)
+    alpha_dielectric_tone: float = 0.988
+    alpha_dielectric_cable: float = 0.994
 
-        # Dielectric absorption (Cole-Davidson fractional-order relaxation)
-        self.alpha_dielectric_tone = 0.988
-        self.alpha_dielectric_cable = 0.994
+    # Inter-coil mutual inductive & capacitive coupling for multi-pickup configurations
+    k_mutual: float = 0.0
+    C_mutual: SpiceFloat = Field(default=0.0, ge=0.0)
 
-        # Inter-coil mutual inductive & capacitive coupling for multi-pickup configurations
-        self.k_mutual = 0.0
-        self.C_mutual = 0.0
+    # Complex magnetic permeability dispersion (Jordan after-effect)
+    chi_mu: float = 0.0
+    chi_mu_b: float = 0.0
+    omega_mu: float = 2.0 * math.pi * 1200.0
 
-        # Complex magnetic permeability dispersion (Jordan after-effect)
-        self.chi_mu = 0.0
-        self.chi_mu_b = 0.0
-        self.omega_mu = 2.0 * math.pi * 1200.0
+    # Distributed inter-winding transmission line capacitance
+    k_dist: float = 0.0
+    k_dist_b: float = 0.0
+    omega_dist: float = 2.0 * math.pi * 10000.0
 
-        # Distributed inter-winding transmission line capacitance
-        self.k_dist = 0.0
-        self.k_dist_b = 0.0
-        self.omega_dist = 2.0 * math.pi * 10000.0
+    # Solid core eddy skin-effect fractional dispersion
+    k_skin: float = 0.0
+    f_skin: float = 3200.0
+    k_skin_b: float = 0.0
+    f_skin_b: float = 3200.0
 
-        # Solid core eddy skin-effect fractional dispersion
-        self.k_skin = 0.0
-        self.f_skin = 3200.0
-        self.k_skin_b = 0.0
-        self.f_skin_b = 3200.0
+    # Potentiometer wiper positions (1.0 = full open/bright baseline, 0.5 = center for blend)
+    vol_pos: float = Field(default=1.0, ge=0.0, le=1.0)
+    tone_pos: float = Field(default=1.0, ge=0.0, le=1.0)
+    blend_pos: float = Field(default=0.5, ge=0.0, le=1.0)
+    pot_taper: str = "audio"
+    Rvol_total: SpiceFloat = Field(default=500000.0, ge=0.0)
+    Rtone_total: SpiceFloat = Field(default=250000.0, ge=0.0)
+    Rblend_total: SpiceFloat = Field(default=250000.0, ge=0.0)
 
-        # Potentiometer wiper positions (1.0 = full open/bright baseline, 0.5 = center for blend)
-        self.vol_pos = 1.0
-        self.tone_pos = 1.0
-        self.blend_pos = 0.5
-        self.pot_taper = "audio"
-        self.Rvol_total = 500000.0
-        self.Rtone_total = 250000.0
-        self.Rblend_total = 250000.0
+    Rtop_default: SpiceFloat = Field(default=10.0, ge=0.0)
+    Rbot_default: SpiceFloat = Field(default=500000.0, ge=0.0)
+    Rtone_default: SpiceFloat = Field(default=0.0, ge=0.0)
+    Rpot_n_default: SpiceFloat = Field(default=0.0, ge=0.0)
+    Rpot_b_default: SpiceFloat = Field(default=0.0, ge=0.0)
 
-        self.Rtop_default = 10.0
-        self.Rbot_default = 500000.0
-        self.Rtone_default = 0.0
-        self.Rpot_n_default = 0.0
-        self.Rpot_b_default = 0.0
+    @field_validator("topology", mode="before")
+    @classmethod
+    def _validate_topology(cls, v: Any) -> str:
+        if isinstance(v, str):
+            v_clean = v.lower().strip()
+            if v_clean in ("single", "parallel", "series"):
+                return v_clean
+        raise ValueError(f"Invalid topology '{v}'. Must be 'single', 'parallel', or 'series'.")
 
     def apply_pot_positions(
         self,
@@ -398,7 +340,7 @@ class CircuitModel:
         tone_pos: float | None = None,
         blend_pos: float | None = None,
         pot_taper: str | None = None,
-    ):
+    ) -> None:
         """
         Dynamically positions Volume, Tone, and Blend pot wipers.
         - vol_pos: 0.0 (muted) to 1.0 (full open). Splits volume pot into series Rtop and shunt Rbot.
@@ -472,7 +414,7 @@ class CircuitModel:
             return default
 
         model = cls()
-        model.topology = str(cfg.get("topology", "single")).lower()
+        model.topology = cast(Literal["single", "parallel", "series"], str(cfg.get("topology", "single")).lower())
 
         # Dynamic saturation limit
         model.vsat = _val(cfg.get("vsat"), 0.50)
@@ -559,7 +501,11 @@ class CircuitModel:
         model.R_out = _val(cfg.get("R_out", cfg.get("Rout")), 100.0)
         model.no_eq = bool(cfg.get("no_eq", False))
         if cfg.get("preamp_bands"):
-            model.preamp_bands = cfg["preamp_bands"]
+            raw_bands = cfg["preamp_bands"]
+            model.preamp_bands = [
+                b if isinstance(b, PreampBandConfig) else PreampBandConfig.model_validate(b)
+                for b in raw_bands
+            ]
 
         # Cable & load
         model.Ccable = _val(cfg.get("Ccable"), 750e-12)
@@ -629,7 +575,7 @@ class CircuitModel:
 def load_circuit(source: CircuitModel | dict[str, Any] | BaseModel | str | Path) -> CircuitModel:
     """Loads a CircuitModel from a dict, Pydantic model, file path (.toml), voice ID, or instrument ID."""
     if isinstance(source, CircuitModel):
-        return copy.copy(source)
+        return source.model_copy()
     if isinstance(source, BaseModel):
         dumped = source.model_dump()
         if "circuit" in dumped and isinstance(dumped["circuit"], dict):

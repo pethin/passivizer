@@ -160,7 +160,7 @@ def evaluate_analog_band(
 
 
 def compute_active_preamp_transfer(
-    bands: Sequence[dict[str, Any] | AllomorphBaseModel] | None, s: complex | np.ndarray, gain_db: float = 0.0
+    bands: Sequence[PreampBandConfig | dict[str, Any] | AllomorphBaseModel] | None, s: complex | np.ndarray, gain_db: float = 0.0
 ) -> np.ndarray:
     """Evaluates the composite analog active preamp contour across frequencies with finite DC transmission."""
     h_total = np.ones_like(s, dtype=np.complex128) * (10.0 ** (gain_db / 20.0))
@@ -172,7 +172,7 @@ def compute_active_preamp_transfer(
 
 
 def compute_active_preamp_eq(
-    preamp_spec: str | dict[str, Any] | AllomorphBaseModel | Sequence[dict[str, Any] | AllomorphBaseModel], s: complex | np.ndarray
+    preamp_spec: str | dict[str, Any] | AllomorphBaseModel | Sequence[PreampBandConfig | dict[str, Any] | AllomorphBaseModel], s: complex | np.ndarray
 ) -> np.ndarray:
     """
     Evaluates analog active preamp contour transfer function.

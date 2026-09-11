@@ -10,6 +10,7 @@ from typing import Any
 import numpy as np
 
 from allomorph.base import AllomorphBaseModel
+from allomorph.config.schema import InstrumentConfig, PickupConfig
 
 
 def numpy_pickup_electrical_response(
@@ -45,8 +46,8 @@ def numpy_pickup_anti_resonance(
 
 def resolve_pickup_electrical_response_np(
     freqs: Sequence[float] | np.ndarray,
-    pickup_cfg: dict[str, Any] | AllomorphBaseModel,
-    inst_cfg: dict[str, Any] | AllomorphBaseModel,
+    pickup_cfg: PickupConfig | dict[str, Any] | AllomorphBaseModel,
+    inst_cfg: InstrumentConfig | dict[str, Any] | AllomorphBaseModel,
 ) -> np.ndarray:
     """Resolves electrical frequency response for a source pickup using NumPy."""
     f = np.asarray(freqs, dtype=np.float64)
@@ -74,8 +75,8 @@ def resolve_pickup_electrical_response_np(
 
 def resolve_pickup_electrical_deconvolution_np(
     freqs: Sequence[float] | np.ndarray,
-    pickup_cfg: dict[str, Any] | AllomorphBaseModel,
-    inst_cfg: dict[str, Any] | AllomorphBaseModel,
+    pickup_cfg: PickupConfig | dict[str, Any] | AllomorphBaseModel,
+    inst_cfg: InstrumentConfig | dict[str, Any] | AllomorphBaseModel,
     q_target: float = 1.0,
 ) -> np.ndarray:
     """Resolves anti-resonance flattening filter for a source pickup using NumPy."""

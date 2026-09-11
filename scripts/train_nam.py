@@ -38,6 +38,7 @@ from allomorph.pipeline.schema import (
     NamExportMetadata,
     NamSourceInstrumentMeta,
     NamTargetVoiceMeta,
+    NamTrainingConfig,
 )
 
 
@@ -353,7 +354,25 @@ def main():
     parser.add_argument("--gui", action="store_true", help="Launch NAM training GUI")
     args = parser.parse_args()
 
-    if args.gui:
+    cli_cfg = NamTrainingConfig.model_validate({
+        "instrument": args.instrument,
+        "voice": args.voice,
+        "input_wav": args.input,
+        "output_wav": args.output,
+        "models_dir": args.models_dir,
+        "epochs": args.epochs,
+        "goal_esr": args.goal_esr,
+        "no_goal_esr": args.no_goal_esr,
+        "batch_size": args.batch_size,
+        "show_plot": args.show_plot,
+        "save_plot": args.save_plot,
+        "tier": args.tier,
+        "basename": args.basename,
+        "fast_dev_run": args.fast_dev_run,
+        "gui": args.gui,
+    })
+
+    if cli_cfg.gui:
         try:
             from nam.cli import nam_gui
             nam_gui()
@@ -362,10 +381,10 @@ def main():
             print("Error: 'neural-amp-modeler' GUI could not be loaded.")
             return
 
-    effective_goal_esr = None if args.no_goal_esr or (args.goal_esr is not None and args.goal_esr <= 0) else args.goal_esr
+    effective_goal_esr = None if cli_cfg.no_goal_esr or (cli_cfg.goal_esr is not None and cli_cfg.goal_esr <= 0) else cli_cfg.goal_esr
 
-    instruments_to_run = resolve_instruments(args.instrument)
-    voices_to_run = resolve_voices(args.voice)
+    instruments_to_run = resolve_instruments(cli_cfg.instrument)
+    voices_to_run = resolve_voices(cli_cfg.voice)
     all_ok = True
     total_runs = len(instruments_to_run) * len(voices_to_run)
     current_run = 0
@@ -376,21 +395,21 @@ def main():
                 print("\n==================================================")
                 print(f"  [{current_run}/{total_runs}] Training: {inst} -> {voice}")
                 print("==================================================")
-            out_wav = args.output if (len(voices_to_run) == 1 and len(instruments_to_run) == 1) else None
+            out_wav = cli_cfg.output_wav if (len(voices_to_run) == 1 and len(instruments_to_run) == 1) else None
             ok = train_voice(
                 instrument=inst,
                 voice=voice,
-                input_wav=args.input,
+                input_wav=cli_cfg.input_wav,
                 output_wav=out_wav,
-                models_dir=args.models_dir,
-                tier=args.tier,
-                epochs=args.epochs,
+                models_dir=cli_cfg.models_dir,
+                tier=cli_cfg.tier,
+                epochs=cli_cfg.epochs,
                 goal_esr=effective_goal_esr,
-                batch_size=args.batch_size,
-                silent=not args.show_plot,
-                save_plot=args.save_plot,
-                fast_dev_run=args.fast_dev_run,
-                basename=args.basename if (len(voices_to_run) == 1 and len(instruments_to_run) == 1) else None,
+                batch_size=cli_cfg.batch_size,
+                silent=not cli_cfg.show_plot,
+                save_plot=cli_cfg.save_plot,
+                fast_dev_run=cli_cfg.fast_dev_run,
+                basename=cli_cfg.basename if (len(voices_to_run) == 1 and len(instruments_to_run) == 1) else None,
             )
             if not ok:
                 all_ok = False

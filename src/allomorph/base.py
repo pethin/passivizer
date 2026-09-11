@@ -6,7 +6,7 @@ used across all domain-specific schema modules.
 """
 
 import warnings
-from typing import Annotated, Any, Self, override
+from typing import Annotated, Any
 
 from pydantic import BaseModel, BeforeValidator, ConfigDict
 
@@ -76,10 +76,6 @@ class AllomorphBaseModel(BaseModel):
         if not isinstance(item, str):
             return False
         return (item in type(self).model_fields or hasattr(self, item)) and getattr(self, item, None) is not None
-
-    @override
-    def copy(self, *args: Any, **kwargs: Any) -> Self:
-        return self.model_copy(*args, **kwargs)
 
     def get(self, key: str, default: Any = None) -> Any:
         val = getattr(self, key, None)

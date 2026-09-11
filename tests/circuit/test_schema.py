@@ -7,15 +7,18 @@ import pytest
 from pydantic import ValidationError
 
 from allomorph.base import parse_spice_unit
+from allomorph.circuit.parser import CircuitModel
 from allomorph.circuit.schema import (
     CircuitBranchConfig,
     CircuitConfig,
+    CircuitMetricsRecord,
     HarnessControls,
     MagnetPropertiesConfig,
     SaturationConfig,
     SimulationConfig,
 )
 from allomorph.circuit.sweeps import ParametricSweepResult
+from allomorph.config.schema import PreampBandConfig
 
 
 def test_circuit_config_validation():
@@ -198,3 +201,93 @@ def test_simulation_config_validation_and_kwargs():
     # Rejection of invalid normalize mode
     with pytest.raises(ValidationError):
         SimulationConfig(normalize="invalid_mode")  # type: ignore[arg-type]
+
+
+def test_circuit_model_validation():
+    """Verify CircuitModel Pydantic v2 validation, defaults, SPICE parsing, and copy behaviors."""
+    model = CircuitModel()
+    assert model.topology == "single"
+    assert model.L == 4.8
+    assert model.Rdc == 9500.0
+    assert model.vol_pos == 1.0
+    assert model.tone_pos == 1.0
+
+    # Test engineering notation string parsing via from_dict
+    custom = CircuitModel.from_dict({
+        "topology": "single",
+        "L": "3.4H",
+        "Rdc": "10.5k",
+        "Reddy": "180k",
+        "Ccoil": "60pF",
+        "Rvol": "250k",
+        "Ctone": "47nF",
+        "vol_pos": 0.7,
+        "preamp_bands": [
+            {"type": "low_shelf", "freq_hz": 40.0, "gain_db": 12.0, "q": 0.707},
+            {"type": "high_shelf", "freq_hz": 4000.0, "gain_db": -6.0, "q": 0.707},
+        ],
+    })
+    assert custom.L == 3.4
+    assert custom.Rdc == 10500.0
+    assert custom.Reddy == 180000.0
+    assert custom.Ccoil == pytest.approx(60e-12)
+    assert custom.Rbot_default == 250000.0
+    assert custom.Ctone == pytest.approx(47e-9)
+    assert custom.vol_pos == 0.7
+    assert custom.preamp_bands is not None
+    assert len(custom.preamp_bands) == 2
+    assert isinstance(custom.preamp_bands[0], PreampBandConfig)
+    assert custom.preamp_bands[0].gain_db == 12.0
+
+    # Pot position bounds validation
+    with pytest.raises(ValidationError):
+        CircuitModel(vol_pos=1.5)
+
+    with pytest.raises(ValidationError):
+        CircuitModel(tone_pos=-0.2)
+
+    # Topology validation
+    with pytest.raises(ValidationError):
+        CircuitModel(topology="invalid_topology")  # type: ignore[arg-type]
+
+    # Non-positive inductance validation
+    with pytest.raises(ValidationError):
+        CircuitModel(L=0.0)
+
+    # apply_pot_positions method
+    adjusted = custom.model_copy()
+    adjusted.apply_pot_positions(vol_pos=0.5, tone_pos=0.2)
+    assert adjusted.vol_pos == 0.5
+    assert adjusted.tone_pos == 0.2
+    assert custom.vol_pos == 0.7  # Original unchanged
+
+
+def test_circuit_metrics_record_validation():
+    """Verify CircuitMetricsRecord schema validation, fields, and dict export."""
+    rec = CircuitMetricsRecord(
+        param="vol_pos",
+        param_value=0.5,
+        label="Volume 50%",
+        f_res_hz=3250.5,
+        peak_db=4.2,
+        insertion_loss_db=-0.8,
+        peak_boost_db=5.0,
+        q_loaded=1.85,
+        bandwidth_hz=1757.0,
+        cutoff_3db_hz=4500.0,
+        hf_slope_db_oct=-12.0,
+    )
+    assert rec.param == "vol_pos"
+    assert rec.param_value == 0.5
+    assert rec.f_res_hz == 3250.5
+
+    data = rec.model_dump()
+    assert data["label"] == "Volume 50%"
+    assert data["q_loaded"] == 1.85
+
+    # Rejection of missing required fields
+    with pytest.raises(ValidationError):
+        CircuitMetricsRecord.model_validate({
+            "param": "vol_pos",
+        })
+

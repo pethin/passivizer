@@ -37,6 +37,7 @@ from allomorph.circuit.solver import (
 )
 from allomorph.config.instruments import get_source_pickup, load_instrument
 from allomorph.config.scales import REPO_ROOT
+from allomorph.config.schema import PickupConfig
 from allomorph.config.strings import get_instrument_string
 from allomorph.config.voices import VOICES
 from allomorph.dsp import (
@@ -787,7 +788,8 @@ def simulate_voice(
                 f"Pickup '{pickup}' not found on instrument '{inst_id}'. "
                 f"Available pickups: {list(pickups.keys())}"
             )
-        src_pickup = pickups[pickup].copy()
+        p_raw = pickups[pickup]
+        src_pickup = p_raw.model_copy() if isinstance(p_raw, PickupConfig) else p_raw.copy()
         src_pickup["id"] = pickup
     else:
         src_pickup = get_source_pickup(inst_cfg, voice_id)

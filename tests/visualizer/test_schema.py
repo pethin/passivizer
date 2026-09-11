@@ -1,8 +1,7 @@
-"""
-Unit tests for visualizer schemas (portal instrument metadata).
-"""
+import pytest
+from pydantic import ValidationError
 
-from allomorph.visualizer.schema import PortalInstrumentMeta
+from allomorph.visualizer.schema import PortalInstrumentMeta, VisualizerCliConfig
 
 
 def test_portal_instrument_meta_validation():
@@ -21,3 +20,27 @@ def test_portal_instrument_meta_validation():
     dump = meta.model_dump()
     assert dump["id"] == "30in"
     assert dump["scale_m"] == 0.762
+
+
+def test_visualizer_cli_config_validation():
+    """Verify VisualizerCliConfig defaults and CLI mode validation."""
+    default_cfg = VisualizerCliConfig()
+    assert default_cfg.instrument == "all"
+    assert default_cfg.mode == "composite"
+    assert not default_cfg.all
+    assert default_cfg.out is None
+
+    # Valid custom modes
+    for m in ("composite", "unified", "output", "difference", "targets", "frontends"):
+        cfg = VisualizerCliConfig(instrument="32in", mode=m, all=True, out="/tmp/test.html")  # type: ignore[arg-type]
+        assert cfg.mode == m
+        assert cfg.all is True
+
+    # Invalid mode rejection
+    with pytest.raises(ValidationError):
+        VisualizerCliConfig(mode="bogus_mode")  # type: ignore[arg-type]
+
+    # Extra arguments rejection
+    with pytest.raises(ValidationError):
+        VisualizerCliConfig.model_validate({"instrument": "30in", "unexpected_option": True})
+

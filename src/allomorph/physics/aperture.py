@@ -15,6 +15,13 @@ from allomorph.base import AllomorphBaseModel
 from allomorph.config.geometry import resolve_pickup_coils, resolve_voice_coils
 from allomorph.config.instruments import get_source_pickup, load_instrument
 from allomorph.config.scales import SCALES
+from allomorph.config.schema import (
+    CoilConfig,
+    InstrumentConfig,
+    PickupConfig,
+    VoiceCoilConfig,
+    VoiceConfig,
+)
 from allomorph.config.voices import VOICES
 from allomorph.physics.schema import WaveSpeedContinuumPoint
 from allomorph.physics.strings import (
@@ -35,9 +42,9 @@ BODY_COUPLING_PROPERTIES = {
 
 def compute_body_microphonic_coupling(
     freqs: Sequence[float] | np.ndarray,
-    src_pickup: dict[str, Any] | AllomorphBaseModel,
-    tgt_voice: dict[str, Any] | AllomorphBaseModel,
-    inst: dict[str, Any] | AllomorphBaseModel | None = None,
+    src_pickup: PickupConfig | dict[str, Any] | AllomorphBaseModel,
+    tgt_voice: VoiceConfig | dict[str, Any] | AllomorphBaseModel,
+    inst: InstrumentConfig | dict[str, Any] | AllomorphBaseModel | None = None,
 ) -> np.ndarray:
     """
     Computes diffuse mechanical body-pickup microphonic coupling transfer curve.
@@ -119,9 +126,9 @@ def compute_saddle_boundary_coupling(
 
 
 def is_voice_matching_source(
-    instrument: dict[str, Any] | AllomorphBaseModel | str,
+    instrument: InstrumentConfig | dict[str, Any] | AllomorphBaseModel | str,
     voice_id: str,
-    voice_cfg: dict[str, Any] | AllomorphBaseModel | None = None,
+    voice_cfg: VoiceConfig | dict[str, Any] | AllomorphBaseModel | None = None,
 ) -> bool:
     """
     Determines if a target voice matches the source instrument's physical scale and pickup geometry,
@@ -159,7 +166,7 @@ def is_voice_matching_source(
     return True
 
 
-def get_coil_register(coil: dict[str, Any] | AllomorphBaseModel) -> str:
+def get_coil_register(coil: CoilConfig | VoiceCoilConfig | dict[str, Any] | AllomorphBaseModel) -> str:
     """
     Identifies whether a coil half is 'lower' (bass strings register),
     'upper' (treble strings register), or 'all' across the string bed.
@@ -192,7 +199,7 @@ def get_coil_register(coil: dict[str, Any] | AllomorphBaseModel) -> str:
 
 def numpy_pickup_acoustic_response(
     freqs: Sequence[float] | np.ndarray,
-    coils: Sequence[dict[str, Any] | AllomorphBaseModel],
+    coils: Sequence[CoilConfig | VoiceCoilConfig | dict[str, Any] | AllomorphBaseModel],
     scale_length_m: float | tuple[float, float] | list[float] | Sequence[float] | None = None,
     string_speeds: Sequence[float] | None = None,
     string_names: Sequence[str | int] | None = None,
@@ -312,7 +319,7 @@ def numpy_pickup_acoustic_response(
 
 def numpy_pickup_macro_aperture(
     freqs: Sequence[float] | np.ndarray,
-    coils: Sequence[dict[str, Any] | AllomorphBaseModel],
+    coils: Sequence[CoilConfig | VoiceCoilConfig | dict[str, Any] | AllomorphBaseModel],
     scale_length_m: float | tuple[float, float] | list[float] | Sequence[float] | None = None,
     string_speeds: Sequence[float] | None = None,
     string_names: Sequence[str | int] | None = None,

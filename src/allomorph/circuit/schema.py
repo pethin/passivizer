@@ -15,6 +15,7 @@ from allomorph.base import AllomorphBaseModel, SpiceFloat
 __all__ = [
     "CircuitBranchConfig",
     "CircuitConfig",
+    "CircuitMetricsRecord",
     "HarnessControls",
     "MagnetPropertiesConfig",
     "SaturationConfig",
@@ -244,3 +245,20 @@ class SimulationConfig(AllomorphBaseModel):
             if kw.get("oversample") is None:
                 kw["oversample"] = self.saturation_config.oversample
         return kw
+
+
+class CircuitMetricsRecord(AllomorphBaseModel):
+    """Analytical resonance and bandwidth metrics for a single swept frequency curve."""
+
+    param: str
+    param_value: float
+    label: str
+    f_res_hz: float | None = None
+    peak_db: float
+    insertion_loss_db: float
+    peak_boost_db: float
+    q_loaded: float | None = None
+    bandwidth_hz: float | None = None
+    cutoff_3db_hz: float | None = None
+    hf_slope_db_oct: float
+

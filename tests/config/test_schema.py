@@ -53,7 +53,7 @@ def test_allomorph_base_model_subscripting():
     assert m["value"] == 100.0
 
     # Copy
-    m_copy = m.copy()
+    m_copy = m.model_copy()
     assert m_copy["value"] == 100.0
 
     # Key error on invalid key

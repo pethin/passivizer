@@ -13,10 +13,12 @@ import polars as pl
 from pydantic import BaseModel, ConfigDict, model_validator
 
 from allomorph.circuit.parser import CircuitModel, load_circuit
+from allomorph.circuit.schema import CircuitMetricsRecord
 from allomorph.circuit.solver import (
     apply_magnet_properties_to_model,
     compute_circuit_transfer_functions,
 )
+from allomorph.config.schema import PreampBandConfig
 from allomorph.dsp import FREQS
 
 
@@ -83,9 +85,9 @@ class ParametricSweepResult(BaseModel):
             data["voice_id"] = [self.voice_id] * (n_f * n_v)
         return pl.DataFrame(data)
 
-    def metrics(self) -> pl.DataFrame:
+    def metrics_records(self) -> list[CircuitMetricsRecord]:
         """
-        Extracts key analytical circuit metrics for each swept curve:
+        Extracts key analytical circuit metrics for each swept curve as CircuitMetricsRecord models:
           - f_res_hz: Resonant peak frequency (Hz) within passband (400 Hz - 12 kHz).
           - peak_db: Resonant peak magnitude (dB).
           - insertion_loss_db: Low-frequency insertion loss (dB) evaluated near 100 Hz.
@@ -104,7 +106,7 @@ class ParametricSweepResult(BaseModel):
         pb_mask = (f >= 400.0) & (f <= 12000.0)
         pb_indices = np.where(pb_mask)[0]
 
-        records: list[dict[str, Any]] = []
+        records: list[CircuitMetricsRecord] = []
         for i, (val, lbl, c) in enumerate(zip(self.values, self.labels, self.curves)):
             curve = np.asarray(c, dtype=np.float64)
             loss_db = float(curve[idx_100])
@@ -168,21 +170,27 @@ class ParametricSweepResult(BaseModel):
             # High-frequency slope (dB/octave) between 6 kHz and 12 kHz
             hf_slope = float((curve[idx_12k] - curve[idx_6k]) / octaves_6k_12k)
 
-            records.append({
-                "param": self.param,
-                "param_value": float(val),
-                "label": lbl,
-                "f_res_hz": round(f_res, 1) if peak_boost >= 0.5 else None,
-                "peak_db": round(peak_db, 2),
-                "insertion_loss_db": round(loss_db, 2),
-                "peak_boost_db": round(peak_boost, 2),
-                "q_loaded": round(q_loaded, 2) if q_loaded is not None else None,
-                "bandwidth_hz": round(bw_hz, 1) if bw_hz is not None else None,
-                "cutoff_3db_hz": round(cutoff_3db_hz, 1) if cutoff_3db_hz is not None else None,
-                "hf_slope_db_oct": round(hf_slope, 2),
-            })
+            records.append(
+                CircuitMetricsRecord(
+                    param=self.param,
+                    param_value=float(val),
+                    label=lbl,
+                    f_res_hz=round(f_res, 1) if peak_boost >= 0.5 else None,
+                    peak_db=round(peak_db, 2),
+                    insertion_loss_db=round(loss_db, 2),
+                    peak_boost_db=round(peak_boost, 2),
+                    q_loaded=round(q_loaded, 2) if q_loaded is not None else None,
+                    bandwidth_hz=round(bw_hz, 1) if bw_hz is not None else None,
+                    cutoff_3db_hz=round(cutoff_3db_hz, 1) if cutoff_3db_hz is not None else None,
+                    hf_slope_db_oct=round(hf_slope, 2),
+                )
+            )
 
-        return pl.DataFrame(records)
+        return records
+
+    def metrics(self) -> pl.DataFrame:
+        """Extracts key analytical circuit metrics for each swept curve as a Polars DataFrame."""
+        return pl.DataFrame([r.model_dump() for r in self.metrics_records()])
 
     def summary_table(self) -> str:
         """Formats the analytical metrics into a clean terminal table string."""
@@ -428,27 +436,29 @@ def compute_parametric_sweep(
         try:
             from allomorph.config.preamps import PREAMPS
 
-            base_bands: list[dict[str, Any]] = []
+            base_bands: list[PreampBandConfig] = []
             if orig_bands is not None:
-                base_bands = copy.deepcopy(orig_bands)
+                base_bands = [b.model_copy() for b in orig_bands]
             elif model.preamp_type != "none" and model.preamp_type in PREAMPS:
                 bands_cfg = PREAMPS[model.preamp_type].get("bands", [])
-                empty_bands: list[dict[str, Any]] = []
-                base_bands = copy.deepcopy(bands_cfg) if bands_cfg else empty_bands
+                base_bands = [
+                    b if isinstance(b, PreampBandConfig) else PreampBandConfig.model_validate(b)
+                    for b in bands_cfg
+                ]
 
             shelf_idx = None
             for i, b in enumerate(base_bands):
-                if b.get("type") == "low_shelf":
+                if b.type == "low_shelf":
                     shelf_idx = i
                     break
             if shelf_idx is None:
-                base_bands.append({"type": "low_shelf", "freq_hz": 40.0, "gain_db": 0.0})
+                base_bands.append(PreampBandConfig(type="low_shelf", freq_hz=40.0, gain_db=0.0))
                 shelf_idx = len(base_bands) - 1
 
             model.has_active_buffer = True
             for v in values:
-                bands = copy.deepcopy(base_bands)
-                bands[shelf_idx]["gain_db"] = float(v)
+                bands = [b.model_copy() for b in base_bands]
+                bands[shelf_idx].gain_db = float(v)
                 model.preamp_bands = bands
                 tr = compute_circuit_transfer_functions(model, freqs=f_arr, return_numpy=True)
                 ch = min(ch_idx, len(tr) - 1)
@@ -466,27 +476,29 @@ def compute_parametric_sweep(
         try:
             from allomorph.config.preamps import PREAMPS
 
-            base_bands: list[dict[str, Any]] = []
+            base_bands = []
             if orig_bands is not None:
-                base_bands = copy.deepcopy(orig_bands)
+                base_bands = [b.model_copy() for b in orig_bands]
             elif model.preamp_type != "none" and model.preamp_type in PREAMPS:
                 bands_cfg = PREAMPS[model.preamp_type].get("bands", [])
-                empty_bands2: list[dict[str, Any]] = []
-                base_bands = copy.deepcopy(bands_cfg) if bands_cfg else empty_bands2
+                base_bands = [
+                    b if isinstance(b, PreampBandConfig) else PreampBandConfig.model_validate(b)
+                    for b in bands_cfg
+                ]
 
             shelf_idx = None
             for i, b in enumerate(base_bands):
-                if b.get("type") == "high_shelf":
+                if b.type == "high_shelf":
                     shelf_idx = i
                     break
             if shelf_idx is None:
-                base_bands.append({"type": "high_shelf", "freq_hz": 4000.0, "gain_db": 0.0})
+                base_bands.append(PreampBandConfig(type="high_shelf", freq_hz=4000.0, gain_db=0.0))
                 shelf_idx = len(base_bands) - 1
 
             model.has_active_buffer = True
             for v in values:
-                bands = copy.deepcopy(base_bands)
-                bands[shelf_idx]["gain_db"] = float(v)
+                bands = [b.model_copy() for b in base_bands]
+                bands[shelf_idx].gain_db = float(v)
                 model.preamp_bands = bands
                 tr = compute_circuit_transfer_functions(model, freqs=f_arr, return_numpy=True)
                 ch = min(ch_idx, len(tr) - 1)

@@ -6,9 +6,11 @@ import pytest
 from pydantic import ValidationError
 
 from allomorph.pipeline.schema import (
+    ArtworkPackConfig,
     NamExportMetadata,
     NamSourceInstrumentMeta,
     NamTargetVoiceMeta,
+    NamTrainingConfig,
     PipelineCliConfig,
     Tone3000PackListing,
 )
@@ -84,3 +86,67 @@ def test_nam_export_metadata_validation():
     # Rejection of missing required fields
     with pytest.raises(ValidationError):
         NamExportMetadata.model_validate({"training": {}})
+
+
+def test_nam_training_config_validation():
+    """Verify NamTrainingConfig defaults and hyperparameter bounds."""
+    cfg = NamTrainingConfig()
+    assert cfg.instrument == "all"
+    assert cfg.voice == "all"
+    assert cfg.epochs == 100
+    assert cfg.batch_size == 16
+    assert cfg.goal_esr == 0.0005
+
+    # Valid custom configuration
+    custom = NamTrainingConfig(
+        instrument="30in",
+        voice="05_vintage_62_p_alnico",
+        tier="hotrod",
+        epochs=50,
+        batch_size=32,
+        fast_dev_run=True,
+    )
+    assert custom.tier == "hotrod"
+    assert custom.epochs == 50
+    assert custom.batch_size == 32
+
+    # Negative epochs rejection
+    with pytest.raises(ValidationError):
+        NamTrainingConfig.model_validate({"epochs": 0})
+
+    # Invalid tier rejection
+    with pytest.raises(ValidationError):
+        NamTrainingConfig.model_validate({"tier": "unsupported_tier"})
+
+
+def test_artwork_pack_config_validation():
+    """Verify ArtworkPackConfig hex color pattern and required metadata."""
+    def dummy_renderer(accent: str) -> str:
+        return f"<svg color='{accent}'></svg>"
+
+    pack = ArtworkPackConfig(
+        accent="#38bdf8",
+        title="TEST PACK",
+        desc_line1="Line 1",
+        desc_line2="Line 2",
+        scale="34in",
+        badge2="STD",
+        badge3="PASSIVE",
+        content=dummy_renderer,
+    )
+    assert pack.accent == "#38bdf8"
+    assert pack.content(pack.accent) == "<svg color='#38bdf8'></svg>"
+
+    # Invalid hex color code pattern rejection
+    with pytest.raises(ValidationError):
+        ArtworkPackConfig(
+            accent="not-a-hex",
+            title="TEST",
+            desc_line1="1",
+            desc_line2="2",
+            scale="34in",
+            badge2="STD",
+            badge3="PASSIVE",
+            content=dummy_renderer,
+        )
+

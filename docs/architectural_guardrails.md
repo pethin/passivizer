@@ -243,7 +243,7 @@ $$Z_{\text{skin}}(s) = R_{\text{dc}} \cdot k_{\text{skin}} \cdot \left(\sqrt{1 +
 ### 6.2 Frequency-Domain Stage Fusion & Caching
 - **Fuse Linear Stages in Frequency Domain:** Avoid redundant FFT/IRFFT round-trips. Apply displacement pre-filters ($X_{\text{up}} \cdot H_{\text{pre}}$) before inverse FFT, and combine de-emphasis ($H_{\text{de}} / \text{scale}$) and anti-aliasing lowpass ($aa\_mask$) into a single product before decimation.
 - **Broadcast Input FFTs:** In multi-pickup instruments, precompute the mono input forward FFT once across all channels using `max_ir_len` and broadcast it across channel FIRs.
-- **In-Memory Netlist LRU Caching:** Wrap SPICE netlist parsing with `@functools.lru_cache(maxsize=128)` and return shallow copies (`copy.copy(cached)`), eliminating redundant disk reads and regex tokenization.
+- **In-Memory Netlist LRU Caching:** Wrap SPICE netlist parsing with `@functools.lru_cache(maxsize=128)` and return shallow copies (`cached.model_copy()`), eliminating redundant disk reads and regex tokenization.
 
 ### 6.3 Parallel Concurrency & Test Bounding
 - **Multi-Process Concurrency:** Expose parallel process execution using `concurrent.futures.ProcessPoolExecutor` with `-j/--jobs` CLI flags (defaulting to `min(4, os.cpu_count())`), dropping 16-voice batch simulation from $7+\text{ minutes}$ to $80\text{ seconds}$.

@@ -10,6 +10,7 @@ import polars as pl
 
 from allomorph.base import AllomorphBaseModel
 from allomorph.config.instruments import load_all_instruments, load_instrument
+from allomorph.config.schema import InstrumentConfig
 from allomorph.config.voices import VOICES
 from allomorph.visualizer.dataframe import (
     build_composite_instrument_dataframe,
@@ -237,7 +238,10 @@ def generate_universal_targets_chart(target_path: Path | None = None) -> Path:
     return target_path
 
 
-def generate_instrument_frontend_chart(inst: dict[str, Any] | AllomorphBaseModel, target_path: Path | None = None) -> Path:
+def generate_instrument_frontend_chart(
+    inst: InstrumentConfig | dict[str, Any] | AllomorphBaseModel,
+    target_path: Path | None = None,
+) -> Path:
     """
     Renders the Frontend Deconvolutions chart (Block 1) for a single source instrument.
     Allows users to click any pickup switch position in the legend to isolate that specific pickup key.
@@ -550,7 +554,7 @@ def generate_frontend_deconvolutions_chart(target_path: Path | None = None) -> P
 
 
 def generate_composite_instrument_chart(
-    instrument: str | dict[str, Any] | AllomorphBaseModel = "30in",
+    instrument: InstrumentConfig | str | dict[str, Any] | AllomorphBaseModel = "30in",
     out_html: str | Path | None = None,
 ) -> Path:
     """
@@ -774,7 +778,7 @@ def generate_composite_instrument_chart(
 
 
 def generate_interactive_chart(
-    instrument: str | dict[str, Any] | AllomorphBaseModel = "30in",
+    instrument: InstrumentConfig | str | dict[str, Any] | AllomorphBaseModel = "30in",
     out_html: str | Path | None = None,
     mode: str = "composite",
 ) -> Path:
@@ -793,7 +797,7 @@ def generate_interactive_chart(
     elif mode == "frontends":
         return generate_frontend_deconvolutions_chart(target_path=Path(out_html) if out_html is not None else None)
 
-    inst = load_instrument(instrument) if not isinstance(instrument, dict) else instrument
+    inst = load_instrument(instrument) if not isinstance(instrument, (dict, AllomorphBaseModel)) else instrument
     inst_id = inst.get("id", "custom_instrument")
     inst_name = inst.get("name", inst_id)
 
