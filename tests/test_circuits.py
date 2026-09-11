@@ -2128,26 +2128,32 @@ def test_electromechanical_back_emf_braking():
     assert rms_emf <= rms_no_emf, "Back-EMF damping must reduce or maintain total energy"
 
 
-def test_passive_character_simulation_active_vs_passive():
-    """Verify 15_passive_character applies passive dynamics to active basses and bypasses on passive basses."""
-    from scripts.model_physics import load_instrument, VOICES
-    from scripts.simulate_circuits import parse_netlist, MAGNET_PROPERTIES, REPO_ROOT
+def test_source_direct_simulation():
+    """Verify 15_source_direct deconvolutes Canonical Intermediate aperture and preserves tier dynamics."""
+    from scripts.model_physics import VOICES, compute_voice_prefilter_firs
+    from scripts.simulate_circuits import parse_netlist, REPO_ROOT
 
-    # 1. On active bass (30in_emg_mmtw, 34in_active_soapbar, 34in_active_stingray):
-    inst_active = load_instrument("30in_emg_mmtw")
-    assert inst_active["electronics"] == "active"
-    vcfg = VOICES["15_passive_character"]
-    src_props = MAGNET_PROPERTIES["active"]
-    diff_alpha = max(vcfg["alpha"] - src_props["alpha"], 0.0)
-    assert diff_alpha > 0.20, "Passive character must provide positive differential softening on active bass"
+    vcfg = VOICES["15_source_direct"]
+    assert vcfg["sensor_type"] == "direct"
+    assert vcfg["alpha"] == 0.26
+    assert vcfg["vsat"] == 0.50
 
-    # 2. On passive bass (34in_standard_p):
-    inst_passive = load_instrument("34in_standard_p")
-    assert inst_passive["electronics"] == "passive"
-    p_mag = inst_passive["pickups"]["split_p"]["magnet_type"]
-    src_pas_props = MAGNET_PROPERTIES[p_mag]
-    diff_alpha_pas = max(vcfg["alpha"] - src_pas_props["alpha"], 0.0)
-    assert diff_alpha_pas == 0.0, "Passive character must produce zero differential softening on passive Alnico bass"
+    # Netlist must be a no_eq flat studio buffer
+    model = parse_netlist(REPO_ROOT / vcfg["circuit"])
+    assert getattr(model, "no_eq", False) is True
+
+    # Evaluated on canonical intermediate, prefilter FIR must invert the 93.5mm aperture sinc
+    from scripts.model_physics import NUM_TAPS
+    firs = compute_voice_prefilter_firs("15_source_direct", instrument="canonical_intermediate")
+    assert len(firs) == 1
+    fir = np.array(firs[0])
+    assert len(fir) == NUM_TAPS
+
+    # Frequency response of FIR should gently deconvolve the high-frequency aperture droop
+    f_bins = np.fft.rfftfreq(8192, 1.0 / 48000.0)
+    H = np.abs(np.fft.rfft(fir, 8192))
+    gain_5k = H[np.argmin(np.abs(f_bins - 5000))] / H[np.argmin(np.abs(f_bins - 20))]
+    assert 1.2 <= gain_5k <= 2.5
 
 
 def test_active_character_differential_cable_isolation():
@@ -2208,41 +2214,26 @@ def test_run_pipeline_cli_jobs_and_voices():
     # Simulate parser logic
     parser = argparse.ArgumentParser()
     parser.add_argument("--stage", choices=["all", "viz", "prep", "spice", "sim", "simulate", "train"], default="all")
-    parser.add_argument("--voice", "-v", default=None)
+    parser.add_argument("--voice", "-v", default="all")
     parser.add_argument("--jobs", "-j", type=int, default=None)
 
-    # 1. When --stage sim is invoked with no voice, it must resolve to all voices
+    # 1. When no voice is specified, it must resolve to all voices
     args = parser.parse_args(["--stage", "sim"])
-    if args.voice:
-        voices = resolve_voices(args.voice)
-    elif args.stage in ["spice", "sim", "simulate"]:
-        voices = list(VOICES.keys())
-    else:
-        voices = resolve_voices("04_modern_p_ceramic")
+    voices = resolve_voices(args.voice)
     assert len(voices) == len(VOICES)
     assert "04_modern_p_ceramic" in voices
     assert "01_modern_jazz_active" in voices
 
-    # 2. When --stage sim is invoked with explicit -v
+    # 2. When explicit -v is passed
     args = parser.parse_args(["--stage", "sim", "-v", "04_modern_p_ceramic", "-j", "4"])
-    if args.voice:
-        voices = resolve_voices(args.voice)
-    elif args.stage in ["spice", "sim", "simulate"]:
-        voices = list(VOICES.keys())
-    else:
-        voices = resolve_voices("04_modern_p_ceramic")
+    voices = resolve_voices(args.voice)
     assert voices == ["04_modern_p_ceramic"]
     assert args.jobs == 4
 
-    # 3. When --stage train is invoked with no voice, default to 04_modern_p_ceramic
+    # 3. When --stage train is invoked with no voice, it also resolves to all voices
     args = parser.parse_args(["--stage", "train"])
-    if args.voice:
-        voices = resolve_voices(args.voice)
-    elif args.stage in ["spice", "sim", "simulate"]:
-        voices = list(VOICES.keys())
-    else:
-        voices = resolve_voices("04_modern_p_ceramic")
-    assert voices == ["04_modern_p_ceramic"]
+    voices = resolve_voices(args.voice)
+    assert len(voices) == len(VOICES)
 
 
 

@@ -1,0 +1,21 @@
+* Allomorph Netlist 15: Source Direct (Dynamic Studio DI / Inverse Canonical Intermediate)
+* Target: Pure Transparent Studio DI (0.00 dB Flat Linear Transfer)
+* Mode: no_eq
+.options plotwinsize=0 numdgt=7
+
+* 1. Audio Source (NAM Training Track)
+V_in in 0 wavefile="T3K-sweep-v3.wav"
+
+* 2. Active Studio Buffer Stage (10 M-Ohm Input, 50 Ohm Output, Linear Unity Gain)
+R_in in 0 10Meg
+C_in in 0 15p
+E_buf buf 0 in 0 1.0
+R_out buf out 50
+
+* 3. Anagram Input Stage Load (1 M-Ohm || 30pF)
+R_anagram out 0 1Meg
+C_anagram out 0 30p
+
+* 4. Output Audio Export for NAM Training
+.wave "out_15_source_direct.wav" 24 48000 V(out)
+.end

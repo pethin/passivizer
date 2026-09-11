@@ -8,6 +8,7 @@ specified in AGENTS.md and docs/architectural_guardrails.md are strictly upheld:
 3. Small-signal linearity (bit-exact linear bypass for peak <= 0.10)
 4. Quadrature regularization floor at comb nulls
 5. Accelerated Numba JIT execution for recursive audio buffer loops
+6. First-class transducer taxonomy ('magnetic', 'bridge_force', 'direct') and zero-conditional deconvolution
 """
 
 import ast
@@ -174,3 +175,54 @@ def test_guardrail_buffer_loop_acceleration():
     for core_name in recursive_cores:
         assert core_name in found_cores, f"Expected {core_name} to exist in simulate_circuits.py"
         assert "njit" in found_cores[core_name], f"{core_name} is missing @njit fastmath acceleration"
+
+
+def test_guardrail_transducer_taxonomy_and_zero_conditional_deconvolution():
+    """Guardrail 5.3.4: Transducers must be modeled via first-class physical taxonomy
+    ('magnetic', 'bridge_force', 'direct') with zero ad-hoc voice ID conditionals."""
+    # 1. Verify all registered voices declare a recognized physical sensor_type
+    valid_sensors = {"magnetic", "bridge_force", "direct"}
+    for vid, cfg in VOICES.items():
+        sensor = cfg.get("sensor_type", "magnetic")
+        assert sensor in valid_sensors, f"Voice {vid} has invalid sensor_type: '{sensor}'"
+
+    # 2. AST check: scripts/model_physics.py must contain zero hardcoded voice ID conditionals in FIR synthesis
+    phys_file = REPO_ROOT / "scripts" / "model_physics.py"
+    tree = ast.parse(phys_file.read_text())
+
+    prohibited_constants = {"15_source_direct", "15_passive_character"}
+    for node in ast.walk(tree):
+        if isinstance(node, ast.FunctionDef) and node.name == "compute_voice_prefilter_firs":
+            for sub_node in ast.walk(node):
+                if isinstance(sub_node, ast.Constant) and sub_node.value in prohibited_constants:
+                    raise AssertionError(
+                        f"Found prohibited hardcoded voice ID '{sub_node.value}' inside compute_voice_prefilter_firs. "
+                        "All acoustic filtering must be governed by first-class physical parameters (e.g. sensor_type)."
+                    )
+
+    # 3. Direct sensor target output mode must evaluate to bit-exact 0.00 dB
+    vcfg = VOICES["15_source_direct"]
+    df_out = build_voice_dataframe("15_source_direct", vcfg, instrument="canonical_intermediate", mode="output")
+    mags_out = df_out["magnitude_db"].to_numpy()
+    assert np.all(mags_out == 0.0), f"15_source_direct output mode was not bit-exact 0.00 dB (max error: {np.max(np.abs(mags_out))})"
+
+    # 4. Universal deconvolution on Canonical Intermediate must smoothly invert aperture sinc without ripples
+    from scripts.model_physics import compute_voice_prefilter_firs
+    firs = compute_voice_prefilter_firs("15_source_direct", instrument="canonical_intermediate")
+    assert len(firs) == 1
+    fir = np.array(firs[0])
+
+    f_bins = np.fft.rfftfreq(8192, 1.0 / 48000.0)
+    H = np.abs(np.fft.rfft(fir, 8192))
+    gain_5k = H[np.argmin(np.abs(f_bins - 5000))] / H[np.argmin(np.abs(f_bins - 20))]
+    assert 1.2 <= gain_5k <= 2.5, f"Expected 1.2 <= gain_5k <= 2.5, got {gain_5k:.3f}"
+
+    # Verify monotonic smooth inversion in 20 Hz to 5000 Hz passband (zero sign flips)
+    mask = (f_bins >= 20.0) & (f_bins <= 5000.0)
+    H_band = H[mask]
+    diffs = np.diff(H_band)
+    sign_flips = sum(
+        1 for i in range(len(diffs) - 1)
+        if (diffs[i] > 1e-5 and diffs[i + 1] < -1e-5) or (diffs[i] < -1e-5 and diffs[i + 1] > 1e-5)
+    )
+    assert sign_flips == 0, f"Deconvolution curve had {sign_flips} sign flips in 20-5000 Hz band (must be smoothly monotonic)"

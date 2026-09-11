@@ -24,16 +24,40 @@ SCRIPTS_DIR = REPO_ROOT / "scripts"
 if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
 
-from model_physics import INSTRUMENTS, VOICES, resolve_voices, resolve_voice_coils, resolve_voice_pickups, compute_effective_position
-from simulate_circuits import simulate_voice
+from model_physics import (
+    INSTRUMENTS,
+    VOICES,
+    resolve_voices,
+    resolve_instruments,
+    resolve_voice_coils,
+    resolve_voice_pickups,
+    compute_effective_position,
+    load_instrument,
+    get_source_pickup,
+    get_baked_basename,
+)
+from simulate_circuits import (
+    simulate_voice,
+    generate_canonical_sweep,
+    export_all_frontend_irs,
+    export_frontend_ir,
+    simulate_backend_targets,
+    CANONICAL_SWEEP_PATH,
+    FRONTENDS_DIR,
+    TARGETS_DIR,
+)
 
 DEFAULT_LTSPICE_BIN = "/Applications/LTspice.app/Contents/MacOS/LTspice"
 
-def run_visualization(instrument="30in"):
+def run_visualization(instrument="all"):
     """Generates the interactive Altair visualization charts and master portal."""
-    print(f"\n[Stage 1] Generating interactive Altair visualization (Instrument: {instrument})...")
+    inst_desc = "all instruments" if instrument == "all" else f"Instrument: {instrument}"
+    print(f"\n[Stage 1] Generating interactive Altair visualization ({inst_desc})...")
     script = SCRIPTS_DIR / "analyze_voices.py"
-    cmd = [sys.executable, str(script), "--instrument", instrument]
+    if instrument == "all":
+        cmd = [sys.executable, str(script), "--all"]
+    else:
+        cmd = [sys.executable, str(script), "--instrument", instrument]
     res = subprocess.run(cmd, cwd=str(REPO_ROOT))
     if res.returncode != 0:
         print(f"Warning: Visualization generation returned non-zero code {res.returncode}")
@@ -171,7 +195,7 @@ def run_spice_batch(voices=None, instrument="30in", input_wav=None, backend="nat
         print("Batch circuit simulation finished.")
         return all_ok
 
-def run_training(instrument="30in", voice="04_modern_p_ceramic", input_wav=None, epochs=100, goal_esr=0.0005, fast_dev_run=False):
+def run_training(instrument="30in", voice="04_modern_p_ceramic", input_wav=None, output_wav=None, models_dir=None, tier=None, epochs=100, goal_esr=0.0005, fast_dev_run=False, basename=None):
     """Trains a Neural Amp Modeler (NAM) Architecture 2 model locally with MPS GPU acceleration."""
     print(f"\n[Training] Training Neural Amp Modeler A2 model for {voice} (Instrument: {instrument})...")
     script = SCRIPTS_DIR / "train_nam.py"
@@ -181,12 +205,20 @@ def run_training(instrument="30in", voice="04_modern_p_ceramic", input_wav=None,
         "--voice", voice,
         "--epochs", str(epochs),
     ]
+    if tier:
+        cmd.extend(["--tier", tier])
+    if output_wav:
+        cmd.extend(["--output", str(output_wav)])
+    if models_dir:
+        cmd.extend(["--models-dir", str(models_dir)])
+    if basename:
+        cmd.extend(["--basename", basename])
     if goal_esr is not None and goal_esr > 0:
         cmd.extend(["--goal-esr", str(goal_esr)])
     else:
         cmd.append("--no-goal-esr")
     if input_wav:
-        cmd.extend(["--input", input_wav])
+        cmd.extend(["--input", str(input_wav)])
     if fast_dev_run:
         cmd.append("--fast-dev-run")
     res = subprocess.run(cmd, cwd=str(REPO_ROOT))
@@ -219,14 +251,35 @@ def main():
     parser = argparse.ArgumentParser(description="Allomorph SPICE -> NAM Automation Pipeline")
     parser.add_argument(
         "--instrument", "-i",
-        default="30in",
-        help="Source instrument configuration (ID, path to .toml, or alias like 30in, 32in)"
+        default="all",
+        help="Source instrument configuration (ID, comma-separated list, 'all', path to .toml, or alias like 30in, 32in; default: 'all')"
     )
     parser.add_argument(
         "--stage",
-        choices=["all", "viz", "prep", "spice", "sim", "simulate", "train"],
+        choices=["all", "viz", "canonical", "frontends", "targets", "prep", "spice", "sim", "simulate", "train"],
         default="all",
-        help="Pipeline stage to execute (default: all; 'sim' or 'simulate' aliases for circuit modeling)"
+        help="Pipeline stage to execute: 'canonical' (intermediate sweep), 'frontends' (export 33 IRs), 'targets' (simulate backend sweeps), 'train' (train models), 'viz' (visualizer), 'all' (canonical + frontends + targets + viz)."
+    )
+    parser.add_argument(
+        "--tier",
+        choices=["clean", "standard", "std", "hotrod", "dynamic", "all"],
+        default=None,
+        help="Dynamic tier: 'standard' / 'std' (100%% nominal target saturation; default for Architecture C targets), 'clean' (0%% saturation), 'hotrod' (175%% overwound), 'dynamic' (differential source/target saturation; default when using --bake), 'all'."
+    )
+    parser.add_argument(
+        "--bake",
+        action="store_true",
+        help="On-demand single-block monolithic bake mode: directly models the source instrument to target voice transformation in a single .nam model."
+    )
+    parser.add_argument(
+        "--train",
+        action="store_true",
+        help="Train NAM model locally with Apple Silicon Metal/MPS acceleration after simulation (used with --bake)"
+    )
+    parser.add_argument(
+        "--pickup", "-p",
+        default=None,
+        help="Physical pickup setting for source instrument ('auto' to resolve from pickup_mapping, or explicit pickup ID; default when using --bake is 'auto')"
     )
     parser.add_argument(
         "--backend",
@@ -236,8 +289,8 @@ def main():
     )
     parser.add_argument(
         "--voice", "-v",
-        default=None,
-        help="Target pickup voice for audio pre-filtering and training (voice ID, comma-separated list, or 'all'; default for sim/spice is 'all', for train/all is '04_modern_p_ceramic')"
+        default="all",
+        help="Target pickup voice for audio pre-filtering, simulation, and training (voice ID, comma-separated list, or 'all'; default: 'all')"
     )
     parser.add_argument(
         "--jobs", "-j",
@@ -310,18 +363,14 @@ def main():
         parser.error("--max-samples must be a positive integer >= 1")
 
     effective_goal_esr = None if args.no_goal_esr or (args.goal_esr is not None and args.goal_esr <= 0) else args.goal_esr
-    if args.voice:
-        voices_to_run = resolve_voices(args.voice)
-    elif args.stage in ["spice", "sim", "simulate"]:
-        voices_to_run = list(VOICES.keys())
-    else:
-        voices_to_run = resolve_voices("04_modern_p_ceramic")
+    instruments_to_run = resolve_instruments(args.instrument or "all")
+    voices_to_run = resolve_voices(args.voice or "all")
 
     samples_str = str(args.max_samples) if args.max_samples is not None else "full"
 
     print("========================================")
     print("  ALLOMORPH SPICE -> NAM PIPELINE")
-    print(f"  Instrument:  {args.instrument}")
+    print(f"  Instruments ({len(instruments_to_run)}): {', '.join(instruments_to_run)}")
     print(f"  Stage:       {args.stage}")
     print(f"  Backend:     {args.backend}")
     print(f"  Max Samples: {samples_str}")
@@ -335,60 +384,133 @@ def main():
                 input_wav = candidate
                 break
 
+    if args.bake:
+        effective_tier = args.tier if args.tier is not None else "dynamic"
+        pickup_setting = args.pickup if args.pickup is not None else "auto"
+
+        print("\n========================================")
+        print("  ALLOMORPH ON-DEMAND SINGLE-BLOCK BAKE")
+        print(f"  Source Instruments ({len(instruments_to_run)}): {', '.join(instruments_to_run)}")
+        print(f"  Pickup Switch:     {pickup_setting}")
+        print(f"  Dynamic Tier:      {effective_tier}")
+        print(f"  Voices ({len(voices_to_run)}): {', '.join(voices_to_run)}")
+        print("========================================\n")
+
+        total_bakes = len(instruments_to_run) * len(voices_to_run)
+        current_bake = 0
+        for inst in instruments_to_run:
+            inst_cfg = load_instrument(inst)
+            inst_id = inst_cfg.get("id", str(inst))
+
+            inst_baked_audio_dir = AUDIO_DIR / "baked" / inst_id
+            inst_baked_audio_dir.mkdir(parents=True, exist_ok=True)
+            inst_models_dir = MODELS_DIR / "baked" / inst_id
+            if args.train or args.stage == "train":
+                inst_models_dir.mkdir(parents=True, exist_ok=True)
+
+            for voice in voices_to_run:
+                current_bake += 1
+                if total_bakes > 1:
+                    print(f"\n--- [{current_bake}/{total_bakes}] Baking {inst_id} -> {voice} ---")
+
+                if pickup_setting == "auto":
+                    src_pickup = get_source_pickup(inst_cfg, voice)
+                    eff_pickup = src_pickup.get("id", "default")
+                else:
+                    eff_pickup = pickup_setting
+
+                basename = get_baked_basename(voice, tier=effective_tier, pickup=pickup_setting)
+                baked_wav = inst_baked_audio_dir / f"{basename}.wav"
+
+                simulate_voice(
+                    voice,
+                    input_wav=input_wav,
+                    output_wav=baked_wav,
+                    instrument=inst,
+                    pickup=eff_pickup,
+                    tier=effective_tier,
+                    normalize="none",
+                    max_samples=args.max_samples,
+                )
+                print(f"Baked simulation exported: {baked_wav}")
+
+                if args.train or args.stage == "train":
+                    run_training(
+                        instrument=inst,
+                        voice=voice,
+                        input_wav=input_wav,
+                        output_wav=baked_wav,
+                        models_dir=inst_models_dir,
+                        tier=effective_tier,
+                        epochs=args.epochs,
+                        goal_esr=effective_goal_esr,
+                        fast_dev_run=args.fast_dev_run,
+                        basename=basename,
+                    )
+        return
+
+    if args.stage == "canonical":
+        generate_canonical_sweep(input_wav=input_wav)
+        return
+
+    if args.stage == "frontends":
+        export_all_frontend_irs()
+        return
+
+    if args.stage == "targets":
+        simulate_backend_targets(tier=args.tier or "standard", voice_id=args.voice)
+        return
+
     if args.stage in ["all", "viz"]:
-        run_visualization(instrument=args.instrument)
+        if len(instruments_to_run) == 1 and args.instrument != "all":
+            run_visualization(instrument=instruments_to_run[0])
+        else:
+            run_visualization(instrument="all")
+        if args.stage == "viz":
+            return
 
     if args.stage == "prep":
-        for idx, voice in enumerate(voices_to_run, 1):
-            print(f"\n[{idx}/{len(voices_to_run)}] Pre-filtering audio: {voice}...")
-            run_prep_audio(input_wav=input_wav, instrument=args.instrument, voice=voice)
+        for inst in instruments_to_run:
+            for idx, voice in enumerate(voices_to_run, 1):
+                print(f"\n[{idx}/{len(voices_to_run)}] Pre-filtering audio: {inst} -> {voice}...")
+                run_prep_audio(input_wav=input_wav, instrument=inst, voice=voice)
 
     elif args.stage in ["spice", "sim", "simulate"]:
-        run_spice_batch(
-            voices=voices_to_run,
-            instrument=args.instrument,
-            input_wav=input_wav,
-            backend=args.backend,
-            ltspice_bin=args.ltspice_path,
-            jobs=args.jobs,
-            max_samples=args.max_samples,
-        )
-
-    elif args.stage == "train":
-        for idx, voice in enumerate(voices_to_run, 1):
-            print(f"\n[{idx}/{len(voices_to_run)}] Training NAM A2 Model: {voice}...")
-            run_training(
-                instrument=args.instrument,
-                voice=voice,
-                input_wav=input_wav,
-                epochs=args.epochs,
-                goal_esr=effective_goal_esr,
-                fast_dev_run=args.fast_dev_run,
-            )
-
-    elif args.stage == "all":
-        for idx, voice in enumerate(voices_to_run, 1):
-            print(f"\n==================================================")
-            print(f"  [{idx}/{len(voices_to_run)}] Full Cycle for Voice: {voice}")
-            print(f"==================================================")
-            run_circuit_simulation(
-                voice=voice,
-                instrument=args.instrument,
+        for inst in instruments_to_run:
+            run_spice_batch(
+                voices=voices_to_run,
+                instrument=inst,
                 input_wav=input_wav,
                 backend=args.backend,
                 ltspice_bin=args.ltspice_path,
+                jobs=args.jobs,
                 max_samples=args.max_samples,
             )
-            run_training(
-                instrument=args.instrument,
-                voice=voice,
-                input_wav=input_wav,
-                epochs=args.epochs,
-                goal_esr=effective_goal_esr,
-                fast_dev_run=args.fast_dev_run,
-            )
 
-    print("\n[Pipeline Complete]")
+    elif args.stage == "train":
+        tiers_to_train = ["clean", "standard", "hotrod"] if args.tier == "all" else [args.tier or "standard"]
+        for inst in instruments_to_run:
+            for t in tiers_to_train:
+                for idx, voice in enumerate(voices_to_run, 1):
+                    print(f"\n[{idx}/{len(voices_to_run)}] Training NAM A2 Model: {inst} -> {voice} (Tier: {t})...")
+                    run_training(
+                        instrument=inst,
+                        voice=voice,
+                        input_wav=input_wav,
+                        tier=t,
+                        epochs=args.epochs,
+                        goal_esr=effective_goal_esr,
+                        fast_dev_run=args.fast_dev_run,
+                    )
+
+    elif args.stage == "all":
+        print("\n--- Step 1: Canonical Intermediate Baseline Sweep ---")
+        generate_canonical_sweep(input_wav=input_wav)
+        print("\n--- Step 2: Export All 33 Frontend Deconvolution IRs ---")
+        export_all_frontend_irs()
+        print("\n--- Step 3: Simulate Backend Targets ---")
+        simulate_backend_targets(tier=args.tier or "standard", voice_id=args.voice)
+        print("\n[Pipeline Complete: 33 Frontend IRs + Backend Sweeps + Interactive Portal Ready]")
 
 if __name__ == "__main__":
     main()

@@ -36,11 +36,23 @@ from model_physics import (
     write_wav_24bit,
     compute_voice_prefilter_firs,
     load_instrument,
+    load_all_instruments,
+    resolve_instruments,
+    resolve_scale_range,
+    resolve_pickup_coils,
+    numpy_pickup_acoustic_response,
+    resolve_pickup_electrical_deconvolution_np,
     get_instrument_string,
     get_source_pickup,
     resolve_voices,
     is_voice_matching_source,
 )
+
+INTERMEDIATE_TARGET_PEAK_DBFS = -1.5
+INTERMEDIATE_TARGET_RMS_DBFS = -16.5
+CANONICAL_SWEEP_PATH = AUDIO_DIR / "canonical" / "canonical_sweep.wav"
+FRONTENDS_DIR = AUDIO_DIR / "frontends"
+TARGETS_DIR = AUDIO_DIR / "targets"
 
 def parse_spice_val(val_str: str) -> float:
     """Parses standard SPICE engineering suffix notation (k, Meg, p, n, u, m, g)."""
@@ -361,7 +373,7 @@ def _parse_netlist_cached(cir_path_str: str) -> CircuitModel:
     elif "16_active_character" in stem or "active_character" in stem:
         model.has_active_buffer = True
         model.preamp_type = "none"
-    elif "15_passive_character" in stem or "passive_character" in stem:
+    elif "15_source_direct" in stem or "source_direct" in stem:
         model.no_eq = True
 
     for line in lines:
@@ -927,15 +939,18 @@ def compute_differential_circuit_transfer_functions(
     src_curves = compute_circuit_transfer_functions(source_model, freqs=freqs)
 
     f_arr = np.asarray(freqs, dtype=np.float64)
-    if getattr(target_model, "no_eq", False):
-        return [np.ones_like(f_arr).tolist()]
 
     diff_curves = []
     for ch_idx, tgt_c in enumerate(tgt_curves):
-        src_c = src_curves[ch_idx] if len(src_curves) > ch_idx else src_curves[0]
+        if len(tgt_curves) == 1 and len(src_curves) > 1:
+            # Parallel multi-pickup source summing into single-channel canonical/target stage:
+            # Net source electrical transfer function is the sum of parallel branch currents
+            src_arr = np.sum(src_curves, axis=0)
+        else:
+            src_c = src_curves[ch_idx] if len(src_curves) > ch_idx else src_curves[0]
+            src_arr = np.asarray(src_c, dtype=np.float64)
 
         tgt_arr = np.asarray(tgt_c, dtype=np.float64)
-        src_arr = np.asarray(src_c, dtype=np.float64)
 
         if np.allclose(tgt_arr, src_arr, rtol=1e-4):
             diff_curves.append(np.ones_like(tgt_arr).tolist())
@@ -1889,6 +1904,8 @@ def simulate_voice(
     input_wav: Path = None,
     output_wav: Path = None,
     instrument: str = "30in",
+    pickup: str = None,
+    tier: str = None,
     prefiltered: bool = False,
     cir_path: Path = None,
     save_intermediate = None,
@@ -2122,7 +2139,11 @@ def simulate_voice(
 
     is_passive = (inst_cfg.get("electronics") == "passive")
     is_spatial_match = is_voice_matching_source(inst_cfg, voice_id, vcfg)
-    src_pickup = get_source_pickup(inst_cfg, voice_id)
+    if pickup and pickup != "auto" and pickup in inst_cfg.get("pickups", {}):
+        src_pickup = inst_cfg["pickups"][pickup].copy()
+        src_pickup["id"] = pickup
+    else:
+        src_pickup = get_source_pickup(inst_cfg, voice_id)
     src_cir_rel = src_pickup.get("circuit")
     if not src_cir_rel and is_passive:
         src_cir_rel = "circuits/sources/source_standard_p.cir"
@@ -2285,18 +2306,70 @@ def simulate_voice(
         or (check_vsat < src_vsat - 0.03)
     )
 
-    if is_identity:
+    if tier == "clean":
+        diff_alpha = 0.0
+        diff_alpha3 = 0.0
+        diff_eta = 0.0
+        diff_sag = 0.0
+        diff_eddy = 0.0
+        diff_orbit = 0.0
+        diff_beta = 0.0
+        diff_pull = 0.0
+        diff_touch = 0.0
+        diff_geom = 0.0
+        diff_stein = 0.0
+        diff_emf = 0.0
+        diff_lambda = 0.0
+        eff_vsat = 10.0
         should_soften = False
-    elif not is_passive:
-        should_soften = True
+        bypass_saturation = True
+    elif tier in ["standard", "std"]:
+        diff_alpha = voice_alpha
+        diff_alpha3 = voice_alpha3
+        diff_eta = voice_eta
+        diff_sag = voice_sag
+        diff_eddy = voice_eddy
+        diff_orbit = voice_orbit
+        diff_beta = voice_beta
+        diff_pull = voice_pull
+        diff_touch = voice_touch
+        diff_geom = voice_geom
+        diff_stein = voice_stein
+        diff_emf = voice_emf
+        diff_lambda = voice_lambda
+        eff_vsat = tgt_vsat
+        should_soften = not is_identity
+        bypass_saturation = not should_soften
+    elif tier == "hotrod":
+        diff_alpha = min(1.0, voice_alpha * 1.75)
+        diff_alpha3 = min(0.5, voice_alpha3 * 1.75)
+        diff_eta = min(0.3, voice_eta * 1.5)
+        diff_sag = min(0.5, voice_sag * 1.5)
+        diff_eddy = min(0.5, voice_eddy * 1.5)
+        diff_orbit = min(0.3, voice_orbit * 1.5)
+        diff_beta = min(0.2, voice_beta * 1.5)
+        diff_pull = min(0.2, voice_pull * 1.5)
+        diff_touch = min(0.2, voice_touch * 1.5)
+        diff_geom = min(0.5, voice_geom * 1.5)
+        diff_stein = min(0.2, voice_stein * 1.5)
+        diff_emf = min(0.2, voice_emf * 1.5)
+        diff_lambda = min(0.2, voice_lambda * 1.5)
+        eff_vsat = max(0.20, tgt_vsat / 1.35)
+        should_soften = not is_identity
+        bypass_saturation = not should_soften
     else:
-        should_soften = is_target_more_saturated
-
-    bypass_saturation = not should_soften
+        # tier in ["dynamic", "dyn"] or tier is None (differential saturation according to source & target)
+        if is_identity:
+            should_soften = False
+        elif not is_passive:
+            should_soften = True
+        else:
+            should_soften = is_target_more_saturated
+        bypass_saturation = not should_soften
 
     prefilter_firs = None
     if not prefiltered:
-        prefilter_firs = compute_voice_prefilter_firs(voice_id, instrument=instrument)
+        prefilter_firs = compute_voice_prefilter_firs(voice_id, instrument=instrument, src_pickup_key=src_pickup.get("id"))
         if has_source_circuit:
             stage_desc = f"Acoustic Aperture + Differential Circuit Simulation ({'Passive' if is_passive else 'Active'} Source)"
         else:
@@ -2364,13 +2437,210 @@ def _simulate_voice_task(task_args):
     v, kwargs = task_args
     return simulate_voice(v, **kwargs)
 
+def generate_canonical_sweep(input_wav: Path = None, output_wav: Path = None) -> Path:
+    """
+    Generates the calibrated Canonical Intermediate baseline audio sweep.
+    Takes raw T3K sweep audio, applies Canonical Intermediate aperture (single coil at 93.5mm datum)
+    and flat active buffer, and normalizes output to -1.5 dBFS True Peak / -16.5 dBFS RMS nominal.
+    """
+    if not input_wav:
+        input_wav = find_default_input_audio()
+    if not input_wav or not Path(input_wav).exists():
+        raise FileNotFoundError("Raw calibration audio (T3K-sweep-v3.wav) not found in repo root.")
+
+    output_wav = Path(output_wav) if output_wav else CANONICAL_SWEEP_PATH
+    output_wav.parent.mkdir(parents=True, exist_ok=True)
+
+    with wave.open(str(input_wav), "rb") as wf:
+        sr = wf.getframerate()
+        sw = wf.getsampwidth()
+        n_frames = wf.getnframes()
+        raw = wf.readframes(n_frames)
+
+    if sw == 3:
+        raw_padded = bytearray()
+        for i in range(0, len(raw), 3):
+            raw_padded.extend(raw[i:i+3])
+            raw_padded.append(0 if raw[i+2] < 128 else 255)
+        audio = np.frombuffer(raw_padded, dtype=np.int32).astype(np.float64) / 8388607.0
+    elif sw == 2:
+        audio = np.frombuffer(raw, dtype=np.int16).astype(np.float64) / 32767.0
+    else:
+        audio = np.frombuffer(raw, dtype=np.float32).astype(np.float64)
+
+    f = np.asarray(FREQS, dtype=np.float64)
+    can_coils = [{"strings": ["all"], "position_from_bridge_m": 0.0935, "aperture_width_in": 0.75, "weight": 1.0}]
+    h_can_ac = numpy_pickup_acoustic_response(f, can_coils, scale_length_m=(0.8636, 0.8636))
+    can_fir = synthesize_minimum_phase_fir(h_can_ac, num_taps=2048)
+
+    filtered = np.convolve(audio, can_fir, mode="same")
+
+    raw_peak = float(np.max(np.abs(filtered)))
+    raw_rms = float(np.sqrt(np.mean(filtered**2)))
+
+    peak_gain = (10.0 ** (INTERMEDIATE_TARGET_PEAK_DBFS / 20.0)) / max(raw_peak, 1e-9)
+    rms_gain = (10.0 ** (INTERMEDIATE_TARGET_RMS_DBFS / 20.0)) / max(raw_rms, 1e-9)
+    gain = min(peak_gain, rms_gain)
+
+    calibrated = np.clip(filtered * gain, -0.999, 0.999).astype(np.float32)
+
+    write_wav_24bit(str(output_wav), calibrated, sr)
+    final_peak_db = 20.0 * math.log10(max(float(np.max(np.abs(calibrated))), 1e-9))
+    final_rms_db = 20.0 * math.log10(max(float(np.sqrt(np.mean(calibrated**2))), 1e-9))
+    print(f"[Canonical Sweep] Generated {output_wav.name}: Peak = {final_peak_db:.2f} dBFS, RMS = {final_rms_db:.2f} dBFS")
+    return output_wav
+
+def export_frontend_ir(inst_id: str, pickup_key: str, out_path: Path = None, num_taps: int = 2048) -> Path:
+    """
+    Synthesizes a 2048-tap minimum-phase deconvolution IR transforming a source pickup into the Canonical Intermediate.
+    Enforces strictly positive initial polarity to ensure zero phase cancellation when blended in parallel.
+    """
+    inst = load_instrument(inst_id)
+    pickups = inst.get("pickups", {})
+    if pickup_key not in pickups:
+        raise KeyError(f"Pickup key '{pickup_key}' not found in instrument '{inst_id}'")
+    pickup = pickups[pickup_key]
+
+    f = np.asarray(FREQS, dtype=np.float64)
+    scale_range = resolve_scale_range(inst)
+    coils = resolve_pickup_coils(pickup, inst)
+
+    # 1. Source acoustic response
+    h_src_ac = numpy_pickup_acoustic_response(f, coils, scale_length_m=scale_range)
+
+    # 2. Canonical acoustic response (34in standard scale, 93.5mm datum, 0.75in slit)
+    can_coils = [{"strings": ["all"], "position_from_bridge_m": 0.0935, "aperture_width_in": 0.75, "weight": 1.0}]
+    h_can_ac = numpy_pickup_acoustic_response(f, can_coils, scale_length_m=(0.8636, 0.8636))
+
+    h_aperture_deconv = (h_can_ac * h_src_ac) / (h_src_ac**2 + 0.01)
+
+    # 3. Circuit deconvolution
+    cir_rel = pickup.get("circuit")
+    can_path = REPO_ROOT / "circuits" / "canonical_intermediate.cir"
+    if cir_rel and (REPO_ROOT / cir_rel).exists() and can_path.exists():
+        can_model = parse_netlist(can_path)
+        src_model = parse_netlist(REPO_ROOT / cir_rel)
+        diff_curves = compute_differential_circuit_transfer_functions(can_model, src_model, freqs=f)
+        h_circuit_deconv = np.asarray(diff_curves[0], dtype=np.float64)
+    else:
+        h_circuit_deconv = resolve_pickup_electrical_deconvolution_np(f, pickup, inst, q_target=0.707)
+
+    h_total = h_aperture_deconv * h_circuit_deconv
+
+    fir = synthesize_minimum_phase_fir(h_total, num_taps=num_taps)
+    fir = np.asarray(fir, dtype=np.float32)
+
+    # Polarity check: enforce positive polarity
+    if np.sum(fir[:16]) < 0:
+        fir = -fir
+
+    if out_path is None:
+        inst_dir = FRONTENDS_DIR / inst_id
+        inst_dir.mkdir(parents=True, exist_ok=True)
+        # Avoid repetitive token if inst_id already ends with pickup prefix (e.g. 30in_emg_mmtw + mmtw_dual)
+        if inst_id.endswith("mmtw") and pickup_key.startswith("mmtw_"):
+            p_name = pickup_key[len("mmtw_"):]
+            out_name = f"{inst_id}_{p_name}.wav"
+        else:
+            out_name = f"{inst_id}_{pickup_key}.wav"
+        out_path = inst_dir / out_name
+
+    out_path = Path(out_path)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    write_wav_24bit(str(out_path), fir, 48000)
+
+    # If single pickup, also generate convenience alias <inst_id>.wav
+    if len(pickups) == 1:
+        alias_path = out_path.parent / f"{inst_id}.wav"
+        if alias_path != out_path:
+            write_wav_24bit(str(alias_path), fir, 48000)
+
+    return out_path
+
+def export_all_frontend_irs(output_dir: Path = None):
+    """
+    Exports all 33 frontend deconvolution IRs grouped by instrument subdirectories.
+    """
+    out_dir = Path(output_dir) if output_dir else FRONTENDS_DIR
+    all_insts = load_all_instruments()
+    exported = []
+    for inst_id, inst in sorted(all_insts.items()):
+        if inst_id == "canonical_intermediate":
+            continue
+        pickups = inst.get("pickups", {})
+        for p_key in sorted(pickups.keys()):
+            p_file = export_frontend_ir(inst_id, p_key)
+            exported.append(p_file)
+            print(f" [Frontend IR] Exported {p_file.relative_to(REPO_ROOT)}")
+    print(f"Successfully exported {len(exported)} frontend IRs to {out_dir}")
+    return exported
+
+def simulate_backend_targets(tier: str = "standard", voice_id: str = None):
+    """
+    Simulates target voice audio sweeps using the Canonical Intermediate baseline as input.
+    Tiers:
+      - 'clean': 0% saturation / maximum headroom (bypass_saturation=True)
+      - 'standard': standard dynamic pickup give (100% nominal saturation)
+      - 'hotrod': overwound drive pre-conditioner (175% saturation, reduced vsat)
+    """
+    tier_map = {
+        "clean": "01_studio_clean",
+        "standard": "02_standard_dynamic",
+        "std": "02_standard_dynamic",
+        "dynamic": "02_standard_dynamic",
+        "hotrod": "03_hot_rod",
+    }
+    if tier == "all":
+        tiers_to_run = ["clean", "standard", "hotrod"]
+    else:
+        if tier not in tier_map:
+            raise ValueError(f"Unknown tier '{tier}'. Choose from clean, standard, std, hotrod, all.")
+        tiers_to_run = [tier]
+
+    if not CANONICAL_SWEEP_PATH.exists():
+        generate_canonical_sweep()
+
+    voices_to_run = [voice_id] if voice_id and voice_id != "all" else [vid for vid in sorted(VOICES.keys()) if vid != "00_canonical_intermediate"]
+
+    for t in tiers_to_run:
+        folder_name = tier_map[t]
+        target_out_dir = TARGETS_DIR / folder_name
+        target_out_dir.mkdir(parents=True, exist_ok=True)
+
+        for vid in voices_to_run:
+            out_file = target_out_dir / f"out_{vid}.wav"
+            print(f"[{t.upper()}] Simulating {vid} -> {out_file.name}...")
+
+            vcfg = VOICES.get(vid, {})
+            v_alpha = vcfg.get("alpha", 0.25)
+            v_vsat = vcfg.get("vsat", 0.50)
+
+            if t == "clean":
+                sim_alpha = 0.0
+                sim_vsat = 10.0
+            elif t == "dynamic":
+                sim_alpha = v_alpha
+                sim_vsat = v_vsat
+            elif t == "hotrod":
+                sim_alpha = min(1.0, v_alpha * 1.75)
+                sim_vsat = max(0.20, v_vsat / 1.35)
+
+            simulate_voice(
+                voice_id=vid,
+                input_wav=CANONICAL_SWEEP_PATH,
+                output_wav=out_file,
+                instrument="canonical_intermediate",
+                alpha=sim_alpha,
+                normalize="none",  # T3K sweep integrity
+            )
+
 def main():
     parser = argparse.ArgumentParser(description="Allomorph Native Virtual Analog Circuit Simulator.")
-    parser.add_argument("--voice", "-v", default="04_modern_p_ceramic", help="Target voice to simulate (or 'all')")
+    parser.add_argument("--voice", "-v", default="all", help="Target voice to simulate (voice ID, comma-separated list, or 'all'; default: 'all')")
     parser.add_argument(
         "--instrument", "-i",
-        default="30in",
-        help="Source instrument configuration (30in, 32in, or path to .toml)"
+        default="all",
+        help="Source instrument configuration (ID, comma-separated list, 'all', 30in, 32in, or path to .toml; default: 'all')"
     )
     parser.add_argument("--input", help="Input WAV path (defaults to auto-detecting T3K-sweep-v3.wav)")
     parser.add_argument("--out", help="Output WAV path (default: audio/<instrument>/out_<voice>.wav)")
@@ -2531,7 +2801,39 @@ def main():
         default=None,
         help="Maximum audio sample frames to simulate (default: None for full file)",
     )
+    parser.add_argument(
+        "--stage",
+        choices=["canonical", "frontends", "targets", "all"],
+        default=None,
+        help="Architecture C execution stage: 'canonical' (generate intermediate sweep), 'frontends' (export all 33 IRs), 'targets' (simulate backend sweeps), 'all' (canonical + frontends + targets)."
+    )
+    parser.add_argument(
+        "--tier",
+        choices=["clean", "standard", "std", "hotrod", "dynamic", "all"],
+        default="standard",
+        help="Dynamic tier: 'standard' / 'std' (100%% nominal target saturation), 'clean' (0%% saturation), 'hotrod' (175%% overwound), 'dynamic' (differential source/target saturation), 'all'."
+    )
+    parser.add_argument(
+        "--pickup", "-p",
+        default=None,
+        help="Physical pickup setting for source instrument ('auto' to resolve from pickup_mapping, or explicit pickup ID)"
+    )
     args = parser.parse_args()
+
+    if args.stage == "canonical":
+        generate_canonical_sweep(input_wav=args.input, output_wav=args.out)
+        return
+    if args.stage == "frontends":
+        export_all_frontend_irs(output_dir=args.out)
+        return
+    if args.stage == "targets":
+        simulate_backend_targets(tier=args.tier, voice_id=args.voice)
+        return
+    if args.stage == "all":
+        generate_canonical_sweep(input_wav=args.input)
+        export_all_frontend_irs(output_dir=args.out)
+        simulate_backend_targets(tier=args.tier, voice_id=args.voice)
+        return
 
     displacement_weighting = not args.no_displacement_weighting
     magnet_drag = not args.no_magnet_drag
@@ -2542,6 +2844,7 @@ def main():
     slew_limit = not args.no_slew_limit
     tau_touch = 0.0 if args.no_spectral_tilt else args.tau_touch
 
+    instruments = resolve_instruments(args.instrument)
     voices = resolve_voices(args.voice)
     in_path = Path(args.input) if args.input else None
     out_path = Path(args.out) if args.out else None
@@ -2550,7 +2853,8 @@ def main():
     sim_kwargs = dict(
         input_wav=in_path,
         output_wav=out_path,
-        instrument=args.instrument,
+        pickup=args.pickup,
+        tier=args.tier,
         prefiltered=prefiltered,
         save_intermediate=args.save_intermediate,
         normalize=args.normalize,
@@ -2580,14 +2884,22 @@ def main():
     )
 
     max_workers = args.jobs if args.jobs is not None else min(4, os.cpu_count() or 4)
-    if len(voices) > 1 and max_workers > 1:
-        from concurrent.futures import ProcessPoolExecutor
-        tasks = [(v, sim_kwargs) for v in voices]
-        with ProcessPoolExecutor(max_workers=max_workers) as executor:
-            list(executor.map(_simulate_voice_task, tasks))
-    else:
-        for v in voices:
-            simulate_voice(v, **sim_kwargs)
+    for inst in instruments:
+        cur_kwargs = sim_kwargs.copy()
+        cur_kwargs["instrument"] = inst
+        if out_path and len(instruments) > 1 and not out_path.is_dir():
+            stem = out_path.stem
+            suffix = out_path.suffix
+            cur_kwargs["output_wav"] = out_path.parent / f"{stem}_{inst}{suffix}"
+
+        if len(voices) > 1 and max_workers > 1:
+            from concurrent.futures import ProcessPoolExecutor
+            tasks = [(v, cur_kwargs) for v in voices]
+            with ProcessPoolExecutor(max_workers=max_workers) as executor:
+                list(executor.map(_simulate_voice_task, tasks))
+        else:
+            for v in voices:
+                simulate_voice(v, **cur_kwargs)
 
 if __name__ == "__main__":
     main()

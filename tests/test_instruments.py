@@ -10,6 +10,7 @@ from scripts.model_physics import (
     load_all_instruments,
     get_source_pickup,
     compute_aperture_prefilter_fir,
+    resolve_instruments,
     NUM_TAPS
 )
 
@@ -134,10 +135,10 @@ def test_32in_fretless_pmm_routing():
     assert pcsx["coils"][1]["strings"] == [3, 4]
     assert math.isclose(pcsx["coils"][1]["position_from_bridge_m"], 0.1264, abs_tol=1e-4)
 
-    # Upright voice routes to upright_blend composite
+    # Upright voice routes to solo reverse PCSX neck split-coil (100%)
     up_pickup = get_source_pickup(inst, "14_upright_bridge_transducer")
-    assert up_pickup["name"] == "Fretless Upright Blend (85% PCSX + 15% MMTWX Single)"
-    assert up_pickup["type"] == "composite"
+    assert up_pickup["name"] == "Reverse EMG PCSX Split-Coil (Neck)"
+    assert up_pickup["type"] == "split_coil"
 
 def test_load_custom_user_bass_toml():
     """Verify that any future bass or external user bass can be loaded from an arbitrary TOML file."""
@@ -541,6 +542,51 @@ def test_small_sample_delay_inter_pickup_coherence_decay():
     min_db = np.min(mags)
     assert min_db > -20.0, f"Soapbar on Jazz Pair has unregularized comb notch: min={min_db} dB"
     assert -16.0 <= min_db <= -12.0, f"Expected smooth authentic acoustic mid-scoop around -14 dB, got {min_db} dB"
+
+def test_resolve_instruments():
+    """Verify resolve_instruments handles 'all', defaults, comma lists, aliases, and unknown tokens."""
+    # 1. 'all' returns all 11 playable instruments and excludes canonical_intermediate
+    all_insts = resolve_instruments("all")
+    assert len(all_insts) == 11
+    assert "canonical_intermediate" not in all_insts
+    expected_11 = {
+        "30in_emg_mmtw",
+        "30in_mustang_pj",
+        "32in_custom_pmm",
+        "32in_fretless_pmm",
+        "34in_active_soapbar",
+        "34in_active_stingray",
+        "34in_dingwall_sp1",
+        "34in_standard_jazz",
+        "34in_standard_p",
+        "34in_standard_pj",
+        "37in_multiscale_dingwall",
+    }
+    assert set(all_insts) == expected_11
+
+    # 2. None, empty string, or whitespace defaults to all playable
+    assert resolve_instruments(None) == all_insts
+    assert resolve_instruments("") == all_insts
+    assert resolve_instruments("   ") == all_insts
+
+    # 3. Comma-separated list with exact IDs and aliases
+    res = resolve_instruments("30in, fretless, 34in_standard_p")
+    assert res == ["30in_emg_mmtw", "32in_fretless_pmm", "34in_standard_p"]
+
+    # 4. Aliases
+    assert resolve_instruments("mustang") == ["30in_mustang_pj"]
+    assert resolve_instruments("dingwall") == ["37in_multiscale_dingwall"]
+    assert resolve_instruments("soapbar") == ["34in_active_soapbar"]
+    assert resolve_instruments("ray") == ["34in_active_stingray"]
+
+    # 5. Unknown tokens emit warning and don't break resolution when valid tokens present
+    res_unknown = resolve_instruments("nonexistent_bass, 30in")
+    assert res_unknown == ["30in_emg_mmtw"]
+
+    # 6. Entirely unknown token falls back to all playable instruments
+    res_all_unknown = resolve_instruments("completely_bogus_token")
+    assert res_all_unknown == all_insts
+
 
 
 

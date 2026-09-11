@@ -1,0 +1,20 @@
+# ------------------------------------------------------------------------------
+# 04. MODERN SPLIT-COIL P (CERAMIC)
+# ------------------------------------------------------------------------------
+# Staggered split-coil with strings E/A closer to neck (139.0mm) and D/G closer
+# to bridge (111.0mm), modeling Bartolini 8CBP with boutique 500k V/T and hybrid treble bleed.
+id = "04_modern_p_ceramic"
+name = "04. Modern Split-Coil P (Ceramic)"
+circuit = "circuits/04_modern_p_ceramic.cir"
+topology = "Split-Coil Ceramic"
+description = "High-inductance ceramic split-coil with boutique 500k V/T harness and hybrid treble bleed"
+magnet_type = "ceramic"
+alpha = 0.12
+fr = 2200.0
+Q = 1.8
+gain_db = 1.5
+scale = "34in"
+coils = [
+    { strings = [3, 4], position_from_bridge_m = 0.1390, aperture_width_in = 1.00, weight = 1.0 },
+    { strings = [1, 2], position_from_bridge_m = 0.1110, aperture_width_in = 1.00, weight = 1.0 }
+]

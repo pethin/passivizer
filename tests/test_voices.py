@@ -8,7 +8,8 @@ def test_voice_parameter_validity():
         assert "topology" in cfg, f"{vid} missing topology"
         assert "description" in cfg, f"{vid} missing description"
         assert cfg["fr"] > 0, f"{vid} invalid resonant frequency fr: {cfg['fr']}"
-        assert 200.0 <= cfg["fr"] <= 6000.0, f"{vid} fr outside audible musical range: {cfg['fr']}"
+        max_fr = 20000.0 if vid == "00_canonical_intermediate" else 6000.0
+        assert 200.0 <= cfg["fr"] <= max_fr, f"{vid} fr outside audible musical range: {cfg['fr']}"
         assert cfg["Q"] > 0, f"{vid} invalid Q: {cfg['Q']}"
         assert isinstance(cfg["gain_db"], (int, float)), f"{vid} gain_db not float"
         assert "coils" in cfg, f"{vid} missing coils array"
@@ -229,39 +230,34 @@ def test_resolve_voices():
 
     # Shorthand matching 15 and 16
     p15 = resolve_voices("15")
-    assert p15 == ["15_passive_character"]
+    assert p15 == ["15_source_direct"]
     p16 = resolve_voices("16")
     assert p16 == ["16_active_character"]
 
 
-def test_passive_character_no_eq_flatness():
-    """Validates that 15_passive_character performs zero linear EQ filtering."""
+def test_source_direct_properties():
+    """Validates that 15_source_direct performs transparent deconvolution of Canonical Intermediate."""
     import numpy as np
     from scripts.model_physics import compute_voice_prefilter_firs, NUM_TAPS
     from scripts.analyze_voices import build_voice_dataframe
     from scripts.simulate_circuits import parse_netlist, compute_circuit_transfer_functions, FREQS, REPO_ROOT
 
-    # 1. Prefilter FIR must be an exact unit impulse
-    firs = compute_voice_prefilter_firs("15_passive_character", instrument="30in_emg_mmtw")
+    # 1. Prefilter FIR on Canonical Intermediate must invert the 93.5mm aperture sinc
+    firs = compute_voice_prefilter_firs("15_source_direct", instrument="canonical_intermediate")
     assert len(firs) == 1
     fir = np.array(firs[0])
-    assert fir[0] == 1.0
-    assert np.all(fir[1:] == 0.0)
+    assert len(fir) == NUM_TAPS
 
-    # 2. Circuit transfer function must be identically 1.0 across all frequencies
-    cfg = VOICES["15_passive_character"]
+    # 2. Circuit transfer function must be identically 1.0 across all frequencies (no_eq buffer)
+    cfg = VOICES["15_source_direct"]
     model = parse_netlist(REPO_ROOT / cfg["circuit"])
     assert getattr(model, "no_eq", False) is True
     curves = compute_circuit_transfer_functions(model, freqs=FREQS)
     assert len(curves) == 1
     assert np.all(np.array(curves[0]) == 1.0)
 
-    # 3. Dataframes in both modes must be bit-exact 0.00 dB
-    df_diff = build_voice_dataframe("15_passive_character", cfg, instrument="30in_emg_mmtw", mode="difference")
-    mags_diff = df_diff["magnitude_db"].to_numpy()
-    assert np.all(mags_diff == 0.0)
-
-    df_out = build_voice_dataframe("15_passive_character", cfg, instrument="30in_emg_mmtw", mode="output")
+    # 3. Output mode dataframe must be bit-exact 0.00 dB (flat studio DI target)
+    df_out = build_voice_dataframe("15_source_direct", cfg, instrument="canonical_intermediate", mode="output")
     mags_out = df_out["magnitude_db"].to_numpy()
     assert np.all(mags_out == 0.0)
 

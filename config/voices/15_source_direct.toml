@@ -1,0 +1,42 @@
+# ==============================================================================
+# 15. SOURCE DIRECT (Dynamic Studio DI / Inverse Canonical Intermediate)
+# ==============================================================================
+# Deconvolutes the Canonical Intermediate aperture baseline (34" scale @ 93.5mm datum)
+# with a bit-exact 0.00 dB flat unity studio buffer. When loaded in Block 2 on the
+# Darkglass Anagram pedalboard, it inverts the intermediate representation to recover
+# the raw, uncolored input signal of Block 1 (pure studio DI / dry string signal),
+# while preserving the dynamic feel continuum (Clean, Dynamic, Hot Rod).
+# ==============================================================================
+
+id = "15_source_direct"
+name = "15. Source Direct"
+circuit = "circuits/15_source_direct.cir"
+topology = "Source Direct (Dynamic Studio DI)"
+description = "Deconvolutes Canonical Intermediate to restore the uncolored input signal of Block 1 (pure studio DI) with tier dynamics"
+blend_mode = "direct"
+magnet_type = "alnico_v"
+alpha = 0.26
+alpha3 = 0.10
+eta_hyst = 0.06
+k_sag = 0.08
+vsat = 0.50
+k_eddy = 0.16
+kappa_orbit = 0.06
+k_body = 0.08
+beta_curv = 0.035
+k_pull = 0.040
+tau_touch = 0.045
+chi_mu = 0.035
+k_dist = 0.18
+kappa_geom = 0.20
+k_stein = 0.030
+k_emf = 0.04
+lambda_L = 0.05
+fr = 2500.0
+Q = 1.4
+sensor_type = "direct"
+gain_db = 0.0
+scale = "34in"
+coils = [
+    { strings = ["all"], position_from_bridge_m = 0.0935, aperture_width_in = 0.75, weight = 1.0 }
+]

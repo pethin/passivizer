@@ -1,0 +1,20 @@
+# ------------------------------------------------------------------------------
+# 10. RICKENBACKER 4003 BRIDGE (4.7nF HPF)
+# ------------------------------------------------------------------------------
+# High-output single-coil (1.10" aperture) loaded with vintage 4.7nF series
+# capacitor and factory 330k pots, creating a sharp low-end cut below 150 Hz.
+id = "10_rickenbacker_bridge_hpf"
+name = "10. Rickenbacker 4003 Bridge (4.7nF HPF)"
+circuit = "circuits/10_rickenbacker_bridge_hpf.cir"
+topology = "Single-Coil w/ 4.7nF Series HPF"
+description = "High-output bridge coil loaded with vintage 4.7nF series high-pass capacitor and 330k pots"
+magnet_type = "ceramic"
+alpha = 0.14
+fr = 2200.0
+Q = 2.2
+gain_db = -1.5
+hpf = 150.0
+scale = "34in"
+coils = [
+    { strings = ["all"], position_from_bridge_m = 0.0406, aperture_width_in = 1.10, weight = 1.0 }
+]

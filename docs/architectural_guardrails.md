@@ -109,6 +109,36 @@ $$h_{\text{db}} = 20 \log_{10}\left(\max(h_{\text{diff}}, 10^{-6})\right)$$
   across $20\text{--}300\text{ Hz}$.
 - Active preamp models must strictly represent musical shelving contours ($H_{\text{bass}} \cdot H_{\text{treble}}$) with flat, finite DC transmission ($H_{\text{preamp}}(0) \ge 1.0$), ensuring smooth, ripple-free differential curves down to $20\text{ Hz}$.
 
+### 3.4 Architecture C Normative Invariants (Two-Stage Pipeline & Canonical Intermediate)
+1. **Two-Stage Signal Flow Decoupling:**
+   - **Stage 1 (Frontend IR):** Deconvolutes source instrument pickup, aperture sinc, and loaded RLC circuit into the Canonical Intermediate baseline. Synthesized as a 2048-tap minimum-phase causal FIR loaded into Block 1 (IR Loader). Consumes 0% neural CPU and introduces 0 ms algorithmic latency.
+   - **Stage 2 (Backend NAM):** Captures target pickup loaded RLC circuit and non-linear magnetic feel from the Canonical Intermediate baseline. Loaded into Block 2 (NAM Preamp, A2-Lite architecture).
+2. **Canonical Intermediate Baseline Datum:**
+   - Scale Length: Standard $34.0''$ ($863.6\text{ mm}$).
+   - Spatial Sensing Envelope: Single narrow magnetic aperture slit ($w = 0.75''$, $d = 0$, zero comb nulls) centered at the **$93.5\text{ mm}$ ($3.68''$) acoustic median** from the bridge saddle.
+   - Electrical Circuit: Pure linear unity-gain active studio buffer ($R_{\text{in}} = 10\text{ M}\Omega, R_{\text{out}} = 50\,\Omega, C_{\text{cable}} = 0\text{ pF}$, $H_{\text{circuit}}(s) \equiv 1.0$).
+   - Dynamic Feel: Pure linear baseline ($\alpha = 0.0, V_{\text{sat}} = 10.0\text{V}$).
+3. **Canonical Intermediate Headroom & Dynamic Range Theorems:**
+   - The Canonical Intermediate sweep is strictly calibrated to **$-1.50\text{ dBFS}$ True Peak** and **$-16.50\text{ dBFS}$ Nominal RMS**.
+   - Preserves $>106.5\text{ dB}$ signal-to-noise ratio while guaranteeing a $1.5\text{ dB}$ anti-clipping margin preventing digital inter-sample overs through downstream high-Q resonant filters.
+4. **Strictly Positive Polarity Invariant:**
+   - Every synthesized frontend IR must enforce $\text{sign}\left(\sum_{n=0}^{16} h_{\text{front}}[n]\right) > 0$. If negative, invert $h = -h$ before 24-bit PCM export to guarantee zero phase cancellation when mixed in parallel with dry DI or analog preamps.
+5. **Physical Source Knobs at 100% Invariant:**
+   - Source deconvolution mathematically requires physical source volume and tone pots wide open ($100\%$). Tone cap roll-offs (22nF, 47nF Motown, 100nF Dub) and loading are selected in Block 2.
+
+### 3.5 First-Class Transducer Taxonomy & Zero-Conditional Deconvolution Invariant
+1. **Transducer Physical Taxonomy:**
+   Transducers are categorized strictly by physical transduction principles (`sensor_type`):
+   - `magnetic`: Velocity sensing via inductive magnetic coils at position $x$ with spatial aperture $\sin(k x) \cdot \operatorname{sinc}(k w / 2)$.
+   - `bridge_force`: Direct piezo force sensing at the bridge witness point with velocity-to-force leaky integration ($+6\text{ dB/oct}$ from $70\text{--}250\text{ Hz}$) and spruce acoustic damping.
+   - `direct`: Pure studio DI or dry string vibration baseline with an acoustic transfer function identically flat across all audible frequencies ($H_{\text{tgt, acoustic}}(f) \equiv 1.0$) and flat active buffer circuitry ($H_{\text{circuit}}(f) \equiv 1.0$).
+2. **Prohibition of Procedural Deconvolution Bypasses:**
+   Never short-circuit physical deconvolution using hardcoded voice ID branches (e.g. `if voice_id == "15_source_direct": return [impulse]`). All acoustic transformations must flow through the universal regularized quotient:
+   $$H_{\text{quotient}}(f) = \frac{H_{\text{tgt, acoustic}}(f) \cdot H_{\text{src, macro}}(f)}{H_{\text{src, macro}}(f)^2 + \epsilon^2}$$
+   When $H_{\text{tgt, acoustic}}(f) = 1.0$, this equation naturally and stably evaluates the inverse macro-aperture ($1 / H_{\text{src}}$) of the source instrument without special-case logic.
+3. **Direct Output Invariant:**
+   In output mode, direct sensor targets must evaluate to bit-exact $0.00\text{ dB}$ across all frequency bins.
+
 ---
 
 ## 4. Differential Non-Linear Metallurgy, Magnetic Dynamics & Analog Realism

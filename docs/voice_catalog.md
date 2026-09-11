@@ -28,7 +28,7 @@ This catalog details the physical parameters, equivalent RLC circuit values, aco
 | **12** | `12_mudbucker_ultra_series`| Overwound Series| Ultra Series | Gibson $500\text{k}\Omega$ Vol, $500\text{k}\Omega$ Tone, $22\text{nF}$ Cap | $14.40\text{ H}$| $27.90\text{ k}\Omega$ | $1.2\text{ kHz}$ | Extreme dual-coil series network; subterranean low-end focus, steep natural top-end rolloff. |
 | **13** | `13_dingwall_multiscale_bridge`| Multi-Scale MM | Angled Parallel | Dingwall Active Onboard Buffer ($1\text{ M}\Omega \parallel 25\text{ pF}$, low-Z out) | $2.30\text{ H}$ (isolated)| $4.40\text{ k}\Omega$ | $7.3\text{ kHz}$ | 34"-37" fanned-fret bridge position ($48.0\text{ mm}$) with high-tension wave speeds and active buffered FD3 parallel dual-coil sparkle. |
 | **14** | `14_upright_bridge_transducer`| Upright Transducer | Bridge Force | Direct $100\text{ M}\Omega$ Buffer, $15\text{ nF}$ Subsonic Rumble Cap | — | — | $4.5\text{ kHz}$ | Direct bridge force sensor with velocity-to-force leaky integration; woody double-bass bloom. |
-| **15** | `15_passive_character` | Passive Dynamic Twin | Dynamic Twin | Transparent ($0.00\text{ dB}$ flat linear transfer) | $3.60\text{ H}$ | $8.20\text{ k}\Omega$ | Flat (0 dB) | Pure passive pickup dynamic feel and magnetic non-linearities without EQ; preserves active bass onboard filters and blend controls. |
+| **15** | `15_source_direct` | Source Direct (Dynamic DI) | Source Direct | Transparent ($0.00\text{ dB}$ flat linear transfer) | $0.00\text{ H}$ | $50\,\Omega$ | Flat (0 dB) | Deconvolutes Canonical Intermediate aperture to restore uncolored input of Block 1 (pure studio DI) with tier dynamics. |
 | **16** | `16_active_character` | Modern Active Buffer | Active Buffer | Studio Active Buffer ($R_{\text{in}}=1\text{M}\Omega, R_{\text{out}}=100\,\Omega$) | $3.20\text{ H}$ (isolated) | $7.20\text{ k}\Omega$ | $8.2\text{ kHz}$ | Studio active buffer isolating high-Z coils from cable capacitance ($750\text{ pF}$); wideband sparkle, punchy transient headroom, zero cable drag. |
 
 
@@ -209,12 +209,11 @@ This catalog details the physical parameters, equivalent RLC circuit values, aco
 * **Acoustic Character:** Eliminates magnetic pickup comb filtering; delivers smooth, woody double-bass pizzicato bloom with deep sub-bass body resonance.
 * **32" Fretless Setting:** ABCX Blend to **Upright Blend** (85% PCSX + 15% MMTWX Single - Push/Pull Down: J Mode). Pair with **3 Sigma Upright Bass IR** in Anagram Block 3.
 
-### 15. `15_passive_character` (Passive Character - No EQ)
-* **Archetype:** Pure Passive Pickup Dynamic Twin (No Linear EQ)
-* **Design Rationale:** For active bass players who want to preserve 100% of their onboard active 2-band/3-band EQ filters, midrange sweep, and pickup blend controls, while transforming sterile, stiff active pickups with authentic high-impedance passive dynamic feel.
-* **Linear Transfer Function:** Bit-exact $0.00\text{ dB}$ flat response across all frequencies ($20\text{ Hz}\text{--}20\text{ kHz}$). Zero aperture comb filtering, zero RLC resonance shift, zero high-frequency rolloff.
-* **Non-Linear Dynamics:** Engages full Alnico V magnetic compliance ($V_{\text{sat}} = 0.50$), Dahl hysteresis ($\eta = 0.06$), Lenz velocity drag and attack pitch sag ($k_{\text{sag}} = 0.08, k_{\text{pull}} = 0.04$), dynamic eddy current de-Qing ($k_{\text{eddy}} = 0.16$), electromechanical back-EMF string braking ($k_{\text{emf}} = 0.04$), dynamic reluctance modulation ("vowel quack", $\lambda_L = 0.05$), and calibrated $-108\text{ dBFS}$ thermal noise dither.
-* **Bypass Invariant:** When evaluated on passive source basses, the non-linear engine automatically detects matching/higher source saturation and bypasses processing.
+### 15. `15_source_direct` (Source Direct - Dynamic Studio DI)
+* **Archetype:** Inverse Canonical Intermediate / Dynamic Studio DI
+* **Design Rationale:** For bass players who want to bypass target pickup shaping in Block 2 and restore the pristine, uncolored input of Block 1 (transparent studio DI / raw string vibration), while retaining the dynamic feel continuum (Clean, Dynamic, Hot Rod).
+* **Linear Transfer Function:** Deconvolutes the Canonical Intermediate $93.5\text{ mm}$ aperture baseline ($1 / H_{\text{can}}$) with a flat studio buffer ($0.00\text{ dB}$).
+* **Non-Linear Dynamics:** In `01_studio_clean`, delivers 100% linear transparent bypass. In `02_standard_dynamic`, engages standard Alnico V magnetic compliance ($V_{\text{sat}} = 0.50$), Dahl hysteresis ($\eta = 0.06$), Lenz velocity drag and attack pitch sag ($k_{\text{sag}} = 0.08, k_{\text{pull}} = 0.04$), dynamic eddy current de-Qing ($k_{\text{eddy}} = 0.16$), and back-EMF string braking ($k_{\text{emf}} = 0.04$) on the direct signal. In `03_hot_rod`, delivers 175% overwound dynamic drive.
 
 ### 16. `16_active_character` (Modern Active Buffer)
 * **Archetype:** Studio Pure High-Impedance Active Buffer Twin (Cable Isolation & Wideband Sparkle)
@@ -269,7 +268,7 @@ $$\Delta x_{\text{norm\_in}} = \Delta\eta \times 34.0'', \quad \text{tilt}_{\tex
 | **`12_mudbucker_ultra_series`**| Sidewinder Center | $95.5\text{ mm}$ | $34.0''$ | $11.06\%$ | $+0.30''$ | Extreme $14.4\text{ H}$ series foundation, $1.25''$ aperture |
 | **`13_dingwall_multiscale_bridge`**| Angled Sweet Spot | $48.0\text{ mm}$ | $37.0''$ | $5.11\%$ | $-1.72''$ | $-2.6\text{ dB}$ bite tilt, multiscale continuum clank |
 | **`14_upright_bridge_transducer`**| Bridge Transducer | $5.0\text{ mm}$ | $41.5''$ | $0.47\%$ | $-3.30''$ | Regularized spatial de-comb, leaky force tilt, body bloom |
-| **`15_passive_character`** | Source Datum | $77.5\text{ mm}$ | $30.0''$ | $10.17\%$ | $0.00''$ | Bit-exact $0.00\text{ dB}$ linear transfer, pure passive dynamics |
+| **`15_source_direct`** | Source Datum | $77.5\text{ mm}$ | $30.0''$ | $10.17\%$ | $0.00''$ | Bit-exact $0.00\text{ dB}$ linear transfer, preserves tier dynamics |
 | **`16_active_character`** | Source Datum | $77.5\text{ mm}$ | $30.0''$ | $10.17\%$ | $0.00''$ | Preserved aperture, active buffer cable deconvolution |
 
 

@@ -1,0 +1,37 @@
+# ==============================================================================
+# CANONICAL INTERMEDIATE (Architecture C Universal Reference Baseline)
+# ==============================================================================
+# Physical Datums:
+#   - Scale Length: 34.0" (863.6mm standard Fender scale)
+#   - Acoustic Datum: 93.5mm from bridge saddle (geometric centroid/median)
+#   - Magnetic Aperture: Single sensing slit (w = 0.75", d = 0, zero comb nulls)
+# Electrical Circuit:
+#   - Unity-gain active studio buffer (R_in = 10MΩ, R_out = 50Ω, C_cable = 0pF)
+#   - Frequency Response: Bit-exact 0.00 dB from DC to 20 kHz
+# Dynamics:
+#   - Pure linear reference (alpha = 0.0, V_sat = 10.0V)
+# ==============================================================================
+
+id = "canonical_intermediate"
+name = "Canonical Intermediate Baseline"
+scale_length_in = 34.0
+scale_length_m = 0.8636
+electronics = "active"
+
+# Reference wave speeds (34in standard scale)
+string_wave_speeds = [71.16, 95.00, 126.81, 169.27]
+
+default_pickup = "canonical_median"
+
+[pickups.canonical_median]
+name = "Canonical 93.5mm Acoustic Median"
+position_from_bridge_m = 0.0935
+aperture_width_in = 0.75
+coil_spacing_in = 0.0
+type = "single_coil"
+resonant_frequency_hz = 20000.0
+q_factor = 0.707
+circuit = "circuits/canonical_intermediate.cir"
+coils = [
+    { strings = ["all"], position_from_bridge_m = 0.0935, aperture_width_in = 0.75, weight = 1.0 }
+]

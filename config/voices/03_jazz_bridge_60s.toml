@@ -1,0 +1,19 @@
+# ------------------------------------------------------------------------------
+# 03. 60s JAZZ BRIDGE SINGLE-COIL
+# ------------------------------------------------------------------------------
+# Narrow single-coil placed in 60s position (2.50" / 63.5mm datum from bridge,
+# 14 1/2" from 12th fret) for articulate bite and balanced midrange punch.
+id = "03_jazz_bridge_60s"
+name = "03. 60s Jazz Bridge Single-Coil"
+circuit = "circuits/03_jazz_bridge_60s.cir"
+topology = "Single-Coil Bridge"
+description = "Narrow single-coil placed in 60s position (2.5\" / 63.5mm datum)"
+magnet_type = "alnico_v"
+alpha = 0.28
+fr = 3200.0
+Q = 1.6
+gain_db = -2.5
+scale = "34in"
+coils = [
+    { strings = ["all"], position_from_bridge_m = 0.0635, aperture_width_in = 0.75, weight = 1.0 }
+]

@@ -1,0 +1,38 @@
+# ------------------------------------------------------------------------------
+# 16. ACTIVE CHARACTER (MODERN ACTIVE BUFFER)
+# ------------------------------------------------------------------------------
+# Studio active buffer digital twin isolating high-impedance coils from cable capacitance
+# (750pF). Delivers wideband hi-fi sparkle, punchy transient headroom, and zero cable loading
+# for passive basses without active EQ coloring or synthetic boost shelves.
+id = "16_active_character"
+name = "16. Active Character (Modern Active Buffer)"
+circuit = "circuits/16_active_character.cir"
+topology = "Single-Coil Active Buffer"
+description = "Studio active buffer digital twin isolating coils from cable capacitance; delivers wideband hi-fi sparkle, punchy transient headroom, and zero cable loading for passive basses without active EQ coloring"
+blend_mode = "direct"
+magnet_type = "active"
+alpha = 0.00
+alpha3 = 0.00
+eta_hyst = 0.00
+k_sag = 0.00
+vsat = 1.20
+k_eddy = 0.00
+kappa_orbit = 0.00
+k_body = 0.00
+beta_curv = 0.000
+k_pull = 0.000
+tau_touch = 0.000
+chi_mu = 0.000
+k_dist = 0.00
+kappa_geom = 0.00
+k_stein = 0.000
+k_emf = 0.00
+lambda_L = 0.00
+fr = 5200.0
+Q = 1.6
+gain_db = 0.0
+scale = "34in"
+preserve_aperture = true
+coils = [
+    { strings = ["all"], position_from_bridge_m = 0.0950, aperture_width_in = 0.75, weight = 1.0 }
+]

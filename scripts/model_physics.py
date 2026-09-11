@@ -103,6 +103,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 CONFIG_DIR = REPO_ROOT / "config"
 INSTRUMENTS_DIR = CONFIG_DIR / "instruments"
 SCALES_FILE = CONFIG_DIR / "scales.toml"
+VOICES_DIR = CONFIG_DIR / "voices"
 VOICES_FILE = CONFIG_DIR / "voices.toml"
 
 def load_scales(config_path=None):
@@ -175,7 +176,9 @@ def load_instrument(identifier_or_path):
         "dingwall_sp1": "34in_dingwall_sp1",
         "sp1": "34in_dingwall_sp1",
         "super_p": "34in_dingwall_sp1",
-        "dingwall_super_p": "34in_dingwall_sp1"
+        "dingwall_super_p": "34in_dingwall_sp1",
+        "canonical": "canonical_intermediate",
+        "canonical_intermediate": "canonical_intermediate",
     }
     raw = str(identifier_or_path).strip()
     key = aliases.get(raw, raw)
@@ -186,6 +189,8 @@ def load_instrument(identifier_or_path):
             path = INSTRUMENTS_DIR / f"{key}.toml"
         elif (INSTRUMENTS_DIR / key).exists():
             path = INSTRUMENTS_DIR / key
+        elif (CONFIG_DIR / f"{key}.toml").exists():
+            path = CONFIG_DIR / f"{key}.toml"
         else:
             raise FileNotFoundError(f"Instrument configuration not found: '{identifier_or_path}' (searched in {INSTRUMENTS_DIR})")
 
@@ -228,11 +233,41 @@ class VoiceRegistry(dict):
         return super().__contains__(key) or (key in self.ALIASES and super().__contains__(self.ALIASES[key]))
 
 def load_voices_config(voices_path=None):
-    """Loads all target voices and their acoustic parameters from TOML."""
-    path = Path(voices_path) if voices_path else VOICES_FILE
-    with open(path, "rb") as f:
-        data = tomllib.load(f)
-    return VoiceRegistry(data.get("voices", {}))
+    """Loads all target voices and their acoustic parameters from modular TOML files."""
+    if voices_path is not None:
+        p = Path(voices_path)
+        if p.is_dir():
+            voices = {}
+            for toml_file in sorted(p.glob("*.toml")):
+                with open(toml_file, "rb") as f:
+                    vdata = tomllib.load(f)
+                vid = vdata.get("id", toml_file.stem)
+                voices[vid] = vdata
+            return VoiceRegistry(voices)
+        elif p.is_file():
+            with open(p, "rb") as f:
+                data = tomllib.load(f)
+            if "voices" in data:
+                return VoiceRegistry(data.get("voices", {}))
+            vid = data.get("id", p.stem)
+            return VoiceRegistry({vid: data})
+
+    voices = {}
+    if VOICES_DIR.is_dir():
+        for toml_file in sorted(VOICES_DIR.glob("*.toml")):
+            with open(toml_file, "rb") as f:
+                vdata = tomllib.load(f)
+            vid = vdata.get("id", toml_file.stem)
+            voices[vid] = vdata
+        if voices:
+            return VoiceRegistry(voices)
+
+    if VOICES_FILE.exists():
+        with open(VOICES_FILE, "rb") as f:
+            data = tomllib.load(f)
+        return VoiceRegistry(data.get("voices", {}))
+
+    return VoiceRegistry({})
 
 def get_source_pickup(instrument, voice_id):
     """
@@ -485,6 +520,91 @@ def resolve_voices(voice_arg):
             else:
                 print(f"Warning: Unknown voice identifier '{token}'.")
     return resolved if resolved else list(VOICES.keys())
+
+def resolve_instruments(instrument_arg):
+    """
+    Parses an instrument argument into a list of valid source instrument IDs.
+    Supports:
+      - 'all' -> all configured playable source instruments in INSTRUMENTS (excluding canonical_intermediate)
+      - Comma-separated list: '30in,32in_fretless,34in_standard_p'
+      - Single instrument ID or alias: '30in', 'fretless', 'jazz'
+      - Partial / alias matching
+    """
+    all_playable = [iid for iid in sorted(INSTRUMENTS.keys()) if iid != "canonical_intermediate"]
+    if not instrument_arg or str(instrument_arg).strip().lower() == "all":
+        return all_playable
+
+    tokens = [t.strip() for t in str(instrument_arg).split(",") if t.strip()]
+    resolved = []
+    for token in tokens:
+        if token.lower() == "all":
+            for iid in all_playable:
+                if iid not in resolved:
+                    resolved.append(iid)
+            continue
+        try:
+            cfg = load_instrument(token)
+            iid = cfg.get("id", token)
+            if iid != "canonical_intermediate" and iid not in resolved:
+                resolved.append(iid)
+        except FileNotFoundError:
+            matches = [iid for iid in all_playable if iid.startswith(token) or token in iid]
+            if matches:
+                for m in matches:
+                    if m not in resolved:
+                        resolved.append(m)
+            else:
+                print(f"Warning: Unknown instrument identifier '{token}'.")
+    return resolved if resolved else all_playable
+
+VOICE_CONCISE_SLUGS = {
+    "00_canonical_intermediate": "00_canonical",
+    "01_modern_jazz_active": "01_jazz_act",
+    "02_jazz_bass_pair": "02_jazz_pair",
+    "02b_jazz_bass_pair_22nf": "02b_j_22nf",
+    "02c_jazz_bridge_growl_bias": "02c_jaco_growl",
+    "03_jazz_bridge_60s": "03_jazz_bridge",
+    "04_modern_p_ceramic": "04_modern_p",
+    "05_vintage_62_p_alnico": "05_vintage_p",
+    "05b_vintage_62_p_22nf": "05b_p_22nf",
+    "05c_vintage_62_p_47nf": "05c_p_47nf",
+    "05d_vintage_50s_p_100nf": "05d_p_100nf",
+    "07_modern_pj_active": "07_pj_act",
+    "08_vintage_pj_passive": "08_pj_pass",
+    "09_stingray_mm_parallel": "09_stingray",
+    "09b_stingray_mm_series": "09b_mm_series",
+    "10_rickenbacker_bridge_hpf": "10_rick_hpf",
+    "11_modern_pmm_active": "11_pmm_act",
+    "11b_pmm_hybrid_series": "11b_pmm_series",
+    "12_mudbucker_ultra_series": "12_mudbucker",
+    "13_dingwall_multiscale_bridge": "13_dingwall",
+    "14_upright_bridge_transducer": "14_upright",
+    "15_source_direct": "15_src_direct",
+    "16_active_character": "16_act_buffer",
+}
+
+def get_baked_basename(voice_id: str, tier: str = "dynamic", pickup: str = "auto") -> str:
+    """
+    Generates a concise, distinct model/wav basename for baked voice transformations.
+    Format:
+      - Default auto-routed pickup: '{tier_prefix}{voice_slug}' (e.g. 'dyn_04_modern_p')
+      - Explicit non-auto pickup override: '{tier_prefix}{voice_slug}_{pickup}' (e.g. 'dyn_04_modern_p_bridge')
+    """
+    tier_prefix_map = {
+        "dynamic": "dyn_",
+        "dyn": "dyn_",
+        "clean": "cln_",
+        "standard": "std_",
+        "std": "std_",
+        "hotrod": "hot_",
+    }
+    tier_norm = (tier or "dynamic").lower()
+    prefix = tier_prefix_map.get(tier_norm, f"{tier_norm}_")
+    slug = VOICE_CONCISE_SLUGS.get(voice_id, voice_id)
+
+    if pickup and pickup != "auto":
+        return f"{prefix}{slug}_{pickup}"
+    return f"{prefix}{slug}"
 
 def resolve_pickup_coils(pickup_dict, instrument=None):
     """
@@ -1245,7 +1365,7 @@ pickup_anti_resonance = numpy_pickup_anti_resonance
 resolve_pickup_electrical_response = resolve_pickup_electrical_response_np
 resolve_pickup_electrical_deconvolution = resolve_pickup_electrical_deconvolution_np
 
-def compute_voice_prefilter_firs(voice_id, instrument="30in", src_scale=None, num_taps=NUM_TAPS):
+def compute_voice_prefilter_firs(voice_id, instrument="30in", src_scale=None, num_taps=NUM_TAPS, src_pickup_key=None):
     """
     Computes acoustic pre-filter FIRs for each pickup in a target voice configuration using NumPy.
     For single-pickup voices, returns a list with 1 FIR: [fir].
@@ -1271,7 +1391,11 @@ def compute_voice_prefilter_firs(voice_id, instrument="30in", src_scale=None, nu
     src_scale_in = src_scale_m / 0.0254
     tgt_scale_in = tgt_scale_m / 0.0254
 
-    src_pickup = get_source_pickup(inst, voice_id)
+    if src_pickup_key and src_pickup_key != "auto" and src_pickup_key in inst.get("pickups", {}):
+        src_pickup = inst["pickups"][src_pickup_key].copy()
+        src_pickup["id"] = src_pickup_key
+    else:
+        src_pickup = get_source_pickup(inst, voice_id)
     src_coils = resolve_pickup_coils(src_pickup, inst)
     src_pos_eff = compute_effective_position(src_coils)
 
@@ -1284,7 +1408,7 @@ def compute_voice_prefilter_firs(voice_id, instrument="30in", src_scale=None, nu
 
     sensor_type = cfg.get("sensor_type", "magnetic")
     pickups = resolve_voice_pickups(cfg)
-    is_identity = (sensor_type != "bridge_force") and is_voice_matching_source(inst, voice_id, cfg)
+    is_identity = (sensor_type not in ["bridge_force", "direct"]) and is_voice_matching_source(inst, voice_id, cfg)
 
     # Scale-Length Tension & Body Bloom Filter
     if is_identity:
@@ -1370,12 +1494,15 @@ def compute_voice_prefilter_firs(voice_id, instrument="30in", src_scale=None, nu
             h_acoustic_transfer = np.ones_like(freqs)
             h_tilt = np.ones_like(freqs)
         else:
-            h_tgt_acoustic = numpy_pickup_acoustic_response(freqs, p_coils, scale_length_m=tgt_scale_range)
+            if sensor_type == "direct":
+                h_tgt_acoustic = np.ones_like(freqs)
+            else:
+                h_tgt_acoustic = numpy_pickup_acoustic_response(freqs, p_coils, scale_length_m=tgt_scale_range)
             h_src_macro = numpy_pickup_macro_aperture(freqs, b_src_coils, scale_length_m=src_scale_range)
             eps = 0.01
             h_quotient = (h_tgt_acoustic * h_src_macro) / (h_src_macro ** 2 + eps ** 2)
             q_db = 20.0 * np.log10(np.maximum(h_quotient, 1e-6))
-            g_max_db = 8.0
+            g_max_db = 12.0 if sensor_type == "direct" else 8.0
             g_min_db = -14.0
             q_soft_db = np.where(
                 q_db > 0.0,
@@ -1384,15 +1511,18 @@ def compute_voice_prefilter_firs(voice_id, instrument="30in", src_scale=None, nu
             )
             h_acoustic_transfer = 10.0 ** (q_soft_db / 20.0)
 
-            eta_tgt = tgt_pos_eff / tgt_scale_m
-            eta_src = b_src_pos_eff / src_scale_m
-            delta_in = (eta_tgt - eta_src) * 34.0
-            tilt_db = delta_in * 1.5
-            g_low = 10.0 ** (tilt_db / 20.0)
-            g_hi = 10.0 ** (-tilt_db / 20.0)
-            h_low_tilt = np.sqrt((g_low ** 2 + (freqs / 250.0) ** 2) / (1.0 + (freqs / 250.0) ** 2))
-            h_hi_tilt = np.sqrt((1.0 + g_hi ** 2 * (freqs / 2200.0) ** 2) / (1.0 + (freqs / 2200.0) ** 2))
-            h_tilt = h_low_tilt * h_hi_tilt
+            if sensor_type == "direct":
+                h_tilt = np.ones_like(freqs)
+            else:
+                eta_tgt = tgt_pos_eff / tgt_scale_m
+                eta_src = b_src_pos_eff / src_scale_m
+                delta_in = (eta_tgt - eta_src) * 34.0
+                tilt_db = delta_in * 1.5
+                g_low = 10.0 ** (tilt_db / 20.0)
+                g_hi = 10.0 ** (-tilt_db / 20.0)
+                h_low_tilt = np.sqrt((g_low ** 2 + (freqs / 250.0) ** 2) / (1.0 + (freqs / 250.0) ** 2))
+                h_hi_tilt = np.sqrt((1.0 + g_hi ** 2 * (freqs / 2200.0) ** 2) / (1.0 + (freqs / 2200.0) ** 2))
+                h_tilt = h_low_tilt * h_hi_tilt
 
         p_weight = 1.0 if has_multichannel_circuit else p.get("weight", 1.0)
         p_pol = p.get("polarity", 1.0)

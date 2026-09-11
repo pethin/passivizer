@@ -152,7 +152,7 @@ Allomorph includes pre-configured physical and electrical parameters for **21 di
 | **12** | `12_mudbucker_ultra_series` | Heavy Series MM | Ultra Series | Gibson $500\text{k}\Omega$ Vol/Tone, $22\text{nF}$ Cap | $14.40\text{ H}$| $1.2\text{ kHz}$ | Overwound dual-coil series humbucker; subterranean low end with natural high-frequency rolloff. |
 | **13** | `13_dingwall_multiscale_bridge` | Multi-Scale MM | Angled Parallel | Dingwall Active Onboard Buffer ($R_{\text{in}}=1\text{M}\Omega, R_{\text{out}}=100\,\Omega$) | $2.30\text{ H}$ (isolated)| $7.3\text{ kHz}$ | 34"-37" fanned-fret angled bridge sweet spot ($48.0\text{ mm}$) with active buffer and stainless clank. |
 | **14** | `14_upright_bridge_transducer` | Upright Transducer | Bridge Force | Direct $100\text{ M}\Omega$ Buffer, $15\text{ nF}$ Subsonic Cap | — | $4.5\text{ kHz}$ | Direct bridge force sensor (Underwood / Realist style); leaky integration, 32 Hz rumble cut, bridge compliance. |
-| **15** | `15_passive_character` | Passive Character (Flat EQ)| Passive Dynamic Twin | Transparent Bypass ($100\text{ M}\Omega$ Load) | $3.60\text{ H}$ | Dynamic | Pure passive Alnico V dynamic feel, back-EMF braking, and quack without EQ coloring; preserves active bass onboard filters. |
+| **15** | `15_source_direct` | Source Direct (Dynamic DI)| Source Direct | Transparent Studio Buffer ($10\text{ M}\Omega \to 50\,\Omega$) | $0.00\text{ H}$ | Wideband | Deconvolutes Canonical Intermediate aperture to restore unvoiced input of Block 1 (pure studio DI) with tier dynamics. |
 | **16** | `16_active_character` | Studio Active Buffer | Active Cable Isolator | Studio Ultra-High-Z Buffer ($10\text{ M}\Omega \to 50\,\Omega$) | $0.00\text{ H}$ | Wideband | Studio active buffer isolating coils from 750pF cable capacitance; delivers wideband hi-fi sparkle and punchy transient headroom. |
 
 ---
@@ -233,6 +233,11 @@ uv run python main.py --stage sim --voice 07_stingray_mm_parallel
 
 # Or run native circuit simulation directly with automatic sweep level normalization:
 uv run python scripts/simulate_circuits.py --instrument 30in --voice all --normalize auto
+
+# On-demand single-block monolithic bake (directly models source instrument to target voice into a single NAM capture):
+uv run python main.py --instrument 30in --bake --voice 04_modern_p_ceramic --train
+# (By default, --bake uses --tier dynamic to model saturation differentially between source and target,
+#  and --pickup auto to automatically resolve the mapped pickup switch position).
 ```
 
 ---
@@ -295,7 +300,7 @@ allomorph/
 │   ├── 12_mudbucker_ultra_series.cir      # Overwound series humbucker
 │   ├── 13_dingwall_multiscale_bridge.cir  # Multi-scale angled bridge position
 │   ├── 14_upright_bridge_transducer.cir   # Upright piezo bridge transducer
-│   ├── 15_passive_character.cir           # Pure passive dynamic feel without EQ coloring
+│   ├── 15_source_direct.cir               # Source Direct (restores unvoiced input with tier dynamics)
 │   └── 16_active_character.cir            # Studio active buffer digital twin (cable isolation)
 ├── config/                                # Modular TOML configuration files
 │   ├── instruments/                       # Source bass geometries, pickups & routing

@@ -25,9 +25,12 @@ from model_physics import (
     get_source_pickup,
     INSTRUMENTS,
     resolve_voices,
+    resolve_instruments,
     resolve_voice_coils,
     resolve_voice_pickups,
     compute_effective_position,
+    VOICE_CONCISE_SLUGS,
+    get_baked_basename,
 )
 
 def find_sweep_input(candidate_path=None):
@@ -40,19 +43,22 @@ def find_sweep_input(candidate_path=None):
     return None
 
 DEFAULT_GOAL_ESR = 0.0005  # Studio reference early-stopping target (~ -33 dB ESR)
+CANONICAL_SWEEP_PATH = AUDIO_DIR / "canonical" / "canonical_sweep.wav"
 
 def train_voice(
     instrument="30in",
-    voice="03_modern_p_ceramic",
+    voice="04_modern_p_ceramic",
     input_wav=None,
     output_wav=None,
     models_dir=MODELS_DIR,
+    tier=None,
     epochs=100,
     goal_esr=DEFAULT_GOAL_ESR,
     batch_size=16,
     silent=True,
     save_plot=False,
     fast_dev_run=False,
+    basename=None,
 ):
     try:
         import nam.train.core as nam_core
@@ -61,52 +67,100 @@ def train_voice(
     except ImportError:
         print("Error: 'neural-amp-modeler' is not installed in the current environment.")
         print("Please run `uv sync` or install project dependencies:")
-        print(f"  uv run python main.py --stage train --instrument {instrument} --voice {voice}")
+        print(f"  uv run python main.py --stage train --voice {voice}")
         return False
-
-    # 1. Load source instrument and resolve routing
-    inst_cfg = load_instrument(instrument)
-    inst_id = inst_cfg["id"]
-    inst_name = inst_cfg.get("name", inst_id)
-    scale_length_in = inst_cfg.get("scale_length_in", 34.0)
-
-    src_pickup = get_source_pickup(inst_cfg, voice)
-    src_pickup_name = src_pickup.get("name", "Source Pickup")
-    src_pos_mm = src_pickup.get("position_from_bridge_m", 0.0) * 1000.0
 
     vcfg = VOICES.get(voice, {})
     voice_name = vcfg.get("name", voice)
 
-    input_path = find_sweep_input(input_wav)
-    if not input_path:
-        print("Error: Could not find training sweep file (e.g. T3K-sweep-v3.wav or v3_0_0.wav).")
-        return False
+    tier_map = {
+        "clean": ("01_studio_clean", "cln_"),
+        "standard": ("02_standard_dynamic", "std_"),
+        "std": ("02_standard_dynamic", "std_"),
+        "hotrod": ("03_hot_rod", "hot_"),
+        "dynamic": ("00_dynamic", "dyn_"),
+    }
 
-    if not output_wav:
-        candidate = AUDIO_DIR / inst_id / f"out_{voice}.wav"
-        if candidate.exists():
-            output_path = candidate
-        elif (CIRCUITS_DIR / inst_id / f"out_{voice}.wav").exists():
-            output_path = CIRCUITS_DIR / inst_id / f"out_{voice}.wav"
+    if basename:
+        model_basename = basename
+        try:
+            inst_cfg = load_instrument(instrument)
+            inst_id = inst_cfg["id"]
+            inst_name = inst_cfg.get("name", inst_id)
+            scale_length_in = inst_cfg.get("scale_length_in", 34.0)
+            src_pickup = get_source_pickup(inst_cfg, voice)
+            src_pickup_name = src_pickup.get("name", "Source Pickup")
+            src_pos_mm = src_pickup.get("position_from_bridge_m", 0.0) * 1000.0
+        except Exception:
+            inst_id = str(instrument)
+            inst_name = str(instrument)
+            scale_length_in = 34.0
+            src_pickup = {}
+            src_pickup_name = "Baked Pickup"
+            src_pos_mm = 0.0
+
+        p_models = Path(models_dir)
+        if p_models.name == "baked" or str(p_models).endswith("/baked"):
+            inst_models_dir = p_models / inst_id
         else:
-            output_path = CIRCUITS_DIR / f"out_{voice}.wav"
+            inst_models_dir = p_models
+
+        inst_models_dir.mkdir(parents=True, exist_ok=True)
+        target_nam = inst_models_dir / f"{model_basename}.nam"
+        input_path = find_sweep_input(input_wav)
+        output_path = Path(output_wav) if output_wav else (AUDIO_DIR / "baked" / inst_id / f"{model_basename}.wav")
+    elif tier:
+        folder_name, prefix = tier_map.get(tier, ("02_standard_dynamic", "std_"))
+        slug = VOICE_CONCISE_SLUGS.get(voice, voice)
+        model_basename = f"{prefix}{slug}"
+        inst_models_dir = Path(models_dir) / folder_name
+        inst_models_dir.mkdir(parents=True, exist_ok=True)
+        target_nam = inst_models_dir / f"{model_basename}.nam"
+        input_path = find_sweep_input(input_wav)
+        output_path = Path(output_wav) if output_wav else (AUDIO_DIR / "targets" / folder_name / f"out_{voice}.wav")
+        try:
+            inst_cfg = load_instrument("canonical_intermediate")
+        except Exception:
+            inst_cfg = {}
+        inst_id = "canonical_intermediate"
+        inst_name = "Canonical Intermediate"
+        scale_length_in = 34.0
+        src_pickup = inst_cfg.get("pickups", {}).get("canonical_median", {})
+        src_pickup_name = "93.5mm Canonical Median"
+        src_pos_mm = 93.5
     else:
-        output_path = Path(output_wav)
+        inst_cfg = load_instrument(instrument)
+        inst_id = inst_cfg["id"]
+        inst_name = inst_cfg.get("name", inst_id)
+        scale_length_in = inst_cfg.get("scale_length_in", 34.0)
+
+        src_pickup = get_source_pickup(inst_cfg, voice)
+        src_pickup_name = src_pickup.get("name", "Source Pickup")
+        src_pos_mm = src_pickup.get("position_from_bridge_m", 0.0) * 1000.0
+
+        input_path = find_sweep_input(input_wav)
+        if not output_wav:
+            candidate = AUDIO_DIR / inst_id / f"out_{voice}.wav"
+            output_path = candidate if candidate.exists() else (CIRCUITS_DIR / f"out_{voice}.wav")
+        else:
+            output_path = Path(output_wav)
+        inst_models_dir = Path(models_dir) / inst_id
+        inst_models_dir.mkdir(parents=True, exist_ok=True)
+        model_basename = voice
+        target_nam = inst_models_dir / f"{voice}.nam"
+
+    if not input_path or not input_path.exists():
+        print(f"Error: Could not find training sweep file '{input_path}'.")
+        return False
 
     if not output_path.exists():
         print(f"Error: Target output audio '{output_path}' does not exist.")
         print(f"Please run the simulation stage first:")
-        print(f"  uv run python main.py --stage sim --instrument {inst_id} --voice {voice}")
+        print(f"  uv run python main.py --stage sim --voice {voice} --tier {tier or 'dynamic'}")
         return False
 
-    models_dir = Path(models_dir)
-    inst_models_dir = models_dir / inst_id
-    inst_models_dir.mkdir(parents=True, exist_ok=True)
-    train_work_dir = inst_models_dir / f".train_{voice}"
+    train_work_dir = inst_models_dir / f".train_{model_basename}"
     train_work_dir.mkdir(parents=True, exist_ok=True)
-
-    model_basename = voice
-    target_nam = inst_models_dir / f"{voice}.nam"
 
     if goal_esr is not None and goal_esr <= 0:
         threshold_esr = None
@@ -233,10 +287,10 @@ def main():
     parser = argparse.ArgumentParser(description="Allomorph NAM Architecture 2 Local Trainer")
     parser.add_argument(
         "--instrument", "-i",
-        default="30in",
-        help="Source instrument configuration (ID, path to .toml, or alias like 30in, 32in)"
+        default="all",
+        help="Source instrument configuration (ID, comma-separated list, 'all', path to .toml, or alias like 30in, 32in; default: 'all')"
     )
-    parser.add_argument("--voice", default="03_modern_p_ceramic", help="Target pickup voice (ID, comma-separated list, or 'all')")
+    parser.add_argument("--voice", default="all", help="Target pickup voice (ID, comma-separated list, or 'all'; default: 'all')")
     parser.add_argument("--input", help="Path to dry training sweep WAV (default: auto-detect T3K-sweep-v3.wav)")
     parser.add_argument("--output", help="Path to simulated SPICE output WAV (default: circuits/out_<voice>.wav)")
     parser.add_argument("--models-dir", default=str(MODELS_DIR), help="Output models directory")
@@ -255,8 +309,15 @@ def main():
     parser.add_argument("--batch-size", type=int, default=16, help="Batch size (default: 16)")
     parser.add_argument("--show-plot", action="store_true", help="Display matplotlib validation plot window")
     parser.add_argument("--save-plot", action="store_true", help="Save validation plot as PNG in models/")
-    parser.add_argument("--fast-dev-run", action="store_true", help="Run 1-batch dry run for smoke testing")
-    parser.add_argument("--gui", action="store_true", help="Launch official NAM desktop GUI")
+    parser.add_argument(
+        "--tier",
+        choices=["clean", "standard", "std", "hotrod", "dynamic"],
+        default=None,
+        help="Dynamic tier: 'standard' / 'std' (100%% nominal target saturation), 'clean' (0%% saturation), 'hotrod' (175%% overwound), 'dynamic' (differential source/target saturation)."
+    )
+    parser.add_argument("--basename", help="Explicit basename for the exported .nam model file")
+    parser.add_argument("--fast-dev-run", action="store_true", help="Run 1-batch dry run for smoke testing NAM training")
+    parser.add_argument("--gui", action="store_true", help="Launch NAM training GUI")
     args = parser.parse_args()
 
     if args.gui:
@@ -270,29 +331,36 @@ def main():
 
     effective_goal_esr = None if args.no_goal_esr or (args.goal_esr is not None and args.goal_esr <= 0) else args.goal_esr
 
+    instruments_to_run = resolve_instruments(args.instrument)
     voices_to_run = resolve_voices(args.voice)
     all_ok = True
-    for idx, voice in enumerate(voices_to_run, 1):
-        if len(voices_to_run) > 1:
-            print(f"\n==================================================")
-            print(f"  [{idx}/{len(voices_to_run)}] Training Voice: {voice}")
-            print(f"==================================================")
-        out_wav = args.output if len(voices_to_run) == 1 else None
-        ok = train_voice(
-            instrument=args.instrument,
-            voice=voice,
-            input_wav=args.input,
-            output_wav=out_wav,
-            models_dir=args.models_dir,
-            epochs=args.epochs,
-            goal_esr=effective_goal_esr,
-            batch_size=args.batch_size,
-            silent=not args.show_plot,
-            save_plot=args.save_plot,
-            fast_dev_run=args.fast_dev_run,
-        )
-        if not ok:
-            all_ok = False
+    total_runs = len(instruments_to_run) * len(voices_to_run)
+    current_run = 0
+    for inst in instruments_to_run:
+        for idx, voice in enumerate(voices_to_run, 1):
+            current_run += 1
+            if total_runs > 1:
+                print(f"\n==================================================")
+                print(f"  [{current_run}/{total_runs}] Training: {inst} -> {voice}")
+                print(f"==================================================")
+            out_wav = args.output if (len(voices_to_run) == 1 and len(instruments_to_run) == 1) else None
+            ok = train_voice(
+                instrument=inst,
+                voice=voice,
+                input_wav=args.input,
+                output_wav=out_wav,
+                models_dir=args.models_dir,
+                tier=args.tier,
+                epochs=args.epochs,
+                goal_esr=effective_goal_esr,
+                batch_size=args.batch_size,
+                silent=not args.show_plot,
+                save_plot=args.save_plot,
+                fast_dev_run=args.fast_dev_run,
+                basename=args.basename if (len(voices_to_run) == 1 and len(instruments_to_run) == 1) else None,
+            )
+            if not ok:
+                all_ok = False
 
     if not all_ok:
         sys.exit(1)

@@ -1,0 +1,22 @@
+# ==============================================================================
+# 00. CANONICAL INTERMEDIATE (Architecture C Universal Reference Baseline)
+# ==============================================================================
+# Target voice representing the flat intermediate baseline.
+# In Architecture C, evaluating this target yields bit-exact 0.00 dB deconvolution.
+# ==============================================================================
+
+id = "00_canonical_intermediate"
+name = "00. Canonical Intermediate Baseline"
+circuit = "circuits/canonical_intermediate.cir"
+topology = "Universal Active Buffer Reference"
+description = "Canonical 34-inch 93.5mm acoustic median baseline with flat 10M-Ohm unity studio buffer"
+scale = "34in"
+fr = 20000.0
+Q = 0.707
+gain_db = 0.0
+alpha = 0.0
+vsat = 10.0
+
+coils = [
+    { strings = ["all"], position_from_bridge_m = 0.0935, aperture_width_in = 0.75, weight = 1.0 }
+]

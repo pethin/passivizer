@@ -1,0 +1,24 @@
+# ------------------------------------------------------------------------------
+# 14. UPRIGHT ACOUSTIC BRIDGE TRANSDUCER
+# ------------------------------------------------------------------------------
+# Models a direct bridge force sensor (Underwood / David Gage Realist style) on
+# a 41.5" 3/4 upright scale. Incorporates spatial comb-filter deconvolution,
+# velocity-to-force leaky integration (-6 dB/oct), high-tension wave-speed scaling,
+# dynamic soft-knee bridge compliance, and 100M-Ohm buffer with 15nF rumble cap.
+id = "14_upright_bridge_transducer"
+name = "14. Upright Acoustic Bridge Transducer"
+circuit = "circuits/14_upright_bridge_transducer.cir"
+topology = "Acoustic Bridge Transducer"
+sensor_type = "bridge_force"
+description = "Direct bridge force transducer with 100M-Ohm buffer, 15nF rumble cap, and velocity-to-force leaky integration"
+magnet_type = "piezo"
+alpha = 0.00
+fr = 4500.0
+Q = 0.7
+gain_db = 0.0
+scale = "upright"
+target_string = "double_bass_spirocore"
+hpf = 30.0
+coils = [
+    { strings = ["all"], position_from_bridge_m = 0.0050, aperture_width_in = 0.25, weight = 1.0 }
+]

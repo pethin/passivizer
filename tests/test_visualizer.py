@@ -65,22 +65,25 @@ def test_generate_all_charts():
 
         all_insts = load_all_instruments()
         for inst_id in all_insts.keys():
+            if inst_id == "canonical_intermediate":
+                continue
             assert inst_id in generated
-            # Check unified chart
+            # Check unified signal flow chart
             chart_path = out_dir / f"{inst_id}.html"
             assert chart_path.exists()
             content = chart_path.read_text(encoding="utf-8")
             assert "vega" in content.lower()
+            assert "Signal Flow" in content
+            assert "1. Source Bass Input" in content
+            assert "5. Target Voice Output" in content
 
-            # Check standalone output voice chart
-            out_chart = out_dir / f"{inst_id}_output.html"
-            assert out_chart.exists()
-            assert "Allomorph Master Voices: Output Voice Frequency Responses" in out_chart.read_text(encoding="utf-8")
-
-            # Check standalone difference chart
-            diff_chart = out_dir / f"{inst_id}_diff.html"
-            assert diff_chart.exists()
-            assert "Allomorph Master Voices: Input/Output Differential Transfer Functions" in diff_chart.read_text(encoding="utf-8")
+        # Check Universal Targets and Frontend Deconvolutions master pages
+        assert (out_dir / "universal_targets.html").exists()
+        assert (out_dir / "frontend_deconvolutions.html").exists()
+        for inst_id in all_insts.keys():
+            if inst_id == "canonical_intermediate":
+                continue
+            assert (out_dir / f"{inst_id}_frontend.html").exists()
 
         # Check index portal in output directory
         index_path = out_dir / "index.html"
@@ -89,13 +92,35 @@ def test_generate_all_charts():
         assert "Allomorph Frequency Response Suite" in portal_content
         assert "tab-btn" in portal_content
         assert "iframe" in portal_content
-        assert "mode-btn-output" in portal_content
-        assert "mode-btn-diff" in portal_content
-        assert "mode-hint" in portal_content
-        assert "meta-view-mode" in portal_content
+        assert "pnav-targets" in portal_content
+        assert "pnav-frontends" in portal_content
+        assert "pnav-inspector" in portal_content
         for inst_id, inst_cfg in all_insts.items():
+            if inst_id == "canonical_intermediate":
+                continue
             assert inst_id in portal_content
             assert inst_cfg.get("name", inst_id) in portal_content
+
+def test_build_composite_instrument_dataframe():
+    from scripts.analyze_voices import build_composite_instrument_dataframe, load_instrument
+    inst = load_instrument("30in")
+    df = build_composite_instrument_dataframe(inst)
+    assert isinstance(df, pl.DataFrame)
+    assert "frequency" in df.columns
+    assert "magnitude_db" in df.columns
+    assert "stage" in df.columns
+    assert "voice_name" in df.columns
+    assert "pickup_name" in df.columns
+    stages = set(df["stage"].unique().to_list())
+    expected_stages = {
+        "1. Source Bass Input",
+        "2. Block 1 Deconvolution",
+        "3. Canonical Intermediate (0 dB)",
+        "4. Block 2 Target Voicing",
+        "5. Target Voice Output"
+    }
+    assert stages == expected_stages
+    assert not df["magnitude_db"].is_nan().any()
 
 def test_build_voice_dataframe_output_mode():
     voice_id = "01_modern_jazz_active"
@@ -134,5 +159,54 @@ def test_generate_interactive_chart_modes():
         content = p_unified.read_text(encoding="utf-8")
         assert "Display Mode: " in content
 
+def test_generate_frontend_deconvolutions_chart():
+    from scripts.analyze_voices import generate_frontend_deconvolutions_chart, build_frontend_deconvolutions_dataframe
+    df = build_frontend_deconvolutions_dataframe()
+    assert isinstance(df, pl.DataFrame)
+    assert "instrument_name" in df.columns
+    assert "pickup_name" in df.columns
+    assert "frequency" in df.columns
+    assert "magnitude_db" in df.columns
+    assert df.height > 0
 
+    with tempfile.TemporaryDirectory() as tmpdir:
+        out_html = Path(tmpdir) / "frontend_deconv.html"
+        generate_frontend_deconvolutions_chart(target_path=out_html)
+        assert out_html.exists()
+        content = out_html.read_text(encoding="utf-8")
+        assert "Frontend Deconvolutions" in content
+        assert "inst-select" in content
+        assert "pickup-sublevel" in content
+        assert "vegaEmbed" in content
 
+def test_portal_html_scripts_valid():
+    """Verify that all script tags in generated portals have balanced braces and valid syntax."""
+    import re
+    from scripts.analyze_voices import RESPONSES_DIR, DOCS_DIR
+    portal_files = [
+        DOCS_DIR / "frequency_responses.html",
+        RESPONSES_DIR / "index.html",
+        RESPONSES_DIR / "frontend_deconvolutions.html",
+    ]
+    for p in portal_files:
+        assert p.exists()
+        content = p.read_text(encoding="utf-8")
+        scripts = re.findall(r"<script(?:\s+type=\"text/javascript\")?>(.*?)</script>", content, re.DOTALL)
+        for s in scripts:
+            # Strip comments and string literals
+            clean_s = re.sub(r"//.*", "", s)
+            clean_s = re.sub(r"/\*.*?\*/", "", clean_s, flags=re.DOTALL)
+            clean_s = re.sub(r"'(?:\\.|[^'])*'", "''", clean_s)
+            clean_s = re.sub(r'"(?:\\.|[^"])*"', '""', clean_s)
+            clean_s = re.sub(r"`(?:\\.|[^`])*`", "``", clean_s)
+
+            stack = []
+            matching = {')': '(', '}': '{', ']': '['}
+            for char in clean_s:
+                if char in "({[":
+                    stack.append(char)
+                elif char in ")}]":
+                    assert stack, f"Unmatched closing '{char}' in {p.name}"
+                    top = stack.pop()
+                    assert top == matching[char], f"Mismatched '{char}' in {p.name}: expected {matching[char]}, got {top}"
+            assert not stack, f"Unclosed brackets {stack} in {p.name}"

@@ -234,8 +234,8 @@ $$v_s = 2 \cdot L \cdot f_{0,s}$$
 | `k_eddy` | `float` | — | *(Optional)* Dynamic eddy-current core de-Qing factor. |
 | `eta_hyst` | `float` | — | *(Optional)* Dahl magnetic domain-wall pinning hysteresis coupling factor. |
 | `target_string` | `string` | Key | Goal string preset from `config/strings.toml` (e.g. `"flatwound_vintage_heavy"`). |
-| `sensor_type` | `string` | — | `"magnetic"` (default) or `"bridge_force"` (for acoustic bridge transducers). |
-| `no_eq` | `bool` | — | Set `true` for pure non-linear dynamics with exact $0.00\text{ dB}$ flat transfer (e.g. `15_passive_character`). |
+| `is_source_direct` | `bool` | — | Set `true` to deconvolve source / Canonical Intermediate aperture to restore unvoiced Block 1 input (e.g. `15_source_direct`). |
+| `no_eq` | `bool` | — | Set `true` for pure non-linear dynamics with exact $0.00\text{ dB}$ flat transfer. |
 | `preserve_aperture` | `bool` | — | Set `true` to preserve source instrument physical aperture while modeling circuit buffer isolation (e.g. `16_active_character`). |
 | `hpf` | `float` | Hz | *(Optional)* High-pass filter cutoff frequency (e.g. $150.0\text{ Hz}$ for Rickenbacker). |
 | `coils` | `array[table]` | — | **Flattened Coil Array:** Physical sensing coils with string bindings, positions, and pole types. |

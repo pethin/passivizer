@@ -1,0 +1,49 @@
+# ------------------------------------------------------------------------------
+# 11b. P/MM HYBRID (PASSIVE SERIES SUM)
+# ------------------------------------------------------------------------------
+# Specialty compound humbucker mod: Split P-Bass plus dual-coil Music Man humbucker wired
+# in series, generating massive 7.2H inductance and heavy low-mid authority (500k V/T).
+id = "11b_pmm_hybrid_series"
+name = "11b. P/MM Hybrid (Series Sum)"
+circuit = "circuits/11b_pmm_hybrid_series.cir"
+topology = "P/MM Series Sum"
+description = "Split P and MM humbucker wired in series (7.2H high inductive load, 500k V/T)"
+blend_mode = "series"
+magnet_type = "alnico_v"
+alpha = 0.25
+fr = 2000.0  # Composite equivalent resonant peak
+Q = 2.2      # Composite equivalent quality factor
+gain_db = 5.8
+scale = "34in"
+coils = [
+    { strings = [3, 4], position_from_bridge_m = 0.1390, aperture_width_in = 1.00, weight = 0.5 },
+    { strings = [1, 2], position_from_bridge_m = 0.1110, aperture_width_in = 1.00, weight = 0.5 },
+    { strings = ["all"],    position_from_bridge_m = 0.0755, aperture_width_in = 0.75, weight = 0.5 },
+    { strings = ["all"],    position_from_bridge_m = 0.0565, aperture_width_in = 0.75, weight = 0.5 }
+]
+
+[[pickups]]
+name = "Precision Split-Coil (Neck)"
+type = "split_coil"
+magnet_type = "alnico_v"
+alpha = 0.26
+fr = 2200.0
+Q = 1.8
+weight = 0.5
+coils = [
+    { strings = [3, 4], position_from_bridge_m = 0.1390, aperture_width_in = 1.00, weight = 1.0 },
+    { strings = [1, 2], position_from_bridge_m = 0.1110, aperture_width_in = 1.00, weight = 1.0 }
+]
+
+[[pickups]]
+name = "Music Man Dual-Coil (Bridge)"
+type = "dual_coil_parallel"
+magnet_type = "alnico_v"
+alpha = 0.22
+fr = 3500.0
+Q = 1.5
+weight = 0.5
+coils = [
+    { strings = ["all"], position_from_bridge_m = 0.0755, aperture_width_in = 0.75, weight = 0.5 },
+    { strings = ["all"], position_from_bridge_m = 0.0565, aperture_width_in = 0.75, weight = 0.5 }
+]

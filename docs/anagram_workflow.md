@@ -4,35 +4,45 @@ This document provides a reference for deploying **Allomorph** IRs and NAM model
 
 ---
 
-## 1. Optimal Block Layout
+## 1. Optimal Block Layout (Architecture C Two-Stage Pipeline)
 
-The Darkglass Anagram allows up to 24 simultaneous blocks in series or parallel. To maintain authentic passive circuit loading behavior, the Allomorph model should always occupy **Block 1 (immediately following the hardware input stage)**:
+The Darkglass Anagram allows up to 24 simultaneous blocks in series or parallel. In Architecture C, Allomorph divides pickup modeling into two dedicated blocks:
 
 ```
 [Hardware 1/4" Input]
-          │
+          │  Peak calibrated to -3.0 dBFS on Anagram hardware meter
           ▼
 ┌────────────────────────────────────────────────────────┐
-│ Block 1: Allomorph Pickup Emulation (NAM Preamp)      │
-│   └── Neural Model: "04_modern_p_ceramic.nam" (A2)     │
+│ Block 1: Frontend Deconvolution (Minimum-Phase IR)     │  ◄── IR Loader Block (0% CPU, 0 ms latency)
+│   └── "30in_emg_mmtw_dual.wav" (2048 taps)             │      Matches your physical pickup switch position!
+│   • Inverts source RLC, pot/cable load, & aperture sinc│
+│   • Normalizes to Canonical Intermediate Baseline      │
+└────────────────────────────────────────────────────────┘
+          │ (Canonical Intermediate @ 93.5mm: -1.5 dBFS Peak / -16.5 dBFS RMS)
+          ▼
+┌────────────────────────────────────────────────────────┐
+│ Block 2: Target Voicing (A2-Lite NAM Preamp)           │  ◄── NAM Preamp Block (1 of 9 slots used)
+│   ├── Clean Pack:            "cln_04_modern_p.nam"     │      (0% Saturation / High Headroom)
+│   ├── Standard Dynamic Pack: "std_04_modern_p.nam"     │      (Standard Give & Bloom / Nominal Saturation)
+│   └── Hot Rod Pack:          "hot_04_modern_p.nam"     │      (175% Overwound Drive Pre-Conditioner)
 └────────────────────────────────────────────────────────┘
           │
           ▼
 ┌────────────────────────────────────────────────────────┐
-│ Block 2: Darkglass Drive / Preamp Engine               │
+│ Block 3: Darkglass Drive / Preamp Engine               │  ◄── 8 Neural Slots Free!
 │   ├── Microtubes B7K Ultra / Vintage Microtubes        │
 │   └── Alpha·Omega / Microtubes Infinity                │
 └────────────────────────────────────────────────────────┘
           │
           ▼
 ┌────────────────────────────────────────────────────────┐
-│ Block 3: Speaker Cabinet Impulse Response (Cab IR)     │
+│ Block 4: Speaker Cabinet Impulse Response (Cab IR)     │
 │   └── Ampeg 8x10, Darkglass 4x10, or custom cab IR     │
 └────────────────────────────────────────────────────────┘
           │
           ▼
 ┌────────────────────────────────────────────────────────┐
-│ Block 4+: Time-Based Effects & Output Processing       │
+│ Block 5+: Time-Based Effects & Output Processing       │
 │   └── Compression, Reverb, Chorus, Global EQ / Limiter │
 └────────────────────────────────────────────────────────┘
           │
@@ -41,8 +51,12 @@ The Darkglass Anagram allows up to 24 simultaneous blocks in series or parallel.
 ```
 
 > [!IMPORTANT]
-> **Why Block 1?**
-> Overdrive, distortion, and preamp stages react directly to the input frequency envelope and pickup resonant peaks. By placing the Allomorph NAM model in Block 1, subsequent drive engines distort the *passive* or *active vintage* resonant peak and roll-off, rather than distorting an unshaped wideband active signal.
+> **The Golden Rule: Physical Knobs at 100% Wide Open**
+> For Block 1 to perform an exact mathematical deconvolution ($0.00\text{ dB}$ flat intermediate baseline), keep your physical bass's volume and tone knobs completely wide open ($100\%$). Tone cap roll-offs (e.g. 22nF, 47nF Motown, 100nF Dub) and loading are selected in Block 2.
+
+> [!NOTE]
+> **Why Two Stages?**
+> Deconvolving your instrument's linear circuit and spatial aperture in Block 1 requires 0% neural CPU. This leaves 8 of the Anagram's 9 neural slots completely free for multiple drive engines, amp captures, or polyphonic synths.
 
 ---
 
@@ -92,7 +106,7 @@ In your presets, use the Block 1 output level trim to normalize all voices to an
 | **`12_mudbucker_ultra_series`**| Mudbucker Ultra Series | $+6.2\text{ dB}$ | $-4.5\text{ dB}$ (Controls high-inductance surge) |
 | **`13_dingwall_multiscale_bridge`**| Dingwall Multi-Scale Bridge | $+1.0\text{ dB}$ | $+0.5\text{ dB}$ |
 | **`14_upright_bridge_transducer`**| Upright Acoustic Bridge Transducer | $0.0\text{ dB}$ | $0.0\text{ dB}$ (Transparent unity acoustic baseline) |
-| **`15_passive_character`** | Passive Dynamic Twin (No EQ / Clean Feel) | $0.0\text{ dB}$ | $0.0\text{ dB}$ (Unity gain dynamic feel) |
+| **`15_source_direct`** | Source Direct (Dynamic Studio DI) | $0.0\text{ dB}$ | $0.0\text{ dB}$ (Transparent unity gain) |
 | **`16_active_character`** | Studio Active Buffer (Zero Cable Loading) | $+0.5\text{ dB}$ | $-0.5\text{ dB}$ (Unity gain buffer) |
 
 ---
@@ -128,7 +142,7 @@ Group the pickup profiles into dedicated 3-button banks on the Anagram hardware:
 
 ### Bank 6: Pure Dynamics & Specialized Voicings
 * **Footswitch A:** `02c_jazz_bridge_growl_bias.nam` (Jaco Bridge-Biased Vocal Growl)
-* **Footswitch B:** `15_passive_character.nam` (Passive Alnico V Dynamic Feel - Flat EQ)
+* **Footswitch B:** `std_15_src_direct.nam` (Source Direct - Dynamic Studio DI)
 * **Footswitch C:** `16_active_character.nam` (Active Studio Buffer - Zero Cable Loading)
 
 ---

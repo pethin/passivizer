@@ -12,7 +12,7 @@
 #   - Active 18V EMG ABCX active blend control (op-amp buffered parallel summing).
 #   - Reverse PCSX: Ceramic/steel magnets, 2.61 kHz active resonance, Q = 1.35.
 #   - MMTWX push/pull on volume pot toggles between single-coil (J mode @ 50.8mm, pushed down) and dual-coil (MM mode, pulled up).
-#   - Upright Blend: 85% Reverse PCSX + 15% MMTWX Single-Coil for acoustic bridge clarity.
+#   - Voice 14 (Upright Transducer): Solo Reverse PCSX (100%) for maximum woody acoustic fundamental and bloom.
 
 id = "32in_fretless_pmm"
 name = "32\" Fretless Custom (EMG PCSX + MMTWX)"
@@ -128,25 +128,7 @@ components = [
 ]
 
 # ------------------------------------------------------------------------------
-# 6. UPRIGHT COMPOSITE BLEND (85% PCSX + 15% MMTWX Single - Push/Pull Down: J Mode)
-# ------------------------------------------------------------------------------
-# Optimized blend for acoustic upright emulation: 85% neck split-coil for woody body,
-# 15% bridge single-coil for bridge-wing piezo transient definition.
-[pickups.upright_blend]
-name = "Fretless Upright Blend (85% PCSX + 15% MMTWX Single)"
-position_from_bridge_m = 0.1270  # Acoustic centroid
-aperture_width_in = 1.05
-coil_spacing_in = 0.0
-type = "composite"
-resonant_frequency_hz = 2743.0
-q_factor = 1.36
-components = [
-    { pickup = "pcsx", weight = 0.85 },
-    { pickup = "mmtwx_single", weight = 0.15 }
-]
-
-# ------------------------------------------------------------------------------
-# 7. SMART VOICE MAPPING
+# 6. SMART VOICE MAPPING
 # ------------------------------------------------------------------------------
 [pickup_mapping]
 "01_modern_jazz_active" = "pj_blend_parallel"
@@ -169,4 +151,4 @@ components = [
 "11_pmm_hybrid_series" = "blend_parallel"
 "12_mudbucker_ultra_series" = "pcsx"
 "13_dingwall_multiscale_bridge" = "mmtwx_dual"
-"14_upright_bridge_transducer" = "upright_blend"
+"14_upright_bridge_transducer" = "pcsx"

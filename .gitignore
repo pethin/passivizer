@@ -26,3 +26,4 @@ circuits/*.wav
 audio/
 models/**/.train_*
 .train_*
+scratch/
