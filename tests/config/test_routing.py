@@ -4,9 +4,9 @@ Tests for source instrument pickup switch position routing and voice mapping.
 
 import math
 
+from allomorph.circuit.schema import CircuitConfig
 from allomorph.config import (
     VOICES,
-    CircuitConfig,
     get_source_pickup,
     load_instrument,
 )

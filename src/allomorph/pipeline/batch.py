@@ -8,7 +8,7 @@ from collections.abc import Sequence
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
 
-from allomorph.config import VOICES
+from allomorph.config.voices import VOICES
 from allomorph.pipeline.stages import run_circuit_simulation
 
 

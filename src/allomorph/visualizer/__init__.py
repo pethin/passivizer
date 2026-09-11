@@ -7,7 +7,7 @@ import argparse
 from collections.abc import Sequence
 from pathlib import Path
 
-from allomorph.config import load_instrument
+from allomorph.config.instruments import load_instrument
 from allomorph.visualizer.charts import (
     generate_all_charts,
     generate_composite_instrument_chart,

@@ -12,6 +12,7 @@ from allomorph.config.schema import (
     CoilConfig,
     PickupConfig,
     VoiceCoilConfig,
+    VoiceConfig,
     VoicePickupConfig,
 )
 
@@ -157,6 +158,9 @@ def resolve_voice_pickups(
     Resolves a target voice configuration into a canonical list of VoicePickupConfig models.
     Handles multi-pickup voices and single-pickup fallbacks.
     """
+    if isinstance(voice_cfg, VoiceConfig) and voice_cfg.pickups:
+        return voice_cfg.pickups
+
     pickups = voice_cfg.get("pickups")
     if pickups:
         resolved = []
@@ -205,6 +209,23 @@ def resolve_voice_coils(
     voice_cfg: dict[str, Any] | AllomorphBaseModel, _from_pickups: bool = True
 ) -> list[VoiceCoilConfig]:
     """Resolves target voice configuration into a canonical list of VoiceCoilConfig models."""
+    if _from_pickups and isinstance(voice_cfg, VoiceConfig) and voice_cfg.pickups:
+        all_coils = []
+        for p in voice_cfg.pickups:
+            p_weight = float(p.weight)
+            p_pol = float(p.polarity)
+            for c in p.coils:
+                all_coils.append(VoiceCoilConfig(
+                    position_from_bridge_m=c.position_from_bridge_m,
+                    aperture_width_in=c.aperture_width_in,
+                    weight=c.weight * p_weight,
+                    polarity=c.polarity * p_pol,
+                    strings=list(c.strings),
+                    pole_type=c.pole_type or "rod",
+                ))
+        if all_coils:
+            return all_coils
+
     pickups = voice_cfg.get("pickups")
     if _from_pickups and pickups:
         all_coils = []

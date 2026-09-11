@@ -2,10 +2,14 @@
 Allomorph Visualizer - Interactive HTML Portal Generation
 """
 import json
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
-from allomorph.config import REPO_ROOT, AllomorphBaseModel, load_all_instruments
+from allomorph.base import AllomorphBaseModel
+from allomorph.config.instruments import load_all_instruments
+from allomorph.config.scales import REPO_ROOT
+from allomorph.visualizer.schema import PortalInstrumentMeta
 
 DOCS_DIR = REPO_ROOT / "docs"
 RESPONSES_DIR = DOCS_DIR / "frequency_responses"
@@ -18,46 +22,51 @@ def append_spec_panel(html_path: Path, panel_html: str) -> None:
         html_path.write_text(content, encoding="utf-8")
 
 
-def format_instrument_meta(inst: dict[str, Any] | AllomorphBaseModel) -> dict[str, Any]:
+def format_instrument_meta(inst: dict[str, Any] | AllomorphBaseModel) -> PortalInstrumentMeta:
     """Formats an instrument dictionary into metadata suitable for the portal."""
-    inst_id = inst.get("id", "custom")
-    inst_name = inst.get("name", inst_id)
-    scale_in = inst.get("scale_length_in", 34.0)
-    scale_m = inst.get("scale_length_m", scale_in * 0.0254)
-    speeds = inst.get("string_wave_speeds", [])
-    speeds_str = ", ".join(f"{s:.1f} m/s" for s in speeds) if speeds else "N/A"
+    inst_id = str(inst.get("id", "custom"))
+    inst_name = str(inst.get("name", inst_id))
+    scale_in = float(inst.get("scale_length_in", 34.0))
+    scale_m = float(inst.get("scale_length_m", scale_in * 0.0254))
+    speeds = list(inst.get("string_wave_speeds", []))
+    speeds_str = ", ".join(f"{float(s):.1f} m/s" for s in speeds) if speeds else "N/A"
 
     pickups = inst.get("pickups", {})
     parts = []
-    for pid, pcfg in pickups.items():
-        if pcfg.get("type") == "composite":
-            continue
-        pname = pcfg.get("name", pid)
-        pos_m = pcfg.get("position_from_bridge_m")
-        if pos_m:
-            pos_mm = float(pos_m) * 1000.0
-            parts.append(f"{pname} (@ {pos_mm:.1f}mm)")
-        else:
-            parts.append(pname)
+    if isinstance(pickups, dict):
+        for pid, pcfg in pickups.items():
+            if pcfg.get("type") == "composite":
+                continue
+            pname = pcfg.get("name", pid)
+            pos_m = pcfg.get("position_from_bridge_m")
+            if pos_m:
+                pos_mm = float(pos_m) * 1000.0
+                parts.append(f"{pname} (@ {pos_mm:.1f}mm)")
+            else:
+                parts.append(pname)
     pickups_summary = " | ".join(parts) if parts else "Standard Pickups"
 
-    return {
-        "id": inst_id,
-        "name": inst_name,
-        "scale_in": scale_in,
-        "scale_m": round(scale_m, 4),
-        "speeds_str": speeds_str,
-        "pickups_summary": pickups_summary,
-        "default_pickup": inst.get("default_pickup", "default"),
-    }
+    return PortalInstrumentMeta(
+        id=inst_id,
+        name=inst_name,
+        scale_in=scale_in,
+        scale_m=round(scale_m, 4),
+        speeds_str=speeds_str,
+        pickups_summary=pickups_summary,
+        default_pickup=str(inst.get("default_pickup", "default")),
+    )
 
 def build_portal_html(
-    instruments_meta: dict[str, dict[str, Any]],
+    instruments_meta: Mapping[str, PortalInstrumentMeta | dict[str, Any]],
     default_id: str,
     base_url_prefix: str = "./",
 ) -> str:
     """Constructs a responsive, dark-mode portal HTML string with 3-way Architecture C signal flow navigation."""
-    meta_json = json.dumps(instruments_meta, indent=2)
+    raw_meta = {
+        k: v.model_dump() if hasattr(v, "model_dump") else v
+        for k, v in instruments_meta.items()
+    }
+    meta_json = json.dumps(raw_meta, indent=2)
 
     buttons_html = []
     for inst_id, meta in instruments_meta.items():
@@ -582,7 +591,7 @@ def generate_portal_pages(
     out_dir.mkdir(parents=True, exist_ok=True)
     all_insts = load_all_instruments()
 
-    active_meta: dict[str, dict[str, Any]] = {}
+    active_meta: dict[str, PortalInstrumentMeta] = {}
     for inst_id, inst_cfg in all_insts.items():
         if inst_id == "canonical_intermediate":
             continue

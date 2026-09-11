@@ -15,6 +15,7 @@ from typing import Any
 import numpy as np
 
 from allomorph.circuit.parser import load_circuit
+from allomorph.circuit.schema import SimulationConfig
 from allomorph.circuit.simulation import (
     CANONICAL_SWEEP_PATH,
     FRONTENDS_DIR,
@@ -26,14 +27,10 @@ from allomorph.circuit.simulation import (
     simulate_voice,
 )
 from allomorph.circuit.solver import compute_differential_circuit_transfer_functions
-from allomorph.config import (
-    REPO_ROOT,
-    VOICES,
-    load_all_instruments,
-    load_instrument,
-    resolve_pickup_coils,
-    resolve_scale_range,
-)
+from allomorph.config.geometry import resolve_pickup_coils
+from allomorph.config.instruments import load_all_instruments, load_instrument
+from allomorph.config.scales import REPO_ROOT, resolve_scale_range
+from allomorph.config.voices import VOICES
 from allomorph.dsp import (
     FREQS,
     synthesize_minimum_phase_fir,
@@ -557,40 +554,41 @@ def main(argv: list[str] | None = None) -> None:
     out_path = Path(args.out) if args.out else None
     prefiltered = args.prefiltered or (in_path is not None and in_path.name.startswith("aperture_"))
 
-    sim_kwargs: dict[str, Any] = {
-        "input_wav": in_path,
-        "output_wav": out_path,
-        "pickup": args.pickup,
-        "tier": args.tier,
-        "prefiltered": prefiltered,
-        "normalize": args.normalize,
-        "target_dbfs": args.target_dbfs,
-        "oversample": args.oversample,
-        "displacement_weighting": displacement_weighting,
-        "magnet_drag": magnet_drag,
-        "alpha": args.alpha,
-        "alpha3": args.alpha3,
-        "eta_hyst": eta_hyst,
-        "k_sag": args.k_sag,
-        "k_eddy": args.k_eddy,
-        "kappa_orbit": args.kappa_orbit,
-        "beta_curv": args.beta_curv,
-        "k_pull": args.k_pull,
-        "tau_touch": tau_touch,
-        "kappa_geom": args.kappa_geom,
-        "k_stein": args.k_stein,
-        "vol_pos": args.vol,
-        "tone_pos": args.tone,
-        "blend_pos": args.blend,
-        "pot_taper": args.pot_taper,
-        "cable_pf": args.cable_pf,
-        "slew_limit": slew_limit,
-        "f_slew": args.f_slew,
-        "noise_dither": noise_dither,
-        "eddy_diffusion": eddy_diffusion,
-        "dc_block": dc_block,
-        "max_samples": args.max_samples,
-    }
+    sim_cfg = SimulationConfig(
+        input_wav=in_path,
+        output_wav=out_path,
+        pickup=args.pickup,
+        tier=args.tier,
+        prefiltered=prefiltered,
+        normalize=args.normalize,
+        target_dbfs=args.target_dbfs,
+        oversample=args.oversample,
+        displacement_weighting=displacement_weighting,
+        magnet_drag=magnet_drag,
+        alpha=args.alpha,
+        alpha3=args.alpha3,
+        eta_hyst=eta_hyst,
+        k_sag=args.k_sag,
+        k_eddy=args.k_eddy,
+        kappa_orbit=args.kappa_orbit,
+        beta_curv=args.beta_curv,
+        k_pull=args.k_pull,
+        tau_touch=tau_touch,
+        kappa_geom=args.kappa_geom,
+        k_stein=args.k_stein,
+        vol_pos=args.vol,
+        tone_pos=args.tone,
+        blend_pos=args.blend,
+        pot_taper=args.pot_taper,
+        cable_pf=args.cable_pf,
+        slew_limit=slew_limit,
+        f_slew=args.f_slew,
+        noise_dither=noise_dither,
+        eddy_diffusion=eddy_diffusion,
+        dc_block=dc_block,
+        max_samples=args.max_samples,
+    )
+    sim_kwargs: dict[str, Any] = sim_cfg.to_sim_kwargs()
 
     max_workers = args.jobs if args.jobs is not None else min(4, os.cpu_count() or 4)
     for inst in instruments:

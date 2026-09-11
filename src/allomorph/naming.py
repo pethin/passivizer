@@ -6,7 +6,8 @@ and tolerant CLI argument parsing for instruments and voices.
 
 from collections.abc import Sequence
 
-from allomorph.config import INSTRUMENTS, VOICES, load_instrument
+from allomorph.config.instruments import INSTRUMENTS, load_instrument
+from allomorph.config.voices import VOICES
 
 VOICE_CONCISE_SLUGS = {
     "00_canonical_intermediate": "00_canonical",

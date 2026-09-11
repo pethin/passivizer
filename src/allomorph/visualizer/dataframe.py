@@ -9,25 +9,26 @@ from typing import Any
 import numpy as np
 import polars as pl
 
+from allomorph.base import AllomorphBaseModel
 from allomorph.circuit import (
     apply_magnet_properties_to_model,
     compute_circuit_transfer_functions,
     compute_differential_circuit_transfer_functions,
     load_circuit,
 )
-from allomorph.config import (
-    SCALES,
-    VOICES,
-    AllomorphBaseModel,
+from allomorph.config.geometry import (
     compute_effective_position,
-    get_source_pickup,
-    get_voice_string,
-    load_all_instruments,
-    load_instrument,
     resolve_pickup_coils,
-    resolve_scale_range,
     resolve_voice_pickups,
 )
+from allomorph.config.instruments import (
+    get_source_pickup,
+    load_all_instruments,
+    load_instrument,
+)
+from allomorph.config.scales import SCALES, resolve_scale_range
+from allomorph.config.strings import get_voice_string
+from allomorph.config.voices import VOICES
 from allomorph.dsp import (
     FREQS,
     synthesize_minimum_phase_fir,

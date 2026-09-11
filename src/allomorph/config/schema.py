@@ -6,86 +6,38 @@ target voices, RLC circuit digital twins, coils, active onboard preamps, physica
 and string presets.
 """
 
+import warnings
 from pathlib import Path
-from typing import Annotated, Any, Literal, Self, override
+from typing import Any, Literal, Self
 
-from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, model_validator
+from pydantic import Field, model_validator
 
+from allomorph.base import AllomorphBaseModel, SpiceFloat, parse_spice_unit
+from allomorph.circuit.schema import CircuitConfig
 
-def parse_spice_unit(v: Any) -> Any:
-    """Parses standard SPICE engineering suffix notation (Meg, k, m, u, n, p, g) with unit suffixes."""
-    if v is None:
-        return None
-    if isinstance(v, (int, float)):
-        return float(v)
-    if isinstance(v, str):
-        s = v.strip()
-        if not s:
-            return None
-        s_clean = s.rstrip("FfHhΩ").strip()
-        if s_clean.lower().endswith("ohm"):
-            s_clean = s_clean[:-3].strip()
-        if not s_clean:
-            s_clean = s
-        if s_clean.lower().endswith("meg"):
-            return float(s_clean[:-3]) * 1e6
-        suffix_map = {
-            "p": 1e-12,
-            "n": 1e-9,
-            "u": 1e-6,
-            "m": 1e-3,
-            "k": 1e3,
-            "g": 1e9,
-        }
-        last_char = s_clean[-1].lower()
-        if last_char in suffix_map:
-            return float(s_clean[:-1]) * suffix_map[last_char]
-        return float(s_clean)
-    raise TypeError(f"Invalid SPICE value: {v}")
+warnings.filterwarnings("ignore", message=r'.*Field name "register".*shadows an attribute in parent.*', category=UserWarning)
 
-
-SpiceFloat = Annotated[float, BeforeValidator(parse_spice_unit)]
-
-
-class AllomorphBaseModel(BaseModel):
-    """
-    Base model for Allomorph declarative configurations.
-    Enforces strict validation (forbidding unknown keys) and provides
-    transparent subscripting/dict-like access for downstream compatibility.
-    """
-
-    model_config = ConfigDict(extra="forbid", validate_assignment=True)
-
-    def __getitem__(self, item: str) -> Any:
-        try:
-            return getattr(self, item)
-        except AttributeError:
-            raise KeyError(item) from None
-
-    def __setitem__(self, key: str, value: Any) -> None:
-        setattr(self, key, value)
-
-    def __contains__(self, item: object) -> bool:
-        if not isinstance(item, str):
-            return False
-        return (item in type(self).model_fields or hasattr(self, item)) and getattr(self, item, None) is not None
-
-    @override
-    def copy(self, *args: Any, **kwargs: Any) -> Self:
-        return self.model_copy(*args, **kwargs)
-
-    def get(self, key: str, default: Any = None) -> Any:
-        val = getattr(self, key, None)
-        return val if val is not None else default
-
-    def keys(self) -> list[str]:
-        return list(type(self).model_fields.keys())
-
-    def values(self) -> list[Any]:
-        return [getattr(self, k) for k in type(self).model_fields]
-
-    def items(self) -> list[tuple[str, Any]]:
-        return [(k, getattr(self, k)) for k in type(self).model_fields]
+__all__ = [
+    "AllomorphBaseModel",
+    "CoilConfig",
+    "InstrumentConfig",
+    "InstrumentStringsConfig",
+    "PickupComponentConfig",
+    "PickupConfig",
+    "PreampBandConfig",
+    "PreampConfig",
+    "PreampsCatalog",
+    "ResolvedStringConfig",
+    "ScaleConfig",
+    "ScalesCatalog",
+    "SpiceFloat",
+    "StringPresetConfig",
+    "StringsCatalog",
+    "VoiceCoilConfig",
+    "VoiceConfig",
+    "VoicePickupConfig",
+    "parse_spice_unit",
+]
 
 
 # ==============================================================================
@@ -205,159 +157,7 @@ class PreampsCatalog(AllomorphBaseModel):
     preamps: dict[str, PreampConfig] = Field(default_factory=dict)
 
 
-# ==============================================================================
-# 4. ELECTRICAL CIRCUIT SCHEMAS
-# ==============================================================================
 
-
-class CircuitBranchConfig(AllomorphBaseModel):
-    """RLC parameters for a single pickup coil branch in dual-branch circuits."""
-
-    L: SpiceFloat = Field(..., gt=0.0)
-    Rdc: SpiceFloat = Field(..., gt=0.0)
-    Reddy: SpiceFloat = Field(..., gt=0.0)
-    Ccoil: SpiceFloat = Field(..., ge=0.0)
-    vsat: float | None = None
-
-
-class CircuitConfig(AllomorphBaseModel):
-    """
-    SPICE RLC circuit configuration for passive and active pickups.
-    Models single-branch or dual-branch (neck/bridge) pickups with volume/tone pot tapers.
-    """
-
-    topology: str = "single"
-    L: SpiceFloat | None = None
-    Rdc: SpiceFloat | None = None
-    Reddy: SpiceFloat | None = None
-    Ccoil: SpiceFloat | None = None
-    vsat: float | None = None
-    Rtop: SpiceFloat | None = None
-    Rbot: SpiceFloat | None = None
-    Rvol: SpiceFloat | None = None
-    Rtone: SpiceFloat | None = None
-    Ctone: SpiceFloat | None = None
-    Crick: SpiceFloat | None = None
-    Ctb: SpiceFloat | None = None
-    Rtb_par: SpiceFloat | None = None
-    Rtb_ser: SpiceFloat | None = None
-    Rpot_n: SpiceFloat | None = None
-    Rpot_b: SpiceFloat | None = None
-    active: bool | None = None
-    preamp: str | None = None
-    preamp_gain: float | None = None
-    R_out: SpiceFloat | None = None
-    no_eq: bool | None = None
-    Ccable: SpiceFloat | None = None
-    vol_pos: float | None = None
-    tone_pos: float | None = None
-    blend_pos: float | None = None
-    pot_taper: str | None = None
-    neck: CircuitBranchConfig | None = None
-    bridge: CircuitBranchConfig | None = None
-
-    @model_validator(mode="after")
-    def validate_circuit_branches(self) -> Self:
-        if (
-            self.topology in ("parallel", "series")
-            and self.neck is None
-            and self.bridge is None
-            and (self.L is None or self.Rdc is None or self.Reddy is None)
-        ):
-            raise ValueError(
-                f"Multi-coil circuit with topology '{self.topology}' must specify either "
-                "'neck' and 'bridge' branches or top-level L/Rdc/Reddy parameters."
-            )
-        return self
-
-
-class HarnessControls(AllomorphBaseModel):
-    """Interactive volume, tone, and blend potentiometer wiper state with cable load."""
-
-    vol_pos: float = Field(default=1.0, ge=0.0, le=1.0)
-    tone_pos: float = Field(default=1.0, ge=0.0, le=1.0)
-    blend_pos: float = Field(default=0.5, ge=0.0, le=1.0)
-    pot_taper: Literal["audio", "linear", "reverse_audio", "mn_blend"] = "audio"
-    cable_pf: float = Field(default=750.0, ge=0.0, le=20000.0)
-
-
-class MagnetPropertiesConfig(AllomorphBaseModel):
-    """Physical non-linear metallurgy and dynamic magnetic parameters."""
-
-    k_core: float = 0.0
-    f_core: float = 0.0
-    k_skin: float = 0.0
-    f_skin: float = 0.0
-    lambda_L: float = 0.0
-    k_emf: float = 0.0
-    eta_hyst: float = 0.0
-    alpha: float = 0.20
-    alpha3: float = 0.08
-    k_sag: float = 0.08
-    vsat: float = 0.50
-    k_eddy: float = 0.0
-    kappa_orbit: float = 0.0
-    k_body: float = 0.0
-    beta_curv: float = 0.0
-    k_pull: float = 0.0
-    tau_touch: float = 0.0
-    chi_mu: float = 0.0
-    k_dist: float = 0.0
-    kappa_geom: float = 0.0
-    k_stein: float = 0.0
-
-    def diff(self, source: Self) -> MagnetPropertiesConfig:
-        """
-        Computes differential softening parameters satisfying Guardrail 5.4.1:
-        Δparam = max(voice_param - source_param, 0.0).
-        """
-        return MagnetPropertiesConfig(
-            k_core=max(self.k_core - source.k_core, 0.0),
-            f_core=self.f_core,
-            k_skin=max(self.k_skin - source.k_skin, 0.0),
-            f_skin=self.f_skin,
-            lambda_L=max(self.lambda_L - source.lambda_L, 0.0),
-            k_emf=max(self.k_emf - source.k_emf, 0.0),
-            eta_hyst=max(self.eta_hyst - source.eta_hyst, 0.0),
-            alpha=max(self.alpha - source.alpha, 0.0),
-            alpha3=max(self.alpha3 - source.alpha3, 0.0),
-            k_sag=max(self.k_sag - source.k_sag, 0.0),
-            vsat=self.vsat,
-            k_eddy=max(self.k_eddy - source.k_eddy, 0.0),
-            kappa_orbit=max(self.kappa_orbit - source.kappa_orbit, 0.0),
-            k_body=max(self.k_body - source.k_body, 0.0),
-            beta_curv=max(self.beta_curv - source.beta_curv, 0.0),
-            k_pull=max(self.k_pull - source.k_pull, 0.0),
-            tau_touch=max(self.tau_touch - source.tau_touch, 0.0),
-            chi_mu=max(self.chi_mu - source.chi_mu, 0.0),
-            k_dist=max(self.k_dist - source.k_dist, 0.0),
-            kappa_geom=max(self.kappa_geom - source.kappa_geom, 0.0),
-            k_stein=max(self.k_stein - source.k_stein, 0.0),
-        )
-
-
-class SaturationConfig(AllomorphBaseModel):
-    """Consolidated configuration for oversampled dynamic magnetic saturation."""
-
-    vsat: float = Field(default=0.50, gt=0.0)
-    alpha: float = Field(default=0.20, ge=0.0)
-    alpha3: float = Field(default=0.08, ge=0.0)
-    eta_hyst: float = Field(default=0.0, ge=0.0, le=1.0)
-    k_sag: float = Field(default=0.08, ge=0.0)
-    k_eddy: float = Field(default=0.0, ge=0.0)
-    kappa_orbit: float = Field(default=0.0, ge=0.0)
-    beta_curv: float = Field(default=0.0, ge=0.0)
-    k_pull: float = Field(default=0.0, ge=0.0)
-    tau_touch: float = Field(default=0.0, ge=0.0)
-    kappa_geom: float = Field(default=0.0, ge=0.0)
-    k_stein: float = Field(default=0.0, ge=0.0)
-    k_emf: float = Field(default=0.0, ge=0.0)
-    lambda_L: float = Field(default=0.0, ge=0.0)
-    slew_limit: bool = True
-    f_slew: float = Field(default=16000.0, gt=0.0)
-    oversample: Literal[1, 2, 4] = 2
-    displacement_weighting: bool = True
-    magnet_drag: bool = True
 
 
 # ==============================================================================
@@ -524,37 +324,3 @@ class VoiceConfig(AllomorphBaseModel):
         return load_voice_config(identifier_or_path)
 
 
-# ==============================================================================
-# 8. PIPELINE & STOREFRONT SCHEMAS
-# ==============================================================================
-
-
-class PipelineCliConfig(AllomorphBaseModel):
-    """Validation schema for Allomorph pipeline command-line arguments."""
-
-    instrument: str = "all"
-    stage: Literal["all", "viz", "canonical", "frontends", "targets", "train", "bake"] = "all"
-    tier: Literal["clean", "standard", "std", "hotrod", "dynamic", "all"] | None = None
-    pickup: str | None = None
-    voice: str = "all"
-    train: bool = False
-    vol_pos: float | None = Field(default=None, ge=0.0, le=1.0)
-    tone_pos: float | None = Field(default=None, ge=0.0, le=1.0)
-    blend_pos: float | None = Field(default=None, ge=0.0, le=1.0)
-    pot_taper: Literal["audio", "linear", "reverse_audio", "mn_blend"] | None = None
-    cable_pf: float = Field(default=750.0, ge=0.0, le=20000.0)
-    out_dir: str | None = None
-    input_wav: str | None = None
-    output_wav: str | None = None
-    export_json: str | None = None
-    html: str | None = None
-    backend: str = "native"
-
-
-class Tone3000PackListing(AllomorphBaseModel):
-    """Declarative validation schema for Tone3000 storefront pack descriptions and metadata."""
-
-    edition: str
-    description: str = Field(..., min_length=7000, max_length=10000)
-    pickup_tags: list[str] = Field(default_factory=list)
-    voicings: list[str] = Field(..., min_length=22, max_length=22)

@@ -53,7 +53,7 @@ def test_tone3000_storefront_text_character_limits():
 
 def test_tone3000_pydantic_schema_validation():
     """Verify that each storefront listing strictly validates against Tone3000PackListing schema."""
-    from allomorph.config import Tone3000PackListing
+    from allomorph.pipeline.schema import Tone3000PackListing
 
     for pack in PACK_EDITIONS:
         txt_path = DOCS_DIR / f"{pack}.txt"

@@ -11,7 +11,7 @@ from typing import Any
 
 import numpy as np
 
-from allomorph.config import REPO_ROOT
+REPO_ROOT = Path(__file__).resolve().parents[3]
 
 
 def apply_prefilter_to_audio(

@@ -426,7 +426,7 @@ def compute_parametric_sweep(
         orig_bands = copy.deepcopy(model.preamp_bands) if model.preamp_bands is not None else None
         orig_type = model.preamp_type
         try:
-            from allomorph.config import PREAMPS
+            from allomorph.config.preamps import PREAMPS
 
             base_bands: list[dict[str, Any]] = []
             if orig_bands is not None:
@@ -464,7 +464,7 @@ def compute_parametric_sweep(
         orig_bands = copy.deepcopy(model.preamp_bands) if model.preamp_bands is not None else None
         orig_type = model.preamp_type
         try:
-            from allomorph.config import PREAMPS
+            from allomorph.config.preamps import PREAMPS
 
             base_bands: list[dict[str, Any]] = []
             if orig_bands is not None:

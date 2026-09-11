@@ -24,21 +24,21 @@ from allomorph.circuit.parser import (
 from allomorph.circuit.saturation import (
     apply_oversampled_saturation,
 )
+from allomorph.circuit.schema import (
+    HarnessControls,
+    MagnetPropertiesConfig,
+    SaturationConfig,
+    SimulationConfig,
+)
 from allomorph.circuit.solver import (
     apply_magnet_properties_to_model,
     compute_circuit_transfer_functions,
     compute_differential_circuit_transfer_functions,
 )
-from allomorph.config import (
-    REPO_ROOT,
-    VOICES,
-    HarnessControls,
-    MagnetPropertiesConfig,
-    SaturationConfig,
-    get_instrument_string,
-    get_source_pickup,
-    load_instrument,
-)
+from allomorph.config.instruments import get_source_pickup, load_instrument
+from allomorph.config.scales import REPO_ROOT
+from allomorph.config.strings import get_instrument_string
+from allomorph.config.voices import VOICES
 from allomorph.dsp import (
     FREQS,
     NUM_TAPS,
@@ -544,6 +544,7 @@ def simulate_voice(
     eddy_diffusion: bool = True,
     dc_block: bool = True,
     max_samples: int | None = None,
+    config: SimulationConfig | None = None,
 ):
     """
     Simulates a target voice digital twin using the native Virtual Analog engine.
@@ -551,6 +552,43 @@ def simulate_voice(
     end-to-end in memory from raw calibration audio.
     Outputs are saved by default to audio/{instrument_id}/out_{voice_id}.wav.
     """
+    if config is not None:
+        input_wav = config.input_wav if input_wav is None else input_wav
+        output_wav = config.output_wav if output_wav is None else output_wav
+        instrument = config.instrument if instrument == "30in" and config.instrument is not None else instrument
+        pickup = config.pickup if pickup is None else pickup
+        tier = config.tier if tier is None else tier
+        prefiltered = config.prefiltered or prefiltered
+        cir_path = config.cir_path if cir_path is None else cir_path
+        normalize = config.normalize if normalize == "auto" else normalize
+        target_dbfs = config.target_dbfs if target_dbfs is None else target_dbfs
+        oversample = config.oversample if oversample == 2 else oversample
+        displacement_weighting = config.displacement_weighting
+        magnet_drag = config.magnet_drag
+        alpha = config.alpha if alpha is None else alpha
+        alpha3 = config.alpha3 if alpha3 is None else alpha3
+        eta_hyst = config.eta_hyst if eta_hyst is None else eta_hyst
+        k_sag = config.k_sag if k_sag is None else k_sag
+        k_eddy = config.k_eddy if k_eddy is None else k_eddy
+        kappa_orbit = config.kappa_orbit if kappa_orbit is None else kappa_orbit
+        beta_curv = config.beta_curv if beta_curv is None else beta_curv
+        k_pull = config.k_pull if k_pull is None else k_pull
+        tau_touch = config.tau_touch if tau_touch is None else tau_touch
+        kappa_geom = config.kappa_geom if kappa_geom is None else kappa_geom
+        k_stein = config.k_stein if k_stein is None else k_stein
+        k_emf = config.k_emf if k_emf is None else k_emf
+        lambda_L = config.lambda_L if lambda_L is None else lambda_L
+        vol_pos = config.vol_pos if vol_pos is None else vol_pos
+        tone_pos = config.tone_pos if tone_pos is None else tone_pos
+        blend_pos = config.blend_pos if blend_pos is None else blend_pos
+        pot_taper = config.pot_taper if pot_taper is None else pot_taper
+        cable_pf = config.cable_pf if cable_pf is None else cable_pf
+        slew_limit = config.slew_limit
+        f_slew = config.f_slew
+        noise_dither = config.noise_dither
+        eddy_diffusion = config.eddy_diffusion
+        dc_block = config.dc_block
+        max_samples = config.max_samples if max_samples is None else max_samples
     if cir_path:
         model = load_circuit(cir_path)
         vcfg = VOICES.get(voice_id, {})

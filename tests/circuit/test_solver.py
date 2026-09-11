@@ -15,7 +15,8 @@ from allomorph.circuit import (
     compute_differential_circuit_transfer_functions,
     load_circuit,
 )
-from allomorph.config import INSTRUMENTS, CircuitConfig, load_instrument
+from allomorph.circuit.schema import CircuitConfig
+from allomorph.config import INSTRUMENTS, load_instrument
 from allomorph.dsp import FREQS
 
 

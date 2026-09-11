@@ -14,22 +14,24 @@ from allomorph.circuit import (
     simulate_backend_targets,
     simulate_voice,
 )
-from allomorph.config import (
-    INSTRUMENTS,
-    REPO_ROOT,
-    VOICES,
-    PipelineCliConfig,
+from allomorph.config.geometry import (
     compute_effective_position,
-    get_source_pickup,
-    load_instrument,
     resolve_voice_coils,
     resolve_voice_pickups,
 )
+from allomorph.config.instruments import (
+    INSTRUMENTS,
+    get_source_pickup,
+    load_instrument,
+)
+from allomorph.config.scales import REPO_ROOT
+from allomorph.config.voices import VOICES
 from allomorph.naming import (
     get_baked_basename,
     resolve_instruments,
     resolve_voices,
 )
+from allomorph.pipeline.schema import PipelineCliConfig
 from allomorph.pipeline.stages import (
     run_training,
     run_visualization,

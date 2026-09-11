@@ -11,21 +11,29 @@ from allomorph.circuit import (
     simulate_backend_targets,
     simulate_voice,
 )
-from allomorph.config import (
-    INSTRUMENTS,
-    SCALES,
-    STRINGS,
-    VOICES,
+from allomorph.config.geometry import (
     compute_effective_position,
-    get_source_pickup,
-    load_all_instruments,
-    load_instrument,
-    load_scales,
-    load_strings_config,
-    load_voices_config,
     resolve_pickup_coils,
     resolve_voice_coils,
     resolve_voice_pickups,
+)
+from allomorph.config.instruments import (
+    INSTRUMENTS,
+    get_source_pickup,
+    load_all_instruments,
+    load_instrument,
+)
+from allomorph.config.scales import (
+    SCALES,
+    load_scales,
+)
+from allomorph.config.strings import (
+    STRINGS,
+    load_strings_config,
+)
+from allomorph.config.voices import (
+    VOICES,
+    load_voices_config,
 )
 from allomorph.dsp import (
     FREQS,

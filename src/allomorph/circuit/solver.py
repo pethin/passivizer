@@ -11,8 +11,9 @@ from typing import Any, Literal, overload
 
 import numpy as np
 
+from allomorph.base import AllomorphBaseModel
 from allomorph.circuit.parser import MAGNET_PROPERTIES, CircuitModel, eval_pot_taper
-from allomorph.config import AllomorphBaseModel
+from allomorph.config.schema import PreampBandConfig
 from allomorph.dsp import FREQS
 
 
@@ -132,12 +133,13 @@ def apply_magnet_properties_to_model(
 
 
 def evaluate_analog_band(
-    band: dict[str, Any] | AllomorphBaseModel, s: complex | np.ndarray
+    band: PreampBandConfig | dict[str, Any] | AllomorphBaseModel, s: complex | np.ndarray
 ) -> complex | np.ndarray:
     """Evaluates continuous s-domain analog transfer function for a single EQ band."""
-    b_type = band.get("type", "bell")
-    f0 = float(band.get("freq_hz", 1000.0))
-    g_db = float(band.get("gain_db", 0.0))
+    cfg = band if isinstance(band, PreampBandConfig) else PreampBandConfig.model_validate(band)
+    b_type = cfg.type
+    f0 = cfg.freq_hz
+    g_db = cfg.gain_db
     w0 = 2.0 * math.pi * f0
     g = 10.0 ** (g_db / 20.0)
 
@@ -146,7 +148,7 @@ def evaluate_analog_band(
     elif b_type == "high_shelf":
         return (g * s + w0) / (s + w0)
     elif b_type == "bell":
-        q = float(band.get("q", 1.0))
+        q = float(cfg.q) if cfg.q is not None else 1.0
         num = s**2 + (w0 / q) * g * s + w0**2
         den = s**2 + (w0 / q) * s + w0**2
         return num / den
@@ -180,7 +182,7 @@ def compute_active_preamp_eq(
       - dict/AllomorphBaseModel: evaluates preamp dict containing 'bands' and optional 'gain_db'
     """
     if isinstance(preamp_spec, str):
-        from allomorph.config import get_preamp
+        from allomorph.config.preamps import get_preamp
 
         preset = get_preamp(preamp_spec)
         return compute_active_preamp_transfer(preset.bands, s, gain_db=float(preset.gain_db))

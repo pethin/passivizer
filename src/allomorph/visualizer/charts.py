@@ -8,7 +8,9 @@ from typing import Any
 import altair as alt
 import polars as pl
 
-from allomorph.config import VOICES, AllomorphBaseModel, load_all_instruments, load_instrument
+from allomorph.base import AllomorphBaseModel
+from allomorph.config.instruments import load_all_instruments, load_instrument
+from allomorph.config.voices import VOICES
 from allomorph.visualizer.dataframe import (
     build_composite_instrument_dataframe,
     build_instrument_frontend_dataframe,

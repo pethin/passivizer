@@ -10,12 +10,10 @@ from typing import Any
 
 import numpy as np
 
-from allomorph.config import (
-    SCALES,
-    AllomorphBaseModel,
-    get_voice_string,
-    resolve_scale_range,
-)
+from allomorph.base import AllomorphBaseModel
+from allomorph.config.scales import SCALES, resolve_scale_range
+from allomorph.config.strings import get_voice_string
+from allomorph.physics.schema import WaveSpeedContinuumPoint
 
 __all__ = [
     "INHARMONICITY_ANCHORS_BS",
@@ -23,6 +21,7 @@ __all__ = [
     "MEAN_BASS_F0",
     "NOTE_NAMES",
     "STRING_FUNDAMENTALS",
+    "WaveSpeedContinuumPoint",
     "compute_differential_longitudinal_transfer",
     "compute_differential_string_transfer",
     "compute_dispersive_wave_speed",
@@ -158,7 +157,7 @@ def get_inharmonicity_for_f0(f0: float) -> float:
 def generate_wave_speed_continuum(
     scale_length_m: float | tuple[float, float] | list[float] | dict[str, Any] | AllomorphBaseModel | str | None = 0.8636,
     num_points: int = 24,
-) -> list[dict[str, Any]]:
+) -> list[WaveSpeedContinuumPoint]:
     """
     Generates a dense, continuous log-spaced continuum of wave speeds spanning
     the full operating register of an electric bass for a given scale length or multi-scale range:
@@ -191,18 +190,18 @@ def generate_wave_speed_continuum(
 
     v0_arr = 2.0 * l_arr * f0_arr
 
-    continuum = []
+    continuum: list[WaveSpeedContinuumPoint] = []
     half = num_points // 2
     for i, (f0, v0, l_eff) in enumerate(zip(f0_arr, v0_arr, l_arr)):
         reg = "lower" if i < half else "upper"
         continuum.append(
-            {
-                "f0": float(f0),
-                "v0": float(v0),
-                "scale_m": float(l_eff),
-                "register": reg,
-                "weight": 1.0 / num_points,
-            }
+            WaveSpeedContinuumPoint(
+                f0=float(f0),
+                v0=float(v0),
+                scale_m=float(l_eff),
+                register=reg,
+                weight=1.0 / num_points,
+            )
         )
     return continuum
 

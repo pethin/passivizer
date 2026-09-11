@@ -11,15 +11,12 @@ from typing import Any
 
 import numpy as np
 
-from allomorph.config import (
-    SCALES,
-    VOICES,
-    AllomorphBaseModel,
-    get_source_pickup,
-    load_instrument,
-    resolve_pickup_coils,
-    resolve_voice_coils,
-)
+from allomorph.base import AllomorphBaseModel
+from allomorph.config.geometry import resolve_pickup_coils, resolve_voice_coils
+from allomorph.config.instruments import get_source_pickup, load_instrument
+from allomorph.config.scales import SCALES
+from allomorph.config.voices import VOICES
+from allomorph.physics.schema import WaveSpeedContinuumPoint
 from allomorph.physics.strings import (
     compute_dispersive_wave_speed,
     generate_wave_speed_continuum,
@@ -216,7 +213,7 @@ def numpy_pickup_acoustic_response(
     l_eff = (scale_range[0] + scale_range[1]) / 2.0
 
     if string_speeds is not None and len(string_speeds) > 0 and len(string_speeds) != 24:
-        continuum: list[dict[str, Any]] = []
+        continuum: list[WaveSpeedContinuumPoint] = []
         n_str = len(string_speeds)
         half = n_str // 2 if n_str > 2 else 1
         for s_idx, v in enumerate(string_speeds):
@@ -232,7 +229,13 @@ def numpy_pickup_acoustic_response(
             else:
                 reg = "lower" if s_idx < half else "upper"
             continuum.append(
-                {"f0": f0, "v0": float(v), "scale_m": l_eff, "register": reg, "weight": 1.0 / n_str}
+                WaveSpeedContinuumPoint(
+                    f0=f0,
+                    v0=float(v),
+                    scale_m=l_eff,
+                    register=reg,
+                    weight=1.0 / n_str,
+                )
             )
     else:
         continuum = generate_wave_speed_continuum(scale_range, num_points=24)
@@ -241,11 +244,11 @@ def numpy_pickup_acoustic_response(
     total_pt_weight = 0.0
 
     for pt in continuum:
-        f0 = float(pt["f0"])
-        v = float(pt["v0"])
-        pt_reg = str(pt["register"])
-        pt_weight = float(pt.get("weight", 1.0))
-        pt_scale_m = float(pt.get("scale_m", l_eff))
+        f0 = float(pt.f0)
+        v = float(pt.v0)
+        pt_reg = str(pt.register)
+        pt_weight = float(pt.weight)
+        pt_scale_m = float(getattr(pt, "scale_m", l_eff))
 
         v_disp = compute_dispersive_wave_speed(f, v, f0=f0, scale_length_m=pt_scale_m)
 
@@ -333,13 +336,14 @@ def numpy_pickup_macro_aperture(
 
     if string_speeds is not None and len(string_speeds) > 0 and len(string_speeds) != 24:
         continuum = [
-            {
-                "f0": max(v / (2.0 * l_eff), 15.0),
-                "v0": float(v),
-                "scale_m": l_eff,
-                "weight": 1.0 / len(string_speeds),
-            }
-            for v in string_speeds
+            WaveSpeedContinuumPoint(
+                f0=max(v / (2.0 * l_eff), 15.0),
+                v0=float(v),
+                scale_m=l_eff,
+                register="lower" if i < len(string_speeds) // 2 else "upper",
+                weight=1.0 / len(string_speeds),
+            )
+            for i, v in enumerate(string_speeds)
         ]
     else:
         continuum = generate_wave_speed_continuum(scale_range, num_points=24)
@@ -348,10 +352,10 @@ def numpy_pickup_macro_aperture(
     total_w = 0.0
     c_pole = coils[0].get("pole_type", "rod") if coils else "rod"
     for pt in continuum:
-        f0 = float(pt["f0"])
-        v = float(pt["v0"])
-        weight = float(pt.get("weight", 1.0))
-        pt_scale_m = float(pt.get("scale_m", l_eff))
+        f0 = float(pt.f0)
+        v = float(pt.v0)
+        weight = float(pt.weight)
+        pt_scale_m = float(getattr(pt, "scale_m", l_eff))
         v_disp = compute_dispersive_wave_speed(f, v, f0=f0, scale_length_m=pt_scale_m)
         acc += weight * compute_coil_aperture(f, v_disp, w_m, pole_type=c_pole)
         total_w += weight

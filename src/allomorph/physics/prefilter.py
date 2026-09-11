@@ -9,19 +9,17 @@ from typing import Any
 
 import numpy as np
 
-from allomorph.config import (
-    REPO_ROOT,
-    SCALES,
-    VOICES,
-    AllomorphBaseModel,
+from allomorph.base import AllomorphBaseModel
+from allomorph.config.geometry import (
     compute_effective_position,
-    get_instrument_string,
-    get_source_pickup,
-    load_instrument,
     resolve_pickup_coils,
     resolve_voice_coils,
     resolve_voice_pickups,
 )
+from allomorph.config.instruments import get_source_pickup, load_instrument
+from allomorph.config.scales import REPO_ROOT, SCALES
+from allomorph.config.strings import get_instrument_string
+from allomorph.config.voices import VOICES
 from allomorph.dsp import FREQS, NUM_TAPS, synthesize_minimum_phase_fir
 from allomorph.physics.aperture import (
     compute_body_microphonic_coupling,

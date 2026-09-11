@@ -5,8 +5,9 @@ Tests for target voices catalog, electrical parameters, SPICE netlist existence,
 import numpy as np
 
 from allomorph.circuit import compute_circuit_transfer_functions, load_circuit
+from allomorph.circuit.schema import CircuitConfig
 from allomorph.config import VOICES
-from allomorph.config.schema import CircuitConfig, VoiceConfig
+from allomorph.config.schema import VoiceConfig
 from allomorph.dsp import FREQS, NUM_TAPS
 from allomorph.physics import compute_voice_prefilter_firs
 from allomorph.visualizer import build_voice_dataframe

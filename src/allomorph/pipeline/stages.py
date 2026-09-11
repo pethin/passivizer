@@ -8,8 +8,9 @@ import subprocess
 import sys
 from pathlib import Path
 
-from allomorph.circuit import simulate_voice
-from allomorph.config import REPO_ROOT
+from allomorph.circuit.simulation import simulate_voice
+
+REPO_ROOT = Path(__file__).resolve().parents[3]
 
 DOCS_DIR = REPO_ROOT / "docs"
 SCRIPTS_DIR = REPO_ROOT / "scripts"

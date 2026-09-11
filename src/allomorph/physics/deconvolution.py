@@ -9,7 +9,7 @@ from typing import Any
 
 import numpy as np
 
-from allomorph.config import AllomorphBaseModel
+from allomorph.base import AllomorphBaseModel
 
 
 def numpy_pickup_electrical_response(

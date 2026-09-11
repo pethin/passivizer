@@ -12,7 +12,8 @@ from typing import Any
 import numpy as np
 from pydantic import BaseModel
 
-from allomorph.config.schema import MagnetPropertiesConfig, parse_spice_unit
+from allomorph.base import parse_spice_unit
+from allomorph.circuit.schema import MagnetPropertiesConfig
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 

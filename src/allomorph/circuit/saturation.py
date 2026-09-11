@@ -10,7 +10,7 @@ from typing import Any
 
 import numpy as np
 
-from allomorph.config import SaturationConfig
+from allomorph.circuit.schema import SaturationConfig
 
 try:
     from numba import njit

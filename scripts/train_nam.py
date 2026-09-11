@@ -34,6 +34,11 @@ from allomorph.naming import (
     resolve_instruments,
     resolve_voices,
 )
+from allomorph.pipeline.schema import (
+    NamExportMetadata,
+    NamSourceInstrumentMeta,
+    NamTargetVoiceMeta,
+)
 
 
 def find_sweep_input(candidate_path: str | Path | None = None) -> Path | None:
@@ -233,18 +238,18 @@ def train_voice(
         return False
 
     print("\nExporting Architecture 2 (.nam) model container with full instrument metadata...")
-    other_metadata = {
-        train_meta.TRAINING_KEY: train_output.metadata.model_dump(),
-        "license": "PolyForm Noncommercial License 1.0.0 (https://polyformproject.org/licenses/noncommercial/1.0.0)",
-        "copyright": "Copyright 2026 Peter Nguyen <peter@phn.dev>. All commercial rights reserved.",
-        "author": "Peter Nguyen <peter@phn.dev>",
-        "source_instrument": {
-            "id": inst_id,
-            "name": inst_name,
-            "scale_length_in": scale_length_in,
-            "scale_length_m": inst_cfg.get("scale_length_m"),
-            "string_wave_speeds": inst_cfg.get("string_wave_speeds", []),
-            "pickup": {
+    nam_meta = NamExportMetadata(
+        training=train_output.metadata.model_dump(),
+        license="PolyForm Noncommercial License 1.0.0 (https://polyformproject.org/licenses/noncommercial/1.0.0)",
+        copyright="Copyright 2026 Peter Nguyen <peter@phn.dev>. All commercial rights reserved.",
+        author="Peter Nguyen <peter@phn.dev>",
+        source_instrument=NamSourceInstrumentMeta(
+            id=inst_id,
+            name=inst_name,
+            scale_length_in=scale_length_in,
+            scale_length_m=inst_cfg.get("scale_length_m"),
+            string_wave_speeds=inst_cfg.get("string_wave_speeds", []),
+            pickup={
                 "id": src_pickup.get("id", ""),
                 "name": src_pickup_name,
                 "position_from_bridge_m": src_pickup.get("position_from_bridge_m", 0.0),
@@ -253,19 +258,28 @@ def train_voice(
                 "coil_spacing_in": src_pickup.get("coil_spacing_in", 0.0),
                 "type": src_pickup.get("type", ""),
             },
-        },
-        "target_voice": {
-            "id": voice,
-            "name": voice_name,
-            "topology": vcfg.get("topology", ""),
-            "resonant_frequency_hz": vcfg.get("fr", 0.0),
-            "q_factor": vcfg.get("Q", 0.0),
-            "target_position_34_m": compute_effective_position(resolve_voice_coils(vcfg)),
-            "effective_position_m": compute_effective_position(resolve_voice_coils(vcfg)),
-            "pickups": resolve_voice_pickups(vcfg),
-            "coils": resolve_voice_coils(vcfg),
-            "circuit": vcfg.get("circuit", ""),
-        },
+        ),
+        target_voice=NamTargetVoiceMeta(
+            id=voice,
+            name=voice_name,
+            topology=vcfg.get("topology", ""),
+            resonant_frequency_hz=float(vcfg.get("fr", 0.0)),
+            q_factor=float(vcfg.get("Q", 0.0)),
+            target_position_34_m=compute_effective_position(resolve_voice_coils(vcfg)),
+            effective_position_m=compute_effective_position(resolve_voice_coils(vcfg)),
+            pickups=[p.model_dump() if hasattr(p, "model_dump") else p for p in resolve_voice_pickups(vcfg)],
+            coils=[c.model_dump() if hasattr(c, "model_dump") else c for c in resolve_voice_coils(vcfg)],
+            circuit=vcfg.circuit.model_dump() if hasattr(vcfg, "circuit") and hasattr(vcfg.circuit, "model_dump") else vcfg.get("circuit", ""),
+        ),
+    )
+    meta_dump = nam_meta.model_dump()
+    other_metadata = {
+        train_meta.TRAINING_KEY: meta_dump["training"],
+        "license": meta_dump["license"],
+        "copyright": meta_dump["copyright"],
+        "author": meta_dump["author"],
+        "source_instrument": meta_dump["source_instrument"],
+        "target_voice": meta_dump["target_voice"],
     }
 
     export_net: Any = train_output.model.net
