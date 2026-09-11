@@ -2,21 +2,21 @@
 Scale lengths, wave speeds, and physical scale range resolution.
 """
 
-from pathlib import Path
-from typing import Union, Tuple
 import tomllib
+from pathlib import Path
+from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 CONFIG_DIR = REPO_ROOT / "config"
 SCALES_FILE = CONFIG_DIR / "scales.toml"
 
 
-def load_scales(config_path=None):
+def load_scales(config_path: str | Path | None = None) -> dict[str, Any]:
     """Loads scale lengths and wave speeds from TOML."""
     path = Path(config_path) if config_path else SCALES_FILE
     with open(path, "rb") as f:
         data = tomllib.load(f)
-    scales = {}
+    scales: dict[str, Any] = {}
     for sid, scfg in data.get("scales", {}).items():
         scales[sid] = {
             "name": scfg.get("name", sid),
@@ -34,8 +34,8 @@ SCALES = load_scales()
 
 
 def resolve_scale_range(
-    inst_or_scale: Union[str, dict, tuple, list, int, float, None] = None
-) -> Tuple[float, float]:
+    inst_or_scale: Any = None
+) -> tuple[float, float]:
     """
     Resolves the vibrating scale length range (scale_min_m, scale_max_m) in meters.
     Returns (L, L) for standard single-scale instruments, or (min_m, max_m) for multi-scale.
@@ -67,7 +67,7 @@ def resolve_scale_range(
             from allomorph.config.instruments import load_instrument
             inst = load_instrument(inst_or_scale)
             return resolve_scale_range(inst)
-        except Exception as e:
+        except (FileNotFoundError, ValueError, KeyError) as e:
             raise ValueError(f"Unknown scale or instrument identifier '{inst_or_scale}': {e}")
 
     if isinstance(inst_or_scale, dict):

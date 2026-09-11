@@ -6,21 +6,23 @@ spatial responses across the continuous wave-speed continuum.
 """
 
 import math
-from typing import Union, Tuple, List, Sequence, Optional
+from collections.abc import Sequence
+from typing import Any
+
 import numpy as np
 
 from allomorph.config import (
     SCALES,
     VOICES,
-    load_instrument,
     get_source_pickup,
+    load_instrument,
     resolve_pickup_coils,
     resolve_voice_coils,
 )
 from allomorph.physics.strings import (
-    resolve_scale_range,
-    generate_wave_speed_continuum,
     compute_dispersive_wave_speed,
+    generate_wave_speed_continuum,
+    resolve_scale_range,
 )
 
 BODY_COUPLING_PROPERTIES = {
@@ -28,14 +30,17 @@ BODY_COUPLING_PROPERTIES = {
     "alnico_ii": 0.10,
     "ceramic": 0.03,
     "ceramic_alnico_hybrid": 0.05,
-    "hybrid": 0.05,
-    "neodymium": 0.01,
-    "piezo": 0.00,
+    "neodymium": 0.02,
     "active": 0.00,
 }
 
 
-def compute_body_microphonic_coupling(freqs, src_pickup: dict, tgt_voice: dict, inst: dict = None) -> np.ndarray:
+def compute_body_microphonic_coupling(
+    freqs: Sequence[float] | np.ndarray,
+    src_pickup: dict[str, Any],
+    tgt_voice: dict[str, Any],
+    inst: dict[str, Any] | None = None,
+) -> np.ndarray:
     """
     Computes diffuse mechanical body-pickup microphonic coupling transfer curve.
     Unpotted and lightly potted vintage passive pickups exhibit subtle mechanical
@@ -70,7 +75,12 @@ def compute_body_microphonic_coupling(freqs, src_pickup: dict, tgt_voice: dict, 
     return 1.0 + delta_k * resonance * damping
 
 
-def compute_coil_aperture(freqs, v_disp, w_m: float, pole_type: str = "rod") -> np.ndarray:
+def compute_coil_aperture(
+    freqs: Sequence[float] | np.ndarray,
+    v_disp: float | np.ndarray,
+    w_m: float,
+    pole_type: str = "rod",
+) -> np.ndarray:
     """
     Computes spatial sensing aperture response across frequencies:
     - 'rod': 2D cylindrical pole piece (Airy / Bessel J1(x)/x algebraic approximation)
@@ -89,7 +99,11 @@ def compute_coil_aperture(freqs, v_disp, w_m: float, pole_type: str = "rod") -> 
         return 1.0 / np.sqrt(1.0 + 0.25 * ((k * r_p) ** 2))
 
 
-def compute_saddle_boundary_coupling(freqs, pos_m: float, scale_m: float = 0.8636) -> np.ndarray:
+def compute_saddle_boundary_coupling(
+    freqs: Sequence[float] | np.ndarray,
+    pos_m: float,
+    scale_m: float = 0.8636,
+) -> np.ndarray:
     """
     Models the exponential boundary layer (l_b ≈ sqrt(B_s) * L) of flexural rigidity
     at the bridge saddle witness point for pickups situated close to the bridge (pos_m < 0.075 m).
@@ -106,7 +120,11 @@ def compute_saddle_boundary_coupling(freqs, pos_m: float, scale_m: float = 0.863
     return np.sqrt((1.0 + (g ** 2) * (f / f0) ** 2) / (1.0 + (f / f0) ** 2))
 
 
-def is_voice_matching_source(instrument, voice_id: str, voice_cfg: dict = None) -> bool:
+def is_voice_matching_source(
+    instrument: dict[str, Any] | str,
+    voice_id: str,
+    voice_cfg: dict[str, Any] | None = None,
+) -> bool:
     """
     Determines if a target voice matches the source instrument's physical scale and pickup geometry,
     meaning zero spatial or acoustic transfer is required (identity transformation).
@@ -143,7 +161,7 @@ def is_voice_matching_source(instrument, voice_id: str, voice_cfg: dict = None) 
     return True
 
 
-def get_coil_register(coil: dict) -> str:
+def get_coil_register(coil: dict[str, Any]) -> str:
     """
     Identifies whether a coil half is 'lower' (bass strings register),
     'upper' (treble strings register), or 'all' across the string bed.
@@ -175,11 +193,11 @@ def get_coil_register(coil: dict) -> str:
 
 
 def numpy_pickup_acoustic_response(
-    freqs,
-    coils: list,
-    scale_length_m: Union[float, Tuple[float, float], List[float], Sequence[float], None] = None,
-    string_speeds: Optional[Sequence[float]] = None,
-    string_names: Optional[Sequence[Union[str, int]]] = None,
+    freqs: Sequence[float] | np.ndarray,
+    coils: Sequence[dict[str, Any]],
+    scale_length_m: float | tuple[float, float] | list[float] | Sequence[float] | None = None,
+    string_speeds: Sequence[float] | None = None,
+    string_names: Sequence[str | int] | None = None,
 ) -> np.ndarray:
     """
     Computes compound spatial aperture and multi-coil response for an arbitrary
@@ -189,16 +207,15 @@ def numpy_pickup_acoustic_response(
     """
     f = np.asarray(freqs, dtype=np.float64)
 
-    if isinstance(scale_length_m, (list, tuple, np.ndarray)):
-        if len(scale_length_m) > 0 and any(float(v) > 10.0 for v in scale_length_m):
-            string_speeds = scale_length_m
-            scale_length_m = None
+    if isinstance(scale_length_m, (list, tuple, np.ndarray)) and len(scale_length_m) > 0 and any(float(v) > 10.0 for v in scale_length_m):
+        string_speeds = scale_length_m
+        scale_length_m = None
 
     scale_range = resolve_scale_range(scale_length_m)
     l_eff = (scale_range[0] + scale_range[1]) / 2.0
 
     if string_speeds is not None and len(string_speeds) > 0 and len(string_speeds) != 24:
-        continuum = []
+        continuum: list[dict[str, Any]] = []
         n_str = len(string_speeds)
         half = n_str // 2 if n_str > 2 else 1
         for s_idx, v in enumerate(string_speeds):
@@ -223,22 +240,22 @@ def numpy_pickup_acoustic_response(
     total_pt_weight = 0.0
 
     for pt in continuum:
-        f0 = pt["f0"]
-        v = pt["v0"]
-        pt_reg = pt["register"]
-        pt_weight = pt.get("weight", 1.0)
-        pt_scale_m = pt.get("scale_m", l_eff)
+        f0 = float(pt["f0"])
+        v = float(pt["v0"])
+        pt_reg = str(pt["register"])
+        pt_weight = float(pt.get("weight", 1.0))
+        pt_scale_m = float(pt.get("scale_m", l_eff))
 
         v_disp = compute_dispersive_wave_speed(f, v, f0=f0, scale_length_m=pt_scale_m)
 
-        active = []
+        active: list[dict[str, Any]] = []
         for c in coils:
             coil_reg = get_coil_register(c)
             if coil_reg == "all" or coil_reg == pt_reg:
                 active.append(c)
 
         if not active:
-            active = coils
+            active = list(coils)
 
         total_w = sum(abs(c.get("weight", 1.0)) for c in active) or 1.0
         center_pos = sum(c["position_from_bridge_m"] * abs(c.get("weight", 1.0)) for c in active) / total_w
@@ -290,7 +307,11 @@ def numpy_pickup_acoustic_response(
 
 
 def numpy_pickup_macro_aperture(
-    freqs, coils: list, scale_length_m: float = None, string_speeds=None, string_names=None
+    freqs: Sequence[float] | np.ndarray,
+    coils: Sequence[dict[str, Any]],
+    scale_length_m: float | tuple[float, float] | list[float] | Sequence[float] | None = None,
+    string_speeds: Sequence[float] | None = None,
+    string_names: Sequence[str | int] | None = None,
 ) -> np.ndarray:
     """
     Computes the macro sensing aperture response (smooth spatial low-pass envelope
@@ -302,10 +323,9 @@ def numpy_pickup_macro_aperture(
     w_in = coils[0].get("aperture_width_in", 0.75) if coils else 0.75
     w_m = w_in * 0.0254
 
-    if isinstance(scale_length_m, (list, tuple, np.ndarray)):
-        if len(scale_length_m) > 0 and any(float(v) > 10.0 for v in scale_length_m):
-            string_speeds = scale_length_m
-            scale_length_m = None
+    if isinstance(scale_length_m, (list, tuple, np.ndarray)) and len(scale_length_m) > 0 and any(float(v) > 10.0 for v in scale_length_m):
+        string_speeds = scale_length_m
+        scale_length_m = None
 
     scale_range = resolve_scale_range(scale_length_m)
     l_eff = (scale_range[0] + scale_range[1]) / 2.0
@@ -327,17 +347,23 @@ def numpy_pickup_macro_aperture(
     total_w = 0.0
     c_pole = coils[0].get("pole_type", "rod") if coils else "rod"
     for pt in continuum:
-        f0 = pt["f0"]
-        v = pt["v0"]
-        weight = pt.get("weight", 1.0)
-        pt_scale_m = pt.get("scale_m", l_eff)
+        f0 = float(pt["f0"])
+        v = float(pt["v0"])
+        weight = float(pt.get("weight", 1.0))
+        pt_scale_m = float(pt.get("scale_m", l_eff))
         v_disp = compute_dispersive_wave_speed(f, v, f0=f0, scale_length_m=pt_scale_m)
         acc += weight * compute_coil_aperture(f, v_disp, w_m, pole_type=c_pole)
         total_w += weight
     return acc / total_w if total_w > 0 else acc
 
 
-def numpy_aperture(freqs, w_in: float, d_in: float, speeds=None, scale_length_m: float = 0.8636) -> np.ndarray:
+def numpy_aperture(
+    freqs: Sequence[float] | np.ndarray,
+    w_in: float,
+    d_in: float,
+    speeds: Sequence[float] | None = None,
+    scale_length_m: float = 0.8636,
+) -> np.ndarray:
     """Computes multi-string aperture sinc + dual-coil comb using NumPy across the wave-speed continuum."""
     f = np.asarray(freqs, dtype=np.float64)
     w_m = w_in * 0.0254
@@ -353,7 +379,12 @@ def numpy_aperture(freqs, w_in: float, d_in: float, speeds=None, scale_length_m:
     return acc / len(speeds)
 
 
-def numpy_position(freqs, pos_m: float, speeds=None, scale_length_m: float = 0.8636) -> np.ndarray:
+def numpy_position(
+    freqs: Sequence[float] | np.ndarray,
+    pos_m: float,
+    speeds: Sequence[float] | None = None,
+    scale_length_m: float = 0.8636,
+) -> np.ndarray:
     """Computes spatial standing wave envelope using NumPy across the wave-speed continuum."""
     f = np.asarray(freqs, dtype=np.float64)
     if speeds is None:

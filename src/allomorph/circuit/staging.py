@@ -10,20 +10,34 @@ import math
 import os
 import wave
 from pathlib import Path
+from typing import Any
+
 import numpy as np
 
-from allomorph.dsp import (
-    FREQS,
-    write_wav_24bit,
-    synthesize_minimum_phase_fir,
+from allomorph.circuit.parser import load_circuit
+from allomorph.circuit.simulation import (
+    CANONICAL_SWEEP_PATH,
+    FRONTENDS_DIR,
+    INTERMEDIATE_TARGET_PEAK_DBFS,
+    INTERMEDIATE_TARGET_RMS_DBFS,
+    TARGETS_DIR,
+    _simulate_voice_task,
+    find_default_input_audio,
+    simulate_voice,
 )
+from allomorph.circuit.solver import compute_differential_circuit_transfer_functions
 from allomorph.config import (
     REPO_ROOT,
     VOICES,
-    load_instrument,
     load_all_instruments,
-    resolve_scale_range,
+    load_instrument,
     resolve_pickup_coils,
+    resolve_scale_range,
+)
+from allomorph.dsp import (
+    FREQS,
+    synthesize_minimum_phase_fir,
+    write_wav_24bit,
 )
 from allomorph.naming import (
     resolve_instruments,
@@ -33,21 +47,9 @@ from allomorph.physics import (
     numpy_pickup_acoustic_response,
     resolve_pickup_electrical_deconvolution_np,
 )
-from allomorph.circuit.parser import load_circuit
-from allomorph.circuit.solver import compute_differential_circuit_transfer_functions
-from allomorph.circuit.simulation import (
-    CANONICAL_SWEEP_PATH,
-    FRONTENDS_DIR,
-    TARGETS_DIR,
-    INTERMEDIATE_TARGET_PEAK_DBFS,
-    INTERMEDIATE_TARGET_RMS_DBFS,
-    find_default_input_audio,
-    simulate_voice,
-    _simulate_voice_task,
-)
 
 
-def generate_canonical_sweep(input_wav: Path = None, output_wav: Path = None) -> Path:
+def generate_canonical_sweep(input_wav: Path | None = None, output_wav: Path | None = None) -> Path:
     """
     Generates the calibrated Canonical Intermediate baseline audio sweep.
     Takes raw T3K sweep audio, applies Canonical Intermediate aperture (single coil at 93.5mm datum)
@@ -106,7 +108,7 @@ def generate_canonical_sweep(input_wav: Path = None, output_wav: Path = None) ->
 
 
 def export_frontend_ir(
-    inst_id: str, pickup_key: str, out_path: Path = None, num_taps: int = 2048
+    inst_id: str, pickup_key: str, out_path: Path | None = None, num_taps: int = 2048
 ) -> Path:
     """
     Synthesizes a 2048-tap minimum-phase deconvolution IR transforming a source pickup into the Canonical Intermediate.
@@ -186,7 +188,7 @@ def export_frontend_ir(
     return out_path
 
 
-def export_all_frontend_irs(output_dir: Path = None):
+def export_all_frontend_irs(output_dir: Path | None = None):
     """
     Exports all 32 native frontend deconvolution IRs grouped by instrument subdirectories.
     """
@@ -205,7 +207,7 @@ def export_all_frontend_irs(output_dir: Path = None):
     return exported
 
 
-def simulate_backend_targets(tier: str = "standard", voice_id: str = None):
+def simulate_backend_targets(tier: str = "standard", voice_id: str | None = None):
     """
     Simulates target voice audio sweeps using the Canonical Intermediate baseline as input.
     Tiers:
@@ -214,11 +216,12 @@ def simulate_backend_targets(tier: str = "standard", voice_id: str = None):
       - 'hotrod': overwound drive pre-conditioner (175% saturation, reduced vsat)
     """
     tier_map = {
-        "clean": "01_studio_clean",
+        "clean": "01_clean_headroom",
         "standard": "02_standard_dynamic",
         "std": "02_standard_dynamic",
         "dynamic": "02_standard_dynamic",
-        "hotrod": "03_hot_rod",
+        "hotrod": "03_hot_rod_drive",
+        "hot_rod": "03_hot_rod_drive",
     }
     if tier == "all":
         tiers_to_run = ["clean", "standard", "hotrod"]
@@ -249,17 +252,13 @@ def simulate_backend_targets(tier: str = "standard", voice_id: str = None):
 
             vcfg = VOICES.get(vid, {})
             v_alpha = vcfg.get("alpha", 0.25)
-            v_vsat = vcfg.get("vsat", 0.50)
 
             if t == "clean":
                 sim_alpha = 0.0
-                sim_vsat = 10.0
             elif t == "hotrod":
                 sim_alpha = min(1.0, v_alpha * 1.75)
-                sim_vsat = max(0.20, v_vsat / 1.35)
             else:
                 sim_alpha = v_alpha
-                sim_vsat = v_vsat
 
             simulate_voice(
                 voice_id=vid,
@@ -271,7 +270,7 @@ def simulate_backend_targets(tier: str = "standard", voice_id: str = None):
             )
 
 
-def main(argv=None):
+def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(
         description="Allomorph Native Virtual Analog Circuit Simulator."
     )
@@ -510,9 +509,9 @@ def main(argv=None):
         target_voices = resolve_voices(args.voice)
         for vid in target_voices:
             res = compute_parametric_sweep(vid, param=args.sweep, pot_taper=args.pot_taper)
-            print(f"\n=========================================================================================")
+            print("\n=========================================================================================")
             print(f"  PARAMETRIC SWEEP: {vid} (Param: {args.sweep}, Taper: {args.pot_taper})")
-            print(f"=========================================================================================")
+            print("=========================================================================================")
             print(f"Evaluated {len(res.values)} steps ({', '.join(res.labels)}) across {len(res.freqs)} frequencies.\n")
             print("--- Frequency Response Grid ---")
             sample_freqs = [100.0, 500.0, 1000.0, 2500.0, 5000.0]
@@ -558,44 +557,44 @@ def main(argv=None):
     out_path = Path(args.out) if args.out else None
     prefiltered = args.prefiltered or (in_path is not None and in_path.name.startswith("aperture_"))
 
-    sim_kwargs = dict(
-        input_wav=in_path,
-        output_wav=out_path,
-        pickup=args.pickup,
-        tier=args.tier,
-        prefiltered=prefiltered,
-        normalize=args.normalize,
-        target_dbfs=args.target_dbfs,
-        oversample=args.oversample,
-        displacement_weighting=displacement_weighting,
-        magnet_drag=magnet_drag,
-        alpha=args.alpha,
-        alpha3=args.alpha3,
-        eta_hyst=eta_hyst,
-        k_sag=args.k_sag,
-        k_eddy=args.k_eddy,
-        kappa_orbit=args.kappa_orbit,
-        beta_curv=args.beta_curv,
-        k_pull=args.k_pull,
-        tau_touch=tau_touch,
-        kappa_geom=args.kappa_geom,
-        k_stein=args.k_stein,
-        vol_pos=args.vol,
-        tone_pos=args.tone,
-        blend_pos=args.blend,
-        pot_taper=args.pot_taper,
-        cable_pf=args.cable_pf,
-        slew_limit=slew_limit,
-        f_slew=args.f_slew,
-        noise_dither=noise_dither,
-        eddy_diffusion=eddy_diffusion,
-        dc_block=dc_block,
-        max_samples=args.max_samples,
-    )
+    sim_kwargs: dict[str, Any] = {
+        "input_wav": in_path,
+        "output_wav": out_path,
+        "pickup": args.pickup,
+        "tier": args.tier,
+        "prefiltered": prefiltered,
+        "normalize": args.normalize,
+        "target_dbfs": args.target_dbfs,
+        "oversample": args.oversample,
+        "displacement_weighting": displacement_weighting,
+        "magnet_drag": magnet_drag,
+        "alpha": args.alpha,
+        "alpha3": args.alpha3,
+        "eta_hyst": eta_hyst,
+        "k_sag": args.k_sag,
+        "k_eddy": args.k_eddy,
+        "kappa_orbit": args.kappa_orbit,
+        "beta_curv": args.beta_curv,
+        "k_pull": args.k_pull,
+        "tau_touch": tau_touch,
+        "kappa_geom": args.kappa_geom,
+        "k_stein": args.k_stein,
+        "vol_pos": args.vol,
+        "tone_pos": args.tone,
+        "blend_pos": args.blend,
+        "pot_taper": args.pot_taper,
+        "cable_pf": args.cable_pf,
+        "slew_limit": slew_limit,
+        "f_slew": args.f_slew,
+        "noise_dither": noise_dither,
+        "eddy_diffusion": eddy_diffusion,
+        "dc_block": dc_block,
+        "max_samples": args.max_samples,
+    }
 
     max_workers = args.jobs if args.jobs is not None else min(4, os.cpu_count() or 4)
     for inst in instruments:
-        cur_kwargs = sim_kwargs.copy()
+        cur_kwargs: dict[str, Any] = sim_kwargs.copy()
         cur_kwargs["instrument"] = inst
         if out_path and len(instruments) > 1 and not out_path.is_dir():
             stem = out_path.stem

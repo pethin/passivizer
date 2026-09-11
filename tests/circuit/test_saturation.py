@@ -4,27 +4,28 @@ soft-knee core saturation, and Numba accelerated kernels.
 """
 
 import math
-from pathlib import Path
 import tempfile
+from pathlib import Path
+
 import numpy as np
-import pytest
 import pedalboard.io
+import pytest
 
 from allomorph.circuit import (
-    load_circuit,
-    apply_oversampled_saturation,
-    apply_dahl_hysteresis,
-    apply_magnet_properties_to_model,
-    apply_elliptical_orbit_projection,
-    simulate_circuit_audio,
-    simulate_voice,
-    compute_core_impedance,
     MAGNET_PROPERTIES,
     CircuitModel,
     _dahl_core,
-    _lenz_velocity_drag_core,
     _lenz_envelope_core,
+    _lenz_velocity_drag_core,
     _slew_limit_core,
+    apply_dahl_hysteresis,
+    apply_elliptical_orbit_projection,
+    apply_magnet_properties_to_model,
+    apply_oversampled_saturation,
+    compute_core_impedance,
+    load_circuit,
+    simulate_circuit_audio,
+    simulate_voice,
 )
 from allomorph.dsp import write_wav_24bit
 

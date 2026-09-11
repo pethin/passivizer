@@ -7,7 +7,8 @@ with engineering unit suffixes, continuous pot tapers, and wiper positioning.
 import copy
 import math
 from pathlib import Path
-from typing import Union, Optional
+from typing import Any
+
 import numpy as np
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent.parent
@@ -254,7 +255,7 @@ class CircuitModel:
     Rtb_ser: float
     has_active_buffer: bool
     preamp_type: str
-    preamp_bands: Optional[list]
+    preamp_bands: list[dict[str, Any]] | None
     preamp_gain: float
     R_preamp_in: float
     C_preamp_in: float
@@ -392,10 +393,10 @@ class CircuitModel:
 
     def apply_pot_positions(
         self,
-        vol_pos: Optional[float] = None,
-        tone_pos: Optional[float] = None,
-        blend_pos: Optional[float] = None,
-        pot_taper: Optional[str] = None,
+        vol_pos: float | None = None,
+        tone_pos: float | None = None,
+        blend_pos: float | None = None,
+        pot_taper: str | None = None,
     ):
         """
         Dynamically positions Volume, Tone, and Blend pot wipers.
@@ -452,9 +453,9 @@ class CircuitModel:
                 self.Rpot_n = getattr(self, "Rpot_n_default", 0.0) + r_blend * eff_atten
 
     @classmethod
-    def from_dict(cls, cfg: dict) -> "CircuitModel":
+    def from_dict(cls, cfg: dict[str, Any]) -> CircuitModel:
         """Creates a CircuitModel from a declarative configuration dictionary."""
-        def _val(v, default=0.0):
+        def _val(v: Any, default: float = 0.0) -> float:
             if v is None or isinstance(v, bool):
                 return default
             if isinstance(v, (int, float)):
@@ -610,7 +611,7 @@ class CircuitModel:
         return model
 
 
-def load_circuit(source: Union[CircuitModel, dict, str, Path]) -> CircuitModel:
+def load_circuit(source: CircuitModel | dict[str, Any] | str | Path) -> CircuitModel:
     """Loads a CircuitModel from a dict, file path (.toml), voice ID, or instrument ID."""
     if isinstance(source, CircuitModel):
         return copy.copy(source)
@@ -630,13 +631,12 @@ def load_circuit(source: Union[CircuitModel, dict, str, Path]) -> CircuitModel:
                 f"Attempted to load: {source}"
             )
 
-        if p.exists() and p.is_file():
-            if p.suffix == ".toml":
-                import tomllib
+        if p.exists() and p.is_file() and p.suffix == ".toml":
+            import tomllib
 
-                with open(p, "rb") as f:
-                    data = tomllib.load(f)
-                return load_circuit(data)
+            with open(p, "rb") as f:
+                data = tomllib.load(f)
+            return load_circuit(data)
 
         # Try relative to REPO_ROOT
         repo_rel = REPO_ROOT / source
@@ -657,7 +657,7 @@ def load_circuit(source: Union[CircuitModel, dict, str, Path]) -> CircuitModel:
             if str(source) in VOICES:
                 return load_circuit(VOICES[str(source)])
         except ImportError:
-            VOICES = {}
+            pass
 
         try:
             from allomorph.config.instruments import INSTRUMENTS
@@ -673,11 +673,11 @@ def load_circuit(source: Union[CircuitModel, dict, str, Path]) -> CircuitModel:
                     if "circuit" in p:
                         return load_circuit(p["circuit"])
         except ImportError:
-            INSTRUMENTS = {}
+            pass
 
     raise ValueError(f"Could not load circuit from: {source}")
 
 
-def parse_netlist(source: Union[CircuitModel, dict, str, Path]) -> CircuitModel:
+def parse_netlist(source: CircuitModel | dict[str, Any] | str | Path) -> CircuitModel:
     """Parses a netlist or declarative circuit configuration into a CircuitModel."""
     return load_circuit(source)

@@ -4,15 +4,16 @@ dielectric absorption, and Jordan permeability relaxation.
 """
 
 import math
+
 import numpy as np
 
 from allomorph.circuit import (
-    load_circuit,
     compute_circuit_transfer_functions,
-    compute_differential_circuit_transfer_functions,
     compute_core_impedance,
+    compute_differential_circuit_transfer_functions,
+    load_circuit,
 )
-from allomorph.config import VOICES, INSTRUMENTS
+from allomorph.config import INSTRUMENTS, VOICES
 from allomorph.dsp import FREQS, NUM_TAPS
 from allomorph.physics import compute_voice_prefilter_firs
 

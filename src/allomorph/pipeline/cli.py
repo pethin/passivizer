@@ -4,35 +4,34 @@ Command-line entrypoint coordinating full end-to-end simulation, export, and tra
 """
 
 import argparse
-from pathlib import Path
-from typing import Optional, Sequence
+from collections.abc import Sequence
 
-from allomorph.config import (
-    REPO_ROOT,
-    INSTRUMENTS,
-    VOICES,
-    resolve_voice_coils,
-    resolve_voice_pickups,
-    compute_effective_position,
-    load_instrument,
-    get_source_pickup,
-)
-from allomorph.naming import (
-    resolve_voices,
-    resolve_instruments,
-    get_baked_basename,
-)
 from allomorph.circuit import (
     AUDIO_DIR,
     MODELS_DIR,
-    simulate_voice,
-    generate_canonical_sweep,
     export_all_frontend_irs,
+    generate_canonical_sweep,
     simulate_backend_targets,
+    simulate_voice,
+)
+from allomorph.config import (
+    INSTRUMENTS,
+    REPO_ROOT,
+    VOICES,
+    compute_effective_position,
+    get_source_pickup,
+    load_instrument,
+    resolve_voice_coils,
+    resolve_voice_pickups,
+)
+from allomorph.naming import (
+    get_baked_basename,
+    resolve_instruments,
+    resolve_voices,
 )
 from allomorph.pipeline.stages import (
-    run_visualization,
     run_training,
+    run_visualization,
 )
 
 
@@ -62,7 +61,7 @@ def list_voices():
             print(f"      Circuit: {cfg.get('circuit', '')} | Coils={len(coils)} (Eff pos={eff_pos*1000:.1f}mm) | fr={cfg.get('fr', 0)}Hz (Q={cfg.get('Q', 0)})")
 
 
-def main(argv: Optional[Sequence[str]] = None):
+def main(argv: Sequence[str] | None = None):
     """Main CLI entrypoint for Allomorph pipeline automation."""
     parser = argparse.ArgumentParser(description="Allomorph SPICE -> NAM Automation Pipeline")
     parser.add_argument(

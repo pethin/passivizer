@@ -5,16 +5,17 @@ Tests for Altair chart generation and portal HTML synthesis in allomorph.visuali
 import re
 import tempfile
 from pathlib import Path
+
 import polars as pl
 
 from allomorph.config import load_all_instruments
 from allomorph.visualizer import (
-    generate_interactive_chart,
+    DOCS_DIR,
+    RESPONSES_DIR,
+    build_frontend_deconvolutions_dataframe,
     generate_all_charts,
     generate_frontend_deconvolutions_chart,
-    build_frontend_deconvolutions_dataframe,
-    RESPONSES_DIR,
-    DOCS_DIR,
+    generate_interactive_chart,
 )
 
 
@@ -35,7 +36,7 @@ def test_generate_all_charts():
         generated = generate_all_charts(output_dir=out_dir)
 
         all_insts = load_all_instruments()
-        for inst_id in all_insts.keys():
+        for inst_id in all_insts:
             if inst_id == "canonical_intermediate":
                 continue
             assert inst_id in generated
@@ -51,7 +52,7 @@ def test_generate_all_charts():
         # Check Universal Targets and Frontend Deconvolutions master pages
         assert (out_dir / "universal_targets.html").exists()
         assert (out_dir / "frontend_deconvolutions.html").exists()
-        for inst_id in all_insts.keys():
+        for inst_id in all_insts:
             if inst_id == "canonical_intermediate":
                 continue
             assert (out_dir / f"{inst_id}_frontend.html").exists()

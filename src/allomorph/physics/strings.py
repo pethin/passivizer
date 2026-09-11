@@ -5,7 +5,9 @@ inharmonicity B_s interpolation, scale-length conversions, and dispersive wave s
 """
 
 import math
-from typing import List, Tuple, Union
+from collections.abc import Sequence
+from typing import Any
+
 import numpy as np
 
 from allomorph.config import (
@@ -35,13 +37,15 @@ INHARMONICITY_ANCHORS_BS = np.array(
 MEAN_BASS_F0 = 66.9045  # Mean open-string fundamental frequency (E1=41.203, A1=55.000, D2=73.416, G2=97.999)
 
 
-def get_voice_string(voice_cfg: dict) -> dict:
+def get_voice_string(voice_cfg: dict[str, Any]) -> dict[str, Any]:
     """Resolves target string configuration dictionary for a target voice."""
     preset = voice_cfg.get("target_string", "roundwound_nickel_standard")
     return STRINGS.get(preset, STRINGS.get("roundwound_nickel_standard", {})).copy()
 
 
-def compute_differential_string_transfer(freqs, src_string: dict, tgt_string: dict) -> np.ndarray:
+def compute_differential_string_transfer(
+    freqs: Sequence[float] | np.ndarray, src_string: dict[str, Any], tgt_string: dict[str, Any]
+) -> np.ndarray:
     """
     Computes differential transfer function between source instrument strings
     and target voicing goal strings using NumPy:
@@ -83,7 +87,10 @@ def compute_differential_string_transfer(freqs, src_string: dict, tgt_string: di
 
 
 def compute_differential_longitudinal_transfer(
-    freqs, src_string: dict, tgt_string: dict, scale_length_inches: float = 34.0
+    freqs: Sequence[float] | np.ndarray,
+    src_string: dict[str, Any],
+    tgt_string: dict[str, Any],
+    scale_length_inches: float = 34.0,
 ) -> np.ndarray:
     """
     Computes differential longitudinal wave transmission and core percussion (H_long(f)).
@@ -115,7 +122,7 @@ def pitch_to_note_name(f0: float) -> str:
     if f0 <= 0:
         return "C"
     midi_num = 69.0 + 12.0 * math.log2(f0 / 440.0)
-    note_idx = int(round(midi_num)) % 12
+    note_idx = round(midi_num) % 12
     return NOTE_NAMES[note_idx]
 
 
@@ -134,9 +141,9 @@ def get_inharmonicity_for_f0(f0: float) -> float:
 
 
 def generate_wave_speed_continuum(
-    scale_length_m: Union[float, Tuple[float, float], List[float], dict, str, None] = 0.8636,
+    scale_length_m: float | tuple[float, float] | list[float] | dict[str, Any] | str | None = 0.8636,
     num_points: int = 24,
-) -> List[dict]:
+) -> list[dict[str, Any]]:
     """
     Generates a dense, continuous log-spaced continuum of wave speeds spanning
     the full operating register of an electric bass for a given scale length or multi-scale range:
@@ -157,8 +164,9 @@ def generate_wave_speed_continuum(
     ):
         l_min_m, l_max_m = resolve_scale_range(scale_length_m)
     else:
-        l_min_m = float(scale_length_m)
-        l_max_m = float(scale_length_m)
+        val = float(scale_length_m) if isinstance(scale_length_m, (int, float, str)) else 0.8636
+        l_min_m = val
+        l_max_m = val
 
     if abs(l_max_m - l_min_m) > 1e-4:
         t = (log_f - np.log2(f_min)) / (np.log2(f_max) - np.log2(f_min))
@@ -185,8 +193,8 @@ def generate_wave_speed_continuum(
 
 
 def resolve_scale_length(
-    string_speeds,
-    scale_length_m: Union[float, Tuple[float, float], List[float], None] = None,
+    string_speeds: Sequence[float],
+    scale_length_m: float | tuple[float, float] | list[float] | None = None,
 ) -> float:
     """Resolves the effective vibrating scale length in meters."""
     if scale_length_m is not None:
@@ -206,7 +214,7 @@ def resolve_scale_length(
     return 0.8636
 
 
-def infer_string_names(string_speeds, scale_length_m: float = None) -> List[str]:
+def infer_string_names(string_speeds: Sequence[float], scale_length_m: float | None = None) -> list[str]:
     """Infers note names for each string in string_speeds based on physical tuning physics."""
     n = len(string_speeds)
     if scale_length_m is not None and scale_length_m > 0:
@@ -229,15 +237,14 @@ def infer_string_names(string_speeds, scale_length_m: float = None) -> List[str]
                 return ["E", "A", "D", "G", "C"]
             if np.allclose(string_speeds, [62.79, 83.82, 111.89, 149.35, 199.36], rtol=0.005):
                 return ["E", "A", "D", "G", "C"]
-        elif n == 6:
-            if np.allclose(
-                string_speeds, [53.28, 71.16, 95.0, 126.81, 169.27, 225.69], rtol=0.005
-            ):
-                return ["B", "E", "A", "D", "G", "C"]
+        elif n == 6 and np.allclose(
+            string_speeds, [53.28, 71.16, 95.0, 126.81, 169.27, 225.69], rtol=0.005
+        ):
+            return ["B", "E", "A", "D", "G", "C"]
 
         l_eff = resolve_scale_length(string_speeds, scale_length_m)
 
-    names = []
+    names: list[str] = []
     for v in string_speeds:
         f0 = v / (2.0 * l_eff)
         names.append(pitch_to_note_name(f0))
@@ -245,11 +252,11 @@ def infer_string_names(string_speeds, scale_length_m: float = None) -> List[str]
 
 
 def compute_dispersive_wave_speed(
-    freqs,
+    freqs: Sequence[float] | np.ndarray,
     v0: float,
-    string_name: str = None,
-    f0: float = None,
-    scale_length_m: float = None,
+    string_name: str | None = None,
+    f0: float | None = None,
+    scale_length_m: float | None = None,
 ) -> np.ndarray:
     """
     Computes frequency-dependent transverse wave speed v(f) accounting for flexural bending stiffness:

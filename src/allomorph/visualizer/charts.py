@@ -1,17 +1,19 @@
 """
 Allomorph Visualizer - Interactive Altair Charts Generation
 """
+from collections.abc import Sequence
 from pathlib import Path
+from typing import Any
 
 import altair as alt
 import polars as pl
 
-from allomorph.config import VOICES, load_instrument, load_all_instruments
+from allomorph.config import VOICES, load_all_instruments, load_instrument
 from allomorph.visualizer.dataframe import (
-    build_voice_dataframe,
-    build_universal_targets_dataframe,
-    build_instrument_frontend_dataframe,
     build_composite_instrument_dataframe,
+    build_instrument_frontend_dataframe,
+    build_universal_targets_dataframe,
+    build_voice_dataframe,
 )
 from allomorph.visualizer.portal import RESPONSES_DIR, append_spec_panel, generate_portal_pages
 
@@ -24,17 +26,14 @@ def render_chart_to_file(
     chart_title: str,
     chart_subtitle: str,
     y_title: str,
-    y_domain: list,
+    y_domain: Sequence[float],
     mode: str = "unified",
-):
+) -> Path:
     """Renders a Polars master dataframe into an interactive Altair chart HTML file."""
     voice_selection = alt.selection_point(fields=["voice_name"], bind="legend")
-    if mode == "output":
+    if mode == "output" or mode == "difference":
         params = [voice_selection]
-        filters = []
-    elif mode == "difference":
-        params = [voice_selection]
-        filters = []
+        filters: list[Any] = []
     else:  # unified
         mode_selection = alt.selection_point(
             fields=["mode"],
@@ -107,7 +106,7 @@ def render_chart_to_file(
     return target_path
 
 
-def generate_universal_targets_chart(target_path: Path = None) -> Path:
+def generate_universal_targets_chart(target_path: Path | None = None) -> Path:
     """
     Renders the Mode 1 Universal Target Voicings chart (Block 2):
     Evaluates all 22 target voices relative to Canonical Intermediate (34" @ 93.5mm datum).
@@ -236,7 +235,7 @@ def generate_universal_targets_chart(target_path: Path = None) -> Path:
     return target_path
 
 
-def generate_instrument_frontend_chart(inst: dict, target_path: Path = None) -> Path:
+def generate_instrument_frontend_chart(inst: dict[str, Any], target_path: Path | None = None) -> Path:
     """
     Renders the Frontend Deconvolutions chart (Block 1) for a single source instrument.
     Allows users to click any pickup switch position in the legend to isolate that specific pickup key.
@@ -366,7 +365,7 @@ def generate_instrument_frontend_chart(inst: dict, target_path: Path = None) -> 
     return target_path
 
 
-def generate_frontend_deconvolutions_chart(target_path: Path = None) -> Path:
+def generate_frontend_deconvolutions_chart(target_path: Path | None = None) -> Path:
     """
     Renders the Mode 2 Frontend Deconvolutions master page (Block 1).
     Provides an instrument selector linking to each source instrument's dedicated frontend chart,
@@ -548,7 +547,10 @@ def generate_frontend_deconvolutions_chart(target_path: Path = None) -> Path:
     return target_path
 
 
-def generate_composite_instrument_chart(instrument="30in", out_html=None) -> Path:
+def generate_composite_instrument_chart(
+    instrument: str | dict[str, Any] = "30in",
+    out_html: str | Path | None = None,
+) -> Path:
     """
     Renders the Signal Flow Inspector chart:
       1. Source Bass Input (Entering Block 1)
@@ -703,9 +705,9 @@ def generate_composite_instrument_chart(instrument="30in", out_html=None) -> Pat
 
     chart.save(str(target_path))
 
-    spec_panel = f"""
+    spec_panel = """
 <style>
-  body {{
+  body {
     background-color: #0d1117 !important;
     color: #c9d1d9 !important;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -713,14 +715,14 @@ def generate_composite_instrument_chart(instrument="30in", out_html=None) -> Pat
     margin: 0;
     overflow-x: hidden;
     box-sizing: border-box;
-  }}
-  #vis {{
+  }
+  #vis {
     display: flex;
     justify-content: center;
     width: 100%;
     overflow-x: hidden;
-  }}
-  .composite-banner {{
+  }
+  .composite-banner {
     max-width: 1060px;
     margin: 14px auto 0 auto;
     background: #161b22;
@@ -731,15 +733,15 @@ def generate_composite_instrument_chart(instrument="30in", out_html=None) -> Pat
     grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
     gap: 12px;
     font-size: 11px;
-  }}
-  .comp-item {{ display: flex; flex-direction: column; gap: 4px; }}
-  .comp-title {{ font-weight: 700; display: flex; align-items: center; gap: 6px; }}
-  .dot-cyan {{ width: 8px; height: 8px; border-radius: 50%; background: #38bdf8; display: inline-block; }}
-  .dot-teal {{ width: 8px; height: 8px; border-radius: 50%; background: #26a69a; display: inline-block; }}
-  .dot-gray {{ width: 8px; height: 8px; border-radius: 50%; background: #8b949e; display: inline-block; }}
-  .dot-orange {{ width: 8px; height: 8px; border-radius: 50%; background: #ff7043; display: inline-block; }}
-  .dot-gold {{ width: 8px; height: 8px; border-radius: 50%; background: #ffd54f; display: inline-block; }}
-  .comp-desc {{ color: #8b949e; line-height: 1.4; }}
+  }
+  .comp-item { display: flex; flex-direction: column; gap: 4px; }
+  .comp-title { font-weight: 700; display: flex; align-items: center; gap: 6px; }
+  .dot-cyan { width: 8px; height: 8px; border-radius: 50%; background: #38bdf8; display: inline-block; }
+  .dot-teal { width: 8px; height: 8px; border-radius: 50%; background: #26a69a; display: inline-block; }
+  .dot-gray { width: 8px; height: 8px; border-radius: 50%; background: #8b949e; display: inline-block; }
+  .dot-orange { width: 8px; height: 8px; border-radius: 50%; background: #ff7043; display: inline-block; }
+  .dot-gold { width: 8px; height: 8px; border-radius: 50%; background: #ffd54f; display: inline-block; }
+  .comp-desc { color: #8b949e; line-height: 1.4; }
 </style>
 <div class="composite-banner">
   <div class="comp-item">
@@ -769,7 +771,11 @@ def generate_composite_instrument_chart(instrument="30in", out_html=None) -> Pat
     return target_path
 
 
-def generate_interactive_chart(instrument="30in", out_html=None, mode="composite"):
+def generate_interactive_chart(
+    instrument: str | dict[str, Any] = "30in",
+    out_html: str | Path | None = None,
+    mode: str = "composite",
+) -> Path:
     """
     Calculates voice responses and renders an interactive Altair chart.
     mode:
@@ -781,9 +787,9 @@ def generate_interactive_chart(instrument="30in", out_html=None, mode="composite
       - 'frontends': standalone chart strictly plotting the Frontend Deconvolution curves.
     """
     if mode == "targets":
-        return generate_universal_targets_chart(target_path=out_html)
+        return generate_universal_targets_chart(target_path=Path(out_html) if out_html is not None else None)
     elif mode == "frontends":
-        return generate_frontend_deconvolutions_chart(target_path=out_html)
+        return generate_frontend_deconvolutions_chart(target_path=Path(out_html) if out_html is not None else None)
 
     inst = load_instrument(instrument) if not isinstance(instrument, dict) else instrument
     inst_id = inst.get("id", "custom_instrument")
@@ -832,7 +838,7 @@ def generate_interactive_chart(instrument="30in", out_html=None, mode="composite
     return render_chart_to_file(master_df, target_path, chart_title, chart_subtitle, y_title, y_domain, mode=mode)
 
 
-def generate_all_charts(output_dir=None):
+def generate_all_charts(output_dir: str | Path | None = None) -> dict[str, Path]:
     """Generates standalone Altair interactive charts for all configured instruments and Architecture C master views."""
     out_dir = Path(output_dir) if output_dir else RESPONSES_DIR
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -846,7 +852,7 @@ def generate_all_charts(output_dir=None):
     print("Generating Frontend Deconvolutions (Block 1)...")
     generate_frontend_deconvolutions_chart(out_dir / "frontend_deconvolutions.html")
 
-    generated = {}
+    generated: dict[str, Path] = {}
     for inst_id, inst_cfg in all_insts.items():
         if inst_id == "canonical_intermediate":
             continue

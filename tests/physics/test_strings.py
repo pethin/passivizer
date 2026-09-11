@@ -4,26 +4,27 @@ alternate tunings, inharmonicity, and multi-scale wave speed continuums.
 """
 
 import math
+
 import numpy as np
 
 from allomorph.circuit import load_circuit
 from allomorph.config import (
     STRINGS,
     VOICES,
-    load_instrument,
     get_instrument_string,
     get_voice_string,
+    load_instrument,
 )
 from allomorph.dsp import FREQS, NUM_TAPS
 from allomorph.physics import (
-    compute_differential_string_transfer,
     compute_differential_longitudinal_transfer,
-    compute_voice_prefilter_firs,
+    compute_differential_string_transfer,
     compute_dispersive_wave_speed,
-    numpy_pickup_acoustic_response,
-    infer_string_names,
-    get_inharmonicity_for_f0,
+    compute_voice_prefilter_firs,
     generate_wave_speed_continuum,
+    get_inharmonicity_for_f0,
+    infer_string_names,
+    numpy_pickup_acoustic_response,
 )
 
 

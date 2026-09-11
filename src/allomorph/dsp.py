@@ -5,6 +5,8 @@ fast Fourier transform wrappers, and 24-bit PCM audio export.
 """
 
 import wave
+from collections.abc import Sequence
+from pathlib import Path
 
 import numpy as np
 
@@ -14,7 +16,11 @@ NYQ = FS / 2.0
 FREQS = [i * (NYQ / (NUM_TAPS - 1)) for i in range(NUM_TAPS)]
 
 
-def synthesize_minimum_phase_fir(magnitude_curve, num_taps=NUM_TAPS, normalize=True):
+def synthesize_minimum_phase_fir(
+    magnitude_curve: Sequence[float] | np.ndarray,
+    num_taps: int = NUM_TAPS,
+    normalize: bool = True,
+) -> list[float]:
     """
     Synthesizes a causal, minimum-phase FIR filter from a desired magnitude
     curve using the homomorphic real-cepstrum Hilbert transform.
@@ -70,14 +76,18 @@ def synthesize_minimum_phase_fir(magnitude_curve, num_taps=NUM_TAPS, normalize=T
         fir = (fir / max_peak) * 0.99
     return fir.tolist()
 
-def write_wav_24bit(filepath, samples, sample_rate=FS):
+def write_wav_24bit(
+    filepath: str | Path,
+    samples: Sequence[float] | np.ndarray,
+    sample_rate: int = FS,
+) -> None:
     """Exports a 48 kHz / 24-bit mono PCM WAV file."""
     try:
         from pedalboard.io import AudioFile
         arr = np.array([samples], dtype=np.float32)
         with AudioFile(str(filepath), "w", samplerate=sample_rate, num_channels=1, bit_depth=24) as f:
             f.write(arr)
-    except (ImportError, Exception):
+    except (ImportError, RuntimeError, OSError, ValueError):
         with wave.open(str(filepath), "wb") as wf:
             wf.setnchannels(1)
             wf.setsampwidth(3)  # 3 bytes = 24-bit PCM

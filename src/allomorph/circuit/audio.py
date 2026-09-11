@@ -5,15 +5,18 @@ I/O, and calibration audio discovery.
 """
 
 import wave
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Optional, Union
+from typing import Any
 
 import numpy as np
 
 from allomorph.config import REPO_ROOT
 
 
-def apply_prefilter_to_audio(audio: np.ndarray, sr: int, fir_samples) -> np.ndarray:
+def apply_prefilter_to_audio(
+    audio: np.ndarray, sr: int, fir_samples: Sequence[Any] | np.ndarray
+) -> np.ndarray:
     """
     Applies the aperture and scale tension FIR(s) to audio in memory using vectorized FFT convolution.
     Returns an array of shape (n_channels, n_samples) scaled with 8 dB headroom (0.40 max).
@@ -33,7 +36,7 @@ def apply_prefilter_to_audio(audio: np.ndarray, sr: int, fir_samples) -> np.ndar
     n_fft = 1 << (n_sig + max_ir_len - 1).bit_length()
     X_input = np.fft.rfft(input_mono, n_fft)
 
-    effected_channels = []
+    effected_channels: list[np.ndarray] = []
     for ch_fir in channels_firs:
         fir = np.asarray(ch_fir, dtype=np.float32)
         eff = np.fft.irfft(X_input * np.fft.rfft(fir, n_fft), n_fft)[:n_sig].astype(np.float32)
@@ -55,7 +58,11 @@ def apply_prefilter_to_audio(audio: np.ndarray, sr: int, fir_samples) -> np.ndar
     return effected
 
 
-def prefilter_audio(input_wav_path: Union[str, Path], output_wav_path: Union[str, Path], fir_samples):
+def prefilter_audio(
+    input_wav_path: str | Path,
+    output_wav_path: str | Path,
+    fir_samples: Sequence[Any] | np.ndarray,
+) -> None:
     """
     Applies aperture and scale tension FIR(s) to audio and writes a 24-bit 48 kHz WAV.
     Maintained for standalone export and backward compatibility.
@@ -85,7 +92,7 @@ def prefilter_audio(input_wav_path: Union[str, Path], output_wav_path: Union[str
         wf.writeframes(frames)
 
 
-def find_default_input_audio() -> Optional[Path]:
+def find_default_input_audio() -> Path | None:
     """Finds raw calibration audio in the repository root."""
     for candidate in ["T3K-sweep-v3.wav", "v3_0_0.wav", "input.wav"]:
         p = REPO_ROOT / candidate

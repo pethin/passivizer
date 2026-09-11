@@ -4,68 +4,69 @@ Interactive Altair visualizations and Polars frequency response modeling.
 """
 
 import argparse
+from collections.abc import Sequence
 from pathlib import Path
 
 from allomorph.config import load_instrument
+from allomorph.visualizer.charts import (
+    generate_all_charts,
+    generate_composite_instrument_chart,
+    generate_frontend_deconvolutions_chart,
+    generate_instrument_frontend_chart,
+    generate_interactive_chart,
+    generate_universal_targets_chart,
+    render_chart_to_file,
+)
 from allomorph.visualizer.dataframe import (
-    NUM_POINTS,
-    F_MIN,
     F_MAX,
-    log_freqs,
-    build_voice_dataframe,
-    compute_canonical_intermediate_response,
-    build_universal_targets_dataframe,
+    F_MIN,
+    NUM_POINTS,
+    build_composite_instrument_dataframe,
     build_frontend_deconvolutions_dataframe,
     build_instrument_frontend_dataframe,
-    build_composite_instrument_dataframe,
+    build_universal_targets_dataframe,
+    build_voice_dataframe,
+    compute_canonical_intermediate_response,
+    log_freqs,
 )
 from allomorph.visualizer.portal import (
     DOCS_DIR,
     RESPONSES_DIR,
     append_spec_panel,
-    format_instrument_meta,
     build_portal_html,
+    format_instrument_meta,
     generate_portal_pages,
-)
-from allomorph.visualizer.charts import (
-    render_chart_to_file,
-    generate_universal_targets_chart,
-    generate_instrument_frontend_chart,
-    generate_frontend_deconvolutions_chart,
-    generate_composite_instrument_chart,
-    generate_interactive_chart,
-    generate_all_charts,
 )
 
 __all__ = [
-    "NUM_POINTS",
-    "F_MIN",
-    "F_MAX",
-    "log_freqs",
-    "build_voice_dataframe",
-    "compute_canonical_intermediate_response",
-    "build_universal_targets_dataframe",
-    "build_frontend_deconvolutions_dataframe",
-    "build_instrument_frontend_dataframe",
-    "build_composite_instrument_dataframe",
     "DOCS_DIR",
+    "F_MAX",
+    "F_MIN",
+    "NUM_POINTS",
     "RESPONSES_DIR",
     "append_spec_panel",
-    "format_instrument_meta",
+    "build_composite_instrument_dataframe",
+    "build_frontend_deconvolutions_dataframe",
+    "build_instrument_frontend_dataframe",
     "build_portal_html",
-    "generate_portal_pages",
-    "render_chart_to_file",
-    "generate_universal_targets_chart",
-    "generate_instrument_frontend_chart",
-    "generate_frontend_deconvolutions_chart",
-    "generate_composite_instrument_chart",
-    "generate_interactive_chart",
+    "build_universal_targets_dataframe",
+    "build_voice_dataframe",
+    "compute_canonical_intermediate_response",
+    "format_instrument_meta",
     "generate_all_charts",
+    "generate_composite_instrument_chart",
+    "generate_frontend_deconvolutions_chart",
+    "generate_instrument_frontend_chart",
+    "generate_interactive_chart",
+    "generate_portal_pages",
+    "generate_universal_targets_chart",
+    "log_freqs",
     "main",
+    "render_chart_to_file",
 ]
 
 
-def main(argv=None):
+def main(argv: Sequence[str] | None = None) -> None:
     """CLI entrypoint for interactive frequency response visualizer."""
     parser = argparse.ArgumentParser(description="Generate interactive Altair visualization of Allomorph voices.")
     parser.add_argument(

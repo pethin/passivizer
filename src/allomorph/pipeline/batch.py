@@ -4,15 +4,17 @@ Parallel batch runner coordinating multiple circuit simulations with ProcessPool
 """
 
 import os
+from collections.abc import Sequence
 from concurrent.futures import ProcessPoolExecutor, as_completed
-from typing import Optional, Sequence, Union
 from pathlib import Path
 
 from allomorph.config import VOICES
 from allomorph.pipeline.stages import run_circuit_simulation
 
 
-def _run_circuit_simulation_task(task_args):
+def _run_circuit_simulation_task(
+    task_args: tuple[str, str, str | Path | None, int | None],
+) -> tuple[str, bool]:
     """Top-level picklable task runner for multiprocessing."""
     voice, instrument, input_wav, max_samples = task_args
     success = run_circuit_simulation(
@@ -25,12 +27,12 @@ def _run_circuit_simulation_task(task_args):
 
 
 def run_spice_batch(
-    voices: Optional[Sequence[str]] = None,
+    voices: Sequence[str] | None = None,
     instrument: str = "30in",
-    input_wav: Optional[Union[str, Path]] = None,
+    input_wav: str | Path | None = None,
     backend: str = "native",
-    jobs: Optional[int] = None,
-    max_samples: Optional[int] = None,
+    jobs: int | None = None,
+    max_samples: int | None = None,
 ) -> bool:
     """Executes batch simulation of specified voice circuit models with multi-process concurrency."""
     if backend != "native":
@@ -48,9 +50,7 @@ def run_spice_batch(
         failed = []
         with ProcessPoolExecutor(max_workers=max_workers) as executor:
             futures = [executor.submit(_run_circuit_simulation_task, task) for task in tasks]
-            completed = 0
-            for future in as_completed(futures):
-                completed += 1
+            for completed, future in enumerate(as_completed(futures), 1):
                 try:
                     v, success = future.result()
                     if not success:
@@ -58,7 +58,7 @@ def run_spice_batch(
                         print(f"  [{completed}/{len(target_voices)}] Voice simulation FAILED: {v}")
                     else:
                         print(f"  [{completed}/{len(target_voices)}] Voice simulation finished: {v}")
-                except Exception as e:
+                except (OSError, RuntimeError, ValueError) as e:
                     failed.append(f"unknown (error: {e})")
                     print(f"  [{completed}/{len(target_voices)}] Voice simulation worker error: {e}")
         if failed:

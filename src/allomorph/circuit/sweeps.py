@@ -4,16 +4,19 @@ Evaluates exact continuous electrical parameter sweeps across frequencies in < 4
 Supports tone pot, volume pot, cable capacitance, tone capacitor, and active EQ sweeps.
 """
 
-from dataclasses import dataclass
 import copy
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional, Union
+from typing import Any
 
 import numpy as np
 import polars as pl
 
 from allomorph.circuit.parser import CircuitModel, load_circuit
-from allomorph.circuit.solver import apply_magnet_properties_to_model, compute_circuit_transfer_functions
+from allomorph.circuit.solver import (
+    apply_magnet_properties_to_model,
+    compute_circuit_transfer_functions,
+)
 from allomorph.dsp import FREQS
 
 
@@ -26,7 +29,7 @@ class ParametricSweepResult:
     freqs: np.ndarray
     curves: list[np.ndarray]  # magnitude in dB for each swept value
     labels: list[str]
-    voice_id: Optional[str] = None
+    voice_id: str | None = None
 
     @property
     def curves_db(self) -> list[np.ndarray]:
@@ -84,7 +87,7 @@ class ParametricSweepResult:
         pb_mask = (f >= 400.0) & (f <= 12000.0)
         pb_indices = np.where(pb_mask)[0]
 
-        records = []
+        records: list[dict[str, Any]] = []
         for i, (val, lbl, c) in enumerate(zip(self.values, self.labels, self.curves)):
             curve = np.asarray(c, dtype=np.float64)
             loss_db = float(curve[idx_100])
@@ -204,19 +207,13 @@ class ParametricSweepResult:
 def _get_default_sweep_values(param: str) -> list[float]:
     """Provides default numerical values for a given sweep parameter."""
     p = param.lower().strip()
-    if p in ("tone", "tone_pos", "tone_wiper", "tone_pot"):
-        return [0.0, 0.25, 0.5, 0.75, 1.0]
-    elif p in ("vol", "vol_pos", "volume", "vol_wiper", "volume_pot"):
-        return [0.0, 0.25, 0.5, 0.75, 1.0]
-    elif p in ("blend", "blend_pos", "pan", "balance"):
+    if p in ("tone", "tone_pos", "tone_wiper", "tone_pot") or p in ("vol", "vol_pos", "volume", "vol_wiper", "volume_pot") or p in ("blend", "blend_pos", "pan", "balance"):
         return [0.0, 0.25, 0.5, 0.75, 1.0]
     elif p in ("cable", "cable_pf", "ccable", "cable_capacitance"):
         return [200.0, 500.0, 750.0, 1000.0, 1500.0]
     elif p in ("tone_cap", "ctone", "cap", "tone_capacitance", "tone_cap_nf"):
         return [22.0, 33.0, 47.0, 68.0, 100.0]
-    elif p in ("bass_boost", "preamp_bass", "bass"):
-        return [0.0, 3.0, 6.0, 9.0, 12.0]
-    elif p in ("treble_boost", "preamp_treble", "treble"):
+    elif p in ("bass_boost", "preamp_bass", "bass") or p in ("treble_boost", "preamp_treble", "treble"):
         return [0.0, 3.0, 6.0, 9.0, 12.0]
     return [0.0, 0.5, 1.0]
 
@@ -225,9 +222,9 @@ def _generate_default_labels(param: str, values: list[float]) -> list[str]:
     """Generates clean human-readable labels for sweep values."""
     p = param.lower().strip()
     if p in ("tone", "tone_pos", "tone_wiper", "tone_pot"):
-        return [f"Tone {int(round(v * 100))}%" for v in values]
+        return [f"Tone {round(v * 100)}%" for v in values]
     elif p in ("vol", "vol_pos", "volume", "vol_wiper", "volume_pot"):
-        return [f"Vol {int(round(v * 100))}%" for v in values]
+        return [f"Vol {round(v * 100)}%" for v in values]
     elif p in ("blend", "blend_pos", "pan", "balance"):
         lbl_map = {
             0.0: "Neck 100%",
@@ -236,7 +233,7 @@ def _generate_default_labels(param: str, values: list[float]) -> list[str]:
             0.75: "Neck 25% / Bridge 75%",
             1.0: "Bridge 100%",
         }
-        return [lbl_map.get(round(v, 2), f"Blend {int(round(v * 100))}%") for v in values]
+        return [lbl_map.get(round(v, 2), f"Blend {round(v * 100)}%") for v in values]
     elif p in ("cable", "cable_pf", "ccable", "cable_capacitance"):
         return [f"Cable {v:.0f} pF" if v > 1e-6 else f"Cable {v*1e12:.0f} pF" for v in values]
     elif p in ("tone_cap", "ctone", "cap", "tone_capacitance", "tone_cap_nf"):
@@ -250,12 +247,12 @@ def _generate_default_labels(param: str, values: list[float]) -> list[str]:
 
 
 def compute_parametric_sweep(
-    circuit_or_voice: Union[CircuitModel, dict, str, Path],
+    circuit_or_voice: CircuitModel | dict[str, Any] | str | Path,
     param: str,
-    values: Optional[Union[list[float], np.ndarray]] = None,
-    freqs: Union[list[float], np.ndarray] = FREQS,
-    labels: Optional[list[str]] = None,
-    pickup_channel: Union[int, str] = 0,
+    values: list[float] | np.ndarray | None = None,
+    freqs: list[float] | np.ndarray = FREQS,
+    labels: list[str] | None = None,
+    pickup_channel: int | str = 0,
     pot_taper: str = "audio",
 ) -> ParametricSweepResult:
     """
@@ -301,7 +298,7 @@ def compute_parametric_sweep(
         model = load_circuit(circuit_or_voice)
         apply_magnet_properties_to_model(model, circuit_or_voice)
     else:
-        raise ValueError(f"Invalid circuit_or_voice: {type(circuit_or_voice)}")
+        raise TypeError(f"Invalid circuit_or_voice: {type(circuit_or_voice)}")
 
     f_arr = np.asarray(freqs, dtype=np.float64)
 
@@ -314,6 +311,7 @@ def compute_parametric_sweep(
     elif len(labels) != len(values):
         raise ValueError(f"Length of labels ({len(labels)}) must match values ({len(values)})")
 
+    ch_idx = pickup_channel if isinstance(pickup_channel, int) else 0
     p = param.lower().strip()
     curves: list[np.ndarray] = []
 
@@ -325,7 +323,7 @@ def compute_parametric_sweep(
             for v in values:
                 model.apply_pot_positions(tone_pos=v, pot_taper=pot_taper)
                 tr = compute_circuit_transfer_functions(model, freqs=f_arr, return_numpy=True)
-                ch = min(pickup_channel, len(tr) - 1) if isinstance(pickup_channel, int) else 0
+                ch = min(ch_idx, len(tr) - 1)
                 mag_db = 20.0 * np.log10(np.maximum(tr[ch], 1e-6))
                 curves.append(mag_db)
         finally:
@@ -342,7 +340,7 @@ def compute_parametric_sweep(
             for v in values:
                 model.apply_pot_positions(vol_pos=v, pot_taper=pot_taper)
                 tr = compute_circuit_transfer_functions(model, freqs=f_arr, return_numpy=True)
-                ch = min(pickup_channel, len(tr) - 1) if isinstance(pickup_channel, int) else 0
+                ch = min(ch_idx, len(tr) - 1)
                 mag_db = 20.0 * np.log10(np.maximum(tr[ch], 1e-6))
                 curves.append(mag_db)
         finally:
@@ -387,7 +385,7 @@ def compute_parametric_sweep(
                 c_farads = v * 1e-12 if v > 1e-6 else v
                 model.Ccable = c_farads
                 tr = compute_circuit_transfer_functions(model, freqs=f_arr, return_numpy=True)
-                ch = min(pickup_channel, len(tr) - 1)
+                ch = min(ch_idx, len(tr) - 1)
                 mag_db = 20.0 * np.log10(np.maximum(tr[ch], 1e-6))
                 curves.append(mag_db)
         finally:
@@ -400,7 +398,7 @@ def compute_parametric_sweep(
                 c_farads = v * 1e-9 if v > 1e-6 else v
                 model.Ctone = c_farads
                 tr = compute_circuit_transfer_functions(model, freqs=f_arr, return_numpy=True)
-                ch = min(pickup_channel, len(tr) - 1)
+                ch = min(ch_idx, len(tr) - 1)
                 mag_db = 20.0 * np.log10(np.maximum(tr[ch], 1e-6))
                 curves.append(mag_db)
         finally:
@@ -413,12 +411,13 @@ def compute_parametric_sweep(
         try:
             from allomorph.config import PREAMPS
 
-            base_bands = []
+            base_bands: list[dict[str, Any]] = []
             if orig_bands is not None:
                 base_bands = copy.deepcopy(orig_bands)
             elif model.preamp_type != "none" and model.preamp_type in PREAMPS:
                 bands_cfg = PREAMPS[model.preamp_type].get("bands", [])
-                base_bands = copy.deepcopy(bands_cfg) if bands_cfg else []
+                empty_bands: list[dict[str, Any]] = []
+                base_bands = copy.deepcopy(bands_cfg) if bands_cfg else empty_bands
 
             shelf_idx = None
             for i, b in enumerate(base_bands):
@@ -435,7 +434,7 @@ def compute_parametric_sweep(
                 bands[shelf_idx]["gain_db"] = float(v)
                 model.preamp_bands = bands
                 tr = compute_circuit_transfer_functions(model, freqs=f_arr, return_numpy=True)
-                ch = min(pickup_channel, len(tr) - 1)
+                ch = min(ch_idx, len(tr) - 1)
                 mag_db = 20.0 * np.log10(np.maximum(tr[ch], 1e-6))
                 curves.append(mag_db)
         finally:
@@ -450,12 +449,13 @@ def compute_parametric_sweep(
         try:
             from allomorph.config import PREAMPS
 
-            base_bands = []
+            base_bands: list[dict[str, Any]] = []
             if orig_bands is not None:
                 base_bands = copy.deepcopy(orig_bands)
             elif model.preamp_type != "none" and model.preamp_type in PREAMPS:
                 bands_cfg = PREAMPS[model.preamp_type].get("bands", [])
-                base_bands = copy.deepcopy(bands_cfg) if bands_cfg else []
+                empty_bands2: list[dict[str, Any]] = []
+                base_bands = copy.deepcopy(bands_cfg) if bands_cfg else empty_bands2
 
             shelf_idx = None
             for i, b in enumerate(base_bands):
@@ -472,7 +472,7 @@ def compute_parametric_sweep(
                 bands[shelf_idx]["gain_db"] = float(v)
                 model.preamp_bands = bands
                 tr = compute_circuit_transfer_functions(model, freqs=f_arr, return_numpy=True)
-                ch = min(pickup_channel, len(tr) - 1)
+                ch = min(ch_idx, len(tr) - 1)
                 mag_db = 20.0 * np.log10(np.maximum(tr[ch], 1e-6))
                 curves.append(mag_db)
         finally:
@@ -486,7 +486,7 @@ def compute_parametric_sweep(
             for v in values:
                 setattr(model, param, v)
                 tr = compute_circuit_transfer_functions(model, freqs=f_arr, return_numpy=True)
-                ch = min(pickup_channel, len(tr) - 1)
+                ch = min(ch_idx, len(tr) - 1)
                 mag_db = 20.0 * np.log10(np.maximum(tr[ch], 1e-6))
                 curves.append(mag_db)
         finally:

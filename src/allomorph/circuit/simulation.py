@@ -5,44 +5,45 @@ core eddy diffusion, and differential RLC transfer functions to 24-bit audio buf
 """
 
 import math
-from typing import Optional, Union, Dict, Any, Sequence, List
 import wave
+from collections.abc import Sequence
 from pathlib import Path
+from typing import Any
+
 import numpy as np
 
+from allomorph.circuit.audio import (
+    apply_prefilter_to_audio,
+    find_default_input_audio,
+)
+from allomorph.circuit.parser import (
+    MAGNET_PROPERTIES,
+    CircuitModel,
+    load_circuit,
+)
+from allomorph.circuit.saturation import (
+    apply_oversampled_saturation,
+)
+from allomorph.circuit.solver import (
+    apply_magnet_properties_to_model,
+    compute_circuit_transfer_functions,
+    compute_differential_circuit_transfer_functions,
+)
+from allomorph.config import (
+    REPO_ROOT,
+    VOICES,
+    get_instrument_string,
+    get_source_pickup,
+    load_instrument,
+)
 from allomorph.dsp import (
     FREQS,
     NUM_TAPS,
     synthesize_minimum_phase_fir,
 )
-from allomorph.config import (
-    REPO_ROOT,
-    VOICES,
-    load_instrument,
-    get_instrument_string,
-    get_source_pickup,
-)
 from allomorph.physics import (
     compute_voice_prefilter_firs,
     is_voice_matching_source,
-)
-from allomorph.circuit.parser import (
-    CircuitModel,
-    MAGNET_PROPERTIES,
-    load_circuit,
-)
-from allomorph.circuit.solver import (
-    compute_circuit_transfer_functions,
-    compute_differential_circuit_transfer_functions,
-    apply_magnet_properties_to_model,
-)
-from allomorph.circuit.saturation import (
-    apply_oversampled_saturation,
-)
-
-from allomorph.circuit.audio import (
-    apply_prefilter_to_audio,
-    find_default_input_audio,
 )
 
 AUDIO_DIR = REPO_ROOT / "audio"
@@ -55,56 +56,56 @@ INTERMEDIATE_TARGET_RMS_DBFS = -16.5
 
 
 def simulate_circuit_audio(
-    input_audio,
-    output_wav_path: Union[str, Path],
+    input_audio: str | Path | np.ndarray,
+    output_wav_path: str | Path,
     model: CircuitModel,
-    prefilter_firs: Optional[Sequence[Any]] = None,
-    circuit_curves: Optional[Sequence[Any]] = None,
+    prefilter_firs: Sequence[Any] | None = None,
+    circuit_curves: Sequence[Any] | None = None,
     is_passive: bool = False,
-    bypass_saturation: Optional[bool] = None,
+    bypass_saturation: bool | None = None,
     normalize: str = "auto",
-    target_dbfs: Optional[float] = None,
+    target_dbfs: float | None = None,
     oversample: int = 2,
     displacement_weighting: bool = True,
     magnet_drag: bool = True,
     alpha: float = 0.20,
-    alphas: Optional[Sequence[float]] = None,
+    alphas: Sequence[float] | None = None,
     alpha3: float = 0.08,
-    alpha3s: Optional[Sequence[float]] = None,
+    alpha3s: Sequence[float] | None = None,
     eta_hyst: float = 0.06,
-    eta_hysts: Optional[Sequence[float]] = None,
+    eta_hysts: Sequence[float] | None = None,
     k_sag: float = 0.08,
-    k_sags: Optional[Sequence[float]] = None,
+    k_sags: Sequence[float] | None = None,
     k_eddy: float = 0.0,
-    k_eddys: Optional[Sequence[float]] = None,
+    k_eddys: Sequence[float] | None = None,
     kappa_orbit: float = 0.0,
-    kappa_orbits: Optional[Sequence[float]] = None,
+    kappa_orbits: Sequence[float] | None = None,
     beta_curv: float = 0.0,
-    beta_curvs: Optional[Sequence[float]] = None,
+    beta_curvs: Sequence[float] | None = None,
     k_pull: float = 0.0,
-    k_pulls: Optional[Sequence[float]] = None,
+    k_pulls: Sequence[float] | None = None,
     tau_touch: float = 0.0,
-    tau_touches: Optional[Sequence[float]] = None,
+    tau_touches: Sequence[float] | None = None,
     kappa_geom: float = 0.0,
-    kappa_geoms: Optional[Sequence[float]] = None,
+    kappa_geoms: Sequence[float] | None = None,
     k_stein: float = 0.0,
-    k_steins: Optional[Sequence[float]] = None,
+    k_steins: Sequence[float] | None = None,
     k_emf: float = 0.0,
-    k_emfs: Optional[Sequence[float]] = None,
+    k_emfs: Sequence[float] | None = None,
     lambda_L: float = 0.0,
-    lambda_Ls: Optional[Sequence[float]] = None,
-    vol_pos: Optional[float] = None,
-    tone_pos: Optional[float] = None,
-    blend_pos: Optional[float] = None,
-    pot_taper: Optional[str] = None,
+    lambda_Ls: Sequence[float] | None = None,
+    vol_pos: float | None = None,
+    tone_pos: float | None = None,
+    blend_pos: float | None = None,
+    pot_taper: str | None = None,
     slew_limit: bool = True,
     f_slew: float = 16000.0,
     is_identity: bool = False,
     noise_dither: bool = True,
-    vsat: Optional[float] = None,
-    vsats: Optional[Sequence[float]] = None,
+    vsat: float | None = None,
+    vsats: Sequence[float] | None = None,
     dc_block: bool = True,
-    max_samples: Optional[int] = None,
+    max_samples: int | None = None,
 ):
     """
     Executes native Virtual Analog circuit simulation on audio.
@@ -127,7 +128,7 @@ def simulate_circuit_audio(
         with AudioFile(str(input_audio)) as f:
             num_frames = min(f.frames, max_samples) if max_samples else f.frames
             audio = f.read(num_frames)
-            sr = f.samplerate
+            sr = int(f.samplerate)
     elif isinstance(input_audio, np.ndarray):
         audio = (
             input_audio[:, :max_samples]
@@ -138,7 +139,7 @@ def simulate_circuit_audio(
         )
         sr = 48000
     else:
-        raise ValueError(f"Unsupported input_audio type: {type(input_audio)}")
+        raise TypeError(f"Unsupported input_audio type: {type(input_audio)}")
 
     if bypass_saturation is None:
         bypass_saturation = is_passive
@@ -475,42 +476,42 @@ def simulate_circuit_audio(
 
 def simulate_voice(
     voice_id: str,
-    input_wav: Union[str, Path, None] = None,
-    output_wav: Union[str, Path, None] = None,
-    instrument: Union[str, dict, None] = "30in",
-    pickup: Optional[str] = None,
-    tier: Optional[str] = None,
+    input_wav: str | Path | None = None,
+    output_wav: str | Path | None = None,
+    instrument: str | dict[str, Any] | None = "30in",
+    pickup: str | None = None,
+    tier: str | None = None,
     prefiltered: bool = False,
-    cir_path: Union[str, Path, None] = None,
+    cir_path: str | Path | None = None,
     normalize: str = "auto",
-    target_dbfs: Optional[float] = None,
+    target_dbfs: float | None = None,
     oversample: int = 2,
     displacement_weighting: bool = True,
     magnet_drag: bool = True,
-    alpha: Optional[float] = None,
-    alpha3: Optional[float] = None,
-    eta_hyst: Optional[float] = None,
-    k_sag: Optional[float] = None,
-    k_eddy: Optional[float] = None,
-    kappa_orbit: Optional[float] = None,
-    beta_curv: Optional[float] = None,
-    k_pull: Optional[float] = None,
-    tau_touch: Optional[float] = None,
-    kappa_geom: Optional[float] = None,
-    k_stein: Optional[float] = None,
-    k_emf: Optional[float] = None,
-    lambda_L: Optional[float] = None,
-    vol_pos: Optional[float] = None,
-    tone_pos: Optional[float] = None,
-    blend_pos: Optional[float] = None,
-    pot_taper: Optional[str] = None,
-    cable_pf: Optional[float] = None,
+    alpha: float | None = None,
+    alpha3: float | None = None,
+    eta_hyst: float | None = None,
+    k_sag: float | None = None,
+    k_eddy: float | None = None,
+    kappa_orbit: float | None = None,
+    beta_curv: float | None = None,
+    k_pull: float | None = None,
+    tau_touch: float | None = None,
+    kappa_geom: float | None = None,
+    k_stein: float | None = None,
+    k_emf: float | None = None,
+    lambda_L: float | None = None,
+    vol_pos: float | None = None,
+    tone_pos: float | None = None,
+    blend_pos: float | None = None,
+    pot_taper: str | None = None,
+    cable_pf: float | None = None,
     slew_limit: bool = True,
     f_slew: float = 16000.0,
     noise_dither: bool = True,
     eddy_diffusion: bool = True,
     dc_block: bool = True,
-    max_samples: Optional[int] = None,
+    max_samples: int | None = None,
 ):
     """
     Simulates a target voice digital twin using the native Virtual Analog engine.
@@ -537,7 +538,11 @@ def simulate_voice(
                 f"Target voice '{voice_id}' does not define a '[circuit]' configuration."
             )
 
-    inst_cfg = load_instrument(instrument) if not isinstance(instrument, dict) else instrument
+    inst_cfg = (
+        load_instrument("30in" if instrument is None else instrument)
+        if not isinstance(instrument, dict)
+        else instrument
+    )
     if "id" not in inst_cfg:
         raise ValueError("Instrument configuration missing required 'id' field.")
     inst_id = inst_cfg["id"]
@@ -547,24 +552,25 @@ def simulate_voice(
     if not input_wav or not Path(input_wav).exists():
         found = find_default_input_audio()
         if found:
-            input_wav = found
+            in_wav_path = found
         elif (inst_audio_dir / f"aperture_{voice_id}.wav").exists():
-            input_wav = inst_audio_dir / f"aperture_{voice_id}.wav"
+            in_wav_path = inst_audio_dir / f"aperture_{voice_id}.wav"
             prefiltered = True
         else:
             raise FileNotFoundError(
                 f"Input audio '{input_wav}' not found, and no standard calibration audio (T3K-sweep-v3.wav, v3_0_0.wav, input.wav) was detected."
             )
-    elif Path(input_wav).name.startswith("aperture_") and not prefiltered:
-        prefiltered = True
-        print(
-            f"  [Auto-detected pre-filtered aperture input: {Path(input_wav).name} -> setting prefiltered=True]"
-        )
-
-    if not output_wav:
-        output_wav = inst_audio_dir / f"out_{voice_id}.wav"
     else:
-        output_wav = Path(output_wav)
+        in_wav_path = Path(input_wav)
+        if in_wav_path.name.startswith("aperture_") and not prefiltered:
+            prefiltered = True
+            print(
+                f"  [Auto-detected pre-filtered aperture input: {in_wav_path.name} -> setting prefiltered=True]"
+            )
+
+    out_wav: Path = (
+        inst_audio_dir / f"out_{voice_id}.wav" if not output_wav else Path(output_wav)
+    )
 
     apply_magnet_properties_to_model(model, vcfg, eddy_diffusion=eddy_diffusion)
     if vol_pos is not None or tone_pos is not None or blend_pos is not None or pot_taper is not None:
@@ -972,7 +978,7 @@ def simulate_voice(
     prefilter_firs = None
     if not prefiltered:
         prefilter_firs = compute_voice_prefilter_firs(
-            voice_id, instrument=instrument, src_pickup_key=src_pickup.get("id")
+            voice_id, instrument=inst_cfg, src_pickup_key=src_pickup.get("id")
         )
         if has_source_circuit:
             stage_desc = f"Acoustic Aperture + Differential Circuit Simulation ({'Passive' if is_passive else 'Active'} Source)"
@@ -982,13 +988,13 @@ def simulate_voice(
         stage_desc = "Circuit Simulation (Pre-filtered Input)"
 
     samples_desc = f", Samples: {max_samples}" if max_samples is not None else ""
-    cir_label = cir_path.name if cir_path else f"{voice_id}.toml"
+    cir_label = Path(cir_path).name if cir_path else f"{voice_id}.toml"
     print(
         f"  -> Simulating Native VA ({stage_desc}{samples_desc}): {cir_label} (Topology: {model.topology}, Source: {inst_id}, Soften: {'Yes' if should_soften else 'No'}, Alpha: {diff_alpha:.2f}, Alpha3: {diff_alpha3:.2f}, Eta: {diff_eta:.2f}, Sag: {diff_sag:.2f}, Eddy: {diff_eddy:.2f}, Orbit: {diff_orbit:.2f}, Beta: {diff_beta:.3f}, Pull: {diff_pull:.3f}, Touch: {diff_touch:.3f}, Geom: {diff_geom:.2f}, Stein: {diff_stein:.3f}, EMF: {diff_emf:.2f}, Lambda: {diff_lambda:.2f}, Vsat: {eff_vsat:.2f})..."
     )
     simulate_circuit_audio(
-        input_wav,
-        output_wav,
+        in_wav_path,
+        out_wav,
         model,
         prefilter_firs=prefilter_firs,
         circuit_curves=diff_curves,
@@ -1038,10 +1044,10 @@ def simulate_voice(
         dc_block=dc_block,
         max_samples=max_samples,
     )
-    print(f"     Exported: {output_wav}")
+    print(f"     Exported: {out_wav}")
     return True
 
 
-def _simulate_voice_task(task_args):
+def _simulate_voice_task(task_args: tuple[str, dict[str, Any]]) -> bool:
     v, kwargs = task_args
     return simulate_voice(v, **kwargs)

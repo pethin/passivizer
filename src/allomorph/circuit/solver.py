@@ -6,15 +6,17 @@ Jordan after-effect permeability dispersion, and Wiener-regularized deconvolutio
 """
 
 import math
-from typing import Union
+from collections.abc import Sequence
+from typing import Any, Literal, overload
+
 import numpy as np
 
+from allomorph.circuit.parser import MAGNET_PROPERTIES, CircuitModel, eval_pot_taper
 from allomorph.dsp import FREQS
-from allomorph.circuit.parser import CircuitModel, MAGNET_PROPERTIES, eval_pot_taper
 
 
 def compute_core_impedance(
-    s,
+    s: complex | np.ndarray,
     L: float,
     L_core: float = 0.0,
     R_core: float = 0.0,
@@ -23,7 +25,7 @@ def compute_core_impedance(
     k_skin: float = 0.0,
     omega_skin: float = 2.0 * math.pi * 3200.0,
     Rdc: float = 8000.0,
-):
+) -> complex | np.ndarray:
     """
     Computes Foster 2-stage ladder impedance of the coil inductor with
     Jordan after-effect complex magnetic permeability dispersion and
@@ -56,9 +58,9 @@ def compute_core_impedance(
 
 def apply_magnet_properties_to_model(
     model: CircuitModel,
-    vcfg: dict,
+    vcfg: dict[str, Any],
     eddy_diffusion: bool = True,
-):
+) -> None:
     """
     Applies Foster 2-stage core eddy diffusion parameters (L_core, R_core),
     complex permeability dispersion (chi_mu), distributed winding factor (k_dist),
@@ -129,8 +131,8 @@ def apply_magnet_properties_to_model(
 
 
 def evaluate_analog_band(
-    band: dict, s: Union[complex, np.ndarray, float]
-) -> Union[complex, np.ndarray]:
+    band: dict[str, Any], s: complex | np.ndarray
+) -> complex | np.ndarray:
     """Evaluates continuous s-domain analog transfer function for a single EQ band."""
     b_type = band.get("type", "bell")
     f0 = float(band.get("freq_hz", 1000.0))
@@ -154,7 +156,9 @@ def evaluate_analog_band(
     return np.ones_like(s, dtype=np.complex128)
 
 
-def compute_active_preamp_transfer(bands, s, gain_db: float = 0.0) -> np.ndarray:
+def compute_active_preamp_transfer(
+    bands: Sequence[dict[str, Any]] | None, s: complex | np.ndarray, gain_db: float = 0.0
+) -> np.ndarray:
     """Evaluates the composite analog active preamp contour across frequencies with finite DC transmission."""
     h_total = np.ones_like(s, dtype=np.complex128) * (10.0 ** (gain_db / 20.0))
     if not bands:
@@ -164,7 +168,9 @@ def compute_active_preamp_transfer(bands, s, gain_db: float = 0.0) -> np.ndarray
     return h_total
 
 
-def compute_active_preamp_eq(preamp_spec, s):
+def compute_active_preamp_eq(
+    preamp_spec: str | dict[str, Any] | Sequence[dict[str, Any]], s: complex | np.ndarray
+) -> np.ndarray:
     """
     Evaluates analog active preamp contour transfer function.
     Accepts:
@@ -187,7 +193,35 @@ def compute_active_preamp_eq(preamp_spec, s):
     return np.ones_like(s, dtype=np.complex128)
 
 
-def compute_circuit_transfer_functions(model: CircuitModel, freqs=FREQS, return_numpy: bool = False):
+@overload
+def compute_circuit_transfer_functions(
+    model: CircuitModel,
+    freqs: Sequence[float] | np.ndarray = FREQS,
+    return_numpy: Literal[False] = False,
+) -> list[list[float]]: ...
+
+
+@overload
+def compute_circuit_transfer_functions(
+    model: CircuitModel,
+    freqs: Sequence[float] | np.ndarray = FREQS,
+    return_numpy: Literal[True] = ...,
+) -> list[np.ndarray]: ...
+
+
+@overload
+def compute_circuit_transfer_functions(
+    model: CircuitModel,
+    freqs: Sequence[float] | np.ndarray = FREQS,
+    return_numpy: bool = ...,
+) -> list[list[float]] | list[np.ndarray]: ...
+
+
+def compute_circuit_transfer_functions(
+    model: CircuitModel,
+    freqs: Sequence[float] | np.ndarray = FREQS,
+    return_numpy: bool = False,
+) -> list[list[float]] | list[np.ndarray]:
     """
     Computes closed-form nodal AC transfer functions across frequencies using vectorized NumPy SIMD operations.
     Returns a list of magnitude curves:
@@ -195,7 +229,7 @@ def compute_circuit_transfer_functions(model: CircuitModel, freqs=FREQS, return_
       - Dual-pickup (parallel or series): [mag_neck, mag_bridge] (length 2)
     Supports both passive high-Z harnesses and active buffered preamps.
     """
-    def _ret(res_list):
+    def _ret(res_list: list[np.ndarray]) -> list[list[float]] | list[np.ndarray]:
         if return_numpy:
             return res_list
         return [np.asarray(x, dtype=np.float64).tolist() for x in res_list]
@@ -603,10 +637,10 @@ def compute_circuit_transfer_functions(model: CircuitModel, freqs=FREQS, return_
 def compute_differential_circuit_transfer_functions(
     target_model: CircuitModel,
     source_model: CircuitModel,
-    freqs=FREQS,
+    freqs: Sequence[float] | np.ndarray = FREQS,
     max_boost_db: float = 6.0,
     eps: float = 0.05,
-):
+) -> list[list[float]]:
     """
     Computes regularized differential AC transfer functions for passive-to-passive modeling:
     |H_diff(s)| = (|H_target(s)| * |H_source(s)|) / (|H_source(s)|^2 + eps^2)

@@ -2,17 +2,17 @@
 Reusable onboard active preamps and buffer catalog loader.
 """
 
-from pathlib import Path
-from typing import Dict, Any, Optional, Union
 import copy
 import tomllib
+from pathlib import Path
+from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 CONFIG_DIR = REPO_ROOT / "config"
 PREAMPS_FILE = CONFIG_DIR / "preamps.toml"
 
 
-def load_preamps_config(config_path: Optional[Union[str, Path]] = None) -> Dict[str, Dict[str, Any]]:
+def load_preamps_config(config_path: str | Path | None = None) -> dict[str, dict[str, Any]]:
     """Loads active preamps catalog from TOML."""
     path = Path(config_path) if config_path else PREAMPS_FILE
     if not path.exists():
@@ -22,10 +22,10 @@ def load_preamps_config(config_path: Optional[Union[str, Path]] = None) -> Dict[
     return data.get("preamps", {})
 
 
-PREAMPS: Dict[str, Dict[str, Any]] = load_preamps_config()
+PREAMPS: dict[str, dict[str, Any]] = load_preamps_config()
 
 
-def get_preamp(preamp_spec: Optional[Union[str, Dict[str, Any]]]) -> Dict[str, Any]:
+def get_preamp(preamp_spec: str | dict[str, Any] | None) -> dict[str, Any]:
     """
     Resolves an active preamp configuration.
     Accepts:

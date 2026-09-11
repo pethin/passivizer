@@ -3,6 +3,7 @@ Tests for pickup electrical resonance and biquad deconvolution.
 """
 
 import math
+
 import numpy as np
 
 from allomorph.config import load_instrument

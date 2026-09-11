@@ -8,16 +8,17 @@ Tests for post-LTspice architectural enhancements:
 """
 
 import math
+
 import numpy as np
 import polars as pl
 import pytest
 
 from allomorph.circuit import (
     CircuitModel,
-    eval_pot_taper,
-    load_circuit,
     compute_circuit_transfer_functions,
     compute_parametric_sweep,
+    eval_pot_taper,
+    load_circuit,
 )
 from allomorph.circuit.simulation import simulate_circuit_audio
 from allomorph.config import VOICES

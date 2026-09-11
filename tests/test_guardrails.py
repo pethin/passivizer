@@ -17,12 +17,12 @@ import math
 import numpy as np
 
 from allomorph.circuit import (
+    REPO_ROOT,
     compute_active_preamp_eq,
     compute_differential_circuit_transfer_functions,
     load_circuit,
-    REPO_ROOT,
 )
-from allomorph.config import load_instrument, VOICES
+from allomorph.config import VOICES, load_instrument
 from allomorph.dsp import FREQS
 from allomorph.visualizer import build_voice_dataframe
 
@@ -230,11 +230,12 @@ def test_guardrail_fail_fast_zero_silent_fallbacks():
     unknown string presets, or unrecognized magnet types must immediately raise explicit
     ValueError or KeyError exceptions instead of silently applying default fallbacks."""
     import pytest
+
     from allomorph.circuit import simulate_voice
+    from allomorph.circuit.parser import CircuitModel
+    from allomorph.circuit.solver import apply_magnet_properties_to_model
     from allomorph.config.scales import resolve_scale_range
     from allomorph.config.strings import get_instrument_string
-    from allomorph.circuit.solver import apply_magnet_properties_to_model
-    from allomorph.circuit.parser import CircuitModel
 
     # 1. Passive instrument with missing pickup circuit must raise ValueError
     dummy_passive = {

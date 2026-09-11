@@ -5,6 +5,7 @@ active EQ sweeps, Polars DataFrame generation, and performance benchmark (< 50 m
 """
 
 import time
+
 import numpy as np
 import polars as pl
 

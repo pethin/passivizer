@@ -7,6 +7,7 @@ and concise stage-friendly naming invariants.
 import math
 import wave
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import pytest
@@ -14,18 +15,18 @@ import pytest
 from allomorph.circuit import (
     CANONICAL_SWEEP_PATH,
     INTERMEDIATE_TARGET_PEAK_DBFS,
-    generate_canonical_sweep,
     export_all_frontend_irs,
+    generate_canonical_sweep,
     simulate_voice,
 )
 from allomorph.config import (
-    load_instrument,
-    get_source_pickup,
     VOICES,
+    get_source_pickup,
+    load_instrument,
 )
 from allomorph.naming import (
-    get_baked_basename,
     VOICE_CONCISE_SLUGS,
+    get_baked_basename,
     resolve_instruments,
     resolve_voices,
 )
@@ -105,7 +106,7 @@ def test_frontend_ir_generation():
 def test_concise_naming_invariants():
     """Asserts that all 21 target voice model filenames across all 3 tiers are <= 22 characters."""
     tier_prefixes = ["cln_", "std_", "hot_"]
-    for vid, slug in VOICE_CONCISE_SLUGS.items():
+    for slug in VOICE_CONCISE_SLUGS.values():
         for prefix in tier_prefixes:
             filename = f"{prefix}{slug}.nam"
             assert len(filename) <= 22, f"Model filename '{filename}' exceeds 22 characters ({len(filename)} chars)"
@@ -239,7 +240,9 @@ def test_pipeline_cli_streamlined_stages():
         parser.parse_args(["--bake"])
 
 
-def test_export_frontend_ir_passive_missing_circuit_raises_error(monkeypatch):
+def test_export_frontend_ir_passive_missing_circuit_raises_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """Verify that export_frontend_ir raises ValueError if a passive pickup lacks a circuit model."""
     import allomorph.circuit.staging as staging_mod
 
@@ -261,7 +264,10 @@ def test_export_frontend_ir_passive_missing_circuit_raises_error(monkeypatch):
             }
         },
     }
-    monkeypatch.setattr(staging_mod, "load_instrument", lambda inst_id: dummy_passive)
+    def mock_load(inst_id: Any) -> dict[str, Any]:
+        return dummy_passive
+
+    monkeypatch.setattr(staging_mod, "load_instrument", mock_load)
 
     with pytest.raises(ValueError, match="does not define a '\\[pickups.p.circuit\\]' configuration"):
         staging_mod.export_frontend_ir("mock_passive_p", "p")

@@ -4,26 +4,27 @@ saddle boundary stiffness, cylindrical rod vs blade aperture, and microphonics.
 """
 
 import math
+
 import numpy as np
 
 from allomorph.config import (
-    load_instrument,
-    get_source_pickup,
-    resolve_pickup_coils,
     SCALES,
     VOICES,
+    get_source_pickup,
+    load_instrument,
+    resolve_pickup_coils,
 )
 from allomorph.dsp import FREQS
 from allomorph.physics import (
     aperture_response,
-    position_envelope,
-    pickup_acoustic_response,
-    is_voice_matching_source,
-    numpy_pickup_macro_aperture,
-    compute_voice_prefilter_firs,
     compute_body_microphonic_coupling,
     compute_coil_aperture,
     compute_saddle_boundary_coupling,
+    compute_voice_prefilter_firs,
+    is_voice_matching_source,
+    numpy_pickup_macro_aperture,
+    pickup_acoustic_response,
+    position_envelope,
 )
 from allomorph.visualizer import build_voice_dataframe
 
@@ -178,7 +179,9 @@ def test_30in_mm_pj_subbass_retention():
     df = build_voice_dataframe("07_modern_pj_active", VOICES["07_modern_pj_active"], instrument="30in_emg_mmtw")
     f20 = df.filter(df["frequency"] == 20.0)["magnitude_db"][0]
     f100 = df.filter((df["frequency"] >= 99.0) & (df["frequency"] <= 101.0))["magnitude_db"][0]
-    f_max = df["magnitude_db"].max()
+    f_max_val = df["magnitude_db"].max()
+    assert isinstance(f_max_val, (int, float))
+    f_max = float(f_max_val)
 
     # Sub-bass fundamental must be within 0.5 dB of expected response
     assert math.isclose(f20, 1.50, abs_tol=0.5)

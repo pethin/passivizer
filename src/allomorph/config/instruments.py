@@ -2,8 +2,9 @@
 Source instrument configuration loading, alias resolution, and pickup lookup.
 """
 
-from pathlib import Path
 import tomllib
+from pathlib import Path
+from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 CONFIG_DIR = REPO_ROOT / "config"
@@ -59,7 +60,7 @@ INSTRUMENT_ALIASES = {
 }
 
 
-def load_instrument(identifier_or_path):
+def load_instrument(identifier_or_path: str | Path | dict[str, Any]) -> dict[str, Any]:
     """
     Loads an instrument configuration from a file path, known ID, or shorthand alias.
     Aliases: '30in' -> '30in_emg_mmtw', '32in' -> '32in_custom_pmm', '34in' -> '34in_standard_p'.
@@ -85,10 +86,10 @@ def load_instrument(identifier_or_path):
         return tomllib.load(f)
 
 
-def load_all_instruments(instruments_dir=None):
+def load_all_instruments(instruments_dir: str | Path | None = None) -> dict[str, dict[str, Any]]:
     """Loads all instrument definitions found in instruments_dir."""
     idir = Path(instruments_dir) if instruments_dir else INSTRUMENTS_DIR
-    instruments = {}
+    instruments: dict[str, dict[str, Any]] = {}
     if idir.exists():
         for p in sorted(idir.glob("*.toml")):
             with open(p, "rb") as f:
@@ -101,7 +102,7 @@ def load_all_instruments(instruments_dir=None):
 INSTRUMENTS = load_all_instruments()
 
 
-def get_source_pickup(instrument, voice_id):
+def get_source_pickup(instrument: dict[str, Any], voice_id: str) -> dict[str, Any]:
     """
     Determines which pickup on the source instrument should be used for the target voice.
     Checks explicit pickup_mapping, falls back to default_pickup, or selects first pickup.

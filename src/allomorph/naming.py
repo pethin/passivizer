@@ -4,7 +4,9 @@ Provides pedalboard display slugs, dynamic tier prefixes, baked filename generat
 and tolerant CLI argument parsing for instruments and voices.
 """
 
-from allomorph.config import VOICES, INSTRUMENTS, load_instrument
+from collections.abc import Sequence
+
+from allomorph.config import INSTRUMENTS, VOICES, load_instrument
 
 VOICE_CONCISE_SLUGS = {
     "00_canonical_intermediate": "00_canonical",
@@ -55,7 +57,7 @@ def get_baked_basename(voice_id: str, tier: str = "dynamic", pickup: str = "auto
         return f"{prefix}{slug}_{pickup}"
     return f"{prefix}{slug}"
 
-def resolve_voices(voice_arg):
+def resolve_voices(voice_arg: str | Sequence[str] | None) -> list[str]:
     """
     Parses a voice argument into a list of valid target voice IDs.
     Supports:
@@ -68,7 +70,7 @@ def resolve_voices(voice_arg):
         return list(VOICES.keys())
 
     tokens = [t.strip() for t in str(voice_arg).split(",") if t.strip()]
-    resolved = []
+    resolved: list[str] = []
     for token in tokens:
         if token in VOICES:
             if token not in resolved:
@@ -83,7 +85,7 @@ def resolve_voices(voice_arg):
                 print(f"Warning: Unknown voice identifier '{token}'.")
     return resolved if resolved else list(VOICES.keys())
 
-def resolve_instruments(instrument_arg):
+def resolve_instruments(instrument_arg: str | Sequence[str] | None) -> list[str]:
     """
     Parses an instrument argument into a list of valid source instrument IDs.
     Supports:
@@ -99,7 +101,7 @@ def resolve_instruments(instrument_arg):
         return all_playable
 
     tokens = [t.strip() for t in str(instrument_arg).split(",") if t.strip()]
-    resolved = []
+    resolved: list[str] = []
     for token in tokens:
         if token.lower() == "all":
             for iid in all_playable:

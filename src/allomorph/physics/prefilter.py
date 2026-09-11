@@ -5,28 +5,23 @@ scale-length wave-speed conversions, and transducer deconvolution.
 """
 
 from pathlib import Path
+from typing import Any
+
 import numpy as np
 
-from allomorph.dsp import NUM_TAPS, FREQS, synthesize_minimum_phase_fir
 from allomorph.config import (
     REPO_ROOT,
     SCALES,
     VOICES,
-    load_instrument,
-    get_source_pickup,
-    get_instrument_string,
-    resolve_pickup_coils,
-    resolve_voice_pickups,
-    resolve_voice_coils,
     compute_effective_position,
+    get_instrument_string,
+    get_source_pickup,
+    load_instrument,
+    resolve_pickup_coils,
+    resolve_voice_coils,
+    resolve_voice_pickups,
 )
-from allomorph.physics.strings import (
-    get_voice_string,
-    compute_differential_string_transfer,
-    compute_differential_longitudinal_transfer,
-    resolve_scale_range,
-    MEAN_BASS_F0,
-)
+from allomorph.dsp import FREQS, NUM_TAPS, synthesize_minimum_phase_fir
 from allomorph.physics.aperture import (
     compute_body_microphonic_coupling,
     compute_saddle_boundary_coupling,
@@ -35,15 +30,22 @@ from allomorph.physics.aperture import (
     numpy_pickup_macro_aperture,
 )
 from allomorph.physics.deconvolution import resolve_pickup_electrical_deconvolution_np
+from allomorph.physics.strings import (
+    MEAN_BASS_F0,
+    compute_differential_longitudinal_transfer,
+    compute_differential_string_transfer,
+    get_voice_string,
+    resolve_scale_range,
+)
 
 
 def compute_voice_prefilter_firs(
     voice_id: str,
-    instrument="30in",
-    src_scale=None,
+    instrument: str | Path | dict[str, Any] = "30in",
+    src_scale: float | tuple[float, float] | list[float] | str | None = None,
     num_taps: int = NUM_TAPS,
-    src_pickup_key: str = None,
-) -> list:
+    src_pickup_key: str | None = None,
+) -> list[list[float]]:
     """
     Computes acoustic pre-filter FIRs for each pickup in a target voice configuration using NumPy.
     For single-pickup voices, returns a list with 1 FIR: [fir].
@@ -59,7 +61,12 @@ def compute_voice_prefilter_firs(
     tgt = SCALES[target_scale_key]
 
     inst_selector = src_scale if src_scale is not None else instrument
-    inst = load_instrument(inst_selector) if not isinstance(inst_selector, dict) else inst_selector
+    if isinstance(inst_selector, dict):
+        inst = inst_selector
+    elif isinstance(inst_selector, (str, Path)):
+        inst = load_instrument(inst_selector)
+    else:
+        inst = load_instrument(instrument)
 
     src_scale_range = resolve_scale_range(inst)
     tgt_scale_range = resolve_scale_range(tgt if target_scale_key in SCALES else target_scale_key)
@@ -121,8 +128,9 @@ def compute_voice_prefilter_firs(
     else:
         has_multichannel_circuit = False
 
+    empty_comp: list[dict[str, Any]] = []
     src_components = (
-        src_pickup.get("components", []) if src_pickup.get("type") == "composite" else []
+        src_pickup.get("components", empty_comp) if src_pickup.get("type") == "composite" else empty_comp
     )
     use_branch_matching = len(src_components) == len(pickups) and len(pickups) > 1
 
@@ -289,7 +297,7 @@ def compute_voice_prefilter_firs(
             tau_i = 0.0
 
         if tau_i > 0.0:
-            delay_samples = int(round(tau_i * 48000.0))
+            delay_samples = round(tau_i * 48000.0)
             if 0 < delay_samples < num_taps:
                 fir_raw = [0.0] * delay_samples + fir_raw[: num_taps - delay_samples]
 
@@ -302,8 +310,11 @@ def compute_voice_prefilter_firs(
 
 
 def compute_aperture_prefilter_fir(
-    voice_id: str, instrument="30in", src_scale=None, num_taps: int = NUM_TAPS
-) -> list:
+    voice_id: str,
+    instrument: str | Path | dict[str, Any] = "30in",
+    src_scale: float | tuple[float, float] | list[float] | str | None = None,
+    num_taps: int = NUM_TAPS,
+) -> list[float]:
     """
     Computes a single composite acoustic pre-filter FIR using NumPy.
     Retained for backward compatibility. For multi-pickup independent channels,
@@ -321,7 +332,12 @@ def compute_aperture_prefilter_fir(
     tgt = SCALES[target_scale_key]
 
     inst_selector = src_scale if src_scale is not None else instrument
-    inst = load_instrument(inst_selector) if not isinstance(inst_selector, dict) else inst_selector
+    if isinstance(inst_selector, dict):
+        inst = inst_selector
+    elif isinstance(inst_selector, (str, Path)):
+        inst = load_instrument(inst_selector)
+    else:
+        inst = load_instrument(instrument)
 
     src_scale_range = resolve_scale_range(inst)
     tgt_scale_range = resolve_scale_range(tgt if target_scale_key in SCALES else target_scale_key)

@@ -3,13 +3,14 @@ Tests for pickup and target voice coil geometry and coordinate resolution.
 """
 
 import math
+
 from allomorph.config import (
     VOICES,
+    compute_effective_position,
     load_instrument,
     resolve_pickup_coils,
-    resolve_voice_pickups,
     resolve_voice_coils,
-    compute_effective_position,
+    resolve_voice_pickups,
 )
 
 

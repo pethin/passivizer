@@ -4,41 +4,41 @@ Calculates magnitude frequency responses for target voicings, frontend deconvolu
 and composite signal flow stages using Polars and NumPy.
 """
 
-from typing import Optional, Union, Dict, Any
+from typing import Any
 
 import numpy as np
 import polars as pl
 
+from allomorph.circuit import (
+    apply_magnet_properties_to_model,
+    compute_circuit_transfer_functions,
+    compute_differential_circuit_transfer_functions,
+    load_circuit,
+)
 from allomorph.config import (
-    VOICES,
     SCALES,
-    load_instrument,
-    load_all_instruments,
-    get_source_pickup,
-    resolve_pickup_coils,
-    resolve_voice_pickups,
+    VOICES,
     compute_effective_position,
+    get_source_pickup,
     get_voice_string,
+    load_all_instruments,
+    load_instrument,
+    resolve_pickup_coils,
     resolve_scale_range,
+    resolve_voice_pickups,
 )
 from allomorph.dsp import (
     FREQS,
     synthesize_minimum_phase_fir,
 )
 from allomorph.physics import (
+    MEAN_BASS_F0,
+    compute_differential_longitudinal_transfer,
+    compute_differential_string_transfer,
+    compute_voice_prefilter_firs,
+    is_voice_matching_source,
     numpy_pickup_acoustic_response,
     resolve_pickup_electrical_deconvolution,
-    is_voice_matching_source,
-    compute_differential_string_transfer,
-    compute_differential_longitudinal_transfer,
-    compute_voice_prefilter_firs,
-    MEAN_BASS_F0,
-)
-from allomorph.circuit import (
-    load_circuit,
-    compute_circuit_transfer_functions,
-    compute_differential_circuit_transfer_functions,
-    apply_magnet_properties_to_model,
 )
 
 NUM_POINTS = 600
@@ -50,9 +50,9 @@ log_freqs = [F_MIN * (F_MAX / F_MIN) ** (i / (NUM_POINTS - 1)) for i in range(NU
 
 def build_voice_dataframe(
     voice_id: str,
-    cfg: Dict[str, Any],
-    instrument: Union[str, Dict[str, Any]] = "30in",
-    src_scale: Optional[Union[str, Dict[str, Any]]] = None,
+    cfg: dict[str, Any],
+    instrument: str | dict[str, Any] = "30in",
+    src_scale: str | dict[str, Any] | None = None,
     mode: str = "difference",
     include_mode_col: bool = False,
 ) -> pl.DataFrame:
@@ -156,7 +156,7 @@ def build_voice_dataframe(
                 ac = numpy_pickup_acoustic_response(f_bins, p["coils"], scale_length_m=tgt_scale_range) * (weight_fac * p_pol)
                 fir_ac = synthesize_minimum_phase_fir(ac, num_taps=2048, normalize=False)
                 tau_i = (pos_max - positions[i]) / c_mean if len(pickups) > 1 else 0.0
-                delay_samples = int(round(tau_i * 48000.0))
+                delay_samples = round(tau_i * 48000.0)
                 if 0 < delay_samples < 2048:
                     fir_ac = [0.0] * delay_samples + fir_ac[:2048 - delay_samples]
                 peaks.append(int(np.argmax(np.abs(fir_ac))))
@@ -416,7 +416,7 @@ def build_frontend_deconvolutions_dataframe() -> pl.DataFrame:
     return pl.DataFrame(rows)
 
 
-def build_instrument_frontend_dataframe(inst: Dict[str, Any]) -> pl.DataFrame:
+def build_instrument_frontend_dataframe(inst: dict[str, Any]) -> pl.DataFrame:
     """
     Calculates magnitude frequency responses for all pickup switch positions of a source instrument:
     H_frontend = H_canonical / H_source.
@@ -468,7 +468,7 @@ def build_instrument_frontend_dataframe(inst: Dict[str, Any]) -> pl.DataFrame:
     return pl.DataFrame(rows)
 
 
-def build_composite_instrument_dataframe(inst: Dict[str, Any]) -> pl.DataFrame:
+def build_composite_instrument_dataframe(inst: dict[str, Any]) -> pl.DataFrame:
     """
     Calculates the 5-stage physical signal flow progression for a source instrument:
       1. Source Bass Input: Physical response of the source pickup entering Block 1.
@@ -489,7 +489,7 @@ def build_composite_instrument_dataframe(inst: Dict[str, Any]) -> pl.DataFrame:
         pickups = {p_default_key: {"name": p_default_key}}
 
     # Precompute target voice responses once
-    target_dfs = {}
+    target_dfs: dict[str, tuple[str, np.ndarray | None]] = {}
     for vid, cfg in sorted(VOICES.items()):
         if vid == "00_canonical_intermediate":
             continue

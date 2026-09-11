@@ -4,10 +4,15 @@ Computes 2nd-order electrical RLC frequency responses, anti-resonance
 flattening biquads, and composite pickup deconvolution using NumPy.
 """
 
+from collections.abc import Sequence
+from typing import Any
+
 import numpy as np
 
 
-def numpy_pickup_electrical_response(freqs, fr: float, q: float) -> np.ndarray:
+def numpy_pickup_electrical_response(
+    freqs: Sequence[float] | np.ndarray, fr: float, q: float
+) -> np.ndarray:
     """
     Computes 2nd-order electrical low-pass magnitude response using NumPy.
     |H_elec(f)| = 1 / sqrt((1 - (f/fr)^2)^2 + (f / (q * fr))^2)
@@ -20,7 +25,9 @@ def numpy_pickup_electrical_response(freqs, fr: float, q: float) -> np.ndarray:
     return 1.0 / denom
 
 
-def numpy_pickup_anti_resonance(freqs, fr: float, q_src: float, q_target: float = 1.0) -> np.ndarray:
+def numpy_pickup_anti_resonance(
+    freqs: Sequence[float] | np.ndarray, fr: float, q_src: float, q_target: float = 1.0
+) -> np.ndarray:
     """
     Computes 2nd-order biquad anti-resonance filter using NumPy.
     |H_anti(f)| = sqrt((1 - (f/fr)^2)^2 + (f / (q_src * fr))^2) / sqrt((1 - (f/fr)^2)^2 + (f / (q_target * fr))^2)
@@ -34,7 +41,9 @@ def numpy_pickup_anti_resonance(freqs, fr: float, q_src: float, q_target: float 
     return num / den
 
 
-def resolve_pickup_electrical_response_np(freqs, pickup_cfg: dict, inst_cfg: dict) -> np.ndarray:
+def resolve_pickup_electrical_response_np(
+    freqs: Sequence[float] | np.ndarray, pickup_cfg: dict[str, Any], inst_cfg: dict[str, Any]
+) -> np.ndarray:
     """Resolves electrical frequency response for a source pickup using NumPy."""
     f = np.asarray(freqs, dtype=np.float64)
     p_type = pickup_cfg.get("type", "single_coil")
@@ -54,13 +63,16 @@ def resolve_pickup_electrical_response_np(freqs, pickup_cfg: dict, inst_cfg: dic
             acc += sub_elec * (sub_w / total_w)
         return acc
 
-    fr = pickup_cfg.get("resonant_frequency_hz")
-    q = pickup_cfg.get("q_factor", 1.35)
+    fr = float(pickup_cfg.get("resonant_frequency_hz", 3000.0) or 3000.0)
+    q = float(pickup_cfg.get("q_factor", 1.35) or 1.35)
     return numpy_pickup_electrical_response(f, fr, q)
 
 
 def resolve_pickup_electrical_deconvolution_np(
-    freqs, pickup_cfg: dict, inst_cfg: dict, q_target: float = 1.0
+    freqs: Sequence[float] | np.ndarray,
+    pickup_cfg: dict[str, Any],
+    inst_cfg: dict[str, Any],
+    q_target: float = 1.0,
 ) -> np.ndarray:
     """Resolves anti-resonance flattening filter for a source pickup using NumPy."""
     f = np.asarray(freqs, dtype=np.float64)

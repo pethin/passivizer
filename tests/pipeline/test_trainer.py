@@ -48,8 +48,9 @@ def test_model_metadata_contains_input_bass():
 
 
 def test_default_goal_esr():
-    from train_nam import DEFAULT_GOAL_ESR, train_voice
     import inspect
+
+    from train_nam import DEFAULT_GOAL_ESR, train_voice
     assert DEFAULT_GOAL_ESR == 0.0005
     sig = inspect.signature(train_voice)
     assert "goal_esr" in sig.parameters
@@ -58,6 +59,7 @@ def test_default_goal_esr():
 
 def test_train_nam_cli_goal_esr_parsing():
     import argparse
+
     from train_nam import DEFAULT_GOAL_ESR
 
     # Test parser construction from train_nam

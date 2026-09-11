@@ -4,17 +4,18 @@ active preamp buffers, mutual coupling matrix, and core dispersion.
 """
 
 import math
+
 import numpy as np
 import pytest
 
 from allomorph.circuit import (
-    load_circuit,
-    compute_circuit_transfer_functions,
-    compute_differential_circuit_transfer_functions,
-    compute_core_impedance,
     CircuitModel,
+    compute_circuit_transfer_functions,
+    compute_core_impedance,
+    compute_differential_circuit_transfer_functions,
+    load_circuit,
 )
-from allomorph.config import load_instrument, INSTRUMENTS
+from allomorph.config import INSTRUMENTS, load_instrument
 from allomorph.dsp import FREQS
 
 
@@ -446,7 +447,7 @@ def test_solid_pole_eddy_skin_dispersion():
 
 def test_generic_analog_preamp_bands():
     """Verify that evaluate_analog_band and compute_active_preamp_transfer evaluate continuous s-domain filters."""
-    from allomorph.circuit.solver import evaluate_analog_band, compute_active_preamp_transfer
+    from allomorph.circuit.solver import compute_active_preamp_transfer, evaluate_analog_band
 
     # 1. Low shelf boost: +4.0 dB @ 60 Hz
     s_dc = 1j * 2.0 * math.pi * 1e-4

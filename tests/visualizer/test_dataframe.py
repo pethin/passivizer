@@ -6,8 +6,8 @@ import polars as pl
 
 from allomorph.config import VOICES, load_instrument
 from allomorph.visualizer import (
-    build_voice_dataframe,
     build_composite_instrument_dataframe,
+    build_voice_dataframe,
 )
 
 

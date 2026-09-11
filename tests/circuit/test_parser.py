@@ -2,17 +2,18 @@
 Tests for circuit parser, netlist validation, and audio discovery utilities.
 """
 
-from pathlib import Path
 import tempfile
+from pathlib import Path
+
 import pytest
 
 from allomorph.circuit import (
-    parse_spice_val,
-    load_circuit,
+    AUDIO_DIR,
     CircuitModel,
     find_default_input_audio,
+    load_circuit,
+    parse_spice_val,
     simulate_voice,
-    AUDIO_DIR,
 )
 from allomorph.config import VOICES, load_instrument
 

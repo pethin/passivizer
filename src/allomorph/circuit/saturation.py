@@ -5,13 +5,19 @@ elliptical 2f0 string orbit bloom, Dahl hysteresis, and Numba fastmath kernels.
 """
 
 import math
+from collections.abc import Callable
+from typing import Any
+
 import numpy as np
 
 try:
     from numba import njit
     _HAS_NUMBA = True
 except ImportError:
-    njit = None
+    def njit(*args: Any, **kwargs: Any) -> Callable[[Any], Any]:
+        def decorator(func: Any) -> Any:
+            return func
+        return decorator
     _HAS_NUMBA = False
 
 if _HAS_NUMBA:
@@ -69,10 +75,9 @@ if _HAS_NUMBA:
             x_low_prev += alpha_c * (val - x_low_prev)
             x_high = val - x_low_prev
             e = env[i]
-            if e > vsat and vsat > 0.0:
+            if e > vsat > 0.0:
                 excess = (e - vsat) / vsat
-                if excess > 1.0:
-                    excess = 1.0
+                excess = min(excess, 1.0)
                 eddy_factor = k_eddy * excess * math.tanh(abs(x_high) / vsat)
                 abs_low = abs(x_low_prev)
                 abs_high = abs(x_high)
@@ -182,10 +187,9 @@ else:
             x_low_prev += alpha_c * (val - x_low_prev)
             x_high = val - x_low_prev
             e = env[i]
-            if e > vsat and vsat > 0.0:
+            if e > vsat > 0.0:
                 excess = (e - vsat) / vsat
-                if excess > 1.0:
-                    excess = 1.0
+                excess = min(excess, 1.0)
                 eddy_factor = k_eddy * excess * math.tanh(abs(x_high) / vsat)
                 abs_low = abs(x_low_prev)
                 abs_high = abs(x_high)

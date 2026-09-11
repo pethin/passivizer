@@ -8,6 +8,7 @@ import argparse
 import shutil
 import sys
 from pathlib import Path
+from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 CIRCUITS_DIR = REPO_ROOT / "circuits"
@@ -20,19 +21,20 @@ if str(SCRIPTS_DIR) not in sys.path:
 
 from allomorph.config import (
     VOICES,
-    load_instrument,
+    compute_effective_position,
     get_source_pickup,
+    load_instrument,
     resolve_voice_coils,
     resolve_voice_pickups,
-    compute_effective_position,
 )
 from allomorph.naming import (
-    resolve_voices,
-    resolve_instruments,
     VOICE_CONCISE_SLUGS,
+    resolve_instruments,
+    resolve_voices,
 )
 
-def find_sweep_input(candidate_path=None):
+
+def find_sweep_input(candidate_path: str | Path | None = None) -> Path | None:
     if candidate_path and Path(candidate_path).exists():
         return Path(candidate_path)
     for name in ["T3K-sweep-v3.wav", "v3_0_0.wav", "input.wav"]:
@@ -45,24 +47,24 @@ DEFAULT_GOAL_ESR = 0.0005  # Studio reference early-stopping target (~ -33 dB ES
 CANONICAL_SWEEP_PATH = AUDIO_DIR / "canonical" / "canonical_sweep.wav"
 
 def train_voice(
-    instrument="30in",
-    voice="04_modern_p_ceramic",
-    input_wav=None,
-    output_wav=None,
-    models_dir=MODELS_DIR,
-    tier=None,
-    epochs=100,
-    goal_esr=DEFAULT_GOAL_ESR,
-    batch_size=16,
-    silent=True,
-    save_plot=False,
-    fast_dev_run=False,
-    basename=None,
-):
+    instrument: str | dict[str, Any] = "30in",
+    voice: str = "04_modern_p_ceramic",
+    input_wav: str | Path | None = None,
+    output_wav: str | Path | None = None,
+    models_dir: str | Path = MODELS_DIR,
+    tier: str | None = None,
+    epochs: int = 100,
+    goal_esr: float | None = DEFAULT_GOAL_ESR,
+    batch_size: int = 16,
+    silent: bool = True,
+    save_plot: bool = False,
+    fast_dev_run: bool = False,
+    basename: str | None = None,
+) -> bool:
     try:
         import nam.train.core as nam_core
-        from nam.models.metadata import UserMetadata
         import nam.train.metadata as train_meta
+        from nam.models.metadata import UserMetadata
     except ImportError:
         print("Error: 'neural-amp-modeler' is not installed in the current environment.")
         print("Please run `uv sync` or install project dependencies:")
@@ -90,11 +92,12 @@ def train_voice(
             src_pickup = get_source_pickup(inst_cfg, voice)
             src_pickup_name = src_pickup.get("name", "Source Pickup")
             src_pos_mm = src_pickup.get("position_from_bridge_m", 0.0) * 1000.0
-        except Exception:
+        except (FileNotFoundError, KeyError, ValueError, OSError):
+            inst_cfg: dict[str, Any] = {}
             inst_id = str(instrument)
             inst_name = str(instrument)
             scale_length_in = 34.0
-            src_pickup = {}
+            src_pickup: dict[str, Any] = {}
             src_pickup_name = "Baked Pickup"
             src_pos_mm = 0.0
 
@@ -119,8 +122,8 @@ def train_voice(
         output_path = Path(output_wav) if output_wav else (AUDIO_DIR / "targets" / folder_name / f"out_{voice}.wav")
         try:
             inst_cfg = load_instrument("canonical_intermediate")
-        except Exception:
-            inst_cfg = {}
+        except (FileNotFoundError, KeyError, ValueError, OSError):
+            inst_cfg: dict[str, Any] = {}
         inst_id = "canonical_intermediate"
         inst_name = "Canonical Intermediate"
         scale_length_in = 34.0
@@ -154,7 +157,7 @@ def train_voice(
 
     if not output_path.exists():
         print(f"Error: Target output audio '{output_path}' does not exist.")
-        print(f"Please run the simulation stage first:")
+        print("Please run the simulation stage first:")
         print(f"  uv run python main.py --stage sim --voice {voice} --tier {tier or 'dynamic'}")
         return False
 
@@ -166,8 +169,8 @@ def train_voice(
     else:
         threshold_esr = goal_esr
 
-    print(f"\n========================================")
-    print(f"  ALLOMORPH NAM LOCAL A2 TRAINER")
+    print("\n========================================")
+    print("  ALLOMORPH NAM LOCAL A2 TRAINER")
     print(f"  Source Bass: {inst_name} ({inst_id}, {scale_length_in}\")")
     print(f"  Source PU:   {src_pickup_name} (pos={src_pos_mm:.1f}mm)")
     print(f"  Target Voice:{voice} ({voice_name})")
@@ -181,7 +184,7 @@ def train_voice(
     )
     print(f"  Goal ESR:    {esr_display}")
     print(f"  Destination: {target_nam}")
-    print(f"========================================\n")
+    print("========================================\n")
 
     model_title = f"{voice_name} [{inst_name}]"
     user_metadata = UserMetadata(
@@ -249,7 +252,8 @@ def train_voice(
         },
     }
 
-    train_output.model.net.export(
+    export_net: Any = train_output.model.net
+    export_net.export(
         str(inst_models_dir),
         basename=model_basename,
         user_metadata=user_metadata,
@@ -262,7 +266,7 @@ def train_voice(
 
     if target_nam.exists():
         size_kb = target_nam.stat().st_size / 1024
-        print(f"\n[Success] Architecture 2 Model exported successfully!")
+        print("\n[Success] Architecture 2 Model exported successfully!")
         print(f"  Model Path:    {target_nam} ({size_kb:.1f} KB)")
         print(f"  Model Title:   {model_title}")
         print(f"  Source Bass:   {inst_name}")
@@ -276,7 +280,7 @@ def train_voice(
                 else:
                     esr_status = f" (Safety ceiling reached at {epochs} epochs)"
             print(f"  Validation ESR: {vesr:.6f}{esr_status}")
-        print(f"  Ready for Darkglass Anagram Block 1 (Preamp) loading.")
+        print("  Ready for Darkglass Anagram Block 1 (Preamp) loading.")
         return True
     else:
         print(f"Warning: Expected model file at {target_nam} not found.")
@@ -339,9 +343,9 @@ def main():
         for idx, voice in enumerate(voices_to_run, 1):
             current_run += 1
             if total_runs > 1:
-                print(f"\n==================================================")
+                print("\n==================================================")
                 print(f"  [{current_run}/{total_runs}] Training: {inst} -> {voice}")
-                print(f"==================================================")
+                print("==================================================")
             out_wav = args.output if (len(voices_to_run) == 1 and len(instruments_to_run) == 1) else None
             ok = train_voice(
                 instrument=inst,

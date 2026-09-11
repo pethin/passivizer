@@ -6,8 +6,8 @@ import math
 
 from allomorph.config import (
     VOICES,
-    load_instrument,
     get_source_pickup,
+    load_instrument,
 )
 
 

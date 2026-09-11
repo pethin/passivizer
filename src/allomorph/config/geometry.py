@@ -4,7 +4,11 @@ and magnetic pole piece geometry inference.
 """
 
 
-def _infer_pole_type(pickup_or_voice=None, coil=None) -> str:
+from collections.abc import Sequence
+from typing import Any
+
+
+def _infer_pole_type(pickup_or_voice: Any = None, coil: Any = None) -> str:
     """
     Infers magnetic pole geometry: 'rod' (cylindrical Alnico rod, Airy/Bessel spatial window)
     or 'blade' (continuous steel/ceramic bar blade, 1D rectangular slit).
@@ -28,7 +32,7 @@ def _infer_pole_type(pickup_or_voice=None, coil=None) -> str:
     return "rod"
 
 
-def resolve_pickup_coils(pickup_dict, instrument=None):
+def resolve_pickup_coils(pickup_dict: dict[str, Any], instrument: Any = None) -> list[dict[str, Any]]:
     """
     Resolves an instrument pickup configuration into a canonical list of coil dicts.
     Handles:
@@ -39,9 +43,10 @@ def resolve_pickup_coils(pickup_dict, instrument=None):
     """
     # 1. Composite blend / sum
     if pickup_dict.get("type") == "composite" or "components" in pickup_dict:
-        resolved = []
+        resolved: list[dict[str, Any]] = []
         components = pickup_dict.get("components", [])
-        pickups_map = instrument.get("pickups", {}) if instrument else {}
+        empty_pickups: dict[str, Any] = {}
+        pickups_map: dict[str, Any] = instrument.get("pickups", empty_pickups) if instrument else empty_pickups
         for comp in components:
             p_ref = comp.get("pickup")
             c_weight = comp.get("weight", 1.0)
@@ -79,7 +84,7 @@ def resolve_pickup_coils(pickup_dict, instrument=None):
             return resolved
 
     # 2. Explicit coils list
-    if "coils" in pickup_dict and pickup_dict["coils"]:
+    if pickup_dict.get("coils"):
         coils = []
         for c in pickup_dict["coils"]:
             coils.append({
@@ -131,12 +136,12 @@ def resolve_pickup_coils(pickup_dict, instrument=None):
     ]
 
 
-def resolve_voice_pickups(voice_cfg):
+def resolve_voice_pickups(voice_cfg: dict[str, Any]) -> list[dict[str, Any]]:
     """
     Resolves a target voice configuration into a canonical list of pickup dicts.
     Handles multi-pickup voices and single-pickup fallbacks.
     """
-    if "pickups" in voice_cfg and voice_cfg["pickups"]:
+    if voice_cfg.get("pickups"):
         resolved = []
         for p in voice_cfg["pickups"]:
             p_coils = []
@@ -175,7 +180,7 @@ def resolve_voice_pickups(voice_cfg):
     ]
 
 
-def resolve_voice_coils(voice_cfg, _from_pickups=True):
+def resolve_voice_coils(voice_cfg: dict[str, Any], _from_pickups: bool = True) -> list[dict[str, Any]]:
     """Resolves target voice configuration into a canonical list of coil dicts."""
     if _from_pickups and "pickups" in voice_cfg and voice_cfg["pickups"]:
         all_coils = []
@@ -242,7 +247,7 @@ def resolve_voice_coils(voice_cfg, _from_pickups=True):
     ]
 
 
-def compute_effective_position(coils):
+def compute_effective_position(coils: Sequence[dict[str, Any]]) -> float:
     """Computes weighted average physical position from bridge in meters."""
     if not coils:
         return 0.08

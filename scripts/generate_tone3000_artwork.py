@@ -10,9 +10,14 @@ Features:
 - High-resolution SVG and converted JPG assets for Tone3000 storefront
 """
 
-from pathlib import Path
 import subprocess
 import xml.etree.ElementTree as ET
+from collections.abc import Callable
+from pathlib import Path
+
+
+def _svg_content(fn: Callable[[str], str]) -> Callable[[str], str]:
+    return fn
 
 
 def make_pole(x: float, y: float, r: float = 11.0) -> str:
@@ -300,7 +305,7 @@ def generate_pack_svg(model_key: str) -> str:
             "scale": "34&quot; SCALE",
             "badge2": "ALNICO V SPLIT-P",
             "badge3": "11.2 kΩ DUAL-COIL",
-            "content": lambda accent: f"""
+            "content": _svg_content(lambda accent: f"""
                 <!-- Background Flux Lines -->
                 <g fill="none" stroke="{accent}" stroke-opacity="0.14" stroke-width="1.2">
                   <ellipse cx="520" cy="480" rx="145" ry="80"/>
@@ -325,7 +330,7 @@ def generate_pack_svg(model_key: str) -> str:
                   <text x="1070" y="606" text-anchor="end" font-size="12" fill="#94a3b8" font-weight="600">REVERSE-COIL OFFSET</text>
                   <line x1="835" y1="616" x2="1070" y2="616" stroke="#334155" stroke-dasharray="3 3" stroke-width="1"/>
                 </g>
-            """,
+            """),
         },
         "jazz": {
             "accent": "#0ea5e9",
@@ -335,7 +340,7 @@ def generate_pack_svg(model_key: str) -> str:
             "scale": "34&quot; SCALE",
             "badge2": "ALNICO V DUAL-J",
             "badge3": "60s PICKUP SPACING",
-            "content": lambda accent: f"""
+            "content": _svg_content(lambda accent: f"""
                 <!-- Background Flux Lines -->
                 <g fill="none" stroke="{accent}" stroke-opacity="0.14" stroke-width="1.2">
                   <ellipse cx="600" cy="430" rx="230" ry="70"/>
@@ -364,7 +369,7 @@ def generate_pack_svg(model_key: str) -> str:
                   <text x="1070" y="560" text-anchor="end" font-size="12" fill="#94a3b8" font-weight="600">HUM-CANCELLATION COMB</text>
                   <line x1="835" y1="570" x2="1070" y2="570" stroke="#334155" stroke-dasharray="3 3" stroke-width="1"/>
                 </g>
-            """,
+            """),
         },
         "pj": {
             "accent": "#a855f7",
@@ -374,7 +379,7 @@ def generate_pack_svg(model_key: str) -> str:
             "scale": "34&quot; SCALE",
             "badge2": "P/J HYBRID COILS",
             "badge3": "ACTIVE/PASSIVE HARNESS",
-            "content": lambda accent: f"""
+            "content": _svg_content(lambda accent: f"""
                 <!-- Background Flux Lines -->
                 <g fill="none" stroke="{accent}" stroke-opacity="0.14" stroke-width="1.2">
                   <ellipse cx="520" cy="410" rx="135" ry="70"/>
@@ -405,7 +410,7 @@ def generate_pack_svg(model_key: str) -> str:
                   <text x="1070" y="560" text-anchor="end" font-size="12" fill="#94a3b8" font-weight="600">DUAL-TOPOLOGY SUM</text>
                   <line x1="835" y1="570" x2="1070" y2="570" stroke="#334155" stroke-dasharray="3 3" stroke-width="1"/>
                 </g>
-            """,
+            """),
         },
         "mustang": {
             "accent": "#f43f5e",
@@ -415,7 +420,7 @@ def generate_pack_svg(model_key: str) -> str:
             "scale": "30&quot; SHORT SCALE",
             "badge2": "MUSTANG P/J HYBRID",
             "badge3": "FAST TRANSIENT DYNAMICS",
-            "content": lambda accent: f"""
+            "content": _svg_content(lambda accent: f"""
                 <!-- Racing Stripes Aesthetic (Mustang Heritage) -->
                 <g opacity="0.12">
                   <line x1="880" y1="60" x2="880" y2="1140" stroke="{accent}" stroke-width="28"/>
@@ -451,7 +456,7 @@ def generate_pack_svg(model_key: str) -> str:
                   <text x="1070" y="560" text-anchor="end" font-size="12" fill="#94a3b8" font-weight="600">LOW-TENSION BLOOM</text>
                   <line x1="835" y1="570" x2="1070" y2="570" stroke="#334155" stroke-dasharray="3 3" stroke-width="1"/>
                 </g>
-            """,
+            """),
         },
         "active_soapbar": {
             "accent": "#06b6d4",
@@ -461,7 +466,7 @@ def generate_pack_svg(model_key: str) -> str:
             "scale": "34&quot; SCALE",
             "badge2": "DUAL SOAPBARS",
             "badge3": "ACTIVE 3-BAND PREAMP",
-            "content": lambda accent: f"""
+            "content": _svg_content(lambda accent: f"""
                 <!-- Background Flux Lines -->
                 <g fill="none" stroke="{accent}" stroke-opacity="0.14" stroke-width="1.2">
                   <ellipse cx="600" cy="430" rx="220" ry="90"/>
@@ -490,7 +495,7 @@ def generate_pack_svg(model_key: str) -> str:
                   <text x="1070" y="560" text-anchor="end" font-size="12" fill="#94a3b8" font-weight="600">LOW-Z DUAL BLADES</text>
                   <line x1="815" y1="570" x2="1070" y2="570" stroke="#334155" stroke-dasharray="3 3" stroke-width="1"/>
                 </g>
-            """,
+            """),
         },
         "active_stingray": {
             "accent": "#f97316",
@@ -500,7 +505,7 @@ def generate_pack_svg(model_key: str) -> str:
             "scale": "34&quot; SCALE",
             "badge2": "SWEET-SPOT HUMBUCKER",
             "badge3": "ACTIVE 2-BAND PREAMP",
-            "content": lambda accent: f"""
+            "content": _svg_content(lambda accent: f"""
                 <!-- Background Magnetic Flux Field -->
                 <g fill="none" stroke="{accent}" stroke-opacity="0.14" stroke-width="1.2">
                   <ellipse cx="600" cy="550" rx="240" ry="130"/>
@@ -523,7 +528,7 @@ def generate_pack_svg(model_key: str) -> str:
                   <text x="1070" y="552" text-anchor="end" font-size="12" fill="#94a3b8" font-weight="600">ACTIVE 2-BAND PREAMP</text>
                   <line x1="820" y1="562" x2="1070" y2="562" stroke="#334155" stroke-dasharray="3 3" stroke-width="1"/>
                 </g>
-            """,
+            """),
         },
     }
 
@@ -729,6 +734,7 @@ def main():
             ["qlmanage", "-t", "-s", "1024", "-o", str(assets_dir), str(svg_path)],
             capture_output=True,
             text=True,
+            check=False,
         )
         if res.returncode != 0:
             print(f"qlmanage error for {svg_path}: {res.stderr}")

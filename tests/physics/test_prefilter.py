@@ -3,12 +3,12 @@ Tests for minimum-phase FIR synthesis, prefilter pipeline, and multi-pickup audi
 """
 
 import math
-from pathlib import Path
 import tempfile
 import wave
+from pathlib import Path
 
 from allomorph.circuit import prefilter_audio
-from allomorph.dsp import write_wav_24bit, NUM_TAPS
+from allomorph.dsp import NUM_TAPS, write_wav_24bit
 from allomorph.physics import compute_aperture_prefilter_fir, compute_voice_prefilter_firs
 
 

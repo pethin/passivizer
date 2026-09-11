@@ -9,9 +9,9 @@ from pathlib import Path
 from allomorph.config import (
     STRINGS,
     VOICES,
-    load_instrument,
-    load_all_instruments,
     get_source_pickup,
+    load_all_instruments,
+    load_instrument,
 )
 from allomorph.dsp import NUM_TAPS
 from allomorph.naming import resolve_instruments, resolve_voices
@@ -45,7 +45,7 @@ def test_load_all_default_instruments():
         assert "default_pickup" in cfg
         assert cfg["default_pickup"] in cfg["pickups"]
 
-        for pid, pcfg in cfg["pickups"].items():
+        for pcfg in cfg["pickups"].values():
             assert "name" in pcfg
             assert pcfg["position_from_bridge_m"] > 0
             assert pcfg["aperture_width_in"] > 0
@@ -156,8 +156,9 @@ def test_all_instruments_have_valid_string_presets():
 
 def test_active_identity_differential_flatness():
     """Verify that active source instruments matching their target voice evaluate to 0.00 dB flat."""
-    from allomorph.visualizer import build_voice_dataframe
     import numpy as np
+
+    from allomorph.visualizer import build_voice_dataframe
 
     # 1. 37" Multi-Scale Dingwall -> Voice 13 Dingwall Bridge (< 0.05 dB flat)
     df_ding = build_voice_dataframe("13_dingwall_multiscale_bridge", VOICES["13_dingwall_multiscale_bridge"], instrument="37in_multiscale_dingwall", mode="difference")
@@ -172,8 +173,9 @@ def test_active_identity_differential_flatness():
 
 def test_small_sample_delay_inter_pickup_coherence_decay():
     """Verify that dual-pickup configurations with small inter-pickup sample delay (<= 5 samples) apply coherence decay."""
-    from allomorph.visualizer import build_voice_dataframe
     import numpy as np
+
+    from allomorph.visualizer import build_voice_dataframe
 
     # 34" Active Soapbar Bass playing 01 Modern Active Jazz Pair has delta_samples = 5.
     # Must apply spatial coherence decay without plunging into unphysical -40 dB razor notches.
@@ -286,6 +288,7 @@ def test_get_source_pickup_strict_errors():
 def test_string_preset_strict_errors():
     """Verify that invalid string presets raise KeyError instead of silent fallbacks."""
     import pytest
+
     from allomorph.config.strings import get_instrument_string, get_voice_string
 
     with pytest.raises(KeyError, match="String preset 'imaginary_flats' not found"):
@@ -298,6 +301,7 @@ def test_string_preset_strict_errors():
 def test_scale_resolution_strict_errors():
     """Verify that invalid scale parameters raise ValueError/TypeError instead of silent 34in fallback."""
     import pytest
+
     from allomorph.config.scales import resolve_scale_range
 
     # 1. Valid None returns standard 34" baseline

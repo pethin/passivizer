@@ -3,12 +3,14 @@ Allomorph Visualizer - Interactive HTML Portal Generation
 """
 import json
 from pathlib import Path
+from typing import Any
+
 from allomorph.config import REPO_ROOT, load_all_instruments
 
 DOCS_DIR = REPO_ROOT / "docs"
 RESPONSES_DIR = DOCS_DIR / "frequency_responses"
 
-def append_spec_panel(html_path: Path, panel_html: str):
+def append_spec_panel(html_path: Path, panel_html: str) -> None:
     """Appends an informational HTML spec/directive panel before </body>."""
     content = html_path.read_text(encoding="utf-8")
     if "</body>" in content:
@@ -16,7 +18,7 @@ def append_spec_panel(html_path: Path, panel_html: str):
         html_path.write_text(content, encoding="utf-8")
 
 
-def format_instrument_meta(inst):
+def format_instrument_meta(inst: dict[str, Any]) -> dict[str, Any]:
     """Formats an instrument dictionary into metadata suitable for the portal."""
     inst_id = inst.get("id", "custom")
     inst_name = inst.get("name", inst_id)
@@ -49,7 +51,11 @@ def format_instrument_meta(inst):
         "default_pickup": inst.get("default_pickup", "default"),
     }
 
-def build_portal_html(instruments_meta, default_id, base_url_prefix="./"):
+def build_portal_html(
+    instruments_meta: dict[str, dict[str, Any]],
+    default_id: str,
+    base_url_prefix: str = "./",
+) -> str:
     """Constructs a responsive, dark-mode portal HTML string with 3-way Architecture C signal flow navigation."""
     meta_json = json.dumps(instruments_meta, indent=2)
 
@@ -563,7 +569,10 @@ def build_portal_html(instruments_meta, default_id, base_url_prefix="./"):
 """
     return html
 
-def generate_portal_pages(output_dir=None, default_id=None):
+def generate_portal_pages(
+    output_dir: str | Path | None = None,
+    default_id: str | None = None,
+) -> None:
     """
     Builds the interactive index portal:
     1. docs/frequency_responses/index.html (relative links './{id}.html')
@@ -573,7 +582,7 @@ def generate_portal_pages(output_dir=None, default_id=None):
     out_dir.mkdir(parents=True, exist_ok=True)
     all_insts = load_all_instruments()
 
-    active_meta = {}
+    active_meta: dict[str, dict[str, Any]] = {}
     for inst_id, inst_cfg in all_insts.items():
         if inst_id == "canonical_intermediate":
             continue

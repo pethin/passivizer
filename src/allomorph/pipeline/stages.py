@@ -7,10 +7,9 @@ circuit simulation, and neural model training.
 import subprocess
 import sys
 from pathlib import Path
-from typing import Optional, Union
 
-from allomorph.config import REPO_ROOT
 from allomorph.circuit import simulate_voice
+from allomorph.config import REPO_ROOT
 
 DOCS_DIR = REPO_ROOT / "docs"
 SCRIPTS_DIR = REPO_ROOT / "scripts"
@@ -25,7 +24,7 @@ def run_visualization(instrument: str = "all"):
         cmd = [sys.executable, str(script), "--all"]
     else:
         cmd = [sys.executable, str(script), "--instrument", instrument]
-    res = subprocess.run(cmd, cwd=str(REPO_ROOT))
+    res = subprocess.run(cmd, cwd=str(REPO_ROOT), check=False)
     if res.returncode != 0:
         print(f"Warning: Visualization generation returned non-zero code {res.returncode}")
     else:
@@ -37,9 +36,9 @@ def run_visualization(instrument: str = "all"):
 def run_circuit_simulation(
     voice: str,
     instrument: str = "30in",
-    input_wav: Optional[Union[str, Path]] = None,
+    input_wav: str | Path | None = None,
     backend: str = "native",
-    max_samples: Optional[int] = None,
+    max_samples: int | None = None,
 ) -> bool:
     """Executes circuit simulation for a single target voice netlist using the native Apple Silicon WAV SPICE engine."""
     if backend != "native":
@@ -55,7 +54,7 @@ def run_circuit_simulation(
             prefiltered=False,
             max_samples=max_samples,
         )
-    except Exception as e:
+    except (RuntimeError, ValueError, OSError) as e:
         print(f"Error during native circuit simulation: {e}")
         return False
 
@@ -63,14 +62,14 @@ def run_circuit_simulation(
 def run_training(
     instrument: str = "30in",
     voice: str = "04_modern_p_ceramic",
-    input_wav: Optional[Union[str, Path]] = None,
-    output_wav: Optional[Union[str, Path]] = None,
-    models_dir: Optional[Union[str, Path]] = None,
-    tier: Optional[str] = None,
+    input_wav: str | Path | None = None,
+    output_wav: str | Path | None = None,
+    models_dir: str | Path | None = None,
+    tier: str | None = None,
     epochs: int = 100,
-    goal_esr: Optional[float] = 0.0005,
+    goal_esr: float | None = 0.0005,
     fast_dev_run: bool = False,
-    basename: Optional[str] = None,
+    basename: str | None = None,
 ):
     """Trains a Neural Amp Modeler (NAM) Architecture 2 model locally with MPS GPU acceleration."""
     print(f"\n[Training] Training Neural Amp Modeler A2 model for {voice} (Instrument: {instrument})...")
@@ -97,6 +96,6 @@ def run_training(
         cmd.extend(["--input", str(input_wav)])
     if fast_dev_run:
         cmd.append("--fast-dev-run")
-    res = subprocess.run(cmd, cwd=str(REPO_ROOT))
+    res = subprocess.run(cmd, cwd=str(REPO_ROOT), check=False)
     if res.returncode != 0:
         print(f"Notice: Model training exited with code {res.returncode}")

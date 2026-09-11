@@ -5,22 +5,23 @@ batch execution, and CLI integration.
 
 import math
 import os
-from pathlib import Path
 import tempfile
 import wave
+from pathlib import Path
+
 import numpy as np
-import pytest
 import pedalboard.io
+import pytest
 
 from allomorph.circuit import (
-    load_circuit,
-    compute_circuit_transfer_functions,
-    apply_magnet_properties_to_model,
-    apply_oversampled_saturation,
-    simulate_circuit_audio,
-    simulate_voice,
     AUDIO_DIR,
     CircuitModel,
+    apply_magnet_properties_to_model,
+    apply_oversampled_saturation,
+    compute_circuit_transfer_functions,
+    load_circuit,
+    simulate_circuit_audio,
+    simulate_voice,
 )
 from allomorph.config import VOICES, load_instrument
 from allomorph.dsp import FREQS, NUM_TAPS, write_wav_24bit
@@ -576,6 +577,7 @@ def test_run_spice_batch_parallel():
 def test_unsupported_ltspice_backend_raises_error():
     """Verify that attempting to invoke the removed legacy LTspice backend raises ValueError."""
     import pytest
+
     from allomorph.pipeline import run_circuit_simulation
 
     with pytest.raises(ValueError, match="The legacy LTspice pipeline has been removed"):
@@ -617,6 +619,7 @@ def test_run_pipeline_cli_jobs_and_voices():
 def test_simulate_voice_strict_configuration_errors():
     """Verify that simulate_voice and apply_magnet_properties_to_model raise strict configuration errors."""
     import pytest
+
     from allomorph.circuit.parser import CircuitModel
     from allomorph.circuit.solver import apply_magnet_properties_to_model
 
