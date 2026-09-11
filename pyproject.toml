@@ -12,6 +12,7 @@ dependencies = [
     "neural-amp-modeler>=0.13.0",
     "numpy>=2.5.3",
     "pydantic>=2.13.5",
+    "numba>=0.67.0",
 ]
 
 [dependency-groups]

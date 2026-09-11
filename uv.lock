@@ -97,6 +97,7 @@ source = { editable = "." }
 dependencies = [
     { name = "altair" },
     { name = "neural-amp-modeler" },
+    { name = "numba" },
     { name = "numpy" },
     { name = "pedalboard" },
     { name = "polars" },
@@ -114,6 +115,7 @@ dev = [
 requires-dist = [
     { name = "altair", specifier = ">=5.5.0" },
     { name = "neural-amp-modeler", specifier = ">=0.13.0" },
+    { name = "numba", specifier = ">=0.67.0" },
     { name = "numpy", specifier = ">=2.5.3" },
     { name = "pedalboard", specifier = ">=0.9.0" },
     { name = "polars", specifier = ">=1.20.0" },
