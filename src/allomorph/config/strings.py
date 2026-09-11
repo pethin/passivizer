@@ -34,18 +34,9 @@ def load_strings_config(config_path: str | Path | None = None) -> dict[str, Stri
 STRINGS: dict[str, StringPresetConfig] = load_strings_config()
 
 
-def get_instrument_string(
-    instrument: InstrumentConfig | str | None = None,
-) -> ResolvedStringConfig:
+def get_instrument_string(instrument: InstrumentConfig) -> ResolvedStringConfig:
     """Resolves string configuration for a source instrument."""
-    if instrument is None or isinstance(instrument, str):
-        from allomorph.config.instruments import load_instrument
-
-        inst = load_instrument(instrument or "30in")
-    else:
-        inst = instrument
-
-    s_block = inst.strings
+    s_block = instrument.strings
     preset = s_block.preset or "roundwound_nickel_standard"
 
     if preset not in STRINGS:
@@ -54,10 +45,7 @@ def get_instrument_string(
             f"Available presets: {list(STRINGS.keys())}"
         )
 
-    base_dict = STRINGS[preset].model_dump()
-    s_dict = s_block.model_dump(exclude_unset=True)
-    base_dict.update({k: v for k, v in s_dict.items() if v is not None})
-    return ResolvedStringConfig.model_validate(base_dict)
+    return ResolvedStringConfig.from_preset_and_overrides(STRINGS[preset], s_block)
 
 
 def get_voice_string(voice_cfg: VoiceConfig) -> StringPresetConfig:

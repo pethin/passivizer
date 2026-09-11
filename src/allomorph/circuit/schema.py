@@ -268,32 +268,61 @@ class SimulationConfig(AllomorphBaseModel):
 
     def to_sim_kwargs(self) -> dict[str, Any]:
         """Converts configuration into a keyword arguments dictionary for simulation execution."""
-        kw = self.model_dump()
-        if self.harness_controls is not None:
-            if kw.get("vol_pos") is None:
-                kw["vol_pos"] = self.harness_controls.vol_pos
-            if kw.get("tone_pos") is None:
-                kw["tone_pos"] = self.harness_controls.tone_pos
-            if kw.get("blend_pos") is None:
-                kw["blend_pos"] = self.harness_controls.blend_pos
-            if kw.get("pot_taper") is None:
-                kw["pot_taper"] = self.harness_controls.pot_taper
-            if kw.get("cable_pf") is None:
-                kw["cable_pf"] = self.harness_controls.cable_pf
-        if self.saturation_config is not None:
-            if kw.get("vsat") is None:
-                kw["vsat"] = self.saturation_config.vsat
-            if kw.get("alpha") is None:
-                kw["alpha"] = self.saturation_config.alpha
-            if kw.get("alpha3") is None:
-                kw["alpha3"] = self.saturation_config.alpha3
-            if kw.get("eta_hyst") is None:
-                kw["eta_hyst"] = self.saturation_config.eta_hyst
-            if kw.get("k_sag") is None:
-                kw["k_sag"] = self.saturation_config.k_sag
-            if kw.get("oversample") is None:
-                kw["oversample"] = self.saturation_config.oversample
-        return kw
+        h = self.harness_controls
+        s = self.saturation_config
+        return {
+            "input_wav": self.input_wav,
+            "output_wav": self.output_wav,
+            "instrument": self.instrument,
+            "pickup": self.pickup,
+            "tier": self.tier,
+            "prefiltered": self.prefiltered,
+            "cir_path": self.cir_path,
+            "normalize": self.normalize,
+            "target_dbfs": self.target_dbfs,
+            "oversample": self.oversample if s is None else s.oversample,
+            "displacement_weighting": (
+                self.displacement_weighting if not s else s.displacement_weighting
+            ),
+            "magnet_drag": self.magnet_drag if not s else s.magnet_drag,
+            "alpha": self.alpha if self.alpha is not None else (s.alpha if s else None),
+            "alpha3": self.alpha3 if self.alpha3 is not None else (s.alpha3 if s else None),
+            "eta_hyst": self.eta_hyst if self.eta_hyst is not None else (s.eta_hyst if s else None),
+            "k_sag": self.k_sag if self.k_sag is not None else (s.k_sag if s else None),
+            "k_eddy": self.k_eddy if self.k_eddy is not None else (s.k_eddy if s else None),
+            "kappa_orbit": (
+                self.kappa_orbit if self.kappa_orbit is not None else (s.kappa_orbit if s else None)
+            ),
+            "beta_curv": (
+                self.beta_curv if self.beta_curv is not None else (s.beta_curv if s else None)
+            ),
+            "k_pull": self.k_pull if self.k_pull is not None else (s.k_pull if s else None),
+            "tau_touch": (
+                self.tau_touch if self.tau_touch is not None else (s.tau_touch if s else None)
+            ),
+            "kappa_geom": (
+                self.kappa_geom if self.kappa_geom is not None else (s.kappa_geom if s else None)
+            ),
+            "k_stein": self.k_stein if self.k_stein is not None else (s.k_stein if s else None),
+            "k_emf": self.k_emf if self.k_emf is not None else (s.k_emf if s else None),
+            "lambda_L": self.lambda_L if self.lambda_L is not None else (s.lambda_L if s else None),
+            "vol_pos": self.vol_pos if self.vol_pos is not None else (h.vol_pos if h else None),
+            "tone_pos": self.tone_pos if self.tone_pos is not None else (h.tone_pos if h else None),
+            "blend_pos": self.blend_pos
+            if self.blend_pos is not None
+            else (h.blend_pos if h else None),
+            "pot_taper": self.pot_taper
+            if self.pot_taper is not None
+            else (h.pot_taper if h else None),
+            "cable_pf": self.cable_pf if self.cable_pf is not None else (h.cable_pf if h else None),
+            "slew_limit": self.slew_limit if not s else s.slew_limit,
+            "f_slew": self.f_slew if not s else s.f_slew,
+            "noise_dither": self.noise_dither,
+            "eddy_diffusion": self.eddy_diffusion,
+            "dc_block": self.dc_block,
+            "max_samples": self.max_samples,
+            "vsat": s.vsat if s else None,
+        }
 
 
 class CircuitMetricsRecord(AllomorphBaseModel):

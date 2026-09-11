@@ -193,7 +193,22 @@ class ParametricSweepResult(BaseModel):
 
     def metrics(self) -> pl.DataFrame:
         """Extracts key analytical circuit metrics for each swept curve as a Polars DataFrame."""
-        return pl.DataFrame([r.model_dump() for r in self.metrics_records()])
+        recs = self.metrics_records()
+        return pl.DataFrame(
+            {
+                "param": [r.param for r in recs],
+                "param_value": [r.param_value for r in recs],
+                "label": [r.label for r in recs],
+                "f_res_hz": [r.f_res_hz for r in recs],
+                "peak_db": [r.peak_db for r in recs],
+                "insertion_loss_db": [r.insertion_loss_db for r in recs],
+                "peak_boost_db": [r.peak_boost_db for r in recs],
+                "q_loaded": [r.q_loaded for r in recs],
+                "bandwidth_hz": [r.bandwidth_hz for r in recs],
+                "cutoff_3db_hz": [r.cutoff_3db_hz for r in recs],
+                "hf_slope_db_oct": [r.hf_slope_db_oct for r in recs],
+            }
+        )
 
     def summary_table(self) -> str:
         """Formats the analytical metrics into a clean terminal table string."""

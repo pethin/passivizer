@@ -142,13 +142,16 @@ def test_analytical_circuit_metrics_extraction():
     assert "hf_slope_db_oct" in df_metrics.columns
 
     # Full open tone (Tone 100%)
-    row_100 = df_metrics.filter(pl.col("label") == "Tone 100%").to_dicts()[0]
+    rec_100 = next(r for r in res.metrics_records() if r.label == "Tone 100%")
     # Classic vintage P-Bass resonance (5.8H coil + 750pF cable) is in 1.8 - 3.5 kHz range
-    assert 1800.0 <= row_100["f_res_hz"] <= 3500.0
+    assert rec_100.f_res_hz is not None
+    assert 1800.0 <= rec_100.f_res_hz <= 3500.0
     # Q should be reasonable (0.8 to 4.0)
-    assert 0.8 <= row_100["q_loaded"] <= 4.0
+    assert rec_100.q_loaded is not None
+    assert 0.8 <= rec_100.q_loaded <= 4.0
     # HF roll-off slope should be roughly -10 to -15 dB/octave
-    assert -16.0 <= row_100["hf_slope_db_oct"] <= -8.0
+    assert rec_100.hf_slope_db_oct is not None
+    assert -16.0 <= rec_100.hf_slope_db_oct <= -8.0
 
     # Summary table formatting
     table_str = res.summary_table()

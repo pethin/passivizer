@@ -41,9 +41,9 @@ def test_strings_catalog_loading():
     for p in expected_presets:
         assert p in STRINGS, f"Preset '{p}' missing from STRINGS catalog"
         s = STRINGS[p]
-        assert s["tension_lbs"] > 100.0
-        assert s["damping_cutoff_hz"] >= 1500.0
-        assert s["damping_order"] >= 1.0
+        assert s.tension_lbs > 100.0
+        assert s.damping_cutoff_hz >= 1500.0
+        assert s.damping_order >= 1.0
 
 
 def test_instrument_string_resolution():
@@ -51,45 +51,45 @@ def test_instrument_string_resolution():
     # 32in fretless explicitly declares La Bella Low Tension Flats
     inst_fretless = load_instrument("32in_fretless")
     str_fretless = get_instrument_string(inst_fretless)
-    assert str_fretless["preset"] == "flatwound_low_tension"
-    assert str_fretless["brand"] == "La Bella"
-    assert str_fretless["model"] == "LTF-4A"
-    assert math.isclose(str_fretless["tension_lbs"], 132.0, abs_tol=1e-3)
-    assert math.isclose(str_fretless["damping_cutoff_hz"], 2800.0, abs_tol=1e-3)
-    assert str_fretless["pluck_excursion_factor"] == 1.25
+    assert str_fretless.preset == "flatwound_low_tension"
+    assert str_fretless.brand == "La Bella"
+    assert str_fretless.model == "LTF-4A"
+    assert math.isclose(str_fretless.tension_lbs, 132.0, abs_tol=1e-3)
+    assert math.isclose(str_fretless.damping_cutoff_hz, 2800.0, abs_tol=1e-3)
+    assert str_fretless.pluck_excursion_factor == 1.25
 
     # 30in and 34in default to roundwound_nickel_standard
     inst_30 = load_instrument("30in")
     str_30 = get_instrument_string(inst_30)
-    assert str_30["type"] == "roundwound"
-    assert math.isclose(str_30["damping_cutoff_hz"], 8500.0, abs_tol=1e-3)
+    assert str_30.type == "roundwound"
+    assert math.isclose(str_30.damping_cutoff_hz, 8500.0, abs_tol=1e-3)
 
     inst_34 = load_instrument("34in")
     str_34 = get_instrument_string(inst_34)
-    assert str_34["type"] == "roundwound"
+    assert str_34.type == "roundwound"
 
 
 def test_target_voice_strings():
     """Verify target voice goal string mappings."""
     v14 = VOICES["14_upright_bridge_transducer"]
     str_v14 = get_voice_string(v14)
-    assert str_v14["type"] == "double_bass"
-    assert str_v14["tension_lbs"] == 265.0
-    assert str_v14["bloom_db"] == 2.8
+    assert str_v14.type == "double_bass"
+    assert str_v14.tension_lbs == 265.0
+    assert str_v14.bloom_db == 2.8
 
     v13 = VOICES["13_dingwall_multiscale_bridge"]
     str_v13 = get_voice_string(v13)
-    assert str_v13["type"] == "roundwound"
-    assert str_v13["wrap"] == "stainless"
+    assert str_v13.type == "roundwound"
+    assert str_v13.wrap == "stainless"
 
     v05c = VOICES["05c_vintage_62_p_47nf"]
     str_v05c = get_voice_string(v05c)
-    assert str_v05c["type"] == "flatwound"
+    assert str_v05c.type == "flatwound"
 
     # Standard voices default to roundwound_nickel_standard
     v04 = VOICES["04_modern_p_ceramic"]
     str_v04 = get_voice_string(v04)
-    assert str_v04["type"] == "roundwound"
+    assert str_v04.type == "roundwound"
 
 
 def test_differential_damping_anti_double_muffling():

@@ -256,7 +256,7 @@ def train_voice(
 
     print("\nExporting Architecture 2 (.nam) model container with full instrument metadata...")
     nam_meta = NamExportMetadata(
-        training=NamTrainingMetadata.model_validate(train_output.metadata.model_dump()),
+        training=NamTrainingMetadata.model_validate(train_output.metadata),
         license="PolyForm Noncommercial License 1.0.0 (https://polyformproject.org/licenses/noncommercial/1.0.0)",
         copyright="Copyright 2026 Peter Nguyen <peter@phn.dev>. All commercial rights reserved.",
         author="Peter Nguyen <peter@phn.dev>",

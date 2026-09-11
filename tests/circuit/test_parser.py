@@ -15,6 +15,7 @@ from allomorph.circuit import (
     parse_spice_val,
     simulate_voice,
 )
+from allomorph.circuit.schema import CircuitConfig
 from allomorph.config import VOICES, load_instrument
 
 
@@ -103,6 +104,22 @@ def test_circuit_from_dict_and_shorthand():
     assert m.L_b == pytest.approx(3.6)
     assert m.Rdc_b == pytest.approx(7800.0)
     assert m.Reddy_b == pytest.approx(125000.0)
+    assert m.Ccoil_b == pytest.approx(70e-12)
+    assert m.vsat_b == pytest.approx(0.55)
+    assert m.Rbot_default == pytest.approx(500000.0)
+    assert m.Rtone == pytest.approx(250000.0)
+    assert m.Ctone == pytest.approx(47e-9)
+    assert m.Ccable == pytest.approx(750e-12)
+    assert m.has_active_buffer is True
+    assert m.preamp_type == "sadowsky_2band"
+
+    # Direct validation into CircuitConfig model and from_circuit_config
+    c_cfg = CircuitConfig.model_validate(cfg)
+    m_from_cfg = CircuitModel.from_circuit_config(c_cfg)
+    assert m_from_cfg.topology == "parallel"
+    assert m_from_cfg.L == pytest.approx(3.2)
+    assert m_from_cfg.L_b == pytest.approx(3.6)
+    assert m_from_cfg.preamp_type == "sadowsky_2band"
     assert m.Ccoil_b == pytest.approx(70e-12)
     assert m.vsat_b == pytest.approx(0.55)
     assert m.Rtop == pytest.approx(10.0)

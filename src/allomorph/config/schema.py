@@ -131,6 +131,31 @@ class ResolvedStringConfig(StringPresetConfig):
     model: str | None = None
     gauge: str | None = None
 
+    @classmethod
+    def from_preset_and_overrides(
+        cls, preset: StringPresetConfig, overrides: InstrumentStringsConfig
+    ) -> Self:
+        """Constructs a fully resolved string configuration directly from preset and setup models."""
+        return cls(
+            name=preset.name,
+            type=preset.type,
+            wrap=overrides.wrap if overrides.wrap is not None else preset.wrap,
+            core=overrides.core if overrides.core is not None else preset.core,
+            tension_lbs=(
+                overrides.tension_lbs if overrides.tension_lbs is not None else preset.tension_lbs
+            ),
+            damping_cutoff_hz=preset.damping_cutoff_hz,
+            damping_order=preset.damping_order,
+            bloom_db=preset.bloom_db,
+            pluck_excursion_factor=preset.pluck_excursion_factor,
+            k_long=preset.k_long,
+            bridge_rocking_compliance=preset.bridge_rocking_compliance,
+            preset=overrides.preset,
+            brand=overrides.brand,
+            model=overrides.model,
+            gauge=overrides.gauge,
+        )
+
 
 class StringsCatalog(AllomorphBaseModel):
     """Catalog of physical string presets."""

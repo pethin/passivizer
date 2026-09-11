@@ -2,9 +2,10 @@
 Allomorph Visualizer - Interactive HTML Portal Generation
 """
 
-import json
 from collections.abc import Mapping
 from pathlib import Path
+
+from pydantic import TypeAdapter
 
 from allomorph.config.instruments import load_all_instruments
 from allomorph.config.scales import REPO_ROOT
@@ -62,8 +63,11 @@ def build_portal_html(
     base_url_prefix: str = "./",
 ) -> str:
     """Constructs a responsive, dark-mode portal HTML string with 3-way Architecture C signal flow navigation."""
-    raw_meta = {k: v.model_dump() for k, v in instruments_meta.items()}
-    meta_json = json.dumps(raw_meta, indent=2)
+    meta_json = (
+        TypeAdapter(dict[str, PortalInstrumentMeta])
+        .dump_json(dict(instruments_meta), indent=2)
+        .decode("utf-8")
+    )
 
     buttons_html = []
     for inst_id, meta in instruments_meta.items():
