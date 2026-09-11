@@ -37,9 +37,7 @@ from allomorph.physics import (
     MEAN_BASS_F0,
 )
 from allomorph.circuit import (
-    CIRCUITS_DIR,
     load_circuit,
-    parse_netlist,
     compute_circuit_transfer_functions,
     compute_differential_circuit_transfer_functions,
     apply_magnet_properties_to_model,

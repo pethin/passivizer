@@ -156,7 +156,7 @@ def test_all_instruments_have_valid_string_presets():
 
 def test_active_identity_differential_flatness():
     """Verify that active source instruments matching their target voice evaluate to 0.00 dB flat."""
-    from scripts.analyze_voices import build_voice_dataframe
+    from allomorph.visualizer import build_voice_dataframe
     import numpy as np
 
     # 1. 37" Multi-Scale Dingwall -> Voice 13 Dingwall Bridge (< 0.05 dB flat)
@@ -172,7 +172,7 @@ def test_active_identity_differential_flatness():
 
 def test_small_sample_delay_inter_pickup_coherence_decay():
     """Verify that dual-pickup configurations with small inter-pickup sample delay (<= 5 samples) apply coherence decay."""
-    from scripts.analyze_voices import build_voice_dataframe
+    from allomorph.visualizer import build_voice_dataframe
     import numpy as np
 
     # 34" Active Soapbar Bass playing 01 Modern Active Jazz Pair has delta_samples = 5.

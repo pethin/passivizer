@@ -94,19 +94,3 @@ def find_default_input_audio() -> Optional[Path]:
         if p.exists():
             return p
     return None
-
-
-def write_wav_buffer_24bit(output_wav_path: Union[str, Path], audio: np.ndarray, sr: int = 48000):
-    """Writes a 24-bit 48 kHz mono PCM WAV file directly using native numpy slicing."""
-    output_wav_path = Path(output_wav_path)
-    output_wav_path.parent.mkdir(parents=True, exist_ok=True)
-
-    mono = audio[0] if audio.ndim > 1 else audio
-    with wave.open(str(output_wav_path), "wb") as wf:
-        wf.setnchannels(1)
-        wf.setsampwidth(3)  # 24-bit
-        wf.setframerate(sr)
-        int24_max = 8388607.0
-        scaled = np.clip(mono * int24_max, -8388608.0, 8388607.0).astype(np.int32)
-        raw_bytes = scaled.astype("<i4").view(np.uint8).reshape(-1, 4)[:, :3].tobytes()
-        wf.writeframes(raw_bytes)

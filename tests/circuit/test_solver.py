@@ -9,21 +9,17 @@ import pytest
 
 from allomorph.circuit import (
     load_circuit,
-    parse_netlist,
     compute_circuit_transfer_functions,
     compute_differential_circuit_transfer_functions,
     compute_core_impedance,
     CircuitModel,
-    CIRCUITS_DIR,
-    REPO_ROOT,
 )
-from allomorph.config import load_instrument
+from allomorph.config import load_instrument, INSTRUMENTS
 from allomorph.dsp import FREQS
 
 
 def test_single_pickup_transfer_function():
-    cir_path = CIRCUITS_DIR / "04_modern_p_ceramic.cir"
-    model = parse_netlist(cir_path)
+    model = load_circuit("04_modern_p_ceramic")
     curves = compute_circuit_transfer_functions(model, freqs=FREQS)
 
     assert len(curves) == 1
@@ -44,8 +40,7 @@ def test_single_pickup_transfer_function():
 
 
 def test_tone_rolloff_transfer_function():
-    cir_path = CIRCUITS_DIR / "05c_vintage_62_p_47nf.cir"
-    model = parse_netlist(cir_path)
+    model = load_circuit("05c_vintage_62_p_47nf")
     assert model.Ctone == pytest.approx(47e-9)
 
     curves = compute_circuit_transfer_functions(model, freqs=FREQS)
@@ -63,8 +58,7 @@ def test_tone_rolloff_transfer_function():
 
 
 def test_series_hpf_transfer_function():
-    cir_path = CIRCUITS_DIR / "10_rickenbacker_bridge_hpf.cir"
-    model = parse_netlist(cir_path)
+    model = load_circuit("10_rickenbacker_bridge_hpf")
     assert model.Crick == pytest.approx(4.7e-9)
 
     curves = compute_circuit_transfer_functions(model, freqs=FREQS)
@@ -79,8 +73,7 @@ def test_series_hpf_transfer_function():
 
 
 def test_parallel_dual_pickup_transfer_function():
-    cir_path = CIRCUITS_DIR / "02_jazz_bass_pair.cir"
-    model = parse_netlist(cir_path)
+    model = load_circuit("02_jazz_bass_pair")
     assert model.topology == "parallel"
 
     curves = compute_circuit_transfer_functions(model, freqs=FREQS)
@@ -96,7 +89,7 @@ def test_parallel_dual_pickup_transfer_function():
 
 def test_active_preamp_buffer_transfer_function():
     # 1. Voice 01 Modern Active Jazz Bass
-    m01 = parse_netlist(CIRCUITS_DIR / "01_modern_jazz_active.cir")
+    m01 = load_circuit("01_modern_jazz_active")
     assert m01.has_active_buffer is True
     assert m01.preamp_type == "sadowsky_2band"
     assert m01.topology == "parallel"
@@ -111,7 +104,7 @@ def test_active_preamp_buffer_transfer_function():
     assert 7000.0 <= peak_b01 <= 9000.0
 
     # 2. Voice 07 Modern Active P/J 2-Band
-    m07 = parse_netlist(CIRCUITS_DIR / "07_modern_pj_active.cir")
+    m07 = load_circuit("07_modern_pj_active")
     assert m07.has_active_buffer is True
     assert m07.preamp_type == "sadowsky_2band"
     assert m07.topology == "parallel"
@@ -119,7 +112,7 @@ def test_active_preamp_buffer_transfer_function():
     assert len(curves07) == 2
 
     # 3. Voice 09 Music Man StingRay Active 2-Band
-    m09 = parse_netlist(CIRCUITS_DIR / "09_stingray_mm_parallel.cir")
+    m09 = load_circuit("09_stingray_mm_parallel")
     assert m09.has_active_buffer is True
     assert m09.preamp_type == "stingray_2band"
     assert m09.topology == "single"
@@ -133,8 +126,7 @@ def test_active_preamp_buffer_transfer_function():
 
 
 def test_series_dual_pickup_transfer_function():
-    cir_path = CIRCUITS_DIR / "11_pmm_hybrid_series.cir"
-    model = parse_netlist(cir_path)
+    model = load_circuit("11b_pmm_hybrid_series")
     assert model.topology == "series"
 
     curves = compute_circuit_transfer_functions(model, freqs=FREQS)
@@ -149,8 +141,7 @@ def test_series_dual_pickup_transfer_function():
 
 
 def test_active_pmm_transfer_function():
-    cir_path = CIRCUITS_DIR / "11_modern_pmm_active.cir"
-    model = parse_netlist(cir_path)
+    model = load_circuit("11_modern_pmm_active")
     assert model.topology == "parallel"
     assert model.has_active_buffer is True
     assert model.preamp_type == "none"
@@ -171,7 +162,7 @@ def test_active_pmm_transfer_function():
 def test_tone_pot_series_admittance():
     """Verify that series Rtone allows wide-open tone pots to preserve pickup resonance."""
     # 1. Voice 05c: Rtone = 3.3 Ohm ESR floor, Ctone = 47nF -> collapses peak to 180-500 Hz
-    m_rolled = parse_netlist(CIRCUITS_DIR / "05c_vintage_62_p_47nf.cir")
+    m_rolled = load_circuit("05c_vintage_62_p_47nf")
     assert m_rolled.Rtone == pytest.approx(3.3)
     assert m_rolled.Ctone == pytest.approx(47e-9)
     curves_rolled = compute_circuit_transfer_functions(m_rolled, freqs=FREQS)
@@ -179,7 +170,7 @@ def test_tone_pot_series_admittance():
     assert 180.0 <= peak_rolled <= 500.0
 
     # 2. Source Standard P: Rtone = 250k, Ctone = 47nF -> loaded peak stays in 2000-2400 Hz range
-    m_open = parse_netlist(REPO_ROOT / "circuits" / "sources" / "source_standard_p.cir")
+    m_open = load_circuit(INSTRUMENTS["34in_standard_p"]["pickups"]["split_p"]["circuit"])
     assert m_open.Rtone == pytest.approx(250000.0)
     assert m_open.Ctone == pytest.approx(47e-9)
     curves_open = compute_circuit_transfer_functions(m_open, freqs=FREQS)
@@ -198,10 +189,10 @@ def test_tonestyler_p_bass_progression_transfer_functions():
        - 05d (100nF): deep sub-bass rolloff with -3 dB cutoff at ~240 Hz
     3. Each step preserves undamped Q factor without muddy pot wiper damping.
     """
-    m05 = parse_netlist(CIRCUITS_DIR / "05_vintage_62_p_alnico.cir")
-    m05b = parse_netlist(CIRCUITS_DIR / "05b_vintage_62_p_22nf.cir")
-    m05c = parse_netlist(CIRCUITS_DIR / "05c_vintage_62_p_47nf.cir")
-    m05d = parse_netlist(CIRCUITS_DIR / "05d_vintage_50s_p_100nf.cir")
+    m05 = load_circuit("05_vintage_62_p_alnico")
+    m05b = load_circuit("05b_vintage_62_p_22nf")
+    m05c = load_circuit("05c_vintage_62_p_47nf")
+    m05d = load_circuit("05d_vintage_50s_p_100nf")
 
     assert m05b.Ctone == pytest.approx(22e-9)
     assert m05b.Rtone == pytest.approx(3.3)
@@ -230,7 +221,7 @@ def test_tonestyler_p_bass_progression_transfer_functions():
     assert c05d[idx_500] < c05c[idx_500] < c05b[idx_500]
 
     # Differential transfer function verification against standard P source:
-    src_p = parse_netlist(CIRCUITS_DIR / "sources" / "source_standard_p.cir")
+    src_p = load_circuit(INSTRUMENTS["34in_standard_p"]["pickups"]["split_p"]["circuit"])
     diff_05b = compute_differential_circuit_transfer_functions(m05b, src_p, freqs=FREQS)[0]
     diff_05d = compute_differential_circuit_transfer_functions(m05d, src_p, freqs=FREQS)[0]
 
@@ -253,12 +244,12 @@ def test_voice_02b_transfer_function():
     2. Resonant peak occurs in the 700-850 Hz region (Jaco vocal bridge burp).
     3. Treble at 3 kHz is attenuated by > 6 dB relative to wide-open Voice 02.
     """
-    m02b = parse_netlist(CIRCUITS_DIR / "02b_jazz_bass_pair_22nf.cir")
+    m02b = load_circuit("02b_jazz_bass_pair_22nf")
     assert m02b.topology == "parallel"
     assert m02b.Ctone == pytest.approx(22e-9)
     assert m02b.Rtone == pytest.approx(3.3)
 
-    m02 = parse_netlist(CIRCUITS_DIR / "02_jazz_bass_pair.cir")
+    m02 = load_circuit("02_jazz_bass_pair")
 
     curves_02b = compute_circuit_transfer_functions(m02b, freqs=FREQS)
     curves_02 = compute_circuit_transfer_functions(m02, freqs=FREQS)
@@ -347,7 +338,7 @@ def test_dingwall_composite_source_circuit():
 def test_inter_coil_mutual_coupling_matrix():
     """Verify coupled 2x2 nodal transfer matrix for parallel dual-coil configurations."""
     # Voice 02: Jazz Bass Pair (parallel topology)
-    m = parse_netlist(CIRCUITS_DIR / "02_jazz_bass_pair.cir")
+    m = load_circuit("02_jazz_bass_pair")
     assert m.topology == "parallel"
 
     # 1. Zero mutual coupling (k=0, C=0)
@@ -373,7 +364,7 @@ def test_inter_coil_mutual_coupling_matrix():
 
 def test_distributed_coil_transmission_line():
     """Verify distributed coil admittance softens the lumped LC cliff and preserves high-end sheen."""
-    m = parse_netlist(CIRCUITS_DIR / "04_modern_p_ceramic.cir")
+    m = load_circuit("04_modern_p_ceramic")
 
     # 1. Lumped model (k_dist = 0.0)
     m.k_dist = 0.0
@@ -397,8 +388,8 @@ def test_distributed_coil_transmission_line():
 def test_potentiometer_wiper_positions():
     """Verify dynamic Volume and Tone pot wiper positions and cable interaction."""
     # 1. 100% open matches default baseline bit-exact
-    m_default = parse_netlist(CIRCUITS_DIR / "05_vintage_62_p_alnico.cir")
-    m_open = parse_netlist(CIRCUITS_DIR / "05_vintage_62_p_alnico.cir")
+    m_default = load_circuit("05_vintage_62_p_alnico")
+    m_open = load_circuit("05_vintage_62_p_alnico")
     m_open.apply_pot_positions(vol_pos=1.0, tone_pos=1.0)
 
     h_def = compute_circuit_transfer_functions(m_default, freqs=FREQS)[0]
@@ -406,7 +397,7 @@ def test_potentiometer_wiper_positions():
     assert np.allclose(h_def, h_open, atol=1e-6), "Wiper at 1.0, 1.0 must match default netlist exactly"
 
     # 2. Tone rolled off (tone_pos = 0.2) increases roll-off around 1-3 kHz
-    m_tone_rolled = parse_netlist(CIRCUITS_DIR / "05_vintage_62_p_alnico.cir")
+    m_tone_rolled = load_circuit("05_vintage_62_p_alnico")
     m_tone_rolled.apply_pot_positions(vol_pos=1.0, tone_pos=0.2)
     h_rolled = compute_circuit_transfer_functions(m_tone_rolled, freqs=FREQS)[0]
 
@@ -415,7 +406,7 @@ def test_potentiometer_wiper_positions():
     assert h_rolled[idx_3k] < h_open[idx_3k], "Tone pot rolled off must attenuate 3 kHz resonance"
 
     # 3. Volume rolled off (vol_pos = 0.7) inserts series resistance loading cable capacitance
-    m_vol_rolled = parse_netlist(CIRCUITS_DIR / "05_vintage_62_p_alnico.cir")
+    m_vol_rolled = load_circuit("05_vintage_62_p_alnico")
     m_vol_rolled.apply_pot_positions(vol_pos=0.7, tone_pos=1.0)
     h_vol = compute_circuit_transfer_functions(m_vol_rolled, freqs=FREQS)[0]
     assert np.max(h_vol) < np.max(h_open), "Volume attenuation must reduce overall output gain"

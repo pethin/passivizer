@@ -14,7 +14,6 @@ from allomorph.dsp import (
     FREQS,
     NUM_TAPS,
     synthesize_minimum_phase_fir,
-    write_wav_24bit,
 )
 from allomorph.config import (
     REPO_ROOT,
@@ -41,7 +40,6 @@ from allomorph.circuit.parser import (
     CircuitModel,
     MAGNET_PROPERTIES,
     load_circuit,
-    parse_netlist,
 )
 from allomorph.circuit.solver import (
     compute_circuit_transfer_functions,
@@ -58,7 +56,6 @@ from allomorph.circuit.audio import (
     find_default_input_audio,
 )
 
-CIRCUITS_DIR = REPO_ROOT / "circuits"
 AUDIO_DIR = REPO_ROOT / "audio"
 MODELS_DIR = REPO_ROOT / "models"
 CANONICAL_SWEEP_PATH = AUDIO_DIR / "canonical" / "canonical_sweep.wav"

@@ -1,6 +1,6 @@
 # Allomorph - Native Virtual Analog (VA) Circuit Simulation Engine
 
-This document provides a comprehensive technical reference for the native Virtual Analog (VA) circuit simulation engine implemented in [`scripts/simulate_circuits.py`](file:///Users/peter/Projects/pethin/passivizer/scripts/simulate_circuits.py). The engine replaces external SPICE dependencies (LTspice, ngspice) with an analytical nodal solver and state-space non-linear magnetic emulator optimized for Apple Silicon (`arm64`), executing at $>1500\times$ real-time speed.
+This document provides a comprehensive technical reference for the native Virtual Analog (VA) circuit simulation engine implemented in [`allomorph.circuit`](file:///Users/peter/Projects/pethin/passivizer/src/allomorph/circuit) and exposed via the `allomorph-sim` CLI entrypoint. The engine replaces external SPICE dependencies (LTspice, ngspice) with an analytical nodal solver and state-space non-linear magnetic emulator optimized for Apple Silicon (`arm64`), executing at $>1500\times$ real-time speed.
 
 ---
 
@@ -314,7 +314,7 @@ When simulating multiple voices (`--voice all`), the engine leverages Python's `
 
 ```bash
 # Simulate all 21 voices across 8 parallel CPU cores
-uv run python scripts/simulate_circuits.py --voice all -j 8
+uv run allomorph-sim --voice all -j 8
 ```
 
 Each worker process operates on an isolated memory space, generating all 21 digital twins in seconds.
@@ -324,7 +324,7 @@ For testing, parameter optimization, or rapid inspection, pass `--max-samples` t
 
 ```bash
 # Simulate first 2 seconds (96,000 samples) of voice 04
-uv run python scripts/simulate_circuits.py -v 04_modern_p_ceramic --max-samples 96000
+uv run allomorph-sim -v 04_modern_p_ceramic --max-samples 96000
 ```
 
 ---
@@ -332,41 +332,41 @@ uv run python scripts/simulate_circuits.py -v 04_modern_p_ceramic --max-samples 
 ## 8. CLI Command-Line Reference
 
 ```bash
-usage: simulate_circuits.py [-h] [--voice VOICE] [--instrument INSTRUMENT]
-                            [--input INPUT] [--out OUT] [--prefiltered]
-                            [--normalize {auto,rms,peak,none}]
-                            [--target-dbfs TARGET_DBFS] [--oversample {1,2,4}]
-                            [--no-displacement-weighting] [--no-magnet-drag]
-                            [--alpha ALPHA] [--alpha3 ALPHA3] [--k-sag K_SAG]
-                            [--k-eddy K_EDDY] [--kappa-orbit KAPPA_ORBIT]
-                            [--beta-curv BETA_CURV] [--k-pull K_PULL]
-                            [--tau-touch TAU_TOUCH] [--kappa-geom KAPPA_GEOM]
-                            [--k-stein K_STEIN] [--vol VOL] [--tone TONE]
-                            [--no-spectral-tilt] [--no-slew-limit]
-                            [--f-slew F_SLEW] [--no-eddy-diffusion]
-                            [--no-hysteresis] [--eta-hyst ETA_HYST]
-                            [--no-dc-block] [--no-dither] [--jobs JOBS]
-                            [--max-samples MAX_SAMPLES]
+usage: allomorph-sim [-h] [--voice VOICE] [--instrument INSTRUMENT]
+                     [--input INPUT] [--out OUT] [--prefiltered]
+                     [--normalize {auto,rms,peak,none}]
+                     [--target-dbfs TARGET_DBFS] [--oversample {1,2,4}]
+                     [--no-displacement-weighting] [--no-magnet-drag]
+                     [--alpha ALPHA] [--alpha3 ALPHA3] [--k-sag K_SAG]
+                     [--k-eddy K_EDDY] [--kappa-orbit KAPPA_ORBIT]
+                     [--beta-curv BETA_CURV] [--k-pull K_PULL]
+                     [--tau-touch TAU_TOUCH] [--kappa-geom KAPPA_GEOM]
+                     [--k-stein K_STEIN] [--vol VOL] [--tone TONE]
+                     [--no-spectral-tilt] [--no-slew-limit]
+                     [--f-slew F_SLEW] [--no-eddy-diffusion]
+                     [--no-hysteresis] [--eta-hyst ETA_HYST]
+                     [--no-dc-block] [--no-dither] [--jobs JOBS]
+                     [--max-samples MAX_SAMPLES]
 ```
 
 ### Common Usage Examples:
 
 1. **Standard Single Voice Simulation:**
    ```bash
-   uv run python scripts/simulate_circuits.py -v 04_modern_p_ceramic -i 30in
+   uv run allomorph-sim -v 04_modern_p_ceramic -i 30in
    ```
 
 2. **Simulate All 21 Voices in Parallel on Apple Silicon:**
    ```bash
-   uv run python scripts/simulate_circuits.py -v all -i 30in -j 8
+   uv run allomorph-sim -v all -i 30in -j 8
    ```
 
 3. **Simulate with Custom Volume / Tone Wiper Loading:**
    ```bash
-   uv run python scripts/simulate_circuits.py -v 02_jazz_bass_pair --vol 0.8 --tone 0.5
+   uv run allomorph-sim -v 02_jazz_bass_pair --vol 0.8 --tone 0.5
    ```
 
 4. **Rapid Prototyping Run (2-Second Slice):**
    ```bash
-   uv run python scripts/simulate_circuits.py -v 09_stingray_mm_parallel --max-samples 96000
+   uv run allomorph-sim -v 09_stingray_mm_parallel --max-samples 96000
    ```

@@ -20,13 +20,11 @@ from allomorph.circuit import (
     compute_active_preamp_eq,
     compute_differential_circuit_transfer_functions,
     load_circuit,
-    parse_netlist,
-    CIRCUITS_DIR,
     REPO_ROOT,
 )
 from allomorph.config import load_instrument, VOICES
 from allomorph.dsp import FREQS
-from scripts.analyze_voices import build_voice_dataframe
+from allomorph.visualizer import build_voice_dataframe
 
 
 def test_guardrail_active_preamp_dc_transmission():
@@ -152,14 +150,9 @@ def test_guardrail_quadrature_null_floor_bounded():
 
 
 def test_guardrail_buffer_loop_acceleration():
-    """Guardrail 6.1: Recursive ODE state solvers in scripts/simulate_circuits.py must be decorated
+    """Guardrail 6.1: Recursive ODE state solvers in saturation.py must be decorated
     with @njit to prevent interpreted Python loops over audio buffers."""
-    if (REPO_ROOT / "src" / "allomorph" / "circuit" / "saturation.py").exists():
-        sim_script = REPO_ROOT / "src" / "allomorph" / "circuit" / "saturation.py"
-    elif (REPO_ROOT / "src" / "allomorph" / "circuit.py").exists():
-        sim_script = REPO_ROOT / "src" / "allomorph" / "circuit.py"
-    else:
-        sim_script = REPO_ROOT / "scripts" / "simulate_circuits.py"
+    sim_script = REPO_ROOT / "src" / "allomorph" / "circuit" / "saturation.py"
     tree = ast.parse(sim_script.read_text())
 
     recursive_cores = ["_lenz_velocity_drag_core", "_dahl_core", "_slew_limit_core"]
@@ -191,12 +184,7 @@ def test_guardrail_transducer_taxonomy_and_zero_conditional_deconvolution():
         assert sensor in valid_sensors, f"Voice {vid} has invalid sensor_type: '{sensor}'"
 
     # 2. AST check: physics module must contain zero hardcoded voice ID conditionals in FIR synthesis
-    if (REPO_ROOT / "src" / "allomorph" / "physics" / "prefilter.py").exists():
-        phys_file = REPO_ROOT / "src" / "allomorph" / "physics" / "prefilter.py"
-    elif (REPO_ROOT / "src" / "allomorph" / "physics.py").exists():
-        phys_file = REPO_ROOT / "src" / "allomorph" / "physics.py"
-    else:
-        phys_file = REPO_ROOT / "scripts" / "model_physics.py"
+    phys_file = REPO_ROOT / "src" / "allomorph" / "physics" / "prefilter.py"
     tree = ast.parse(phys_file.read_text())
 
     prohibited_constants = {"15_source_direct", "15_passive_character"}

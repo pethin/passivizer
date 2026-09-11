@@ -14,15 +14,12 @@ import pedalboard.io
 
 from allomorph.circuit import (
     load_circuit,
-    parse_netlist,
     compute_circuit_transfer_functions,
     apply_magnet_properties_to_model,
     apply_oversampled_saturation,
     simulate_circuit_audio,
     simulate_voice,
     AUDIO_DIR,
-    CIRCUITS_DIR,
-    REPO_ROOT,
     CircuitModel,
 )
 from allomorph.config import VOICES, load_instrument
@@ -30,10 +27,7 @@ from allomorph.dsp import FREQS, NUM_TAPS, write_wav_24bit
 from allomorph.naming import resolve_voices
 from allomorph.physics import compute_voice_prefilter_firs
 from allomorph.pipeline import run_spice_batch
-import sys
-if str(REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(REPO_ROOT))
-from scripts.analyze_voices import build_voice_dataframe
+from allomorph.visualizer import build_voice_dataframe
 
 
 def test_simulate_circuit_audio_output():
@@ -45,7 +39,7 @@ def test_simulate_circuit_audio_output():
         samples = [0.4 if i % 200 == 0 else 0.0 for i in range(4800)]
         write_wav_24bit(str(input_wav), samples, sample_rate=48000)
 
-        model = parse_netlist(CIRCUITS_DIR / "04_modern_p_ceramic.cir")
+        model = load_circuit("04_modern_p_ceramic")
         res = simulate_circuit_audio(input_wav, output_wav, model)
         assert res is True
         assert output_wav.exists()
@@ -113,8 +107,7 @@ def test_circuit_simulation_vs_theory_consistency():
 
     for voice_id in ["04_modern_p_ceramic", "02_jazz_bass_pair", "07_modern_pj_active"]:
         cfg = VOICES[voice_id]
-        cir_path = CIRCUITS_DIR / f"{voice_id}.cir"
-        model = parse_netlist(cir_path)
+        model = load_circuit(voice_id)
         apply_magnet_properties_to_model(model, cfg)
         prefilter_firs = compute_voice_prefilter_firs(voice_id, instrument=inst_id)
 
@@ -151,8 +144,7 @@ def test_upright_voicing_simulation_vs_theory_consistency():
     impulse[10] = 0.05
 
     cfg = VOICES[voice_id]
-    cir_path = CIRCUITS_DIR / f"{voice_id}.cir"
-    model = parse_netlist(cir_path)
+    model = load_circuit(voice_id)
     apply_magnet_properties_to_model(model, cfg)
     prefilter_firs = compute_voice_prefilter_firs(voice_id, instrument=inst_id)
 
@@ -266,7 +258,7 @@ def test_subaudible_dc_blocking_filter():
     # 100 Hz forte tone triggering asymmetric saturation
     tone = (0.60 * np.sin(2 * np.pi * 100 * t)).astype(np.float32)
 
-    model = parse_netlist(CIRCUITS_DIR / "04_modern_p_ceramic.cir")
+    model = load_circuit("04_modern_p_ceramic")
 
     with tempfile.NamedTemporaryFile(suffix=".wav") as tmp_dc_on, tempfile.NamedTemporaryFile(suffix=".wav") as tmp_dc_off:
         # 1. With DC blocker enabled (default)
@@ -372,7 +364,7 @@ def test_calibrated_drive_excursion_item3():
     - Large signals (peak 0.95) are scaled to target_drive_peak (<= 0.70) into saturation.
     - Small signals (peak 0.05) bypass saturation completely and remain 100% linear.
     """
-    m = parse_netlist(CIRCUITS_DIR / "05_vintage_62_p_alnico.cir")
+    m = load_circuit("05_vintage_62_p_alnico")
     sr = 48000
     t = np.linspace(0, 0.1, int(sr * 0.1), endpoint=False)
 
@@ -492,7 +484,7 @@ def test_multi_pickup_excursion_ratio():
     Verify Refinement 3: Physical string excursion drive ratio between neck and bridge pickups.
     Mono signal through multi-pickup circuit simulation scales bridge drive.
     """
-    model = parse_netlist(CIRCUITS_DIR / "02_jazz_bass_pair.cir")
+    model = load_circuit("02_jazz_bass_pair")
     fs = 48000
     n_samples = 4800
     mono_audio = (np.sin(2 * np.pi * 100.0 * np.linspace(0, 0.1, n_samples)) * 0.8).astype(np.float32)

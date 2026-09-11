@@ -6,7 +6,7 @@ from pathlib import Path
 import numpy as np
 
 from allomorph.config import VOICES
-from allomorph.circuit import load_circuit, parse_netlist, compute_circuit_transfer_functions, REPO_ROOT
+from allomorph.circuit import load_circuit, compute_circuit_transfer_functions
 from allomorph.dsp import NUM_TAPS, FREQS
 from allomorph.physics import compute_voice_prefilter_firs
 from allomorph.visualizer import build_voice_dataframe

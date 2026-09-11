@@ -6,7 +6,7 @@ alternate tunings, inharmonicity, and multi-scale wave speed continuums.
 import math
 import numpy as np
 
-from allomorph.circuit import parse_netlist, CIRCUITS_DIR
+from allomorph.circuit import load_circuit
 from allomorph.config import (
     STRINGS,
     VOICES,
@@ -130,7 +130,7 @@ def test_bridge_compliance_scaling():
     excursion = float(str_fretless.get("pluck_excursion_factor", 1.0))
     assert excursion == 1.25
 
-    model = parse_netlist(CIRCUITS_DIR / "14_upright_bridge_transducer.cir")
+    model = load_circuit("14_upright_bridge_transducer")
     base_vsat = model.vsat
     assert base_vsat == 0.42
 

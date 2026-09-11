@@ -1,6 +1,6 @@
-# Passivizer Master Voice Catalog (19 Pickup Configurations & Transducers)
+# Allomorph Master Voice Catalog (23 Pickup Configurations & Transducers)
 
-This catalog details the physical parameters, equivalent RLC circuit values, acoustic apertures, control harnesses, and electrical characteristics for the **Passivizer Digital Twin Profiles**.
+This catalog details the physical parameters, equivalent RLC circuit values, acoustic apertures, control harnesses, and electrical characteristics for the **Allomorph Digital Twin Profiles**.
 
 ---
 

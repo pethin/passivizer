@@ -33,7 +33,7 @@ from allomorph.physics import (
     numpy_pickup_acoustic_response,
     resolve_pickup_electrical_deconvolution_np,
 )
-from allomorph.circuit.parser import load_circuit, parse_netlist
+from allomorph.circuit.parser import load_circuit
 from allomorph.circuit.solver import compute_differential_circuit_transfer_functions
 from allomorph.circuit.simulation import (
     CANONICAL_SWEEP_PATH,

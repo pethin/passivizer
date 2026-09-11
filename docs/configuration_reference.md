@@ -1,12 +1,12 @@
-# Passivizer Configuration Reference
+# Allomorph Configuration Reference
 
-This guide provides a comprehensive specification of all configuration files in **Passivizer**, their schemas, data types, physical units, mathematical implications, and constraints.
+This guide provides a comprehensive specification of all configuration files in **Allomorph**, their schemas, data types, physical units, mathematical implications, and constraints.
 
 ---
 
 ## 1. Overview of Configuration Files
 
-Passivizer organizes instrument models, target voices, and physical scale wave speeds under the `config/` directory:
+Allomorph organizes instrument models, target voices, and physical scale wave speeds under the `config/` directory:
 
 ```
 config/
@@ -22,8 +22,10 @@ config/
 │   ├── 34in_active_soapbar.toml  # 34" Standard Active Dual-Soapbar (Ibanez SR / Yamaha TRBX)
 │   ├── 34in_dingwall_sp1.toml    # 32"-35" Dingwall SP1 5-String (Dual-P + FD3n)
 │   └── 37in_multiscale_dingwall.toml # 34"-37" Multi-Scale Dingwall 5-String Combustion / NG (FD3n)
+├── preamps.toml              # Reusable active preamp catalog (Sadowsky, StingRay, Aguilar, Dingwall)
 ├── scales.toml               # Physical scale lengths, wave speeds, and string dispersion
-└── voices.toml               # Master target passive pickup voices & SPICE netlist links
+├── strings.toml              # Physical string core/wrap presets
+└── voices/                   # Master target passive pickup voices & embedded [circuit] tables
 ```
 
 ---
@@ -213,14 +215,14 @@ $$v_s = 2 \cdot L \cdot f_{0,s}$$
 
 ---
 
-## 4. Target Voice Definitions (`config/voices.toml`)
+## 4. Target Voice Definitions (`config/voices/*.toml`)
 
-`config/voices.toml` links each of the 21 digital twin voices to its WAV SPICE netlist (`circuits/*.cir`), acoustic coil geometry, physical strings, and non-linear magnetic properties. Passivizer's built-in WAV SPICE simulator directly parses and evaluates these netlists on audio streams:
+`config/voices/*.toml` defines each of the 23 digital twin voices with its embedded declarative SPICE `[circuit]` table, acoustic coil geometry, physical strings, and non-linear magnetic properties. Allomorph's built-in WAV SPICE simulator directly parses and evaluates these netlists on audio streams:
 
 | Field | Type | Units | Description |
 | :--- | :--- | :--- | :--- |
 | `name` | `string` | — | Full display name (e.g. `"04. Modern Split-Coil P (Ceramic)"`). |
-| `circuit` | `string` | Path | Relative path to standalone SPICE netlist (`circuits/04_modern_p_ceramic.cir`). |
+| `circuit` | `table` | — | Embedded declarative SPICE netlist table defining RLC components, active buffers, pots, and preamps. |
 | `topology` | `string` | — | Circuit topology classification (`"Split-Coil Ceramic"`, `"Dual Single-Coil Active Buffer"`, etc.). |
 | `description` | `string` | — | Tonal character, reference pickup model, and hardware notes. |
 | `fr` | `float` | Hz | Target electrical resonant peak frequency under load (composite/single pickup). |
@@ -260,9 +262,8 @@ For instruments combining multiple pickups (such as P/J, Jazz Bass pairs, and P/
 
 #### 1. Modern Active Jazz Bass Pair (`01_modern_jazz_active`)
 ```toml
-[voices.01_modern_jazz_active]
+# config/voices/01_modern_jazz_active.toml
 name = "01. Modern Active Jazz Bass Pair"
-circuit = "circuits/01_modern_jazz_active.cir"
 topology = "Dual Single-Coil Active Buffer"
 blend_mode = "parallel"
 magnet_type = "alnico_v"
@@ -275,6 +276,25 @@ coils = [
     { strings = ["all"], position_from_bridge_m = 0.1556, aperture_width_in = 0.75, weight = 0.5 }, # 60s Neck Single-Coil
     { strings = ["all"], position_from_bridge_m = 0.0635, aperture_width_in = 0.75, weight = 0.5 }  # 60s Bridge Single-Coil
 ]
+
+[circuit]
+topology = "parallel"
+active = true
+preamp = "sadowsky_2band"
+Rvol = 500000.0
+
+[circuit.neck]
+L = 3.2
+Rdc = 7200.0
+Reddy = 135000.0
+Ccoil = 7e-11
+
+[circuit.bridge]
+L = 3.6
+Rdc = 7800.0
+Reddy = 125000.0
+Ccoil = 7e-11
+```
 
 [[voices.01_modern_jazz_active.pickups]]
 name = "Modern Jazz Single-Coil (Neck)"

@@ -37,11 +37,9 @@ from allomorph.circuit.audio import (
     apply_prefilter_to_audio,
     prefilter_audio,
     find_default_input_audio,
-    write_wav_buffer_24bit,
 )
 from allomorph.circuit.simulation import (
     REPO_ROOT,
-    CIRCUITS_DIR,
     AUDIO_DIR,
     MODELS_DIR,
     CANONICAL_SWEEP_PATH,
@@ -88,7 +86,6 @@ __all__ = [
     "apply_elliptical_orbit_projection",
     "apply_oversampled_saturation",
     "REPO_ROOT",
-    "CIRCUITS_DIR",
     "AUDIO_DIR",
     "MODELS_DIR",
     "CANONICAL_SWEEP_PATH",

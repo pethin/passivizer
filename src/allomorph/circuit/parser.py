@@ -13,7 +13,6 @@ from typing import Union, Dict, Any, Optional
 import numpy as np
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent.parent
-CIRCUITS_DIR = REPO_ROOT / "circuits"
 
 
 def parse_spice_val(val_str: str) -> float:
@@ -580,39 +579,24 @@ def load_circuit(source: Union[CircuitModel, dict, str, Path]) -> CircuitModel:
         if repo_rel.exists() and repo_rel.is_file():
             return load_circuit(repo_rel)
 
-        # Check voices and instruments registry by string or stem
-        stem = Path(source).stem
-        src_map = {
-            "source_standard_p": ("34in_standard_p", "split_p"),
-            "source_standard_jazz_neck": ("34in_standard_jazz", "neck"),
-            "source_standard_jazz_bridge": ("34in_standard_jazz", "bridge"),
-            "source_standard_jazz_pair": ("34in_standard_jazz", "pair_parallel"),
-            "source_standard_pj_pair": ("34in_standard_pj", "pair_parallel"),
-            "source_active_stingray": ("34in_active_stingray", "mm_parallel"),
-            "source_dingwall_fd3n": ("37in_multiscale_dingwall", "bridge"),
-            "source_dingwall_sp1_bridge": ("34in_dingwall_sp1", "bridge"),
-            "source_standard_mustang": ("30in_mustang_pj", "p"),
-        }
+        if p.suffix == ".cir" or str(source).endswith(".cir"):
+            raise ValueError(
+                f"Legacy SPICE ASCII netlists (.cir) are deprecated and no longer supported. "
+                f"Circuits must be defined as declarative TOML files or tables. "
+                f"Attempted to load: {source}"
+            )
 
+        # Check voices and instruments registry by string ID
         try:
             from allomorph.config.voices import VOICES
 
             if str(source) in VOICES:
                 return load_circuit(VOICES[str(source)])
-            if stem in VOICES:
-                return load_circuit(VOICES[stem])
         except ImportError:
             pass
 
         try:
             from allomorph.config.instruments import INSTRUMENTS
-
-            if stem in src_map:
-                inst_id, p_id = src_map[stem]
-                if inst_id in INSTRUMENTS and p_id in INSTRUMENTS[inst_id].get("pickups", {}):
-                    p_data = INSTRUMENTS[inst_id]["pickups"][p_id]
-                    if "circuit" in p_data:
-                        return load_circuit(p_data["circuit"])
 
             if str(source) in INSTRUMENTS:
                 inst = INSTRUMENTS[str(source)]
@@ -626,13 +610,6 @@ def load_circuit(source: Union[CircuitModel, dict, str, Path]) -> CircuitModel:
                         return load_circuit(p["circuit"])
         except ImportError:
             pass
-
-        if p.suffix == ".cir" or str(source).endswith(".cir"):
-            raise ValueError(
-                f"Legacy SPICE ASCII netlists (.cir) are deprecated and no longer supported. "
-                f"Circuits must be defined as declarative TOML files or tables. "
-                f"Attempted to load: {source}"
-            )
 
     raise ValueError(f"Could not load circuit from: {source}")
 

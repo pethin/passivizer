@@ -9,13 +9,10 @@ import pytest
 from allomorph.circuit import (
     parse_spice_val,
     load_circuit,
-    parse_netlist,
     CircuitModel,
     find_default_input_audio,
     simulate_voice,
     AUDIO_DIR,
-    CIRCUITS_DIR,
-    REPO_ROOT,
 )
 from allomorph.config import VOICES, load_instrument
 
@@ -117,14 +114,12 @@ def test_circuit_from_dict_and_shorthand():
 
 
 def test_default_output_directories():
-    """Verify that default outputs are stored in audio/<inst_id>/ and circuits/ remains clean."""
+    """Verify that default outputs are stored in audio/<inst_id>/."""
     inst_cfg = load_instrument("30in")
     inst_id = inst_cfg["id"]
     assert inst_id == "30in_emg_mmtw"
-
-    # Verify circuits/ directory contains only netlists (.cir) and no .wav files
-    wav_files_in_circuits = list(CIRCUITS_DIR.glob("*.wav"))
-    assert len(wav_files_in_circuits) == 0, f"Found .wav files in circuits/: {wav_files_in_circuits}"
+    inst_audio_dir = AUDIO_DIR / inst_id
+    assert inst_audio_dir.parent == AUDIO_DIR
 
 
 def test_sweep_audio_auto_detection():

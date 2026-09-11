@@ -12,16 +12,12 @@ from typing import Optional, Union, Dict, Any
 
 from allomorph.config import (
     REPO_ROOT,
-    VOICES,
     load_instrument,
 )
 from allomorph.physics import compute_voice_prefilter_firs
 from allomorph.circuit import (
-    CIRCUITS_DIR,
     AUDIO_DIR,
-    MODELS_DIR,
     simulate_voice,
-    prefilter_audio,
 )
 
 DOCS_DIR = REPO_ROOT / "docs"
@@ -44,32 +40,6 @@ def run_visualization(instrument: str = "all"):
         resp_dir = DOCS_DIR / "frequency_responses"
         print(f"Interactive charts generated in {resp_dir}/")
         print(f"Master interactive portal updated at {DOCS_DIR / 'frequency_responses.html'}")
-
-
-def run_prep_audio(input_wav: Optional[Union[str, Path]] = None, instrument: str = "30in", voice: str = "04_modern_p_ceramic"):
-    """Pre-filters NAM calibration audio through acoustic and spatial transfer functions in-process."""
-    input_path = Path(input_wav) if input_wav else None
-    if not input_path or not input_path.exists():
-        for candidate in ["T3K-sweep-v3.wav", "v3_0_0.wav", "input.wav"]:
-            p = REPO_ROOT / candidate
-            if p.exists():
-                input_path = p
-                break
-
-    if not input_path or not input_path.exists():
-        print("Notice: Audio calibration sweep not found.")
-        return
-
-    inst_cfg = load_instrument(instrument) if not isinstance(instrument, dict) else instrument
-    inst_id = inst_cfg.get("id", "30in_emg_mmtw")
-    inst_audio_dir = AUDIO_DIR / inst_id
-    inst_audio_dir.mkdir(parents=True, exist_ok=True)
-
-    out_path = inst_audio_dir / f"aperture_{voice}.wav"
-    firs = compute_voice_prefilter_firs(voice, instrument=instrument)
-    ch_desc = f"{len(firs)} channels" if len(firs) > 1 else "1 channel"
-    print(f"\n[Prep Audio] Pre-filtering ({ch_desc}) for {voice} (Instrument: {inst_id}, Input: {input_path.name})...")
-    prefilter_audio(input_path, out_path, firs)
 
 
 def run_circuit_simulation(
@@ -96,23 +66,6 @@ def run_circuit_simulation(
     except Exception as e:
         print(f"Error during native circuit simulation: {e}")
         return False
-
-
-def run_spice_voice(
-    voice: str,
-    instrument: str = "30in",
-    input_wav: Optional[Union[str, Path]] = None,
-    backend: str = "native",
-    max_samples: Optional[int] = None,
-) -> bool:
-    """Legacy alias for run_circuit_simulation."""
-    return run_circuit_simulation(
-        voice,
-        instrument=instrument,
-        input_wav=input_wav,
-        backend=backend,
-        max_samples=max_samples,
-    )
 
 
 def run_training(

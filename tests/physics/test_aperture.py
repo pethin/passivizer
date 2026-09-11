@@ -25,7 +25,7 @@ from allomorph.physics import (
     compute_coil_aperture,
     compute_saddle_boundary_coupling,
 )
-from scripts.analyze_voices import build_voice_dataframe
+from allomorph.visualizer import build_voice_dataframe
 
 
 def test_aperture_zero_frequency():

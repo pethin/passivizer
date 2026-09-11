@@ -11,7 +11,7 @@ import pytest
 import pedalboard.io
 
 from allomorph.circuit import (
-    parse_netlist,
+    load_circuit,
     apply_oversampled_saturation,
     apply_dahl_hysteresis,
     apply_magnet_properties_to_model,
@@ -21,7 +21,6 @@ from allomorph.circuit import (
     compute_core_impedance,
     MAGNET_PROPERTIES,
     CircuitModel,
-    CIRCUITS_DIR,
     REPO_ROOT,
     _dahl_core,
     _lenz_velocity_drag_core,
@@ -38,7 +37,7 @@ def test_passive_saturation_bypassed():
     # High amplitude input (0.80) exceeding vsat (0.45)
     in_heavy = np.full((1, n_samples), 0.80, dtype=np.float32)
 
-    m = parse_netlist(CIRCUITS_DIR / "05_vintage_62_p_alnico.cir")
+    m = load_circuit("05_vintage_62_p_alnico")
 
     with tempfile.NamedTemporaryFile(suffix=".wav") as tmp_act, tempfile.NamedTemporaryFile(suffix=".wav") as tmp_pas:
         # Active simulation: applies tanh

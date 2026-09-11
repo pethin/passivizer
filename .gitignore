@@ -15,14 +15,8 @@ wheels/
 *.swp
 .DS_Store
 
-# SPICE transient simulation outputs & logs
-circuits/*.raw
-circuits/*.log
-circuits/*.op.raw
-
 # Large NAM calibration files, sweeps & trained model checkpoints
 *.wav
-circuits/*.wav
 audio/
 models/**/.train_*
 .train_*

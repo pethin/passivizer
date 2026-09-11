@@ -7,18 +7,7 @@ import tempfile
 import wave
 from pathlib import Path
 
-from allomorph.dsp import _fft, _ifft, synthesize_minimum_phase_fir, write_wav_24bit
-
-
-def test_fft_ifft_roundtrip():
-    original = [complex(1.0, 0.0), complex(2.0, 0.0), complex(-1.0, 0.0), complex(0.5, 0.0)]
-    transformed = _fft(original)
-    reconstructed = _ifft(transformed)
-
-    assert len(reconstructed) == len(original)
-    for orig, rec in zip(original, reconstructed):
-        assert math.isclose(orig.real, rec.real, abs_tol=1e-6)
-        assert math.isclose(orig.imag, rec.imag, abs_tol=1e-6)
+from allomorph.dsp import synthesize_minimum_phase_fir, write_wav_24bit
 
 
 def test_synthesize_minimum_phase_fir():

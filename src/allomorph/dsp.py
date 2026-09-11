@@ -13,13 +13,6 @@ NUM_TAPS = 4096
 NYQ = FS / 2.0
 FREQS = [i * (NYQ / (NUM_TAPS - 1)) for i in range(NUM_TAPS)]
 
-def _fft(x):
-    """NumPy-backed 1D forward FFT preserving backwards-compatible list-of-complex interface."""
-    return list(np.fft.fft(np.asarray(x, dtype=complex)))
-
-def _ifft(x):
-    """NumPy-backed 1D inverse FFT preserving backwards-compatible list-of-complex interface."""
-    return list(np.fft.ifft(np.asarray(x, dtype=complex)))
 
 def synthesize_minimum_phase_fir(magnitude_curve, num_taps=NUM_TAPS, normalize=True):
     """
