@@ -9,7 +9,7 @@ from allomorph.physics.schema import WaveSpeedContinuumPoint
 
 
 def test_wave_speed_continuum_point_validation():
-    """Verify WaveSpeedContinuumPoint field constraints, register literals, and dict-access."""
+    """Verify WaveSpeedContinuumPoint field constraints, register literals, and attribute access."""
     pt = WaveSpeedContinuumPoint(
         f0=40.0,
         v0=75.0,
@@ -21,7 +21,8 @@ def test_wave_speed_continuum_point_validation():
     assert pt.v0 == 75.0
     assert pt.scale_m == 0.8636
     assert pt.register == "lower"
-    assert pt["f0"] == 40.0
+    with pytest.raises(TypeError):
+        _ = pt["f0"]  # type: ignore[index]
 
     # Rejection of invalid register
     with pytest.raises(ValidationError):

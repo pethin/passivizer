@@ -41,6 +41,7 @@ from allomorph.pipeline.schema import (
     NamTargetVoiceMeta,
     NamTrainingConfig,
     NamTrainingMetadata,
+    get_tier_spec,
 )
 
 
@@ -88,14 +89,6 @@ def train_voice(
     vcfg = VOICES[voice]
     voice_name = vcfg.name
 
-    tier_map = {
-        "clean": ("01_studio_clean", "cln_"),
-        "standard": ("02_standard_dynamic", "std_"),
-        "std": ("02_standard_dynamic", "std_"),
-        "hotrod": ("03_hot_rod", "hot_"),
-        "dynamic": ("00_dynamic", "dyn_"),
-    }
-
     if basename:
         model_basename = basename
         try:
@@ -137,7 +130,8 @@ def train_voice(
             else (AUDIO_DIR / "baked" / inst_id / f"{model_basename}.wav")
         )
     elif tier:
-        folder_name, prefix = tier_map.get(tier, ("02_standard_dynamic", "std_"))
+        tier_spec = get_tier_spec(tier)
+        folder_name, prefix = tier_spec.folder_name, tier_spec.prefix
         slug = VOICE_CONCISE_SLUGS.get(voice, voice)
         model_basename = f"{prefix}{slug}"
         inst_models_dir = Path(models_dir) / folder_name

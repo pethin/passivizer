@@ -10,6 +10,7 @@ from collections.abc import Sequence
 
 import numpy as np
 
+from allomorph.circuit.parser import MAGNET_PROPERTIES
 from allomorph.config.geometry import resolve_pickup_coils, resolve_voice_coils
 from allomorph.config.instruments import get_source_pickup, load_instrument
 from allomorph.config.scales import SCALES
@@ -28,15 +29,6 @@ from allomorph.physics.strings import (
     generate_wave_speed_continuum,
     resolve_scale_range,
 )
-
-BODY_COUPLING_PROPERTIES = {
-    "alnico_v": 0.08,
-    "alnico_iii": 0.09,
-    "alnico_ii": 0.10,
-    "ceramic": 0.03,
-    "active": 0.00,
-    "neodymium": 0.02,
-}
 
 
 def compute_body_microphonic_coupling(
@@ -60,8 +52,8 @@ def compute_body_microphonic_coupling(
 
     tgt_mag = tgt_voice.magnet_type or "alnico_v"
 
-    k_src = BODY_COUPLING_PROPERTIES.get(src_mag, 0.0)
-    k_tgt = BODY_COUPLING_PROPERTIES.get(tgt_mag, BODY_COUPLING_PROPERTIES["alnico_v"])
+    k_src = MAGNET_PROPERTIES.get(src_mag, MAGNET_PROPERTIES["active"]).k_body
+    k_tgt = MAGNET_PROPERTIES.get(tgt_mag, MAGNET_PROPERTIES["alnico_v"]).k_body
 
     delta_k = max(k_tgt - k_src, 0.0)
     if delta_k <= 0.0:
@@ -410,7 +402,7 @@ def numpy_aperture(
     d_m = d_in * 0.0254
     if speeds is None:
         continuum = generate_wave_speed_continuum(scale_length_m)
-        speeds = [pt["v0"] for pt in continuum]
+        speeds = [pt.v0 for pt in continuum]
     acc = np.zeros_like(f, dtype=np.float64)
     for v in speeds:
         sinc_v = np.abs(np.sinc(w_m * f / v)) + 0.05
@@ -429,7 +421,7 @@ def numpy_position(
     f = np.asarray(freqs, dtype=np.float64)
     if speeds is None:
         continuum = generate_wave_speed_continuum(scale_length_m)
-        speeds = [pt["v0"] for pt in continuum]
+        speeds = [pt.v0 for pt in continuum]
     acc = np.zeros_like(f, dtype=np.float64)
     for v in speeds:
         arg_p = f * (2.0 * math.pi * pos_m / v)

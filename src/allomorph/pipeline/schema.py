@@ -16,6 +16,7 @@ from allomorph.circuit.schema import CircuitConfig
 from allomorph.config.schema import VoiceCoilConfig, VoicePickupConfig
 
 __all__ = [
+    "TIER_SPECS",
     "ArtworkPackConfig",
     "NamExportMetadata",
     "NamSourceInstrumentMeta",
@@ -24,7 +25,9 @@ __all__ = [
     "NamTrainingConfig",
     "NamTrainingMetadata",
     "PipelineCliConfig",
+    "TierSpec",
     "Tone3000PackListing",
+    "get_tier_spec",
 ]
 
 
@@ -154,3 +157,6 @@ class ArtworkPackConfig(AllomorphBaseModel):
     badge2: str
     badge3: str
     content: Callable[[str], str]
+
+
+from allomorph.naming import TIER_SPECS, TierSpec, get_tier_spec

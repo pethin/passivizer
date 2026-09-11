@@ -464,11 +464,7 @@ def compute_parametric_sweep(
             if orig_bands is not None:
                 base_bands = [b.model_copy() for b in orig_bands]
             elif model.preamp_type != "none" and model.preamp_type in PREAMPS:
-                bands_cfg = PREAMPS[model.preamp_type].get("bands", [])
-                base_bands = [
-                    b if isinstance(b, PreampBandConfig) else PreampBandConfig.model_validate(b)
-                    for b in bands_cfg
-                ]
+                base_bands = [b.model_copy() for b in PREAMPS[model.preamp_type].bands]
 
             shelf_idx = None
             for i, b in enumerate(base_bands):
@@ -504,11 +500,7 @@ def compute_parametric_sweep(
             if orig_bands is not None:
                 base_bands = [b.model_copy() for b in orig_bands]
             elif model.preamp_type != "none" and model.preamp_type in PREAMPS:
-                bands_cfg = PREAMPS[model.preamp_type].get("bands", [])
-                base_bands = [
-                    b if isinstance(b, PreampBandConfig) else PreampBandConfig.model_validate(b)
-                    for b in bands_cfg
-                ]
+                base_bands = [b.model_copy() for b in PREAMPS[model.preamp_type].bands]
 
             shelf_idx = None
             for i, b in enumerate(base_bands):

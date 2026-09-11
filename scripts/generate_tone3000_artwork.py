@@ -660,7 +660,7 @@ def generate_pack_svg(model_key: str) -> str:
   <line x1="520" y1="245" x2="680" y2="245" stroke="{acc}" stroke-width="2.5"/>
 
   <!-- Center Hardware Visual &amp; Specs -->
-  {cfg["content"](acc)}
+  {cfg.content(acc)}
 
   <!-- Physical Bass Strings (Vertical Over Pickups) -->
   <g>
@@ -691,28 +691,28 @@ def generate_pack_svg(model_key: str) -> str:
   <line x1="130" y1="860" x2="420" y2="860" stroke="{acc}" stroke-width="3.5"/>
 
   <!-- Edition Title -->
-  <text x="130" y="915" fill="#ffffff" font-size="46" font-family="system-ui, -apple-system, sans-serif" font-weight="900" letter-spacing="3">{cfg["title"]}</text>
+  <text x="130" y="915" fill="#ffffff" font-size="46" font-family="system-ui, -apple-system, sans-serif" font-weight="900" letter-spacing="3">{cfg.title}</text>
   
   <!-- Edition Subtitle / Voicing Count -->
   <text x="130" y="955" fill="{acc}" font-size="19" font-family="system-ui, -apple-system, sans-serif" font-weight="800" letter-spacing="2.5">22 DIGITAL TWIN VOICINGS  //  HIGH-IMPEDANCE PASSIVE EMULATION</text>
   
   <!-- Word-Wrapped Description (Line 1 & Line 2, safe margins >= 130px) -->
-  <text x="130" y="988" fill="#cbd5e1" font-size="16" font-family="system-ui, -apple-system, sans-serif" font-weight="600" letter-spacing="0.5">{cfg["desc_line1"]}</text>
-  <text x="130" y="1012" fill="#94a3b8" font-size="15" font-family="system-ui, -apple-system, sans-serif" font-weight="500" letter-spacing="0.5">{cfg["desc_line2"]}</text>
+  <text x="130" y="988" fill="#cbd5e1" font-size="16" font-family="system-ui, -apple-system, sans-serif" font-weight="600" letter-spacing="0.5">{cfg.desc_line1}</text>
+  <text x="130" y="1012" fill="#94a3b8" font-size="15" font-family="system-ui, -apple-system, sans-serif" font-weight="500" letter-spacing="0.5">{cfg.desc_line2}</text>
 
   <!-- Bottom Hardware Specification Chips (Comfortable widths, safe within margin) -->
   <g transform="translate(130, 1042)">
     <!-- Chip 1 (Scale) -->
     <rect x="0" y="0" width="165" height="42" rx="8" fill="#141822" stroke="#2a3344" stroke-width="1.6"/>
-    <text x="82" y="27" fill="#f8fafc" font-size="14.5" font-family="system-ui, -apple-system, sans-serif" font-weight="800" letter-spacing="1" text-anchor="middle">{cfg["scale"]}</text>
+    <text x="82" y="27" fill="#f8fafc" font-size="14.5" font-family="system-ui, -apple-system, sans-serif" font-weight="800" letter-spacing="1" text-anchor="middle">{cfg.scale}</text>
 
     <!-- Chip 2 (Pickup Style) -->
     <rect x="178" y="0" width="195" height="42" rx="8" fill="#141822" stroke="#2a3344" stroke-width="1.6"/>
-    <text x="275" y="27" fill="#f8fafc" font-size="14.5" font-family="system-ui, -apple-system, sans-serif" font-weight="800" letter-spacing="1" text-anchor="middle">{cfg["badge2"]}</text>
+    <text x="275" y="27" fill="#f8fafc" font-size="14.5" font-family="system-ui, -apple-system, sans-serif" font-weight="800" letter-spacing="1" text-anchor="middle">{cfg.badge2}</text>
 
     <!-- Chip 3 (Topology) -->
     <rect x="386" y="0" width="225" height="42" rx="8" fill="#141822" stroke="#2a3344" stroke-width="1.6"/>
-    <text x="498" y="27" fill="#f8fafc" font-size="14.5" font-family="system-ui, -apple-system, sans-serif" font-weight="800" letter-spacing="1" text-anchor="middle">{cfg["badge3"]}</text>
+    <text x="498" y="27" fill="#f8fafc" font-size="14.5" font-family="system-ui, -apple-system, sans-serif" font-weight="800" letter-spacing="1" text-anchor="middle">{cfg.badge3}</text>
 
     <!-- Chip 4 (Platform) -->
     <rect x="624" y="0" width="195" height="42" rx="8" fill="#141822" stroke="#2a3344" stroke-width="1.6"/>

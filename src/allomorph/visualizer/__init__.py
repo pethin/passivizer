@@ -107,4 +107,4 @@ def main(argv: Sequence[str] | None = None) -> None:
         inst = load_instrument(cli_cfg.instrument)
         generate_interactive_chart(instrument=inst, out_html=cli_cfg.out, mode=cli_cfg.mode)
         if cli_cfg.out is None or (Path(cli_cfg.out).resolve() == RESPONSES_DIR.resolve()):
-            generate_portal_pages(output_dir=RESPONSES_DIR, default_id=inst.get("id"))
+            generate_portal_pages(output_dir=RESPONSES_DIR, default_id=inst.id)

@@ -15,7 +15,8 @@ from allomorph.circuit import (
     parse_spice_val,
     simulate_voice,
 )
-from allomorph.circuit.schema import CircuitConfig
+from allomorph.circuit.parser import MAGNET_PROPERTIES
+from allomorph.circuit.schema import CircuitConfig, MagnetPropertiesConfig
 from allomorph.config import VOICES, load_instrument
 
 
@@ -134,7 +135,7 @@ def test_circuit_from_dict_and_shorthand():
 def test_default_output_directories():
     """Verify that default outputs are stored in audio/<inst_id>/."""
     inst_cfg = load_instrument("30in")
-    inst_id = inst_cfg["id"]
+    inst_id = inst_cfg.id
     assert inst_id == "30in_emg_mmtw"
     inst_audio_dir = AUDIO_DIR / inst_id
     assert inst_audio_dir.parent == AUDIO_DIR
@@ -171,3 +172,36 @@ def test_sweep_audio_auto_detection():
         )
         assert res_fallback is True
         assert out_wav_fallback.exists() and out_wav_fallback.stat().st_size > 1000
+
+
+def test_magnet_properties_configuration():
+    """Verify MAGNET_PROPERTIES defines strongly typed MagnetPropertiesConfig for all magnet types."""
+    required_types = [
+        "alnico_v",
+        "alnico_ii",
+        "alnico_iii",
+        "ceramic",
+        "ceramic_alnico_hybrid",
+        "hybrid",
+        "neodymium",
+        "piezo",
+        "active",
+    ]
+    for mag in required_types:
+        assert mag in MAGNET_PROPERTIES
+        props = MAGNET_PROPERTIES[mag]
+        assert isinstance(props, MagnetPropertiesConfig)
+
+    # Specific property checks
+    a3 = MAGNET_PROPERTIES["alnico_iii"]
+    assert a3.k_body == pytest.approx(0.09)
+    assert a3.alpha == pytest.approx(0.30)
+    assert a3.k_core == pytest.approx(0.09)
+    assert a3.vsat == pytest.approx(0.48)
+
+    neo = MAGNET_PROPERTIES["neodymium"]
+    assert neo.k_body == pytest.approx(0.02)
+    assert neo.vsat == pytest.approx(0.90)
+
+    act = MAGNET_PROPERTIES["active"]
+    assert act.k_body == 0.0

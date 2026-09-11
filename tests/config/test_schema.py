@@ -1,7 +1,7 @@
 """
 Unit tests for Pydantic configuration schemas and validation behavior.
 Ensures fail-fast declarative integrity (Guardrail 5.3.5) with extra="forbid",
-type checking, dict subscripting, and bounds validation.
+type checking, strict attribute access, and bounds validation.
 """
 
 import pytest
@@ -29,36 +29,37 @@ class SampleModel(AllomorphBaseModel):
     value: float = 1.0
 
 
-def test_allomorph_base_model_subscripting():
-    """Verify dict-like behavior on AllomorphBaseModel for seamless interoperability."""
+def test_allomorph_base_model_attribute_access_and_strictness():
+    """Verify strongly-typed attribute access and rejection of subscripting on AllomorphBaseModel."""
     m = SampleModel(name="test", value=42.0)
 
-    # Subscript reading
-    assert m["name"] == "test"
-    assert m["value"] == 42.0
-    assert m.get("name") == "test"
-    assert m.get("missing", "default") == "default"
-    assert "name" in m
-    assert "missing" not in m
+    # Direct attribute reading
+    assert m.name == "test"
+    assert m.value == 42.0
 
-    # Keys, values, items, iter
-    assert set(m.keys()) == {"name", "value"}
-    assert "test" in list(m.values())
-    assert ("name", "test") in list(m.items())
-    assert dict(iter(m)) == {"name": "test", "value": 42.0}
-
-    # Subscript mutation
-    m["value"] = 100.0
+    # Attribute mutation with validate_assignment=True
+    m.value = 100.0
     assert m.value == 100.0
-    assert m["value"] == 100.0
+
+    # Subscripting rejected
+    with pytest.raises(TypeError):
+        _ = m["name"]  # type: ignore[index]
+
+    with pytest.raises(TypeError):
+        m["value"] = 50.0  # type: ignore[index]
+
+    # Does not have custom dict-like __contains__
+    assert "__contains__" not in AllomorphBaseModel.__dict__
+
+    # Dict methods do not exist on model
+    assert not hasattr(m, "get")
+    assert not hasattr(m, "keys")
+    assert not hasattr(m, "values")
+    assert not hasattr(m, "items")
 
     # Copy
     m_copy = m.model_copy()
-    assert m_copy["value"] == 100.0
-
-    # Key error on invalid key
-    with pytest.raises(KeyError):
-        _ = m["non_existent_field"]
+    assert m_copy.value == 100.0
 
 
 def test_allomorph_base_model_extra_forbid():

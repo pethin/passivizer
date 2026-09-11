@@ -61,37 +61,9 @@ SpiceFloat = Annotated[float, BeforeValidator(parse_spice_unit)]
 class AllomorphBaseModel(BaseModel):
     """
     Base model for Allomorph declarative configurations.
-    Enforces strict validation (forbidding unknown keys) and provides
-    transparent subscripting/dict-like access for downstream compatibility.
+
+    Enforces strict validation (forbidding unknown keys), validate_assignment,
+    and type-safe attribute access across the entire digital twin pipeline.
     """
 
     model_config = ConfigDict(extra="forbid", validate_assignment=True)
-
-    def __getitem__(self, item: str) -> Any:
-        try:
-            return getattr(self, item)
-        except AttributeError:
-            raise KeyError(item) from None
-
-    def __setitem__(self, key: str, value: Any) -> None:
-        setattr(self, key, value)
-
-    def __contains__(self, item: object) -> bool:
-        if not isinstance(item, str):
-            return False
-        return (item in type(self).model_fields or hasattr(self, item)) and getattr(
-            self, item, None
-        ) is not None
-
-    def get(self, key: str, default: Any = None) -> Any:
-        val = getattr(self, key, None)
-        return val if val is not None else default
-
-    def keys(self) -> list[str]:
-        return list(type(self).model_fields.keys())
-
-    def values(self) -> list[Any]:
-        return [getattr(self, k) for k in type(self).model_fields]
-
-    def items(self) -> list[tuple[str, Any]]:
-        return [(k, getattr(self, k)) for k in type(self).model_fields]

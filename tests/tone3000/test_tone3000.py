@@ -17,7 +17,7 @@ TONE3000_DIR = REPO_ROOT / "tone3000"
 DOCS_DIR = TONE3000_DIR / "docs"
 ASSETS_DIR = TONE3000_DIR / "assets"
 
-PACK_EDITIONS = [
+PACK_EDITIONS: list[str] = [
     "standard_precision_bass",
     "standard_jazz_bass",
     "standard_pj_bass",
@@ -26,14 +26,14 @@ PACK_EDITIONS = [
     "active_stingray_bass",
 ]
 
-MULTI_PICKUP_PACKS = {
+MULTI_PICKUP_PACKS: dict[str, list[str]] = {
     "standard_jazz_bass": ["[Parallel]", "[Neck]", "[Bridge]"],
     "standard_pj_bass": ["[Parallel]", "[P-Bass]", "[J-Bridge]"],
     "mustang_pj_bass": ["[Parallel]", "[P-Bass]", "[J-Bridge]"],
     "active_soapbar_bass": ["[Center]", "[Neck]", "[Bridge]"],
 }
 
-ACTIVE_PACKS = ["active_soapbar_bass", "active_stingray_bass"]
+ACTIVE_PACKS: list[str] = ["active_soapbar_bass", "active_stingray_bass"]
 
 
 def test_tone3000_storefront_text_character_limits():

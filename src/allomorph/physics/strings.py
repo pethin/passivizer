@@ -212,13 +212,15 @@ def resolve_scale_length(
         if isinstance(scale_length_m, (int, float)) and scale_length_m > 0:
             return float(scale_length_m)
     for s_info in SCALES.values():
-        speeds = s_info.get("speeds", [])
+        speeds = s_info.speeds
         if len(speeds) == len(string_speeds) and np.allclose(speeds, string_speeds, rtol=0.005):
-            return s_info.get("scale_m", s_info.get("scale_length_m", 0.8636))
+            return s_info.scale_m
     if len(string_speeds) == 5:
-        if np.allclose(string_speeds[:4], SCALES.get("30in", {}).get("speeds", []), rtol=0.005):
+        sc_30 = SCALES.get("30in")
+        if sc_30 and np.allclose(string_speeds[:4], sc_30.speeds, rtol=0.005):
             return 0.762
-        if np.allclose(string_speeds[:4], SCALES.get("32in", {}).get("speeds", []), rtol=0.005):
+        sc_32 = SCALES.get("32in")
+        if sc_32 and np.allclose(string_speeds[:4], sc_32.speeds, rtol=0.005):
             return 0.8128
     return 0.8636
 
@@ -233,16 +235,16 @@ def infer_string_names(
     else:
         if n == 4:
             for s_key in ["30in", "32in", "34in", "multiscale", "upright"]:
-                if np.allclose(string_speeds, SCALES.get(s_key, {}).get("speeds", []), rtol=0.005):
+                sc = SCALES.get(s_key)
+                if sc and np.allclose(string_speeds, sc.speeds, rtol=0.005):
                     return ["E", "A", "D", "G"]
         elif n == 5:
             if np.allclose(string_speeds, [53.28, 71.16, 95.0, 126.81, 169.27], rtol=0.005):
                 return ["B", "E", "A", "D", "G"]
             if np.allclose(string_speeds, [58.02, 75.88, 99.19, 129.60, 169.27], rtol=0.005):
                 return ["B", "E", "A", "D", "G"]
-            if np.allclose(
-                string_speeds, SCALES.get("multiscale_super", {}).get("speeds", []), rtol=0.005
-            ):
+            sc_multi = SCALES.get("multiscale_super")
+            if sc_multi and np.allclose(string_speeds, sc_multi.speeds, rtol=0.005):
                 return ["B", "E", "A", "D", "G"]
             if np.allclose(string_speeds, [71.16, 95.0, 126.81, 169.27, 225.69], rtol=0.005):
                 return ["E", "A", "D", "G", "C"]

@@ -391,7 +391,7 @@ def generate_frontend_deconvolutions_chart(target_path: Path | None = None) -> P
     for iid, icfg in sorted(all_insts.items()):
         if iid == "canonical_intermediate":
             continue
-        iname = icfg.get("name", iid)
+        iname = icfg.name
         inst_chart_file = target_path.parent / f"{iid}_frontend.html"
         generate_instrument_frontend_chart(icfg, target_path=inst_chart_file)
         inst_items.append({"id": iid, "name": iname, "url": f"{iid}_frontend.html"})
@@ -882,7 +882,7 @@ def generate_all_charts(output_dir: str | Path | None = None) -> dict[str, Path]
     for inst_id, inst_cfg in all_insts.items():
         if inst_id == "canonical_intermediate":
             continue
-        inst_name = inst_cfg.get("name", inst_id)
+        inst_name = inst_cfg.name
 
         # Signal Flow Inspector (End-to-End: Bass Input -> Deconv -> Canonical (0 dB) -> Voicing -> Target Output)
         print(f"Generating Signal Flow Inspector for {inst_name}...")

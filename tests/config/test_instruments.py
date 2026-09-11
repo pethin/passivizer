@@ -16,6 +16,7 @@ from allomorph.config import (
     load_all_instruments,
     load_instrument,
 )
+from allomorph.config.instruments import INSTRUMENT_ALIASES
 from allomorph.dsp import NUM_TAPS
 from allomorph.naming import resolve_instruments, resolve_voices
 from allomorph.physics import compute_aperture_prefilter_fir
@@ -260,6 +261,16 @@ def test_resolve_instruments():
     # 6. Entirely unknown token falls back to all playable instruments
     res_all_unknown = resolve_instruments("completely_bogus_token")
     assert res_all_unknown == all_insts
+
+
+def test_instrument_aliases_typing_and_coverage():
+    """Verify INSTRUMENT_ALIASES is a dict[str, str] mapping valid aliases to canonical instrument IDs."""
+    assert isinstance(INSTRUMENT_ALIASES, dict)
+    all_insts = set(load_all_instruments().keys()) | {"canonical_intermediate"}
+    for alias, canonical in INSTRUMENT_ALIASES.items():
+        assert isinstance(alias, str)
+        assert isinstance(canonical, str)
+        assert canonical in all_insts, f"Alias '{alias}' maps to unknown instrument '{canonical}'"
 
 
 def test_resolve_voices():

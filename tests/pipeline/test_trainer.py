@@ -13,6 +13,8 @@ if str(SCRIPTS_DIR) not in sys.path:
 
 from train_nam import find_sweep_input
 
+from allomorph.pipeline.schema import NamExportMetadata
+
 
 def test_find_sweep_input():
     sweep = find_sweep_input()
@@ -31,15 +33,12 @@ def test_model_metadata_contains_input_bass():
             with open(mp, "r") as f:
                 d = json.load(f)
             meta = d.get("metadata", {})
-            assert "source_instrument" in meta
-            src_inst = meta["source_instrument"]
-            assert src_inst["id"] == "30in_emg_mm"
-            assert src_inst["scale_length_in"] == 30.0
-            assert "pickup" in src_inst
-            assert src_inst["pickup"]["name"] == "EMG MM Dual Coil"
+            export_meta = NamExportMetadata.model_validate(meta)
+            assert export_meta.source_instrument.id == "30in_emg_mm"
+            assert export_meta.source_instrument.scale_length_in == 30.0
+            assert export_meta.source_instrument.pickup.name == "EMG MM Dual Coil"
             assert meta["gear_make"] == '30" Short Scale MM (EMG MM)'
-            assert "target_voice" in meta
-            assert meta["target_voice"]["id"] == "03_modern_p_ceramic"
+            assert export_meta.target_voice.id == "03_modern_p_ceramic"
             found = True
             break
     if not found:

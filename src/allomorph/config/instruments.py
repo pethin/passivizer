@@ -9,7 +9,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 CONFIG_DIR = REPO_ROOT / "config"
 INSTRUMENTS_DIR = CONFIG_DIR / "instruments"
 
-INSTRUMENT_ALIASES = {
+INSTRUMENT_ALIASES: dict[str, str] = {
     "30in": "30in_emg_mmtw",
     "30in_mm": "30in_emg_mmtw",
     "30in_mmtw": "30in_emg_mmtw",

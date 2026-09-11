@@ -450,6 +450,18 @@ def test_body_microphonic_coupling():
     h_body_active = compute_body_microphonic_coupling(freqs, src_active, tgt_active)
     assert np.allclose(h_body_active, 1.0, atol=1e-12)
 
+    # 4. Alnico III target has k_body = 0.09 (slightly higher peak than Alnico V at 0.08)
+    tgt_voice_alnico3 = tgt_voice_alnico5.model_copy(update={"magnet_type": "alnico_iii"})
+    h_body_a3 = compute_body_microphonic_coupling(freqs, src_pickup_active, tgt_voice_alnico3)
+    peak_db_a3 = 20.0 * np.log10(np.max(h_body_a3))
+    assert 0.40 <= peak_db_a3 <= 0.65
+    assert np.max(h_body_a3) > np.max(h_body)
+
+    # 5. BODY_COUPLING_PROPERTIES must be removed from allomorph.physics
+    import allomorph.physics as phys
+
+    assert not hasattr(phys, "BODY_COUPLING_PROPERTIES")
+
 
 def test_cylindrical_rod_vs_blade_aperture():
     """Verify 2D cylindrical rod aperture (Airy/Bessel) and 1D blade aperture properties."""

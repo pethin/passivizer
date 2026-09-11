@@ -435,20 +435,20 @@ def test_multiscale_wave_speed_continuum_endpoints():
 
     # First point: f0 = 30.87 Hz (Low B), scale = 37.0" (0.9398 m)
     pt_low = continuum[0]
-    assert math.isclose(pt_low["f0"], 30.87, abs_tol=0.01)
-    assert math.isclose(pt_low["scale_m"], 37.0 * 0.0254, abs_tol=1e-4)
-    expected_v_low = 2.0 * (37.0 * 0.0254) * pt_low["f0"]
-    assert math.isclose(pt_low["v0"], expected_v_low, abs_tol=0.01)
+    assert math.isclose(pt_low.f0, 30.87, abs_tol=0.01)
+    assert math.isclose(pt_low.scale_m, 37.0 * 0.0254, abs_tol=1e-4)
+    expected_v_low = 2.0 * (37.0 * 0.0254) * pt_low.f0
+    assert math.isclose(pt_low.v0, expected_v_low, abs_tol=0.01)
 
     # Last point: f0 = 100.0 Hz (High G), scale = 34.0" (0.8636 m)
     pt_high = continuum[-1]
-    assert math.isclose(pt_high["f0"], 100.00, abs_tol=0.01)
-    assert math.isclose(pt_high["scale_m"], 34.0 * 0.0254, abs_tol=1e-4)
-    expected_v_high = 2.0 * (34.0 * 0.0254) * pt_high["f0"]
-    assert math.isclose(pt_high["v0"], expected_v_high, abs_tol=0.01)
+    assert math.isclose(pt_high.f0, 100.00, abs_tol=0.01)
+    assert math.isclose(pt_high.scale_m, 34.0 * 0.0254, abs_tol=1e-4)
+    expected_v_high = 2.0 * (34.0 * 0.0254) * pt_high.f0
+    assert math.isclose(pt_high.v0, expected_v_high, abs_tol=0.01)
 
     # All intermediate scale lengths must monotonically decrease from 37" to 34"
-    scales = [pt["scale_m"] for pt in continuum]
+    scales = [pt.scale_m for pt in continuum]
     assert all(scales[i] >= scales[i + 1] for i in range(len(scales) - 1))
 
 
@@ -460,18 +460,18 @@ def test_multiscale_sp1_wave_speed_continuum_endpoints():
 
     # First point: f0 = 30.87 Hz, scale = 35.0" (0.8890 m)
     pt_low = continuum[0]
-    assert math.isclose(pt_low["f0"], 30.87, abs_tol=0.01)
-    assert math.isclose(pt_low["scale_m"], 35.0 * 0.0254, abs_tol=1e-4)
-    expected_v_low = 2.0 * (35.0 * 0.0254) * pt_low["f0"]
-    assert math.isclose(pt_low["v0"], expected_v_low, abs_tol=0.01)
+    assert math.isclose(pt_low.f0, 30.87, abs_tol=0.01)
+    assert math.isclose(pt_low.scale_m, 35.0 * 0.0254, abs_tol=1e-4)
+    expected_v_low = 2.0 * (35.0 * 0.0254) * pt_low.f0
+    assert math.isclose(pt_low.v0, expected_v_low, abs_tol=0.01)
 
     # Last point: f0 = 100.0 Hz, scale = 32.0" (0.8128 m)
     pt_high = continuum[-1]
-    assert math.isclose(pt_high["f0"], 100.00, abs_tol=0.01)
-    assert math.isclose(pt_high["scale_m"], 32.0 * 0.0254, abs_tol=1e-4)
-    expected_v_high = 2.0 * (32.0 * 0.0254) * pt_high["f0"]
-    assert math.isclose(pt_high["v0"], expected_v_high, abs_tol=0.01)
+    assert math.isclose(pt_high.f0, 100.00, abs_tol=0.01)
+    assert math.isclose(pt_high.scale_m, 32.0 * 0.0254, abs_tol=1e-4)
+    expected_v_high = 2.0 * (32.0 * 0.0254) * pt_high.f0
+    assert math.isclose(pt_high.v0, expected_v_high, abs_tol=0.01)
 
     # All intermediate scale lengths must monotonically decrease from 35" to 32"
-    scales = [pt["scale_m"] for pt in continuum]
+    scales = [pt.scale_m for pt in continuum]
     assert all(scales[i] >= scales[i + 1] for i in range(len(scales) - 1))

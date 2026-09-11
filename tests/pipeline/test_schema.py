@@ -14,7 +14,9 @@ from allomorph.pipeline.schema import (
     NamTrainingConfig,
     NamTrainingMetadata,
     PipelineCliConfig,
+    TierSpec,
     Tone3000PackListing,
+    get_tier_spec,
 )
 
 
@@ -153,3 +155,45 @@ def test_artwork_pack_config_validation():
             badge3="PASSIVE",
             content=dummy_renderer,
         )
+
+
+def test_tier_spec_validation_and_resolution():
+    """Verify TierSpec fields, get_tier_spec resolution, alias normalization, and error handling."""
+    tier = TierSpec(
+        name="custom",
+        folder_name="99_custom",
+        prefix="cst_",
+        description="Custom tier",
+    )
+    assert tier.name == "custom"
+    assert tier.folder_name == "99_custom"
+    assert tier.prefix == "cst_"
+
+    # Resolves canonical tiers
+    dyn = get_tier_spec("dynamic")
+    assert dyn.folder_name == "00_dynamic"
+    assert dyn.prefix == "dyn_"
+
+    cln = get_tier_spec("clean")
+    assert cln.folder_name == "01_studio_clean"
+    assert cln.prefix == "cln_"
+
+    std = get_tier_spec("standard")
+    assert std.folder_name == "02_standard_dynamic"
+    assert std.prefix == "std_"
+
+    hot = get_tier_spec("hotrod")
+    assert hot.folder_name == "03_hot_rod"
+    assert hot.prefix == "hot_"
+
+    # Resolves aliases
+    assert get_tier_spec("dyn").prefix == "dyn_"
+    assert get_tier_spec("std").prefix == "std_"
+
+    # Default None resolves to dynamic
+    assert get_tier_spec(None).name == "dynamic"
+
+    # Reject unknown tier
+    with pytest.raises(KeyError) as exc_info:
+        get_tier_spec("unknown_tier")
+    assert "Unknown tier 'unknown_tier'" in str(exc_info.value)

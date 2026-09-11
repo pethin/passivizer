@@ -4,7 +4,6 @@ Universal spatial acoustics, string dispersion, and transducer deconvolution.
 """
 
 from allomorph.physics.aperture import (
-    BODY_COUPLING_PROPERTIES,
     aperture_response,
     compute_body_microphonic_coupling,
     compute_coil_aperture,
@@ -51,7 +50,6 @@ from allomorph.physics.strings import (
 )
 
 __all__ = [
-    "BODY_COUPLING_PROPERTIES",
     "INHARMONICITY_ANCHORS_BS",
     "INHARMONICITY_ANCHORS_F0",
     "MEAN_BASS_F0",

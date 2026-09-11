@@ -6,10 +6,59 @@ and tolerant CLI argument parsing for instruments and voices.
 
 from collections.abc import Sequence
 
+from allomorph.base import AllomorphBaseModel
 from allomorph.config.instruments import INSTRUMENTS, load_instrument
 from allomorph.config.voices import VOICES
 
-VOICE_CONCISE_SLUGS = {
+
+class TierSpec(AllomorphBaseModel):
+    """Specification of an Allomorph processing/export tier."""
+
+    name: str
+    folder_name: str
+    prefix: str
+    description: str = ""
+
+
+TIER_SPECS: dict[str, TierSpec] = {
+    "dynamic": TierSpec(
+        name="dynamic",
+        folder_name="00_dynamic",
+        prefix="dyn_",
+        description="Dynamic non-linear saturation model",
+    ),
+    "clean": TierSpec(
+        name="clean",
+        folder_name="01_studio_clean",
+        prefix="cln_",
+        description="Studio clean linear model",
+    ),
+    "standard": TierSpec(
+        name="standard",
+        folder_name="02_standard_dynamic",
+        prefix="std_",
+        description="Standard dynamic model",
+    ),
+    "hotrod": TierSpec(
+        name="hotrod",
+        folder_name="03_hot_rod",
+        prefix="hot_",
+        description="Hot-rod high-gain model",
+    ),
+}
+TIER_SPECS["dyn"] = TIER_SPECS["dynamic"]
+TIER_SPECS["std"] = TIER_SPECS["standard"]
+
+
+def get_tier_spec(tier: str | None = None) -> TierSpec:
+    """Resolves a processing/export tier specification with alias normalization."""
+    key = (tier or "dynamic").lower().strip()
+    if key not in TIER_SPECS:
+        raise KeyError(f"Unknown tier '{tier}'. Available tiers: {list(TIER_SPECS.keys())}")
+    return TIER_SPECS[key]
+
+
+VOICE_CONCISE_SLUGS: dict[str, str] = {
     "00_canonical_intermediate": "00_canonical",
     "01_modern_jazz_active": "01_jazz_act",
     "02_jazz_bass_pair": "02_jazz_pair",
@@ -43,16 +92,8 @@ def get_baked_basename(voice_id: str, tier: str = "dynamic", pickup: str = "auto
       - Default auto-routed pickup: '{tier_prefix}{voice_slug}' (e.g. 'dyn_04_modern_p')
       - Explicit non-auto pickup override: '{tier_prefix}{voice_slug}_{pickup}' (e.g. 'dyn_04_modern_p_bridge')
     """
-    tier_prefix_map = {
-        "dynamic": "dyn_",
-        "dyn": "dyn_",
-        "clean": "cln_",
-        "standard": "std_",
-        "std": "std_",
-        "hotrod": "hot_",
-    }
-    tier_norm = (tier or "dynamic").lower()
-    prefix = tier_prefix_map.get(tier_norm, f"{tier_norm}_")
+    tier_spec = get_tier_spec(tier)
+    prefix = tier_spec.prefix
     slug = VOICE_CONCISE_SLUGS.get(voice_id, voice_id)
 
     if pickup and pickup != "auto":
@@ -114,7 +155,7 @@ def resolve_instruments(instrument_arg: str | Sequence[str] | None) -> list[str]
             continue
         try:
             cfg = load_instrument(token)
-            iid = cfg.get("id", token)
+            iid = cfg.id
             if iid != "canonical_intermediate" and iid not in resolved:
                 resolved.append(iid)
         except FileNotFoundError:

@@ -258,19 +258,27 @@ def test_higher_order_dipole_expansion_and_sag():
     4. Small signals (<= 0.10) preserve mathematical linearity.
     """
     # 1. Magnet properties dictionary check
-    for mag_type in ["alnico_v", "alnico_ii", "ceramic", "hybrid", "neodymium", "piezo"]:
+    for mag_type in [
+        "alnico_v",
+        "alnico_ii",
+        "alnico_iii",
+        "ceramic",
+        "hybrid",
+        "neodymium",
+        "piezo",
+    ]:
         assert mag_type in MAGNET_PROPERTIES
         props = MAGNET_PROPERTIES[mag_type]
-        assert "alpha3" in props
-        assert "k_sag" in props
-        assert 0.0 <= props["alpha3"] <= 0.20
-        assert 0.0 <= props["k_sag"] <= 0.20
+        assert hasattr(props, "alpha3")
+        assert hasattr(props, "k_sag")
+        assert 0.0 <= props.alpha3 <= 0.20
+        assert 0.0 <= props.k_sag <= 0.20
 
     # Alnico II has highest sag and proximity stiffening; Piezo has 0.0
-    assert MAGNET_PROPERTIES["alnico_ii"]["alpha3"] > MAGNET_PROPERTIES["ceramic"]["alpha3"]
-    assert MAGNET_PROPERTIES["alnico_ii"]["k_sag"] > MAGNET_PROPERTIES["ceramic"]["k_sag"]
-    assert MAGNET_PROPERTIES["piezo"]["alpha3"] == 0.0
-    assert MAGNET_PROPERTIES["piezo"]["k_sag"] == 0.0
+    assert MAGNET_PROPERTIES["alnico_ii"].alpha3 > MAGNET_PROPERTIES["ceramic"].alpha3
+    assert MAGNET_PROPERTIES["alnico_ii"].k_sag > MAGNET_PROPERTIES["ceramic"].k_sag
+    assert MAGNET_PROPERTIES["piezo"].alpha3 == 0.0
+    assert MAGNET_PROPERTIES["piezo"].k_sag == 0.0
 
     # 2. Cubic expansion generating 3rd harmonic
     sr = 48000

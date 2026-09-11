@@ -140,17 +140,22 @@ def compute_voice_prefilter_firs(
         else resolve_pickup_electrical_deconvolution_np(freqs, src_pickup, inst)
     )
 
-    positions = [compute_effective_position(p["coils"]) for p in pickups]
+    positions = [compute_effective_position(p.coils) for p in pickups]
     pos_max = max(positions) if positions else 0.0
     c_mean = 2.0 * tgt_scale_m * MEAN_BASS_F0
     raw_firs = []
     for i, p in enumerate(pickups):
-        p_coils = p["coils"]
+        p_coils = p.coils
         tgt_pos_eff = positions[i]
 
         if use_branch_matching:
-            comp_sub_id = src_components[i]["pickup"]
-            comp_sub_p = inst["pickups"][comp_sub_id]
+            comp_sub_id = src_components[i].pickup
+            if not comp_sub_id or comp_sub_id not in inst.pickups:
+                raise KeyError(
+                    f"Component pickup '{comp_sub_id}' not found in instrument '{inst.id}'. "
+                    f"Available pickups: {list(inst.pickups.keys())}"
+                )
+            comp_sub_p = inst.pickups[comp_sub_id]
             b_src_coils = resolve_pickup_coils(comp_sub_p, inst)
             b_src_pos_eff = compute_effective_position(b_src_coils)
             b_src_acoustic = numpy_pickup_acoustic_response(
@@ -176,7 +181,7 @@ def compute_voice_prefilter_firs(
             w = 0.5 * (1.0 + np.cos(np.pi * t))
             h_decomb = w * h_decomb_raw + (1.0 - w) * 1.0
 
-            is_flatwound = "flat" in src_string.get("type", "")
+            is_flatwound = "flat" in (src_string.type or "")
             f_damp = 4200.0 if is_flatwound else 3600.0
             h_damp = 1.0 / np.sqrt((1.0 - (freqs / f_damp) ** 2) ** 2 + 2.0 * (freqs / f_damp) ** 2)
 
@@ -229,14 +234,14 @@ def compute_voice_prefilter_firs(
                 )
                 h_tilt = h_low_tilt * h_hi_tilt
 
-        p_weight = 1.0 if has_multichannel_circuit else p.get("weight", 1.0)
-        p_pol = p.get("polarity", 1.0)
+        p_weight = 1.0 if has_multichannel_circuit else p.weight
+        p_pol = p.polarity
         scale_fac = abs(p_weight * p_pol)
 
         if (
             sensor_type != "bridge_force"
-            and cfg.get("target_string")
-            and cfg.get("target_string") != "roundwound_nickel_standard"
+            and cfg.target_string
+            and cfg.target_string != "roundwound_nickel_standard"
         ):
             h_str_diff = compute_differential_string_transfer(freqs, src_string, tgt_string)
             h_long_diff = compute_differential_longitudinal_transfer(
@@ -276,10 +281,16 @@ def compute_voice_prefilter_firs(
         if is_identity:
             tau_i = 0.0
         elif use_branch_matching:
-            src_positions = [
-                compute_effective_position(resolve_pickup_coils(inst["pickups"][c["pickup"]], inst))
-                for c in src_components
-            ]
+            src_positions = []
+            for c in src_components:
+                if not c.pickup or c.pickup not in inst.pickups:
+                    raise KeyError(
+                        f"Component pickup '{c.pickup}' not found in instrument '{inst.id}'. "
+                        f"Available pickups: {list(inst.pickups.keys())}"
+                    )
+                src_positions.append(
+                    compute_effective_position(resolve_pickup_coils(inst.pickups[c.pickup], inst))
+                )
             src_pos_max = max(src_positions) if src_positions else 0.0
             src_c_mean = 2.0 * src_scale_m * MEAN_BASS_F0
             tau_src_i = (

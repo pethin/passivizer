@@ -37,6 +37,7 @@ from allomorph.dsp import (
     write_wav_24bit,
 )
 from allomorph.naming import (
+    get_tier_spec,
     resolve_instruments,
     resolve_voices,
 )
@@ -215,22 +216,16 @@ def simulate_backend_targets(tier: str = "standard", voice_id: str | None = None
       - 'standard': standard dynamic pickup give (100% nominal saturation)
       - 'hotrod': overwound drive pre-conditioner (175% saturation, reduced vsat)
     """
-    tier_map = {
-        "clean": "01_clean_headroom",
-        "standard": "02_standard_dynamic",
-        "std": "02_standard_dynamic",
-        "dynamic": "02_standard_dynamic",
-        "hotrod": "03_hot_rod_drive",
-        "hot_rod": "03_hot_rod_drive",
-    }
     if tier == "all":
         tiers_to_run = ["clean", "standard", "hotrod"]
     else:
-        if tier not in tier_map:
+        try:
+            spec = get_tier_spec(tier)
+            tiers_to_run = [spec.name]
+        except KeyError as err:
             raise ValueError(
                 f"Unknown tier '{tier}'. Choose from clean, standard, std, hotrod, all."
-            )
-        tiers_to_run = [tier]
+            ) from err
 
     if not CANONICAL_SWEEP_PATH.exists():
         generate_canonical_sweep()
@@ -242,7 +237,7 @@ def simulate_backend_targets(tier: str = "standard", voice_id: str | None = None
     )
 
     for t in tiers_to_run:
-        folder_name = tier_map[t]
+        folder_name = get_tier_spec(t).folder_name
         target_out_dir = TARGETS_DIR / folder_name
         target_out_dir.mkdir(parents=True, exist_ok=True)
 

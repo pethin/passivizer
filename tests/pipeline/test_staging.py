@@ -31,6 +31,7 @@ from allomorph.naming import (
     resolve_voices,
 )
 from allomorph.physics import compute_voice_prefilter_firs
+from allomorph.pipeline.schema import get_tier_spec
 
 
 def test_canonical_intermediate_config():
@@ -105,6 +106,12 @@ def test_frontend_ir_generation():
 
 def test_concise_naming_invariants():
     """Asserts that all 21 target voice model filenames across all 3 tiers are <= 22 characters."""
+    assert isinstance(VOICE_CONCISE_SLUGS, dict)
+    for k, v in VOICE_CONCISE_SLUGS.items():
+        assert isinstance(k, str)
+        assert isinstance(v, str)
+        assert k in VOICES
+
     tier_prefixes = ["cln_", "std_", "hot_"]
     for slug in VOICE_CONCISE_SLUGS.values():
         for prefix in tier_prefixes:
@@ -148,12 +155,12 @@ def test_bake_dynamic_tier_and_auto_pickup():
     inst_30 = load_instrument("30in")
     p_p = get_source_pickup(inst_30, "04_modern_p_ceramic")
     p_j = get_source_pickup(inst_30, "03_jazz_bridge_60s")
-    assert p_p["id"] == "mmtw_dual"
-    assert p_j["id"] == "mmtw_single"
+    assert p_p.id == "mmtw_dual"
+    assert p_j.id == "mmtw_single"
 
     inst_fretless = load_instrument("32in_fretless_pmm")
     p_upright = get_source_pickup(inst_fretless, "14_upright_bridge_transducer")
-    assert p_upright["id"] == "pcsx"
+    assert p_upright.id == "pcsx"
 
     # 2. compute_voice_prefilter_firs supports explicit pickup and auto fallback
     firs_auto = compute_voice_prefilter_firs(
@@ -197,9 +204,7 @@ def test_baked_short_distinct_names_and_instrument_directories():
 
     # 1. Check all voices produce unique, short distinct basenames under auto pickup
     for tier in ["dynamic", "standard", "clean", "hotrod"]:
-        tier_prefix = {"dynamic": "dyn_", "standard": "std_", "clean": "cln_", "hotrod": "hot_"}[
-            tier
-        ]
+        tier_prefix = get_tier_spec(tier).prefix
         basenames = set()
         for vid in all_voices:
             basename = get_baked_basename(vid, tier=tier, pickup="auto")
