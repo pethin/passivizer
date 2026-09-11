@@ -17,15 +17,11 @@ def guard_no_audio_pollution() -> Generator[None]:
     """
     audio_dir = REPO_ROOT / "audio"
     before_items = (
-        {p for p in audio_dir.rglob("*") if p.name != ".DS_Store"}
-        if audio_dir.exists()
-        else set()
+        {p for p in audio_dir.rglob("*") if p.name != ".DS_Store"} if audio_dir.exists() else set()
     )
     yield
     after_items = (
-        {p for p in audio_dir.rglob("*") if p.name != ".DS_Store"}
-        if audio_dir.exists()
-        else set()
+        {p for p in audio_dir.rglob("*") if p.name != ".DS_Store"} if audio_dir.exists() else set()
     )
     new_items = sorted(str(p.relative_to(REPO_ROOT)) for p in (after_items - before_items))
     assert not new_items, (

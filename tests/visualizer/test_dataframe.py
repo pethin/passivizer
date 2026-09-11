@@ -133,7 +133,9 @@ def test_build_composite_instrument_dataframe_matching_identity():
     assert min(p_s2_mags) > -5.0
 
     # Source Bass Input + Block 1 Deconvolution must sum to exact 0.00 dB
-    p_sum = [round(a + b, 2) for a, b in zip(p_s1["magnitude_db"].to_list(), p_s2_mags, strict=False)]
+    p_sum = [
+        round(a + b, 2) for a, b in zip(p_s1["magnitude_db"].to_list(), p_s2_mags, strict=False)
+    ]
     assert all(val == 0.0 for val in p_sum)
 
 
@@ -211,4 +213,3 @@ def test_build_frontend_deconvolutions_dataframe():
     expected_inst_ids = {k for k in all_insts if k != "canonical_intermediate"}
     assert set(df["instrument_id"].unique().to_list()) == expected_inst_ids
     assert not df["magnitude_db"].is_nan().any()
-

@@ -359,11 +359,10 @@ def build_voice_dataframe(
     return df
 
 
-def compute_canonical_intermediate_response(freqs: np.ndarray) -> np.ndarray:
+def compute_canonical_acoustic_response(freqs: np.ndarray) -> np.ndarray:
     """
-    Evaluates the Canonical Intermediate baseline acoustic aperture and flat active buffer.
+    Evaluates the Canonical Intermediate baseline acoustic aperture response.
     Scale length: 34.0", Single 0.75" magnetic slit @ 93.5mm datum from bridge.
-    Circuit: Flat unity-gain active buffer (H = 1.0).
     """
     can_coils = [
         CoilConfig(
@@ -372,6 +371,24 @@ def compute_canonical_intermediate_response(freqs: np.ndarray) -> np.ndarray:
     ]
     h_can_ac = numpy_pickup_acoustic_response(freqs, can_coils, scale_length_m=(0.8636, 0.8636))
     return h_can_ac / max(h_can_ac[0], 1e-9)
+
+
+def compute_canonical_intermediate_response(freqs: np.ndarray) -> np.ndarray:
+    """
+    Evaluates the Canonical Intermediate total baseline response (acoustic aperture + wideband passive reference circuit).
+    Scale length: 34.0", Single 0.75" magnetic slit @ 93.5mm datum from bridge.
+    Circuit: Wideband passive reference pickup (4.8 kHz, Q=0.75).
+    """
+    h_can_ac_norm = compute_canonical_acoustic_response(freqs)
+    can_voice = VOICES.get("00_canonical_intermediate")
+    if can_voice and can_voice.circuit:
+        can_model = load_circuit(can_voice.circuit)
+        curves = compute_circuit_transfer_functions(can_model, freqs=freqs, return_numpy=True)
+        h_can_elec = curves[0]
+        h_can_elec_norm = h_can_elec / max(h_can_elec[0], 1e-9)
+        return h_can_ac_norm * h_can_elec_norm
+
+    return h_can_ac_norm
 
 
 _TARGET_DFS_CACHE: dict[int, dict[str, tuple[str, np.ndarray | None]]] = {}
@@ -463,11 +480,17 @@ def build_frontend_deconvolutions_dataframe() -> pl.DataFrame:
     to the 0.00 dB Canonical Intermediate baseline.
     """
     freqs = np.asarray(log_freqs, dtype=np.float64)
-    h_can_norm = compute_canonical_intermediate_response(freqs)
+    h_can_ac_norm = compute_canonical_acoustic_response(freqs)
 
     can_voice = VOICES.get("00_canonical_intermediate")
     can_circuit = can_voice.circuit if can_voice is not None else None
     can_model = load_circuit(can_circuit) if can_circuit else None
+    if can_model:
+        can_curves = compute_circuit_transfer_functions(can_model, freqs=FREQS, return_numpy=True)
+        h_can_elec = np.interp(freqs, FREQS, np.asarray(can_curves[0], dtype=np.float64))
+        h_can_elec_norm = h_can_elec / max(h_can_elec[0], 1e-9)
+    else:
+        h_can_elec_norm = np.ones_like(freqs)
 
     all_insts = load_all_instruments()
 
@@ -497,7 +520,7 @@ def build_frontend_deconvolutions_dataframe() -> pl.DataFrame:
             h_src_ac = numpy_pickup_acoustic_response(freqs, coils, scale_length_m=scale_range)
             h_src_norm = h_src_ac / max(h_src_ac[0], 1e-9)
 
-            h_aperture_deconv = (h_can_norm * h_src_norm) / (h_src_norm**2 + 0.01)
+            h_aperture_deconv = (h_can_ac_norm * h_src_norm) / (h_src_norm**2 + 0.01)
 
             cir_circuit = p_cfg.circuit
             if cir_circuit and can_model:
@@ -508,9 +531,10 @@ def build_frontend_deconvolutions_dataframe() -> pl.DataFrame:
                 h_c_front = np.interp(freqs, FREQS, np.asarray(diff_curves[0], dtype=np.float64))
                 h_front = h_aperture_deconv * h_c_front
             else:
-                h_c_front = resolve_pickup_electrical_deconvolution(
+                h_c_src = resolve_pickup_electrical_deconvolution(
                     freqs, p_cfg, inst, q_target=0.707
                 )
+                h_c_front = h_c_src * h_can_elec_norm
                 h_front = h_aperture_deconv * h_c_front
 
             db_front = 20.0 * np.log10(np.clip(h_front, 1e-4, 10.0))
@@ -547,7 +571,7 @@ def build_instrument_frontend_dataframe(inst: InstrumentConfig) -> pl.DataFrame:
     H_frontend = H_canonical / H_source.
     """
     freqs = np.asarray(log_freqs, dtype=np.float64)
-    h_can_norm = compute_canonical_intermediate_response(freqs)
+    h_can_ac_norm = compute_canonical_acoustic_response(freqs)
 
     inst_id = inst.id
     inst_name = inst.name
@@ -558,6 +582,12 @@ def build_instrument_frontend_dataframe(inst: InstrumentConfig) -> pl.DataFrame:
     can_voice = VOICES.get("00_canonical_intermediate")
     can_circuit = can_voice.circuit if can_voice is not None else None
     can_model = load_circuit(can_circuit) if can_circuit else None
+    if can_model:
+        can_curves = compute_circuit_transfer_functions(can_model, freqs=FREQS, return_numpy=True)
+        h_can_elec = np.interp(freqs, FREQS, np.asarray(can_curves[0], dtype=np.float64))
+        h_can_elec_norm = h_can_elec / max(h_can_elec[0], 1e-9)
+    else:
+        h_can_elec_norm = np.ones_like(freqs)
 
     freq_col: list[float] = []
     mag_col: list[float] = []
@@ -576,7 +606,7 @@ def build_instrument_frontend_dataframe(inst: InstrumentConfig) -> pl.DataFrame:
         h_src_ac = numpy_pickup_acoustic_response(freqs, coils, scale_length_m=scale_range)
         h_src_norm = h_src_ac / max(h_src_ac[0], 1e-9)
 
-        h_aperture_deconv = (h_can_norm * h_src_norm) / (h_src_norm**2 + 0.01)
+        h_aperture_deconv = (h_can_ac_norm * h_src_norm) / (h_src_norm**2 + 0.01)
 
         cir_circuit = p_cfg.circuit
         if cir_circuit and can_model:
@@ -587,7 +617,8 @@ def build_instrument_frontend_dataframe(inst: InstrumentConfig) -> pl.DataFrame:
             h_c_front = np.interp(freqs, FREQS, np.asarray(diff_curves[0], dtype=np.float64))
             h_front = h_aperture_deconv * h_c_front
         else:
-            h_c_front = resolve_pickup_electrical_deconvolution(freqs, p_cfg, inst, q_target=0.707)
+            h_c_src = resolve_pickup_electrical_deconvolution(freqs, p_cfg, inst, q_target=0.707)
+            h_c_front = h_c_src * h_can_elec_norm
             h_front = h_aperture_deconv * h_c_front
 
         db_front = 20.0 * np.log10(np.clip(h_front, 1e-4, 10.0))
@@ -621,7 +652,7 @@ def build_composite_instrument_dataframe(
 ) -> pl.DataFrame:
     """
     Calculates the 5-stage physical signal flow progression for a source instrument
-    relative to the standardized Canonical Intermediate datum (34" @ 93.5mm datum, flat active buffer):
+    relative to the standardized Canonical Intermediate datum (34" @ 93.5mm datum, wideband passive reference circuit):
       1. Source Bass Input: Physical response of the source pickup relative to Canonical Intermediate.
       2. Block 1 Deconvolution: 2048-tap FIR deconvolution filter (H_front = H_can / H_src) neutralizing source pickup.
       3. Canonical Intermediate (0 dB): Neutral baseline reference datum (Stage 1 + Stage 2 = 0.00 dB).
@@ -632,6 +663,7 @@ def build_composite_instrument_dataframe(
     freqs = np.asarray(log_freqs[::step], dtype=np.float64)
     n_pts = len(freqs)
     f_pts = np.round(freqs, 1).tolist()
+    h_can_ac_norm = compute_canonical_acoustic_response(freqs)
     h_can_norm = compute_canonical_intermediate_response(freqs)
     db_can = 20.0 * np.log10(np.clip(h_can_norm, 1e-5, 20.0))
 
@@ -643,6 +675,12 @@ def build_composite_instrument_dataframe(
     can_voice = VOICES.get("00_canonical_intermediate")
     can_circuit = can_voice.circuit if can_voice is not None else None
     can_model = load_circuit(can_circuit) if can_circuit else None
+    if can_model:
+        can_curves = compute_circuit_transfer_functions(can_model, freqs=FREQS, return_numpy=True)
+        h_can_elec = np.interp(freqs, FREQS, np.asarray(can_curves[0], dtype=np.float64))
+        h_can_elec_norm = h_can_elec / max(h_can_elec[0], 1e-9)
+    else:
+        h_can_elec_norm = np.ones_like(freqs)
 
     freq_col: list[float] = []
     mag_col: list[float] = []
@@ -656,7 +694,7 @@ def build_composite_instrument_dataframe(
         coils = resolve_pickup_coils(p_cfg, inst)
         h_src_ac = numpy_pickup_acoustic_response(freqs, coils, scale_length_m=scale_range)
         h_src_norm = h_src_ac / max(h_src_ac[0], 1e-9)
-        h_aperture_deconv = (h_can_norm * h_src_norm) / (h_src_norm**2 + 0.01)
+        h_aperture_deconv = (h_can_ac_norm * h_src_norm) / (h_src_norm**2 + 0.01)
 
         cir_circuit = p_cfg.circuit
         if cir_circuit and can_model:
@@ -667,9 +705,8 @@ def build_composite_instrument_dataframe(
             h_c_front = np.interp(freqs, FREQS, np.asarray(diff_curves[0], dtype=np.float64))
             h_front = h_aperture_deconv * h_c_front
         else:
-            h_c_front = resolve_pickup_electrical_deconvolution(
-                freqs, p_cfg, inst, q_target=0.707
-            )
+            h_c_src = resolve_pickup_electrical_deconvolution(freqs, p_cfg, inst, q_target=0.707)
+            h_c_front = h_c_src * h_can_elec_norm
             h_front = h_aperture_deconv * h_c_front
 
         db_front = np.round(20.0 * np.log10(np.clip(h_front, 1e-4, 10.0)), 2)
@@ -736,5 +773,3 @@ def build_composite_instrument_dataframe(
             "pickup_name": pname_col,
         }
     )
-
-

@@ -404,9 +404,7 @@ def test_guardrail_visualizer_signal_flow_inspector_fidelity():
     s3 = df.filter(df["stage"] == "3. Canonical Intermediate (0 dB)")
 
     assert len(s3) > 0
-    assert (s3["magnitude_db"] == 0.0).all(), (
-        "Canonical Intermediate baseline was not flat 0.00 dB"
-    )
+    assert (s3["magnitude_db"] == 0.0).all(), "Canonical Intermediate baseline was not flat 0.00 dB"
     assert np.allclose(s1["magnitude_db"].to_numpy() + s2["magnitude_db"].to_numpy(), 0.0), (
         "Source Bass Input and Block 1 Deconvolution did not neutralize to flat Canonical Intermediate"
     )
@@ -540,7 +538,9 @@ def test_guardrail_visualizer_universal_target_voicings_fidelity():
 
     # 2. Non-null and Finite Invariant
     assert not df_targets["magnitude_db"].is_nan().any(), "NaN found in universal target magnitudes"
-    assert not df_targets["magnitude_db"].is_null().any(), "Null found in universal target magnitudes"
+    assert not df_targets["magnitude_db"].is_null().any(), (
+        "Null found in universal target magnitudes"
+    )
 
     # 3. Physical Electroacoustic Boundedness
     for vid in expected_vids:
@@ -573,4 +573,3 @@ def test_guardrail_visualizer_universal_target_voicings_fidelity():
     assert max_diff < 0.01, (
         f"Stage 4 Target Voicing for {vid} differed from universal target dataframe by {max_diff:.4f} dB"
     )
-

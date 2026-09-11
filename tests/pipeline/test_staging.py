@@ -47,8 +47,10 @@ def test_canonical_intermediate_config():
     assert p.aperture_width_in == pytest.approx(0.75, abs=1e-3)
     assert p.coil_spacing_in == 0.0
 
-    # Wideband flat circuit
-    assert p.resonant_frequency_hz is not None and p.resonant_frequency_hz >= 20000.0
+    # Wideband passive reference circuit
+    assert inst.electronics == "passive"
+    assert p.resonant_frequency_hz == pytest.approx(4800.0)
+    assert p.q_factor == pytest.approx(0.75)
 
 
 def test_canonical_sweep_calibration(tmp_path: Path):

@@ -116,7 +116,7 @@ $$h_{\text{db}} = 20 \log_{10}\left(\max(h_{\text{diff}}, 10^{-6})\right)$$
 2. **Canonical Intermediate Baseline Datum:**
    - Scale Length: Standard $34.0''$ ($863.6\text{ mm}$).
    - Spatial Sensing Envelope: Single narrow magnetic aperture slit ($w = 0.75''$, $d = 0$, zero comb nulls) centered at the **$93.5\text{ mm}$ ($3.68''$) acoustic median** from the bridge saddle.
-   - Electrical Circuit: Pure linear unity-gain active studio buffer ($R_{\text{in}} = 10\text{ M}\Omega, R_{\text{out}} = 50\,\Omega, C_{\text{cable}} = 0\text{ pF}$, $H_{\text{circuit}}(s) \equiv 1.0$).
+   - Electrical Circuit: Wideband passive reference pickup ($L = 3.2\text{ H}, R_{\text{dc}} = 6.5\text{ k}\Omega, R_{\text{eddy}} = 150\text{ k}\Omega, C_{\text{coil}} = 90\text{ pF}, f_r \approx 4.8\text{ kHz}, Q \approx 0.75$) with $500\text{k}\Omega$ volume pot, $500\text{k}\Omega$ tone pot ($47\text{ nF}$ cap), and $330\text{ pF}$ instrument cable loading. Eliminates unphysical $+40\text{ dB}$ ultrasonic deconvolution spikes and high-frequency double roll-offs when modeling passive instruments.
    - Dynamic Feel: Pure linear baseline ($\alpha = 0.0, V_{\text{sat}} = 10.0\text{V}$).
 3. **Canonical Intermediate Headroom & Dynamic Range Theorems:**
    - The Canonical Intermediate sweep is strictly calibrated to **$-1.50\text{ dBFS}$ True Peak** and **$-16.50\text{ dBFS}$ Nominal RMS**.
@@ -280,7 +280,7 @@ $$Z_{\text{skin}}(s) = R_{\text{dc}} \cdot k_{\text{skin}} \cdot \left(\sqrt{1 +
 
 ### 6.4 Visualizer Vectorization, Caching & Vega-Lite Payload Bounding (Commit `7c6e634`)
 - **Prohibition of Multi-Rate FFTs in Signal Flow Loops:** Never invoke `build_voice_dataframe(mode="difference")`, FIR filter synthesis, or multi-rate FFTs inside per-pickup/per-voice loops within `build_composite_instrument_dataframe`. Across 11 playable instruments with multiple pickup switch positions and 22 target voices, iterative synthesis executes $> 700$ redundant 2048-tap FIR convolutions and 8192-point FFTs, blowing up chart generation from $< 3\text{ s}$ to $> 20\text{ s}$.
-- **Decoupled Universal Backend Caching:** Universal target voicings are defined relative to the Canonical Intermediate baseline ($H_{\text{backend}} = H_{\text{target}} / H_{\text{canonical}}$). Because the Canonical Intermediate is fixed (34" scale, 93.5mm datum, flat active buffer), target curves are strictly source-invariant and must be precomputed and cached globally once via `get_cached_target_dfs(step=step)`:
+- **Decoupled Universal Backend Caching:** Universal target voicings are defined relative to the Canonical Intermediate baseline ($H_{\text{backend}} = H_{\text{target}} / H_{\text{canonical}}$). Because the Canonical Intermediate is fixed (34" scale, 93.5mm datum, wideband passive reference circuit), target curves are strictly source-invariant and must be precomputed and cached globally once via `get_cached_target_dfs(step=step)`:
   $$\text{db\_back\_dict}[vid] = \text{np.round}(\text{db\_tgt} - \text{db\_can}, 2)$$
 - **Analytical Mirror Reflection for Identity Matches:** For authentic source-to-target digital twin matches (`is_match`), set the mirror reflection directly in vector form:
   $$\text{db\_back} = -\text{db\_front}, \quad \text{db\_out} = 0.00\text{ dB}$$

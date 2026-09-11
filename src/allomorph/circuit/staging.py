@@ -25,7 +25,10 @@ from allomorph.circuit.simulation import (
     find_default_input_audio,
     simulate_voice,
 )
-from allomorph.circuit.solver import compute_differential_circuit_transfer_functions
+from allomorph.circuit.solver import (
+    compute_circuit_transfer_functions,
+    compute_differential_circuit_transfer_functions,
+)
 from allomorph.config.geometry import resolve_pickup_coils
 from allomorph.config.instruments import load_all_instruments, load_instrument
 from allomorph.config.scales import REPO_ROOT, resolve_scale_range
@@ -85,7 +88,18 @@ def generate_canonical_sweep(input_wav: Path | None = None, output_wav: Path | N
         )
     ]
     h_can_ac = numpy_pickup_acoustic_response(f, can_coils, scale_length_m=(0.8636, 0.8636))
-    can_fir = synthesize_minimum_phase_fir(h_can_ac, num_taps=2048)
+    can_voice = VOICES.get("00_canonical_intermediate")
+    can_circ = can_voice.circuit if can_voice is not None else None
+    if can_circ:
+        can_model = load_circuit(can_circ)
+        c_curves = compute_circuit_transfer_functions(can_model, freqs=f, return_numpy=True)
+        h_can_elec = c_curves[0]
+        h_can_elec_norm = h_can_elec / max(h_can_elec[0], 1e-9)
+        h_can_total = h_can_ac * h_can_elec_norm
+    else:
+        h_can_total = h_can_ac
+
+    can_fir = synthesize_minimum_phase_fir(h_can_total, num_taps=2048)
 
     filtered = np.convolve(audio, can_fir, mode="same")
 
@@ -156,9 +170,15 @@ def export_frontend_ir(
             f"configuration. Passive source pickups require an explicit circuit model for differential deconvolution."
         )
     else:
-        h_circuit_deconv = resolve_pickup_electrical_deconvolution_np(
-            f, pickup, inst, q_target=0.707
-        )
+        h_c_src = resolve_pickup_electrical_deconvolution_np(f, pickup, inst, q_target=0.707)
+        if can_circ:
+            can_model = load_circuit(can_circ)
+            can_curves = compute_circuit_transfer_functions(can_model, freqs=f, return_numpy=True)
+            h_can_elec = can_curves[0]
+            h_can_elec_norm = h_can_elec / max(h_can_elec[0], 1e-9)
+            h_circuit_deconv = h_c_src * h_can_elec_norm
+        else:
+            h_circuit_deconv = h_c_src
 
     h_total = h_aperture_deconv * h_circuit_deconv
 

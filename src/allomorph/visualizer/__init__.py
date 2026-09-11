@@ -26,6 +26,7 @@ from allomorph.visualizer.dataframe import (
     build_instrument_frontend_dataframe,
     build_universal_targets_dataframe,
     build_voice_dataframe,
+    compute_canonical_acoustic_response,
     compute_canonical_intermediate_response,
     log_freqs,
 )
@@ -52,6 +53,7 @@ __all__ = [
     "build_portal_html",
     "build_universal_targets_dataframe",
     "build_voice_dataframe",
+    "compute_canonical_acoustic_response",
     "compute_canonical_intermediate_response",
     "format_instrument_meta",
     "generate_all_charts",

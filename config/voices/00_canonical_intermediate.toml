@@ -1,17 +1,18 @@
 # ==============================================================================
-# 00. CANONICAL INTERMEDIATE (Architecture C Universal Reference Baseline)
+# 00. CANONICAL INTERMEDIATE (Architecture C Universal Passive Reference Baseline)
 # ==============================================================================
-# Target voice representing the flat intermediate baseline.
-# In Architecture C, evaluating this target yields bit-exact 0.00 dB deconvolution.
+# Universal reference baseline representing a clean, wideband passive pickup
+# at the 93.5mm datum on a 34" standard scale (fr = 4.8 kHz, Q = 0.75).
+# Eliminates unphysical +40 dB ultrasonic deconvolution boosts and Wiener clamping.
 # ==============================================================================
 
 id = "00_canonical_intermediate"
 name = "00. Canonical Intermediate Baseline"
-topology = "Universal Active Buffer Reference"
-description = "Canonical 34-inch 93.5mm acoustic median baseline with flat 10M-Ohm unity studio buffer"
+topology = "Universal Passive Reference Baseline"
+description = "Canonical 34-inch 93.5mm acoustic aperture with wideband passive reference circuit (4.8 kHz, Q=0.75)"
 scale = "34in"
-fr = 20000.0
-Q = 0.707
+fr = 4800.0
+Q = 0.75
 gain_db = 0.0
 alpha = 0.0
 vsat = 10.0
@@ -22,12 +23,15 @@ coils = [
 
 [circuit]
 topology = "single"
-L = 4.8
-Rdc = 9500.0
-Reddy = 110000.0
-Ccoil = 8e-11
-active = true
+L = 3.2
+Rdc = 6500.0
+Reddy = 150000.0
+Ccoil = 9e-11
+active = false
 preamp = "none"
 R_out = 50.0
-no_eq = true
+no_eq = false
 Rvol = 500000.0
+Rtone = 500000.0
+Ctone = 4.7e-08
+Ccable = 3.3e-10
