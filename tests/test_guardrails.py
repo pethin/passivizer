@@ -308,3 +308,269 @@ def test_guardrail_fail_fast_zero_silent_fallbacks():
         apply_magnet_properties_to_model(
             CircuitModel(), PickupConfig(name="mock", magnet_type="kryptonite")
         )
+
+
+def test_guardrail_visualizer_vectorization_and_performance():
+    """Guardrail 6.4 (Commit 7c6e634): build_composite_instrument_dataframe must be vectorized
+    and execute in < 150 ms per instrument with step=3 downsampling, without redundant multi-rate FFTs."""
+    import time
+
+    from allomorph.config import load_instrument
+    from allomorph.visualizer import build_composite_instrument_dataframe
+
+    # 1. Bounded execution latency: building composite dataframe must take < 100 ms warm
+    # (after global get_cached_target_dfs is primed)
+    inst = load_instrument("34in_standard_p")
+    build_composite_instrument_dataframe(inst, step=3)
+
+    t0 = time.perf_counter()
+    df = build_composite_instrument_dataframe(inst, step=3)
+    duration_ms = (time.perf_counter() - t0) * 1000.0
+
+    assert duration_ms < 100.0, (
+        f"build_composite_instrument_dataframe took {duration_ms:.2f} ms (budget: < 100 ms). "
+        "Iterative build_voice_dataframe(mode='difference') calls inside per-pickup loops are prohibited."
+    )
+
+    # 2. Downsampling invariant: Exactly 200 points per curve (600 // 3)
+    freqs = df["frequency"].unique().to_list()
+    assert len(freqs) == 200, f"Expected 200 downsampled frequency points, found {len(freqs)}"
+
+    # 3. Payload rounding invariant: Decibel magnitudes must be rounded to at most 2 decimal places
+    mags = df["magnitude_db"].to_list()
+    for m in mags:
+        assert round(m, 2) == m, f"Unrounded float {m} violates payload compression guardrail"
+
+
+def test_guardrail_visualizer_signal_flow_inspector_fidelity():
+    """Guardrail 3.7.1 & 5.3.6: The visualizer's Signal Flow Inspector must strictly replicate
+    the authentic two-stage IR + NAM DSP pipeline:
+      Stage 1: Source Baseline (0 dB)
+      Stage 2: Block 1 Frontend IR (matches actual exported FIR from export_frontend_ir)
+      Stage 3: Block 2 Target Voicing (universal target transfer function)
+      Stage 4: Resulting Output (exact 0.00 dB for matching identity, Stage 2 + Stage 3 = Stage 4)"""
+    import tempfile
+    import wave
+    from pathlib import Path
+
+    import numpy as np
+
+    from allomorph.circuit.staging import export_frontend_ir
+    from allomorph.config import load_instrument
+    from allomorph.visualizer import build_composite_instrument_dataframe
+
+    # 1. Physical IR Equivalence: Visualizer Block 1 must match export_frontend_ir FIR
+    with tempfile.TemporaryDirectory() as tmpdir:
+        ir_path = export_frontend_ir("34in_standard_p", "split_p", output_dir=Path(tmpdir))
+        with wave.open(str(ir_path), "rb") as wf:
+            n_frames = wf.getnframes()
+            raw = wf.readframes(n_frames)
+            raw_padded = bytearray()
+            for i in range(0, len(raw), 3):
+                raw_padded.extend(raw[i : i + 3])
+                raw_padded.append(0 if raw[i + 2] < 128 else 255)
+            fir = np.frombuffer(raw_padded, dtype=np.int32).astype(np.float64) / 8388607.0
+
+    n_fft = 8192
+    h_ir = np.fft.rfft(fir, n_fft)
+    f_bins = np.fft.rfftfreq(n_fft, 1.0 / 48000.0)
+    mag_ir_db = 20.0 * np.log10(np.maximum(np.abs(h_ir), 1e-6))
+    mag_ir_norm = mag_ir_db - mag_ir_db[0]
+
+    inst = load_instrument("34in_standard_p")
+    df = build_composite_instrument_dataframe(inst, step=1)
+    s2 = df.filter(df["stage"] == "2. Block 1 Deconvolution")
+    f_vis = s2["frequency"].to_numpy()
+    mag_vis_db = s2["magnitude_db"].to_numpy()
+    mag_vis_norm = mag_vis_db - mag_vis_db[0]
+
+    mag_ir_interp = np.interp(f_vis, f_bins, mag_ir_norm)
+    err = np.abs(mag_vis_norm - mag_ir_interp)
+    assert np.max(err) < 0.5, (
+        f"Visualizer Block 1 Deconvolution deviated by {np.max(err):.2f} dB from actual export_frontend_ir FIR. "
+        "Visualizer must strictly match the real pipeline deconvolution."
+    )
+
+    # 2. Wiener Noise Regularization: Clamping must be strictly bounded (no +24 dB ultrasonic rise)
+    assert np.max(mag_vis_db) <= 8.0, (
+        f"Block 1 Deconvolution peak boost was {np.max(mag_vis_db):.2f} dB (must be <= +8.0 dB)"
+    )
+    assert mag_vis_db[-1] < 2.0, (
+        f"Block 1 Deconvolution at 20 kHz was {mag_vis_db[-1]:.2f} dB (unbounded HF rise prohibited)"
+    )
+
+    # 3. Canonical Intermediate Neutralization: Stage 1 + Stage 2 = Stage 3 (0.00 dB)
+    s1 = df.filter(df["stage"] == "1. Source Bass Input")
+    s3 = df.filter(df["stage"] == "3. Canonical Intermediate (0 dB)")
+
+    assert len(s3) > 0
+    assert (s3["magnitude_db"] == 0.0).all(), (
+        "Canonical Intermediate baseline was not flat 0.00 dB"
+    )
+    assert np.allclose(s1["magnitude_db"].to_numpy() + s2["magnitude_db"].to_numpy(), 0.0), (
+        "Source Bass Input and Block 1 Deconvolution did not neutralize to flat Canonical Intermediate"
+    )
+
+    # 4. Strict Stage Sequence Invariant
+    stages = df["stage"].unique().to_list()
+    expected_sequence = {
+        "1. Source Bass Input",
+        "2. Block 1 Deconvolution",
+        "3. Canonical Intermediate (0 dB)",
+        "4. Block 2 Target Voicing",
+        "5. Target Voice Output",
+    }
+    assert set(stages) == expected_sequence, (
+        f"Visualizer stages {stages} deviated from expected five-stage pipeline {expected_sequence}"
+    )
+
+
+def test_guardrail_visualizer_frontend_deconvolutions_fidelity():
+    """Guardrail 3.7.2 & 5.3.6: Frontend Deconvolution visualizer curves
+    (build_instrument_frontend_dataframe and build_frontend_deconvolutions_dataframe) must
+    strictly match the actual 2048-tap minimum-phase FIR from export_frontend_ir within < 0.5 dB
+    across 20 Hz to 20 kHz with bounded Wiener regularization and finite DC transmission."""
+    import tempfile
+    import wave
+    from pathlib import Path
+
+    import numpy as np
+
+    from allomorph.circuit.staging import export_frontend_ir
+    from allomorph.config import load_all_instruments, load_instrument
+    from allomorph.visualizer.dataframe import (
+        build_frontend_deconvolutions_dataframe,
+        build_instrument_frontend_dataframe,
+    )
+
+    # 1. Multi-Instrument FIR Equivalence: passive split-P, passive Jazz bridge, active EMG MMTW
+    test_cases = [
+        ("34in_standard_p", "split_p"),
+        ("34in_standard_jazz", "bridge"),
+        ("30in_emg_mmtw", "mmtw_dual"),
+    ]
+
+    for inst_id, pkey in test_cases:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            ir_path = export_frontend_ir(inst_id, pkey, output_dir=Path(tmpdir))
+            with wave.open(str(ir_path), "rb") as wf:
+                raw = wf.readframes(wf.getnframes())
+                raw_padded = bytearray()
+                for i in range(0, len(raw), 3):
+                    raw_padded.extend(raw[i : i + 3])
+                    raw_padded.append(0 if raw[i + 2] < 128 else 255)
+                fir = np.frombuffer(raw_padded, dtype=np.int32).astype(np.float64) / 8388607.0
+
+        n_fft = 8192
+        h_ir = np.fft.rfft(fir, n_fft)
+        f_bins = np.fft.rfftfreq(n_fft, 1.0 / 48000.0)
+        mag_ir_db = 20.0 * np.log10(np.maximum(np.abs(h_ir), 1e-6))
+        mag_ir_norm = mag_ir_db - mag_ir_db[0]
+
+        inst = load_instrument(inst_id)
+        df_inst = build_instrument_frontend_dataframe(inst)
+        pdf = df_inst.filter(df_inst["pickup_key"] == pkey)
+        f_vis = pdf["frequency"].to_numpy()
+        mag_vis_db = pdf["magnitude_db"].to_numpy()
+        mag_vis_norm = mag_vis_db - mag_vis_db[0]
+
+        mag_ir_interp = np.interp(f_vis, f_bins, mag_ir_norm)
+        err = np.abs(mag_vis_norm - mag_ir_interp)
+
+        # Deviation must be strictly < 0.5 dB
+        assert np.max(err) < 0.5, (
+            f"build_instrument_frontend_dataframe for {inst_id} ({pkey}) deviated by "
+            f"{np.max(err):.2f} dB from actual export_frontend_ir FIR (limit: < 0.5 dB)."
+        )
+
+        # Wiener noise regularization must be bounded (<= +8.0 dB boost, < +2.0 dB at 20 kHz)
+        assert np.max(mag_vis_db) <= 8.0, (
+            f"{inst_id} ({pkey}) peak frontend boost was {np.max(mag_vis_db):.2f} dB (limit: <= +8.0 dB)"
+        )
+        assert mag_vis_db[-1] < 2.0, (
+            f"{inst_id} ({pkey}) at 20 kHz was {mag_vis_db[-1]:.2f} dB (unbounded HF rise prohibited)"
+        )
+
+        # Sub-audible DC transmission must be finite and bounded within [-12 dB, +12 dB]
+        assert -12.0 <= mag_vis_db[0] <= 12.0, (
+            f"{inst_id} ({pkey}) 20 Hz DC magnitude was {mag_vis_db[0]:.2f} dB (violates Guardrail 3.3)"
+        )
+
+    # 2. Master Catalog Consistency: build_frontend_deconvolutions_dataframe must match
+    # build_instrument_frontend_dataframe bit-exact across all playable instruments
+    all_df = build_frontend_deconvolutions_dataframe()
+    all_insts = load_all_instruments()
+
+    for inst_id, inst in all_insts.items():
+        if inst_id == "canonical_intermediate":
+            continue
+        inst_df = build_instrument_frontend_dataframe(inst)
+        sub_all = all_df.filter(all_df["instrument_id"] == inst_id)
+        assert len(inst_df) == len(sub_all), (
+            f"{inst_id} row count mismatch between master and single-instrument dataframes"
+        )
+        m1 = inst_df["magnitude_db"].to_numpy()
+        m2 = sub_all["magnitude_db"].to_numpy()
+        assert np.allclose(m1, m2, atol=1e-5), (
+            f"{inst_id} frontend deconvolution curves differed between master and single dataframes"
+        )
+
+
+def test_guardrail_visualizer_universal_target_voicings_fidelity():
+    """Guardrail 3.7.3 & 5.3.6: Universal Target Voicings (build_universal_targets_dataframe)
+    must encompass all 22 target voices relative to Canonical Intermediate baseline,
+    maintain physical electroacoustic bounds (< +25 dB boost, > -100 dB attenuation),
+    and strictly match Stage 4 target curves in the Signal Flow Inspector."""
+    import numpy as np
+
+    from allomorph.config import VOICES, load_instrument
+    from allomorph.visualizer.dataframe import (
+        build_composite_instrument_dataframe,
+        build_universal_targets_dataframe,
+    )
+
+    df_targets = build_universal_targets_dataframe()
+
+    # 1. Catalog Completeness: Exactly 22 target voices (all voices except 00_canonical_intermediate)
+    expected_vids = set(VOICES.keys()) - {"00_canonical_intermediate"}
+    found_vids = set(df_targets["voice_id"].unique().to_list())
+    assert found_vids == expected_vids, (
+        f"Missing target voices in universal_targets: {expected_vids - found_vids}"
+    )
+
+    # 2. Non-null and Finite Invariant
+    assert not df_targets["magnitude_db"].is_nan().any(), "NaN found in universal target magnitudes"
+    assert not df_targets["magnitude_db"].is_null().any(), "Null found in universal target magnitudes"
+
+    # 3. Physical Electroacoustic Boundedness
+    for vid in expected_vids:
+        vdf = df_targets.filter(df_targets["voice_id"] == vid)
+        assert len(vdf) == 600, f"Target voice {vid} had {len(vdf)} points (expected 600)"
+        m = vdf["magnitude_db"].to_numpy()
+        max_boost = float(np.max(m))
+        min_atten = float(np.min(m))
+        assert max_boost < 25.0, (
+            f"Target voice {vid} had unphysical peak boost {max_boost:.2f} dB (limit: < +25.0 dB)"
+        )
+        assert min_atten > -100.0, (
+            f"Target voice {vid} had excessive attenuation {min_atten:.2f} dB (limit: > -100.0 dB)"
+        )
+
+    # 4. Consistency with Signal Flow Inspector Stage 3 for non-matching voices
+    inst = load_instrument("34in_standard_p")
+    df_comp = build_composite_instrument_dataframe(inst, step=1)
+
+    vid = "09_stingray_mm_parallel"
+    vname = VOICES[vid].name
+    s4 = df_comp.filter(
+        (df_comp["stage"] == "4. Block 2 Target Voicing") & (df_comp["voice_name"] == vname)
+    )
+    vtgt = df_targets.filter(df_targets["voice_id"] == vid)
+
+    m_s4 = s4["magnitude_db"].to_numpy()
+    m_tgt = vtgt["magnitude_db"].to_numpy()
+    max_diff = float(np.max(np.abs(m_s4 - m_tgt)))
+    assert max_diff < 0.01, (
+        f"Stage 4 Target Voicing for {vid} differed from universal target dataframe by {max_diff:.4f} dB"
+    )
+

@@ -48,7 +48,7 @@ F_MAX = 20000.0
 log_freqs = [F_MIN * (F_MAX / F_MIN) ** (i / (NUM_POINTS - 1)) for i in range(NUM_POINTS)]
 
 _OUTPUT_VOICE_DF_CACHE: dict[str, pl.DataFrame] = {}
-_DIFF_VOICE_DF_CACHE: dict[tuple[str, str], pl.DataFrame] = {}
+_DIFF_VOICE_DF_CACHE: dict[tuple[str, str, str], pl.DataFrame] = {}
 
 
 def build_voice_dataframe(
@@ -58,6 +58,7 @@ def build_voice_dataframe(
     src_scale: InstrumentConfig | str | None = None,
     mode: str = "difference",
     include_mode_col: bool = False,
+    src_pickup_key: str | None = None,
 ) -> pl.DataFrame:
     """
     Calculates magnitude frequency response in dB for a voice using NumPy vector math and Polars.
@@ -79,7 +80,7 @@ def build_voice_dataframe(
         else load_instrument(inst_selector)
     )
 
-    cache_key_diff = (inst.id, voice_id)
+    cache_key_diff = (inst.id, voice_id, src_pickup_key or "")
     if (
         mode == "difference"
         and cfg == VOICES.get(voice_id)
@@ -102,7 +103,14 @@ def build_voice_dataframe(
     sensor_type = cfg.sensor_type
     tgt_string = get_voice_string(cfg)
     is_passive = inst.electronics == "passive"
-    is_spatial_match = (mode != "output") and is_voice_matching_source(inst, voice_id, cfg)
+    if src_pickup_key:
+        is_spatial_match = (
+            (mode != "output")
+            and (inst.pickup_mapping.get(voice_id, inst.default_pickup) == src_pickup_key)
+            and is_voice_matching_source(inst, voice_id, cfg)
+        )
+    else:
+        is_spatial_match = (mode != "output") and is_voice_matching_source(inst, voice_id, cfg)
 
     if sensor_type == "direct" and mode == "output":
         data = {
@@ -131,7 +139,7 @@ def build_voice_dataframe(
         }
         df = pl.DataFrame(data)
         if cfg == VOICES.get(voice_id):
-            _DIFF_VOICE_DF_CACHE[(inst.id, voice_id)] = df
+            _DIFF_VOICE_DF_CACHE[cache_key_diff] = df
         if include_mode_col:
             return df.with_columns(pl.lit("Input/Output Difference").alias("mode"))
         return df
@@ -245,7 +253,12 @@ def build_voice_dataframe(
 
     else:
         # 2. Input/Output Difference: H_diff = H_target / H_source
-        src_pickup = get_source_pickup(inst, voice_id)
+        if src_pickup_key and src_pickup_key in inst.pickups:
+            p_raw = inst.pickups[src_pickup_key]
+            src_pickup = p_raw.model_copy(deep=True)
+            src_pickup.id = src_pickup_key
+        else:
+            src_pickup = get_source_pickup(inst, voice_id)
         src_circuit = src_pickup.circuit
 
         if not src_circuit and is_passive:
@@ -269,7 +282,9 @@ def build_voice_dataframe(
             circuit_curves = compute_circuit_transfer_functions(model, freqs=FREQS)
 
         # Multi-rate FFT evaluation matching native circuit simulator synthesis exactly
-        prefilter_firs = compute_voice_prefilter_firs(voice_id, instrument=inst, num_taps=2048)
+        prefilter_firs = compute_voice_prefilter_firs(
+            voice_id, instrument=inst, num_taps=2048, src_pickup_key=src_pickup_key
+        )
         N = 8192
         f_bins = np.fft.rfftfreq(N, 1.0 / 48000.0)
         H_channels = []
@@ -335,7 +350,7 @@ def build_voice_dataframe(
     if mode == "output" and cfg == VOICES.get(voice_id):
         _OUTPUT_VOICE_DF_CACHE[voice_id] = df
     elif mode == "difference" and cfg == VOICES.get(voice_id):
-        _DIFF_VOICE_DF_CACHE[(inst.id, voice_id)] = df
+        _DIFF_VOICE_DF_CACHE[cache_key_diff] = df
 
     if include_mode_col:
         return df.with_columns(
@@ -605,13 +620,14 @@ def build_composite_instrument_dataframe(
     step: int = 3,
 ) -> pl.DataFrame:
     """
-    Calculates the 5-stage physical signal flow progression for a source instrument:
-      1. Source Bass Input: Physical response of the source pickup entering Block 1.
-      2. Block 1 Deconvolution: 2048-tap FIR inverse filter neutralizing source aperture and RLC impedance.
-      3. Canonical Intermediate (0 dB): Standardized neutral baseline datum achieved after Block 1.
-      4. Block 2 Target Voicing: Universal target model transfer function.
+    Calculates the 5-stage physical signal flow progression for a source instrument
+    relative to the standardized Canonical Intermediate datum (34" @ 93.5mm datum, flat active buffer):
+      1. Source Bass Input: Physical response of the source pickup relative to Canonical Intermediate.
+      2. Block 1 Deconvolution: 2048-tap FIR deconvolution filter (H_front = H_can / H_src) neutralizing source pickup.
+      3. Canonical Intermediate (0 dB): Neutral baseline reference datum (Stage 1 + Stage 2 = 0.00 dB).
+      4. Block 2 Target Voicing: Universal target model transfer function (H_back = H_tgt / H_can).
       5. Target Voice Output: Authentic acoustic target voice produced after Block 2.
-    Illustrates: Bass Input -deconvolution-> Canonical Intermediate Baseline -voicing-> Target Output.
+    Illustrates: Source Bass Input + Block 1 Deconvolution = Canonical Intermediate (0 dB) -> Block 2 Target Voicing -> Target Voice Output.
     """
     freqs = np.asarray(log_freqs[::step], dtype=np.float64)
     n_pts = len(freqs)
@@ -646,15 +662,18 @@ def build_composite_instrument_dataframe(
         if cir_circuit and can_model:
             src_model = load_circuit(cir_circuit)
             diff_curves = compute_differential_circuit_transfer_functions(
-                can_model, src_model, freqs=FREQS
+                can_model, src_model, freqs=FREQS, max_boost_db=6.0
             )
             h_c_front = np.interp(freqs, FREQS, np.asarray(diff_curves[0], dtype=np.float64))
             h_front = h_aperture_deconv * h_c_front
         else:
-            h_c_front = resolve_pickup_electrical_deconvolution(freqs, p_cfg, inst, q_target=0.707)
+            h_c_front = resolve_pickup_electrical_deconvolution(
+                freqs, p_cfg, inst, q_target=0.707
+            )
             h_front = h_aperture_deconv * h_c_front
 
         db_front = np.round(20.0 * np.log10(np.clip(h_front, 1e-4, 10.0)), 2)
+        # Source Bass Input entering Block 1 (relative to Canonical Intermediate baseline)
         db_src = -db_front
         db_ci = [0.0] * n_pts
 
@@ -680,8 +699,9 @@ def build_composite_instrument_dataframe(
         pname_col.extend([p_name] * n_pts)
 
     # Stage 4: Block 2 Target Voicing (deduplicated across pickups)
-    for vname, db_tgt in target_dfs.values():
-        if db_tgt is None:  # Source Direct
+    for vid, (vname, db_tgt) in sorted(target_dfs.items()):
+        vcfg = VOICES[vid]
+        if db_tgt is None or (vcfg.preserve_aperture or False):
             db_back = [0.0] * n_pts
         else:
             db_back = np.round(db_tgt - db_can, 2).tolist()
@@ -695,8 +715,8 @@ def build_composite_instrument_dataframe(
     # Stage 5: Target Voice Output (per pickup and target voice)
     for _p_key, p_cfg in sorted(pickups.items()):
         p_name = p_cfg.name
-        for vname, db_tgt in target_dfs.values():
-            if db_tgt is None:  # Source Direct
+        for vid, (vname, db_tgt) in sorted(target_dfs.items()):
+            if db_tgt is None:
                 db_out = [0.0] * n_pts
             else:
                 db_out = np.round(db_tgt, 2).tolist()
@@ -716,3 +736,5 @@ def build_composite_instrument_dataframe(
             "pickup_name": pname_col,
         }
     )
+
+

@@ -4,9 +4,12 @@ Tests for Polars-based frequency response dataframe generation in allomorph.visu
 
 import polars as pl
 
-from allomorph.config import VOICES, load_instrument
+from allomorph.config import VOICES, load_all_instruments, load_instrument
 from allomorph.visualizer import (
     build_composite_instrument_dataframe,
+    build_frontend_deconvolutions_dataframe,
+    build_instrument_frontend_dataframe,
+    build_universal_targets_dataframe,
     build_voice_dataframe,
 )
 
@@ -92,6 +95,48 @@ def test_build_composite_instrument_dataframe():
     assert not df["magnitude_db"].is_nan().any()
 
 
+def test_build_composite_instrument_dataframe_matching_identity():
+    inst = load_instrument("34in_standard_jazz")
+    df = build_composite_instrument_dataframe(inst)
+
+    # 1. Source Bass Input + Block 1 Deconvolution must neutralize into Canonical Intermediate (bit-exact 0.00 dB)
+    s1 = df.filter(
+        (df["stage"] == "1. Source Bass Input")
+        & (df["pickup_name"] == "Jazz Neck + Bridge Parallel")
+    )
+    s2 = df.filter(
+        (df["stage"] == "2. Block 1 Deconvolution")
+        & (df["pickup_name"] == "Jazz Neck + Bridge Parallel")
+    )
+    assert len(s1) > 0
+    assert len(s1) == len(s2)
+    sum_curves = [
+        round(a + b, 2)
+        for a, b in zip(s1["magnitude_db"].to_list(), s2["magnitude_db"].to_list(), strict=False)
+    ]
+    assert all(val == 0.0 for val in sum_curves)
+
+    # 2. Stage 3 (Canonical Intermediate) must be flat 0.00 dB baseline datum
+    s3 = df.filter(
+        (df["stage"] == "3. Canonical Intermediate (0 dB)")
+        & (df["pickup_name"] == "Jazz Neck + Bridge Parallel")
+    )
+    assert (s3["magnitude_db"] == 0.0).all()
+
+    # 3. Verify P-Bass deconvolution: Block 1 is regularized and strictly bounded (no unbounded HF boost)
+    inst_p = load_instrument("34in_standard_p")
+    df_p = build_composite_instrument_dataframe(inst_p)
+    p_s1 = df_p.filter(df_p["stage"] == "1. Source Bass Input")
+    p_s2 = df_p.filter(df_p["stage"] == "2. Block 1 Deconvolution")
+    p_s2_mags = p_s2["magnitude_db"].to_list()
+    assert max(p_s2_mags) <= 8.0
+    assert min(p_s2_mags) > -5.0
+
+    # Source Bass Input + Block 1 Deconvolution must sum to exact 0.00 dB
+    p_sum = [round(a + b, 2) for a, b in zip(p_s1["magnitude_db"].to_list(), p_s2_mags, strict=False)]
+    assert all(val == 0.0 for val in p_sum)
+
+
 def test_build_voice_dataframe_output_mode():
     voice_id = "01_modern_jazz_active"
     cfg = VOICES[voice_id]
@@ -116,3 +161,54 @@ def test_build_voice_dataframe_output_mode():
     )
     assert "mode" in df_mode.columns
     assert (df_mode["mode"] == "Output Voice").all()
+
+
+def test_build_universal_targets_dataframe():
+    df = build_universal_targets_dataframe()
+    assert isinstance(df, pl.DataFrame)
+    expected_cols = {
+        "frequency",
+        "magnitude_db",
+        "voice_id",
+        "voice_name",
+        "topology",
+        "fr",
+        "Q",
+        "description",
+    }
+    assert set(df.columns) == expected_cols
+    # 22 target voices * 600 points = 13200 rows
+    assert df.height == 22 * 600
+    assert not df["magnitude_db"].is_nan().any()
+    assert not df["magnitude_db"].is_null().any()
+
+
+def test_build_instrument_frontend_dataframe():
+    inst = load_instrument("34in_standard_p")
+    df = build_instrument_frontend_dataframe(inst)
+    assert isinstance(df, pl.DataFrame)
+    expected_cols = {
+        "frequency",
+        "magnitude_db",
+        "instrument_id",
+        "instrument_name",
+        "pickup_key",
+        "pickup_name",
+        "scale_in",
+        "position_mm",
+    }
+    assert set(df.columns) == expected_cols
+    assert df.height == len(inst.pickups) * 600
+    assert not df["magnitude_db"].is_nan().any()
+
+
+def test_build_frontend_deconvolutions_dataframe():
+    df = build_frontend_deconvolutions_dataframe()
+    assert isinstance(df, pl.DataFrame)
+    assert "label" in df.columns
+    assert "instrument_id" in df.columns
+    all_insts = load_all_instruments()
+    expected_inst_ids = {k for k in all_insts if k != "canonical_intermediate"}
+    assert set(df["instrument_id"].unique().to_list()) == expected_inst_ids
+    assert not df["magnitude_db"].is_nan().any()
+

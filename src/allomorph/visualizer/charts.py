@@ -7,11 +7,15 @@ from pathlib import Path
 from typing import Any
 
 import altair as alt
+import numpy as np
 import polars as pl
 
+from allomorph.circuit import compute_differential_circuit_transfer_functions, load_circuit
 from allomorph.config.instruments import load_all_instruments, load_instrument
 from allomorph.config.schema import InstrumentConfig
 from allomorph.config.voices import VOICES
+from allomorph.dsp import FREQS
+from allomorph.physics import is_voice_matching_source
 from allomorph.visualizer.dataframe import (
     build_composite_instrument_dataframe,
     build_instrument_frontend_dataframe,
@@ -144,9 +148,14 @@ def generate_universal_targets_chart(target_path: Path | None = None) -> Path:
             ),
             y=alt.Y(
                 "magnitude_db:Q",
-                scale=alt.Scale(domain=[-30, 15]),
+                scale=alt.Scale(domain=[-24, 24]),
                 title="Voicing Magnitude relative to Intermediate (dB)",
-                axis=alt.Axis(grid=True, gridDash=[3, 3], gridColor="#333333"),
+                axis=alt.Axis(
+                    values=[-24, -18, -12, -6, 0, 6, 12, 18, 24],
+                    grid=True,
+                    gridDash=[3, 3],
+                    gridColor="#333333",
+                ),
             ),
             color=alt.Color(
                 "voice_name:N",
@@ -284,10 +293,10 @@ def generate_instrument_frontend_chart(
             ),
             y=alt.Y(
                 "magnitude_db:Q",
-                scale=alt.Scale(domain=[-8, 12]),
+                scale=alt.Scale(domain=[-24, 24]),
                 title="Frontend Deconvolution Gain (dB)",
                 axis=alt.Axis(
-                    values=[-8, -6, -4, -2, 0, 2, 4, 6, 8, 10, 12],
+                    values=[-24, -18, -12, -6, 0, 6, 12, 18, 24],
                     grid=True,
                     gridDash=[3, 3],
                     gridColor="#333333",
@@ -574,12 +583,12 @@ def generate_composite_instrument_chart(
 ) -> Path:
     """
     Renders the Signal Flow Inspector chart:
-      1. Source Bass Input (Entering Block 1)
-      2. Block 1 Deconvolution (Inverse Filter)
-      3. Canonical Intermediate (0 dB Neutral Baseline)
-      4. Block 2 Target Voicing (Universal Target Profile)
-      5. Target Voice Output (Authentic Target Voice)
-    Illustrates: Bass Input -deconvolution-> Canonical Intermediate Baseline -voicing-> Target Output.
+      1. Source Bass Input (Entering Block 1, relative to Canonical Intermediate datum)
+      2. Block 1 Deconvolution (Deconvolution FIR filter with Wiener regularization)
+      3. Canonical Intermediate (0 dB Neutral Baseline Datum)
+      4. Block 2 Target Voicing (Universal target transfer function from Canonical datum)
+      5. Target Voice Output (Authentic target voice response)
+    Illustrates: Source Bass Input + Block 1 Deconvolution = Canonical Intermediate (0 dB) -> Block 2 Target Voicing -> Target Voice Output.
     """
     inst = instrument if isinstance(instrument, InstrumentConfig) else load_instrument(instrument)
     inst_id = inst.id
@@ -598,10 +607,42 @@ def generate_composite_instrument_chart(
 
     master_df = build_composite_instrument_dataframe(inst)
     voice_names = [v for v in master_df["voice_name"].unique().sort().to_list() if v]
-    default_voice = voice_names[0] if voice_names else ""
-
     pickup_names = [p for p in master_df["pickup_name"].unique().sort().to_list() if p]
-    default_pickup = pickup_names[0] if pickup_names else ""
+
+    default_pickup_key = inst.default_pickup or (
+        next(iter(inst.pickups.keys())) if inst.pickups else ""
+    )
+    default_pickup_cfg = inst.pickups.get(default_pickup_key)
+    default_pickup = (
+        default_pickup_cfg.name
+        if default_pickup_cfg and default_pickup_cfg.name in pickup_names
+        else (pickup_names[0] if pickup_names else "")
+    )
+
+    matching_voice_name: str | None = None
+    for vid, vcfg in sorted(VOICES.items()):
+        if vid == "00_canonical_intermediate":
+            continue
+        if inst.pickup_mapping.get(vid, inst.default_pickup) != default_pickup_key:
+            continue
+        if not is_voice_matching_source(inst, vid, vcfg):
+            continue
+        if default_pickup_cfg and default_pickup_cfg.circuit and vcfg.circuit:
+            src_m = load_circuit(default_pickup_cfg.circuit)
+            tgt_m = load_circuit(vcfg.circuit)
+            diff_c = compute_differential_circuit_transfer_functions(tgt_m, src_m, freqs=FREQS)
+            if np.allclose(diff_c[0], 1.0, rtol=1e-3):
+                matching_voice_name = vcfg.name
+                break
+        elif not (default_pickup_cfg and default_pickup_cfg.circuit) and not vcfg.circuit:
+            matching_voice_name = vcfg.name
+            break
+
+    default_voice = (
+        matching_voice_name
+        if matching_voice_name and matching_voice_name in voice_names
+        else (voice_names[0] if voice_names else "")
+    )
 
     voice_select = alt.selection_point(
         fields=["voice_name"],
@@ -640,8 +681,8 @@ def generate_composite_instrument_chart(
             ),
             y=alt.Y(
                 "magnitude_db:Q",
-                scale=alt.Scale(domain=[-30, 24]),
-                title="Magnitude / Gain (dB)",
+                scale=alt.Scale(domain=[-24, 24]),
+                title="Magnitude / Gain relative to Canonical Intermediate (dB)",
                 axis=alt.Axis(
                     values=[-24, -18, -12, -6, 0, 6, 12, 18, 24],
                     grid=True,
@@ -713,7 +754,7 @@ def generate_composite_instrument_chart(
         chart.properties(
             title=alt.TitleParams(
                 text=f"Allomorph Master Voices: Signal Flow Inspector ({inst_name})",
-                subtitle="Signal Flow: Source Bass Input ➔ [Block 1 Deconvolution] ➔ Canonical Intermediate (0 dB) ➔ [Block 2 Voicing] ➔ Target Output",
+                subtitle="Signal Flow (All Relative to Canonical Intermediate): Source Bass Input ➔ [Block 1 Deconvolution] ➔ Canonical Intermediate (0 dB) ➔ [Block 2 Voicing] ➔ Target Voice Output",
                 fontSize=16,
                 subtitleFontSize=12,
                 anchor="start",
@@ -769,23 +810,23 @@ def generate_composite_instrument_chart(
 <div class="composite-banner">
   <div class="comp-item">
     <div class="comp-title"><span class="dot-cyan"></span> 1. Source Bass Input</div>
-    <div class="comp-desc">Cyan curve: Physical acoustic aperture and RLC loading of the selected source pickup entering Block 1.</div>
+    <div class="comp-desc">Cyan curve: Physical acoustic aperture and RLC response of the selected source pickup entering Block 1 (relative to Canonical Intermediate Datum).</div>
   </div>
   <div class="comp-item">
     <div class="comp-title"><span class="dot-teal"></span> 2. Block 1 Deconvolution</div>
-    <div class="comp-desc">Dotted Teal curve: 2048-tap FIR deconvolution filter neutralizing pickup placement and electrical impedance.</div>
+    <div class="comp-desc">Dotted Teal curve: 2048-tap FIR deconvolution filter (H<sub>front</sub> = H<sub>can</sub> / H<sub>src</sub>) with Wiener regularization & HF clamping neutralizing source pickup to Canonical Intermediate.</div>
   </div>
   <div class="comp-item">
     <div class="comp-title"><span class="dot-gray"></span> 3. Canonical Intermediate (0 dB)</div>
-    <div class="comp-desc">Dashed Gray line: Standardized neutral baseline achieved when Source Input passes through Block 1.</div>
+    <div class="comp-desc">Dashed Gray line: Standardized neutral 0.00 dB baseline datum achieved when Source Input passes through Block 1 (Stage 1 + Stage 2 = 0 dB).</div>
   </div>
   <div class="comp-item">
     <div class="comp-title"><span class="dot-orange"></span> 4. Block 2 Target Voicing</div>
-    <div class="comp-desc">Dashed Orange curve: Universal target acoustic aperture & SPICE netlist shaping applied by Block 2 NAM.</div>
+    <div class="comp-desc">Dashed Orange curve: Universal target transfer function (H<sub>back</sub> = H<sub>tgt</sub> / H<sub>can</sub>) applied by Block 2 NAM relative to Canonical Intermediate.</div>
   </div>
   <div class="comp-item">
     <div class="comp-title"><span class="dot-gold"></span> 5. Target Voice Output</div>
-    <div class="comp-desc">Solid Gold curve: Authentic target acoustic voice produced at output (Canonical Baseline + Voicing).</div>
+    <div class="comp-desc">Solid Gold curve: Authentic target acoustic voice produced after Block 2 processing (Canonical Baseline + Target Voicing).</div>
   </div>
 </div>
 """
