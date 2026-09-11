@@ -43,6 +43,7 @@ def test_load_all_default_instruments():
         assert isinstance(cfg, InstrumentConfig), f"Instrument {iid} is not an InstrumentConfig"
         assert cfg.id == iid
         assert cfg.name
+        assert cfg.scale_length_in is not None
         assert cfg.scale_length_in > 0
         assert len(cfg.string_wave_speeds) in [4, 5]
         assert len(cfg.pickups) > 0

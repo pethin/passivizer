@@ -100,7 +100,7 @@ def train_voice(
             inst_cfg = load_instrument(instrument)
             inst_id = inst_cfg.id
             inst_name = inst_cfg.name
-            scale_length_in = inst_cfg.scale_length_in
+            scale_length_in = inst_cfg.scale_length_in or 34.0
             src_pickup = get_source_pickup(inst_cfg, voice)
             src_pickup_name = src_pickup.name
             src_pos_mm = (src_pickup.position_from_bridge_m or 0.0) * 1000.0
@@ -170,7 +170,7 @@ def train_voice(
         inst_cfg = load_instrument(instrument)
         inst_id = inst_cfg.id
         inst_name = inst_cfg.name
-        scale_length_in = inst_cfg.scale_length_in
+        scale_length_in = inst_cfg.scale_length_in or 34.0
 
         src_pickup = get_source_pickup(inst_cfg, voice)
         src_pickup_name = src_pickup.name

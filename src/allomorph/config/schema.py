@@ -53,7 +53,7 @@ class ScaleConfig(AllomorphBaseModel):
     """Vibrating string scale length and physical wave speeds."""
 
     name: str
-    scale_length_in: float = Field(..., gt=0.0)
+    scale_length_in: float | None = None
     scale_length_m: float | None = None
     scale_min_in: float | None = None
     scale_max_in: float | None = None
@@ -62,17 +62,21 @@ class ScaleConfig(AllomorphBaseModel):
 
     @model_validator(mode="after")
     def compute_scale_m(self) -> Self:
-        if self.scale_length_m is None:
+        if self.scale_length_m is None and self.scale_length_in is not None:
             self.scale_length_m = self.scale_length_in * 0.0254
+        elif self.scale_length_in is None and self.scale_length_m is not None:
+            self.scale_length_in = self.scale_length_m / 0.0254
+        elif self.scale_length_m is None and self.scale_length_in is None:
+            raise ValueError("ScaleConfig must specify either scale_length_in or scale_length_m")
         return self
 
     @property
     def scale_m(self) -> float:
-        return (
-            self.scale_length_m
-            if self.scale_length_m is not None
-            else self.scale_length_in * 0.0254
-        )
+        if self.scale_length_m is not None:
+            return self.scale_length_m
+        if self.scale_length_in is not None:
+            return self.scale_length_in * 0.0254
+        return 0.8636
 
     @property
     def speeds(self) -> list[float]:
@@ -221,7 +225,7 @@ class InstrumentConfig(AllomorphBaseModel):
 
     id: str = "custom"
     name: str = ""
-    scale_length_in: float = Field(34.0, gt=0.0)
+    scale_length_in: float | None = Field(34.0, gt=0.0)
     scale_length_m: float | None = None
     scale_min_in: float | None = None
     scale_max_in: float | None = None
@@ -237,8 +241,13 @@ class InstrumentConfig(AllomorphBaseModel):
     def validate_instrument(self) -> Self:
         if not self.name:
             self.name = self.id
-        if self.scale_length_m is None:
+        if self.scale_length_m is None and self.scale_length_in is not None:
             self.scale_length_m = self.scale_length_in * 0.0254
+        elif self.scale_length_in is None and self.scale_length_m is not None:
+            self.scale_length_in = self.scale_length_m / 0.0254
+        elif self.scale_length_m is None and self.scale_length_in is None:
+            self.scale_length_in = 34.0
+            self.scale_length_m = 0.8636
         if self.default_pickup and self.pickups and self.default_pickup not in self.pickups:
             raise KeyError(
                 f"Instrument '{self.id}' default_pickup '{self.default_pickup}' "

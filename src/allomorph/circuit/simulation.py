@@ -605,14 +605,7 @@ def simulate_voice(
                 f"Available voices: {list(VOICES.keys())}"
             )
         vcfg = VOICES[voice_id]
-        if vcfg.circuit is not None:
-            model = load_circuit(vcfg.circuit)
-        elif vcfg.sensor_type == "direct":
-            model = load_circuit(voice_id)
-        else:
-            raise ValueError(
-                f"Target voice '{voice_id}' does not define a '[circuit]' configuration."
-            )
+        model = load_circuit(vcfg.circuit)
 
     inst_cfg = (
         instrument

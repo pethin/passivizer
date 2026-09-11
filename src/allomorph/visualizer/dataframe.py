@@ -108,23 +108,9 @@ def build_voice_dataframe(
 
     if mode == "output":
         # 1. Output Voice: Target acoustic aperture + loaded SPICE circuit + string + body bloom
-        if tgt_circuit is not None:
-            model = load_circuit(tgt_circuit)
-            apply_magnet_properties_to_model(model, cfg)
-            circuit_curves = compute_circuit_transfer_functions(model, freqs=FREQS)
-        else:
-            fc_hpf = cfg.hpf
-            circuit_curves = []
-            f_lin = np.asarray(FREQS, dtype=np.float64)
-            for p in pickups:
-                fr_p = p.fr
-                Q_p = p.Q
-                h_el = 1.0 / np.sqrt(
-                    (1.0 - (f_lin / fr_p) ** 2) ** 2 + (1.0 / Q_p**2) * (f_lin / fr_p) ** 2
-                )
-                if fc_hpf:
-                    h_el = h_el * (f_lin / np.sqrt(f_lin**2 + fc_hpf**2))
-                circuit_curves.append(h_el.tolist())
+        model = load_circuit(tgt_circuit)
+        apply_magnet_properties_to_model(model, cfg)
+        circuit_curves = compute_circuit_transfer_functions(model, freqs=FREQS)
 
         if sensor_type == "bridge_force":
             f_lin = freqs
@@ -162,9 +148,7 @@ def build_voice_dataframe(
                 c_curve = circuit_curves[i] if i < len(circuit_curves) else [1.0] * len(FREQS)
                 p_weight = p.weight
                 p_pol = p.polarity
-                weight_fac = (
-                    1.0 if (tgt_circuit is not None and len(circuit_curves) > 1) else p_weight
-                )
+                weight_fac = 1.0 if len(circuit_curves) > 1 else p_weight
 
                 ac = numpy_pickup_acoustic_response(
                     f_bins, p.coils, scale_length_m=tgt_scale_range
@@ -241,7 +225,7 @@ def build_voice_dataframe(
                 f"circuit model for differential deconvolution."
             )
 
-        if src_circuit and tgt_circuit:
+        if src_circuit:
             model = load_circuit(tgt_circuit)
             apply_magnet_properties_to_model(model, cfg)
             src_model = load_circuit(src_circuit)
@@ -249,23 +233,10 @@ def build_voice_dataframe(
             circuit_curves = compute_differential_circuit_transfer_functions(
                 model, src_model, freqs=FREQS
             )
-        elif tgt_circuit:
+        else:
             model = load_circuit(tgt_circuit)
             apply_magnet_properties_to_model(model, cfg)
             circuit_curves = compute_circuit_transfer_functions(model, freqs=FREQS)
-        else:
-            fc_hpf = cfg.hpf
-            circuit_curves = []
-            f_lin = np.asarray(FREQS, dtype=np.float64)
-            for p in pickups:
-                fr_p = p.fr
-                Q_p = p.Q
-                h_el = 1.0 / np.sqrt(
-                    (1.0 - (f_lin / fr_p) ** 2) ** 2 + (1.0 / Q_p**2) * (f_lin / fr_p) ** 2
-                )
-                if fc_hpf:
-                    h_el = h_el * (f_lin / np.sqrt(f_lin**2 + fc_hpf**2))
-                circuit_curves.append(h_el.tolist())
 
         # Multi-rate FFT evaluation matching native circuit simulator synthesis exactly
         prefilter_firs = compute_voice_prefilter_firs(voice_id, instrument=inst, num_taps=2048)
@@ -411,7 +382,7 @@ def build_frontend_deconvolutions_dataframe() -> pl.DataFrame:
             continue
         inst_name = inst.name
         scale_range = resolve_scale_range(inst)
-        scale_in = inst.scale_length_in
+        scale_in = inst.scale_length_in or 34.0
         pickups = inst.pickups
 
         for p_key, p_cfg in sorted(pickups.items()):
@@ -471,7 +442,7 @@ def build_instrument_frontend_dataframe(inst: InstrumentConfig) -> pl.DataFrame:
     inst_id = inst.id
     inst_name = inst.name
     scale_range = resolve_scale_range(inst)
-    scale_in = inst.scale_length_in
+    scale_in = inst.scale_length_in or 34.0
     pickups = inst.pickups
 
     rows = []

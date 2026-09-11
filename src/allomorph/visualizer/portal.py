@@ -27,7 +27,7 @@ def format_instrument_meta(inst: InstrumentConfig) -> PortalInstrumentMeta:
     """Formats an InstrumentConfig into metadata suitable for the portal."""
     inst_id = inst.id
     inst_name = inst.name
-    scale_in = inst.scale_length_in
+    scale_in = inst.scale_length_in or 34.0
     scale_m = inst.scale_length_m or (scale_in * 0.0254)
     speeds = inst.string_wave_speeds or []
     speeds_str = ", ".join(f"{float(s):.1f} m/s" for s in speeds) if speeds else "N/A"
