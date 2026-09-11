@@ -5,12 +5,12 @@ Supports tone pot, volume pot, cable capacitance, tone capacitor, and active EQ 
 """
 
 import copy
-from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Self
 
 import numpy as np
 import polars as pl
+from pydantic import BaseModel, ConfigDict, model_validator
 
 from allomorph.circuit.parser import CircuitModel, load_circuit
 from allomorph.circuit.solver import (
@@ -20,9 +20,10 @@ from allomorph.circuit.solver import (
 from allomorph.dsp import FREQS
 
 
-@dataclass
-class ParametricSweepResult:
-    """Represents the results of a parametric frequency response sweep."""
+class ParametricSweepResult(BaseModel):
+    """Represents the results of a parametric frequency response sweep with verified array invariants."""
+
+    model_config = ConfigDict(arbitrary_types_allowed=True, extra="forbid")
 
     param: str
     values: list[float]
@@ -30,6 +31,22 @@ class ParametricSweepResult:
     curves: list[np.ndarray]  # magnitude in dB for each swept value
     labels: list[str]
     voice_id: str | None = None
+
+    @model_validator(mode="after")
+    def validate_dimensional_invariants(self) -> Self:
+        n_v = len(self.values)
+        if len(self.curves) != n_v or len(self.labels) != n_v:
+            raise ValueError(
+                f"Dimensional mismatch in ParametricSweepResult: values={n_v}, "
+                f"curves={len(self.curves)}, labels={len(self.labels)} must all match."
+            )
+        n_f = len(self.freqs)
+        for i, c in enumerate(self.curves):
+            if len(c) != n_f:
+                raise ValueError(
+                    f"Curve {i} length ({len(c)}) does not match frequencies length ({n_f})."
+                )
+        return self
 
     @property
     def curves_db(self) -> list[np.ndarray]:

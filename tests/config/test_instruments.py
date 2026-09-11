@@ -9,6 +9,8 @@ from pathlib import Path
 from allomorph.config import (
     STRINGS,
     VOICES,
+    InstrumentConfig,
+    PickupConfig,
     get_source_pickup,
     load_all_instruments,
     load_instrument,
@@ -37,19 +39,20 @@ def test_load_all_default_instruments():
         assert iid in instruments, f"Default instrument '{iid}' not found"
 
     for iid, cfg in instruments.items():
-        assert "id" in cfg
-        assert "name" in cfg
-        assert cfg["scale_length_in"] > 0
-        assert len(cfg["string_wave_speeds"]) in [4, 5]
-        assert "pickups" in cfg and len(cfg["pickups"]) > 0
-        assert "default_pickup" in cfg
-        assert cfg["default_pickup"] in cfg["pickups"]
+        assert isinstance(cfg, InstrumentConfig), f"Instrument {iid} is not an InstrumentConfig"
+        assert cfg.id == iid
+        assert cfg.name
+        assert cfg.scale_length_in > 0
+        assert len(cfg.string_wave_speeds) in [4, 5]
+        assert len(cfg.pickups) > 0
+        assert cfg.default_pickup in cfg.pickups
 
-        for pcfg in cfg["pickups"].values():
-            assert "name" in pcfg
-            assert pcfg["position_from_bridge_m"] > 0
-            assert pcfg["aperture_width_in"] > 0
-            assert pcfg["coil_spacing_in"] >= 0
+        for p_name, pcfg in cfg.pickups.items():
+            assert isinstance(pcfg, PickupConfig), f"Pickup {p_name} is not a PickupConfig"
+            assert pcfg.name
+            assert pcfg.position_from_bridge_m is not None and pcfg.position_from_bridge_m > 0
+            assert pcfg.aperture_width_in > 0
+            assert pcfg.coil_spacing_in >= 0
 
 
 def test_load_custom_user_bass_toml():

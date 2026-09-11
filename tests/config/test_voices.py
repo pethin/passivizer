@@ -6,46 +6,43 @@ import numpy as np
 
 from allomorph.circuit import compute_circuit_transfer_functions, load_circuit
 from allomorph.config import VOICES
+from allomorph.config.schema import CircuitConfig, VoiceConfig
 from allomorph.dsp import FREQS, NUM_TAPS
 from allomorph.physics import compute_voice_prefilter_firs
 from allomorph.visualizer import build_voice_dataframe
 
 
 def test_voice_parameter_validity():
+    """Verify that all target voices are validated VoiceConfig models satisfying physical bounds."""
     for vid, cfg in VOICES.items():
-        assert "name" in cfg, f"{vid} missing name"
-        assert "topology" in cfg, f"{vid} missing topology"
-        assert "description" in cfg, f"{vid} missing description"
-        assert cfg["fr"] > 0, f"{vid} invalid resonant frequency fr: {cfg['fr']}"
+        assert isinstance(cfg, VoiceConfig), f"{vid} is not a VoiceConfig instance"
+        assert cfg.name and cfg.topology and cfg.description
+        assert cfg.fr > 0
         max_fr = 20000.0 if vid == "00_canonical_intermediate" else 6000.0
-        assert 200.0 <= cfg["fr"] <= max_fr, f"{vid} fr outside audible musical range: {cfg['fr']}"
-        assert cfg["Q"] > 0, f"{vid} invalid Q: {cfg['Q']}"
-        assert isinstance(cfg["gain_db"], (int, float)), f"{vid} gain_db not float"
-        assert "coils" in cfg, f"{vid} missing coils array"
-        assert len(cfg["coils"]) >= 1, f"{vid} has empty coils list"
-        for i, c in enumerate(cfg["coils"]):
-            assert "position_from_bridge_m" in c, f"{vid} coil {i} missing position_from_bridge_m"
-            assert c["position_from_bridge_m"] > 0, f"{vid} coil {i} invalid position: {c['position_from_bridge_m']}"
-            assert c.get("aperture_width_in", 0.75) > 0, f"{vid} coil {i} invalid aperture"
-            assert c.get("weight", 1.0) > 0, f"{vid} coil {i} invalid weight"
-            assert "strings" in c, f"{vid} coil {i} missing strings binding"
-            assert isinstance(c["strings"], list) and len(c["strings"]) >= 1
+        assert 200.0 <= cfg.fr <= max_fr, f"{vid} fr outside audible musical range: {cfg.fr}"
+        assert cfg.Q > 0
+        assert len(cfg.coils) >= 1
+        for c in cfg.coils:
+            assert c.position_from_bridge_m > 0
+            assert c.aperture_width_in > 0
+            assert c.weight > 0
+            assert len(c.strings) >= 1
 
-        if "pickups" in cfg:
-            assert len(cfg["pickups"]) >= 2, f"{vid} pickups list has fewer than 2 pickups"
-            for j, p in enumerate(cfg["pickups"]):
-                assert "name" in p, f"{vid} pickup {j} missing name"
-                assert p.get("fr", 0) > 0, f"{vid} pickup {j} invalid fr: {p.get('fr')}"
-                assert p.get("Q", 0) > 0, f"{vid} pickup {j} invalid Q: {p.get('Q')}"
-                assert p.get("weight", 0) > 0, f"{vid} pickup {j} invalid weight"
-                assert "coils" in p and len(p["coils"]) >= 1, f"{vid} pickup {j} missing coils"
+        if cfg.pickups:
+            assert len(cfg.pickups) >= 2, f"{vid} pickups list has fewer than 2 pickups"
+            for p in cfg.pickups:
+                assert p.name
+                assert p.fr > 0
+                assert p.Q > 0
+                assert p.weight > 0
+                assert len(p.coils) >= 1
 
 
 def test_voice_netlist_existence():
+    """Verify that every target voice defines a valid CircuitConfig model that parses into a CircuitModel."""
     for vid, cfg in VOICES.items():
-        assert "circuit" in cfg, f"{vid} missing circuit attribute"
-        assert isinstance(cfg["circuit"], dict), f"{vid} circuit configuration must be a dict"
-        m = load_circuit(cfg["circuit"])
+        assert isinstance(cfg.circuit, CircuitConfig), f"{vid} missing CircuitConfig"
+        m = load_circuit(cfg.circuit)
         assert m.L > 0
 
 

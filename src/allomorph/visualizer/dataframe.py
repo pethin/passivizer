@@ -18,6 +18,7 @@ from allomorph.circuit import (
 from allomorph.config import (
     SCALES,
     VOICES,
+    AllomorphBaseModel,
     compute_effective_position,
     get_source_pickup,
     get_voice_string,
@@ -50,9 +51,9 @@ log_freqs = [F_MIN * (F_MAX / F_MIN) ** (i / (NUM_POINTS - 1)) for i in range(NU
 
 def build_voice_dataframe(
     voice_id: str,
-    cfg: dict[str, Any],
-    instrument: str | dict[str, Any] = "30in",
-    src_scale: str | dict[str, Any] | None = None,
+    cfg: dict[str, Any] | AllomorphBaseModel,
+    instrument: str | dict[str, Any] | AllomorphBaseModel = "30in",
+    src_scale: str | dict[str, Any] | AllomorphBaseModel | None = None,
     mode: str = "difference",
     include_mode_col: bool = False,
 ) -> pl.DataFrame:
@@ -62,7 +63,7 @@ def build_voice_dataframe(
     mode="difference": Regularized differential transfer function (H_target / H_source) applied to the source instrument.
     """
     inst_selector = src_scale if src_scale is not None else instrument
-    inst = load_instrument(inst_selector) if not isinstance(inst_selector, dict) else inst_selector
+    inst = load_instrument(inst_selector) if not isinstance(inst_selector, (dict, AllomorphBaseModel)) else inst_selector
 
     tgt_scale = cfg.get("scale", "34in")
     _ = SCALES[tgt_scale]
@@ -277,7 +278,8 @@ def build_voice_dataframe(
 
         mag_raw = np.interp(freqs, f_bins, mag_spectrum)
 
-    if cfg.get("hpf") and cfg.get("hpf") >= 80.0:
+    hpf_val = cfg.get("hpf")
+    if hpf_val is not None and float(hpf_val) >= 80.0:
         ref_idx = np.argmin(np.abs(freqs - 1000.0))
     elif cfg.get("sensor_type") == "bridge_force":
         ref_idx = np.argmin(np.abs(freqs - 100.0))
@@ -416,7 +418,7 @@ def build_frontend_deconvolutions_dataframe() -> pl.DataFrame:
     return pl.DataFrame(rows)
 
 
-def build_instrument_frontend_dataframe(inst: dict[str, Any]) -> pl.DataFrame:
+def build_instrument_frontend_dataframe(inst: dict[str, Any] | AllomorphBaseModel) -> pl.DataFrame:
     """
     Calculates magnitude frequency responses for all pickup switch positions of a source instrument:
     H_frontend = H_canonical / H_source.
@@ -468,7 +470,7 @@ def build_instrument_frontend_dataframe(inst: dict[str, Any]) -> pl.DataFrame:
     return pl.DataFrame(rows)
 
 
-def build_composite_instrument_dataframe(inst: dict[str, Any]) -> pl.DataFrame:
+def build_composite_instrument_dataframe(inst: dict[str, Any] | AllomorphBaseModel) -> pl.DataFrame:
     """
     Calculates the 5-stage physical signal flow progression for a source instrument:
       1. Source Bass Input: Physical response of the source pickup entering Block 1.

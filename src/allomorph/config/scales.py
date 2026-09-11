@@ -11,26 +11,19 @@ CONFIG_DIR = REPO_ROOT / "config"
 SCALES_FILE = CONFIG_DIR / "scales.toml"
 
 
-def load_scales(config_path: str | Path | None = None) -> dict[str, Any]:
-    """Loads scale lengths and wave speeds from TOML."""
+from allomorph.config.schema import ScaleConfig, ScalesCatalog
+
+
+def load_scales(config_path: str | Path | None = None) -> dict[str, ScaleConfig]:
+    """Loads scale lengths and wave speeds from TOML into validated ScaleConfig models."""
     path = Path(config_path) if config_path else SCALES_FILE
     with open(path, "rb") as f:
         data = tomllib.load(f)
-    scales: dict[str, Any] = {}
-    for sid, scfg in data.get("scales", {}).items():
-        scales[sid] = {
-            "name": scfg.get("name", sid),
-            "scale_m": scfg.get("scale_length_m", scfg.get("scale_length_in", 34.0) * 0.0254),
-            "scale_length_in": scfg.get("scale_length_in", 34.0),
-            "scale_min_in": scfg.get("scale_min_in"),
-            "scale_max_in": scfg.get("scale_max_in"),
-            "is_multiscale": scfg.get("is_multiscale", False),
-            "speeds": scfg.get("string_wave_speeds", []),
-        }
-    return scales
+    catalog = ScalesCatalog.model_validate(data)
+    return catalog.scales
 
 
-SCALES = load_scales()
+SCALES: dict[str, ScaleConfig] = load_scales()
 
 
 def resolve_scale_range(
@@ -70,7 +63,9 @@ def resolve_scale_range(
         except (FileNotFoundError, ValueError, KeyError) as e:
             raise ValueError(f"Unknown scale or instrument identifier '{inst_or_scale}': {e}")
 
-    if isinstance(inst_or_scale, dict):
+    from allomorph.config.schema import InstrumentConfig, ScaleConfig
+
+    if isinstance(inst_or_scale, (dict, ScaleConfig, InstrumentConfig)):
         if inst_or_scale.get("is_multiscale"):
             min_in = inst_or_scale.get("scale_min_in")
             max_in = inst_or_scale.get("scale_max_in", inst_or_scale.get("scale_length_in", 37.0))
@@ -82,6 +77,6 @@ def resolve_scale_range(
         l_m = inst_or_scale.get("scale_length_m", inst_or_scale.get("scale_m"))
         if l_m is not None:
             return float(l_m), float(l_m)
-        raise ValueError(f"Dictionary configuration has no valid scale specification: {inst_or_scale}")
+        raise ValueError(f"Configuration object has no valid scale specification: {inst_or_scale}")
 
     raise TypeError(f"Cannot resolve scale range from object of type {type(inst_or_scale)}: {inst_or_scale}")

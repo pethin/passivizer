@@ -12,6 +12,7 @@ from typing import Any, Literal, overload
 import numpy as np
 
 from allomorph.circuit.parser import MAGNET_PROPERTIES, CircuitModel, eval_pot_taper
+from allomorph.config import AllomorphBaseModel
 from allomorph.dsp import FREQS
 
 
@@ -58,7 +59,7 @@ def compute_core_impedance(
 
 def apply_magnet_properties_to_model(
     model: CircuitModel,
-    vcfg: dict[str, Any],
+    vcfg: dict[str, Any] | AllomorphBaseModel,
     eddy_diffusion: bool = True,
 ) -> None:
     """
@@ -131,7 +132,7 @@ def apply_magnet_properties_to_model(
 
 
 def evaluate_analog_band(
-    band: dict[str, Any], s: complex | np.ndarray
+    band: dict[str, Any] | AllomorphBaseModel, s: complex | np.ndarray
 ) -> complex | np.ndarray:
     """Evaluates continuous s-domain analog transfer function for a single EQ band."""
     b_type = band.get("type", "bell")
@@ -157,7 +158,7 @@ def evaluate_analog_band(
 
 
 def compute_active_preamp_transfer(
-    bands: Sequence[dict[str, Any]] | None, s: complex | np.ndarray, gain_db: float = 0.0
+    bands: Sequence[dict[str, Any] | AllomorphBaseModel] | None, s: complex | np.ndarray, gain_db: float = 0.0
 ) -> np.ndarray:
     """Evaluates the composite analog active preamp contour across frequencies with finite DC transmission."""
     h_total = np.ones_like(s, dtype=np.complex128) * (10.0 ** (gain_db / 20.0))
@@ -169,27 +170,26 @@ def compute_active_preamp_transfer(
 
 
 def compute_active_preamp_eq(
-    preamp_spec: str | dict[str, Any] | Sequence[dict[str, Any]], s: complex | np.ndarray
+    preamp_spec: str | dict[str, Any] | AllomorphBaseModel | Sequence[dict[str, Any] | AllomorphBaseModel], s: complex | np.ndarray
 ) -> np.ndarray:
     """
     Evaluates analog active preamp contour transfer function.
     Accepts:
       - str (preset name): looks up in PREAMPS catalog (e.g. 'sadowsky_2band', 'stingray_2band')
       - list: evaluates list of band dicts
-      - dict: evaluates preamp dict containing 'bands' and optional 'gain_db'
+      - dict/AllomorphBaseModel: evaluates preamp dict containing 'bands' and optional 'gain_db'
     """
     if isinstance(preamp_spec, str):
-        from allomorph.config import PREAMPS
-        preset = PREAMPS.get(preamp_spec, {})
-        bands = preset.get("bands", [])
-        gain_db = preset.get("gain_db", 0.0)
-        return compute_active_preamp_transfer(bands, s, gain_db=gain_db)
-    elif isinstance(preamp_spec, list):
+        from allomorph.config import get_preamp
+
+        preset = get_preamp(preamp_spec)
+        return compute_active_preamp_transfer(preset.bands, s, gain_db=float(preset.gain_db))
+    elif isinstance(preamp_spec, (list, tuple)):
         return compute_active_preamp_transfer(preamp_spec, s)
-    elif isinstance(preamp_spec, dict):
-        bands = preamp_spec.get("bands", [])
-        gain_db = preamp_spec.get("gain_db", 0.0)
-        return compute_active_preamp_transfer(bands, s, gain_db=gain_db)
+    elif isinstance(preamp_spec, (dict, AllomorphBaseModel)):
+        bands_val = list(preamp_spec.get("bands", []))
+        gain_val = float(preamp_spec.get("gain_db", 0.0))
+        return compute_active_preamp_transfer(bands_val, s, gain_db=gain_val)
     return np.ones_like(s, dtype=np.complex128)
 
 

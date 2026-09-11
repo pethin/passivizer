@@ -60,13 +60,19 @@ INSTRUMENT_ALIASES = {
 }
 
 
-def load_instrument(identifier_or_path: str | Path | dict[str, Any]) -> dict[str, Any]:
+from allomorph.config.schema import AllomorphBaseModel, InstrumentConfig, PickupConfig
+
+
+def load_instrument(identifier_or_path: str | Path | dict[str, Any] | AllomorphBaseModel) -> InstrumentConfig:
     """
-    Loads an instrument configuration from a file path, known ID, or shorthand alias.
+    Loads and validates an instrument configuration from a file path, known ID, shorthand alias, or dict.
     Aliases: '30in' -> '30in_emg_mmtw', '32in' -> '32in_custom_pmm', '34in' -> '34in_standard_p'.
     """
-    if isinstance(identifier_or_path, dict):
+    if isinstance(identifier_or_path, InstrumentConfig):
         return identifier_or_path
+
+    if isinstance(identifier_or_path, dict):
+        return InstrumentConfig.model_validate(identifier_or_path)
 
     raw = str(identifier_or_path).strip()
     key = INSTRUMENT_ALIASES.get(raw, raw)
@@ -83,54 +89,68 @@ def load_instrument(identifier_or_path: str | Path | dict[str, Any]) -> dict[str
             raise FileNotFoundError(f"Instrument configuration not found: '{identifier_or_path}' (searched in {INSTRUMENTS_DIR})")
 
     with open(path, "rb") as f:
-        return tomllib.load(f)
+        data = tomllib.load(f)
+    return InstrumentConfig.model_validate(data)
 
 
-def load_all_instruments(instruments_dir: str | Path | None = None) -> dict[str, dict[str, Any]]:
-    """Loads all instrument definitions found in instruments_dir."""
+def load_all_instruments(instruments_dir: str | Path | None = None) -> dict[str, InstrumentConfig]:
+    """Loads all instrument definitions found in instruments_dir into validated InstrumentConfig models."""
     idir = Path(instruments_dir) if instruments_dir else INSTRUMENTS_DIR
-    instruments: dict[str, dict[str, Any]] = {}
+    instruments: dict[str, InstrumentConfig] = {}
     if idir.exists():
         for p in sorted(idir.glob("*.toml")):
             with open(p, "rb") as f:
                 cfg = tomllib.load(f)
-                inst_id = cfg.get("id", p.stem)
-                instruments[inst_id] = cfg
+                inst = InstrumentConfig.model_validate(cfg)
+                instruments[inst.id] = inst
     return instruments
 
 
-INSTRUMENTS = load_all_instruments()
+INSTRUMENTS: dict[str, InstrumentConfig] = load_all_instruments()
 
 
-def get_source_pickup(instrument: dict[str, Any], voice_id: str) -> dict[str, Any]:
+def get_source_pickup(instrument: dict[str, Any] | AllomorphBaseModel, voice_id: str) -> PickupConfig:
     """
     Determines which pickup on the source instrument should be used for the target voice.
-    Checks explicit pickup_mapping, falls back to default_pickup, or selects first pickup.
+    Checks explicit pickup_mapping, falls back to default_pickup, or raises diagnostic error.
     """
-    pickups = instrument.get("pickups", {})
+    pickups = instrument.get("pickups", {}) if hasattr(instrument, "get") else getattr(instrument, "pickups", {})
     if not pickups:
-        raise ValueError(f"Instrument '{instrument.get('id', 'unknown')}' has no pickups defined.")
+        inst_id = instrument.get("id", "unknown") if hasattr(instrument, "get") else getattr(instrument, "id", "unknown")
+        raise ValueError(f"Instrument '{inst_id}' has no pickups defined.")
 
     # 1. Explicit voice mapping
-    mapping = instrument.get("pickup_mapping", {})
+    mapping = instrument.get("pickup_mapping", {}) if hasattr(instrument, "get") else getattr(instrument, "pickup_mapping", {})
     if voice_id in mapping and mapping[voice_id] in pickups:
-        p = pickups[mapping[voice_id]].copy()
-        p["id"] = mapping[voice_id]
+        p_raw = pickups[mapping[voice_id]]
+        if isinstance(p_raw, PickupConfig):
+            p = p_raw.model_copy(deep=True)
+            p.id = mapping[voice_id]
+            return p
+        p = PickupConfig.model_validate(p_raw)
+        p.id = mapping[voice_id]
         return p
 
     # 2. Default pickup declared on instrument
-    default_key = instrument.get("default_pickup")
+    default_key = instrument.get("default_pickup") if hasattr(instrument, "get") else getattr(instrument, "default_pickup", None)
     if default_key:
         if default_key in pickups:
-            p = pickups[default_key].copy()
-            p["id"] = default_key
+            p_raw = pickups[default_key]
+            if isinstance(p_raw, PickupConfig):
+                p = p_raw.model_copy(deep=True)
+                p.id = default_key
+                return p
+            p = PickupConfig.model_validate(p_raw)
+            p.id = default_key
             return p
+        inst_id = instrument.get("id", "unknown") if hasattr(instrument, "get") else getattr(instrument, "id", "unknown")
         raise KeyError(
-            f"Instrument '{instrument.get('id', 'unknown')}' default_pickup '{default_key}' "
+            f"Instrument '{inst_id}' default_pickup '{default_key}' "
             f"not found in pickups: {list(pickups.keys())}"
         )
 
+    inst_id = instrument.get("id", "unknown") if hasattr(instrument, "get") else getattr(instrument, "id", "unknown")
     raise ValueError(
-        f"Instrument '{instrument.get('id', 'unknown')}' defines no 'default_pickup' "
+        f"Instrument '{inst_id}' defines no 'default_pickup' "
         f"and has no pickup_mapping for voice '{voice_id}'."
     )

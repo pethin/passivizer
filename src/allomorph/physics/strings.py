@@ -12,9 +12,28 @@ import numpy as np
 
 from allomorph.config import (
     SCALES,
-    STRINGS,
+    AllomorphBaseModel,
+    get_voice_string,
     resolve_scale_range,
 )
+
+__all__ = [
+    "INHARMONICITY_ANCHORS_BS",
+    "INHARMONICITY_ANCHORS_F0",
+    "MEAN_BASS_F0",
+    "NOTE_NAMES",
+    "STRING_FUNDAMENTALS",
+    "compute_differential_longitudinal_transfer",
+    "compute_differential_string_transfer",
+    "compute_dispersive_wave_speed",
+    "generate_wave_speed_continuum",
+    "get_inharmonicity_for_f0",
+    "get_voice_string",
+    "infer_string_names",
+    "pitch_to_note_name",
+    "resolve_scale_length",
+    "resolve_scale_range",
+]
 
 NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
 
@@ -37,14 +56,10 @@ INHARMONICITY_ANCHORS_BS = np.array(
 MEAN_BASS_F0 = 66.9045  # Mean open-string fundamental frequency (E1=41.203, A1=55.000, D2=73.416, G2=97.999)
 
 
-def get_voice_string(voice_cfg: dict[str, Any]) -> dict[str, Any]:
-    """Resolves target string configuration dictionary for a target voice."""
-    preset = voice_cfg.get("target_string", "roundwound_nickel_standard")
-    return STRINGS.get(preset, STRINGS.get("roundwound_nickel_standard", {})).copy()
-
-
 def compute_differential_string_transfer(
-    freqs: Sequence[float] | np.ndarray, src_string: dict[str, Any], tgt_string: dict[str, Any]
+    freqs: Sequence[float] | np.ndarray,
+    src_string: dict[str, Any] | AllomorphBaseModel,
+    tgt_string: dict[str, Any] | AllomorphBaseModel,
 ) -> np.ndarray:
     """
     Computes differential transfer function between source instrument strings
@@ -88,8 +103,8 @@ def compute_differential_string_transfer(
 
 def compute_differential_longitudinal_transfer(
     freqs: Sequence[float] | np.ndarray,
-    src_string: dict[str, Any],
-    tgt_string: dict[str, Any],
+    src_string: dict[str, Any] | AllomorphBaseModel,
+    tgt_string: dict[str, Any] | AllomorphBaseModel,
     scale_length_inches: float = 34.0,
 ) -> np.ndarray:
     """
@@ -141,7 +156,7 @@ def get_inharmonicity_for_f0(f0: float) -> float:
 
 
 def generate_wave_speed_continuum(
-    scale_length_m: float | tuple[float, float] | list[float] | dict[str, Any] | str | None = 0.8636,
+    scale_length_m: float | tuple[float, float] | list[float] | dict[str, Any] | AllomorphBaseModel | str | None = 0.8636,
     num_points: int = 24,
 ) -> list[dict[str, Any]]:
     """
@@ -159,7 +174,7 @@ def generate_wave_speed_continuum(
     if isinstance(scale_length_m, (tuple, list)) and len(scale_length_m) == 2:
         l_min_m = float(min(scale_length_m))
         l_max_m = float(max(scale_length_m))
-    elif isinstance(scale_length_m, dict) or (
+    elif isinstance(scale_length_m, (dict, AllomorphBaseModel)) or (
         isinstance(scale_length_m, str) and scale_length_m in SCALES
     ):
         l_min_m, l_max_m = resolve_scale_range(scale_length_m)

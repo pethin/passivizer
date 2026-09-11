@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from allomorph.config import REPO_ROOT, load_all_instruments
+from allomorph.config import REPO_ROOT, AllomorphBaseModel, load_all_instruments
 
 DOCS_DIR = REPO_ROOT / "docs"
 RESPONSES_DIR = DOCS_DIR / "frequency_responses"
@@ -18,7 +18,7 @@ def append_spec_panel(html_path: Path, panel_html: str) -> None:
         html_path.write_text(content, encoding="utf-8")
 
 
-def format_instrument_meta(inst: dict[str, Any]) -> dict[str, Any]:
+def format_instrument_meta(inst: dict[str, Any] | AllomorphBaseModel) -> dict[str, Any]:
     """Formats an instrument dictionary into metadata suitable for the portal."""
     inst_id = inst.get("id", "custom")
     inst_name = inst.get("name", inst_id)

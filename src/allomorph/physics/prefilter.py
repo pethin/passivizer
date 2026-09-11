@@ -13,6 +13,7 @@ from allomorph.config import (
     REPO_ROOT,
     SCALES,
     VOICES,
+    AllomorphBaseModel,
     compute_effective_position,
     get_instrument_string,
     get_source_pickup,
@@ -41,7 +42,7 @@ from allomorph.physics.strings import (
 
 def compute_voice_prefilter_firs(
     voice_id: str,
-    instrument: str | Path | dict[str, Any] = "30in",
+    instrument: str | Path | dict[str, Any] | AllomorphBaseModel = "30in",
     src_scale: float | tuple[float, float] | list[float] | str | None = None,
     num_taps: int = NUM_TAPS,
     src_pickup_key: str | None = None,
@@ -61,7 +62,7 @@ def compute_voice_prefilter_firs(
     tgt = SCALES[target_scale_key]
 
     inst_selector = src_scale if src_scale is not None else instrument
-    if isinstance(inst_selector, dict):
+    if isinstance(inst_selector, (dict, AllomorphBaseModel)):
         inst = inst_selector
     elif isinstance(inst_selector, (str, Path)):
         inst = load_instrument(inst_selector)
@@ -311,7 +312,7 @@ def compute_voice_prefilter_firs(
 
 def compute_aperture_prefilter_fir(
     voice_id: str,
-    instrument: str | Path | dict[str, Any] = "30in",
+    instrument: str | Path | dict[str, Any] | AllomorphBaseModel = "30in",
     src_scale: float | tuple[float, float] | list[float] | str | None = None,
     num_taps: int = NUM_TAPS,
 ) -> list[float]:
@@ -332,7 +333,7 @@ def compute_aperture_prefilter_fir(
     tgt = SCALES[target_scale_key]
 
     inst_selector = src_scale if src_scale is not None else instrument
-    if isinstance(inst_selector, dict):
+    if isinstance(inst_selector, (dict, AllomorphBaseModel)):
         inst = inst_selector
     elif isinstance(inst_selector, (str, Path)):
         inst = load_instrument(inst_selector)

@@ -32,6 +32,9 @@ from allomorph.circuit.solver import (
 from allomorph.config import (
     REPO_ROOT,
     VOICES,
+    HarnessControls,
+    MagnetPropertiesConfig,
+    SaturationConfig,
     get_instrument_string,
     get_source_pickup,
     load_instrument,
@@ -106,6 +109,8 @@ def simulate_circuit_audio(
     vsats: Sequence[float] | None = None,
     dc_block: bool = True,
     max_samples: int | None = None,
+    saturation_config: SaturationConfig | None = None,
+    harness_controls: HarnessControls | None = None,
 ):
     """
     Executes native Virtual Analog circuit simulation on audio.
@@ -121,6 +126,33 @@ def simulate_circuit_audio(
     Automatically normalizes output level based on the input sweep's dBFS (or explicit target_dbfs).
     Writes canonical 24-bit 48 kHz mono audio.
     """
+    if harness_controls is not None:
+        vol_pos = harness_controls.vol_pos
+        tone_pos = harness_controls.tone_pos
+        blend_pos = harness_controls.blend_pos
+        pot_taper = harness_controls.pot_taper
+
+    if saturation_config is not None:
+        vsat = saturation_config.vsat if vsat is None else vsat
+        alpha = saturation_config.alpha
+        alpha3 = saturation_config.alpha3
+        eta_hyst = saturation_config.eta_hyst
+        k_sag = saturation_config.k_sag
+        k_eddy = saturation_config.k_eddy
+        kappa_orbit = saturation_config.kappa_orbit
+        beta_curv = saturation_config.beta_curv
+        k_pull = saturation_config.k_pull
+        tau_touch = saturation_config.tau_touch
+        kappa_geom = saturation_config.kappa_geom
+        k_stein = saturation_config.k_stein
+        k_emf = saturation_config.k_emf
+        lambda_L = saturation_config.lambda_L
+        slew_limit = saturation_config.slew_limit
+        f_slew = saturation_config.f_slew
+        oversample = saturation_config.oversample
+        displacement_weighting = saturation_config.displacement_weighting
+        magnet_drag = saturation_config.magnet_drag
+
     import pedalboard
     from pedalboard.io import AudioFile
 
@@ -775,35 +807,53 @@ def simulate_voice(
             )
         src_props = MAGNET_PROPERTIES[src_mag]
 
-    src_alpha = src_props["alpha"]
-    src_alpha3 = src_props["alpha3"]
-    src_eta = src_props["eta_hyst"]
-    src_sag = src_props["k_sag"]
-    src_eddy = src_props["k_eddy"]
-    src_orbit = src_props["kappa_orbit"]
-    src_beta = src_props.get("beta_curv", 0.0)
-    src_pull = src_props.get("k_pull", 0.0)
-    src_touch = src_props.get("tau_touch", 0.0)
-    src_geom = src_props.get("kappa_geom", 0.0)
-    src_stein = src_props.get("k_stein", 0.0)
-    src_emf = src_props.get("k_emf", 0.0)
-    src_lambda = src_props.get("lambda_L", 0.0)
-    src_vsat = src_props.get("vsat", 0.50)
+    src_alpha = src_props.alpha
+    src_alpha3 = src_props.alpha3
+    src_eta = src_props.eta_hyst
+    src_sag = src_props.k_sag
+    src_eddy = src_props.k_eddy
+    src_orbit = src_props.kappa_orbit
+    src_beta = src_props.beta_curv
+    src_pull = src_props.k_pull
+    src_touch = src_props.tau_touch
+    src_geom = src_props.kappa_geom
+    src_stein = src_props.k_stein
+    src_emf = src_props.k_emf
+    src_lambda = src_props.lambda_L
+    src_vsat = src_props.vsat
+
+    voice_props = MagnetPropertiesConfig(
+        alpha=voice_alpha,
+        alpha3=voice_alpha3,
+        eta_hyst=voice_eta,
+        k_sag=voice_sag,
+        k_eddy=voice_eddy,
+        kappa_orbit=voice_orbit,
+        beta_curv=voice_beta,
+        k_pull=voice_pull,
+        tau_touch=voice_touch,
+        kappa_geom=voice_geom,
+        k_stein=voice_stein,
+        k_emf=voice_emf,
+        lambda_L=voice_lambda,
+    )
+    diff_props = voice_props.diff(src_props)
 
     tgt_vsat = model.vsat
-    diff_alpha = max(voice_alpha - src_alpha, 0.0)
-    diff_alpha3 = max(voice_alpha3 - src_alpha3, 0.0)
-    diff_eta = max(voice_eta - src_eta, 0.0)
-    diff_sag = max(voice_sag - src_sag, 0.0)
-    diff_eddy = max(voice_eddy - src_eddy, 0.0)
-    diff_orbit = max(voice_orbit - src_orbit, 0.0)
-    diff_beta = max(voice_beta - src_beta, 0.0)
-    diff_pull = max(voice_pull - src_pull, 0.0)
-    diff_touch = max(voice_touch - src_touch, 0.0)
-    diff_geom = max(voice_geom - src_geom, 0.0)
-    diff_stein = max(voice_stein - src_stein, 0.0)
-    diff_emf = max(voice_emf - src_emf, 0.0)
-    diff_lambda = max(voice_lambda - src_lambda, 0.0)
+    diff_alpha = diff_props.alpha
+    diff_alpha3 = diff_props.alpha3
+    diff_eta = diff_props.eta_hyst
+    diff_sag = diff_props.k_sag
+    diff_eddy = diff_props.k_eddy
+    diff_orbit = diff_props.kappa_orbit
+    diff_beta = diff_props.beta_curv
+    diff_pull = diff_props.k_pull
+    diff_touch = diff_props.tau_touch
+    diff_geom = diff_props.kappa_geom
+    diff_stein = diff_props.k_stein
+    diff_emf = diff_props.k_emf
+    diff_lambda = diff_props.lambda_L
+    src_vsat = src_props.vsat
 
     if not is_passive:
         eff_vsat = tgt_vsat

@@ -18,6 +18,7 @@ from allomorph.config import (
     INSTRUMENTS,
     REPO_ROOT,
     VOICES,
+    PipelineCliConfig,
     compute_effective_position,
     get_source_pickup,
     load_instrument,
@@ -166,6 +167,19 @@ def main(argv: Sequence[str] | None = None):
         help="List all target pickup voices and their SPICE netlists"
     )
     args = parser.parse_args(argv)
+
+    PipelineCliConfig.model_validate({
+        "instrument": args.instrument or "all",
+        "stage": args.stage,
+        "tier": args.tier,
+        "pickup": args.pickup,
+        "voice": args.voice or "all",
+        "train": args.train,
+        "vol_pos": args.vol_pos,
+        "tone_pos": args.tone_pos,
+        "cable_pf": args.cable_pf if args.cable_pf is not None else 750.0,
+        "input_wav": args.input_wav,
+    })
 
     if args.list_instruments:
         list_instruments()

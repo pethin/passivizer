@@ -10,6 +10,8 @@ from typing import Any
 
 import numpy as np
 
+from allomorph.config import SaturationConfig
+
 try:
     from numba import njit
     _HAS_NUMBA = True
@@ -297,7 +299,7 @@ def apply_elliptical_orbit_projection(
 
 def apply_oversampled_saturation(
     audio: np.ndarray,
-    vsat: float,
+    vsat: float = 0.50,
     alpha: float = 0.20,
     alpha3: float = 0.08,
     eta_hyst: float = 0.0,
@@ -316,6 +318,7 @@ def apply_oversampled_saturation(
     oversample: int = 2,
     displacement_weighting: bool = True,
     magnet_drag: bool = True,
+    config: SaturationConfig | None = None,
 ) -> np.ndarray:
     """
     Applies asymmetric soft-knee magnetic saturation with:
@@ -338,6 +341,27 @@ def apply_oversampled_saturation(
     to preserve 100% exact mathematical impulse response linearity.
     Optimized with single-pass frequency-domain weighting and decimation.
     """
+    if config is not None:
+        vsat = config.vsat
+        alpha = config.alpha
+        alpha3 = config.alpha3
+        eta_hyst = config.eta_hyst
+        k_sag = config.k_sag
+        k_eddy = config.k_eddy
+        kappa_orbit = config.kappa_orbit
+        beta_curv = config.beta_curv
+        k_pull = config.k_pull
+        tau_touch = config.tau_touch
+        kappa_geom = config.kappa_geom
+        k_stein = config.k_stein
+        k_emf = config.k_emf
+        lambda_L = config.lambda_L
+        slew_limit = config.slew_limit
+        f_slew = config.f_slew
+        oversample = config.oversample
+        displacement_weighting = config.displacement_weighting
+        magnet_drag = config.magnet_drag
+
     n_sig = len(audio)
     max_in = float(np.max(np.abs(audio)))
     if max_in <= 0.10:

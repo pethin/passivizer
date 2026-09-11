@@ -15,7 +15,7 @@ from allomorph.circuit import (
     compute_differential_circuit_transfer_functions,
     load_circuit,
 )
-from allomorph.config import INSTRUMENTS, load_instrument
+from allomorph.config import INSTRUMENTS, CircuitConfig, load_instrument
 from allomorph.dsp import FREQS
 
 
@@ -323,7 +323,7 @@ def test_dingwall_composite_source_circuit():
     inst = load_instrument("37in_multiscale_dingwall")
     pair_pickup = inst["pickups"]["pair_parallel"]
     assert "circuit" in pair_pickup
-    assert isinstance(pair_pickup["circuit"], dict)
+    assert isinstance(pair_pickup["circuit"], CircuitConfig)
 
     # Differential SPICE transfer functions evaluate cleanly
     tgt_model = load_circuit("02_jazz_bass_pair")

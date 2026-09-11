@@ -21,6 +21,8 @@ if str(SCRIPTS_DIR) not in sys.path:
 
 from allomorph.config import (
     VOICES,
+    InstrumentConfig,
+    PickupConfig,
     compute_effective_position,
     get_source_pickup,
     load_instrument,
@@ -93,11 +95,18 @@ def train_voice(
             src_pickup_name = src_pickup.get("name", "Source Pickup")
             src_pos_mm = src_pickup.get("position_from_bridge_m", 0.0) * 1000.0
         except (FileNotFoundError, KeyError, ValueError, OSError):
-            inst_cfg: dict[str, Any] = {}
             inst_id = str(instrument)
             inst_name = str(instrument)
             scale_length_in = 34.0
-            src_pickup: dict[str, Any] = {}
+            inst_cfg = InstrumentConfig(
+                id=inst_id,
+                name=inst_name,
+                scale_length_in=scale_length_in,
+                scale_length_m=0.8636,
+                string_wave_speeds=[58.02, 75.88, 99.19, 129.6],
+                pickups={},
+            )
+            src_pickup = PickupConfig(name="Baked Pickup", position_from_bridge_m=0.0)
             src_pickup_name = "Baked Pickup"
             src_pos_mm = 0.0
 
@@ -123,11 +132,18 @@ def train_voice(
         try:
             inst_cfg = load_instrument("canonical_intermediate")
         except (FileNotFoundError, KeyError, ValueError, OSError):
-            inst_cfg: dict[str, Any] = {}
+            inst_cfg = InstrumentConfig(
+                id="canonical_intermediate",
+                name="Canonical Intermediate",
+                scale_length_in=34.0,
+                scale_length_m=0.8636,
+                string_wave_speeds=[58.02, 75.88, 99.19, 129.6],
+                pickups={},
+            )
         inst_id = "canonical_intermediate"
         inst_name = "Canonical Intermediate"
         scale_length_in = 34.0
-        src_pickup = inst_cfg.get("pickups", {}).get("canonical_median", {})
+        src_pickup = inst_cfg.pickups.get("canonical_median") or PickupConfig(name="93.5mm Canonical Median", position_from_bridge_m=0.0935)
         src_pickup_name = "93.5mm Canonical Median"
         src_pos_mm = 93.5
     else:

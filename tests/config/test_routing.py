@@ -6,6 +6,7 @@ import math
 
 from allomorph.config import (
     VOICES,
+    CircuitConfig,
     get_source_pickup,
     load_instrument,
 )
@@ -122,7 +123,7 @@ def test_34in_standard_pj_routing():
     p_pickup = inst["pickups"]["p"]
     assert p_pickup["type"] == "split_coil"
     assert math.isclose(p_pickup["position_from_bridge_m"], 0.1250, abs_tol=1e-4)
-    assert isinstance(p_pickup["circuit"], dict)
+    assert isinstance(p_pickup["circuit"], CircuitConfig)
     assert p_pickup["circuit"]["topology"] == "single"
     assert len(p_pickup["coils"]) == 2
 
@@ -130,14 +131,14 @@ def test_34in_standard_pj_routing():
     j_pickup = inst["pickups"]["j"]
     assert j_pickup["type"] == "single_coil"
     assert math.isclose(j_pickup["position_from_bridge_m"], 0.0635, abs_tol=1e-4)
-    assert isinstance(j_pickup["circuit"], dict)
+    assert isinstance(j_pickup["circuit"], CircuitConfig)
     assert j_pickup["circuit"]["topology"] == "single"
     assert len(j_pickup["coils"]) == 1
 
     # Parallel composite pair
     pair = inst["pickups"]["pair_parallel"]
     assert pair["type"] == "composite"
-    assert isinstance(pair["circuit"], dict)
+    assert isinstance(pair["circuit"], CircuitConfig)
     assert pair["circuit"]["topology"] == "parallel"
     assert len(pair["components"]) == 2
     assert pair["components"][0]["pickup"] == "p"

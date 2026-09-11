@@ -51,6 +51,26 @@ def test_tone3000_storefront_text_character_limits():
         )
 
 
+def test_tone3000_pydantic_schema_validation():
+    """Verify that each storefront listing strictly validates against Tone3000PackListing schema."""
+    from allomorph.config import Tone3000PackListing
+
+    for pack in PACK_EDITIONS:
+        txt_path = DOCS_DIR / f"{pack}.txt"
+        content = txt_path.read_text(encoding="utf-8")
+        tags = MULTI_PICKUP_PACKS.get(pack, [])
+        voicings = [f"{v:02d}" for v in range(1, 23)]
+        listing = Tone3000PackListing(
+            edition=pack,
+            description=content,
+            pickup_tags=tags,
+            voicings=voicings,
+        )
+        assert listing.edition == pack
+        assert len(listing.voicings) == 22
+        assert 7000 <= len(listing.description) <= 10000
+
+
 def test_tone3000_voicing_enumeration():
     """Verify that every storefront pack describes all 22 digital twin voicings in order."""
     for pack in PACK_EDITIONS:

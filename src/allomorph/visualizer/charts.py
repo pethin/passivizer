@@ -8,7 +8,7 @@ from typing import Any
 import altair as alt
 import polars as pl
 
-from allomorph.config import VOICES, load_all_instruments, load_instrument
+from allomorph.config import VOICES, AllomorphBaseModel, load_all_instruments, load_instrument
 from allomorph.visualizer.dataframe import (
     build_composite_instrument_dataframe,
     build_instrument_frontend_dataframe,
@@ -235,7 +235,7 @@ def generate_universal_targets_chart(target_path: Path | None = None) -> Path:
     return target_path
 
 
-def generate_instrument_frontend_chart(inst: dict[str, Any], target_path: Path | None = None) -> Path:
+def generate_instrument_frontend_chart(inst: dict[str, Any] | AllomorphBaseModel, target_path: Path | None = None) -> Path:
     """
     Renders the Frontend Deconvolutions chart (Block 1) for a single source instrument.
     Allows users to click any pickup switch position in the legend to isolate that specific pickup key.
@@ -548,7 +548,7 @@ def generate_frontend_deconvolutions_chart(target_path: Path | None = None) -> P
 
 
 def generate_composite_instrument_chart(
-    instrument: str | dict[str, Any] = "30in",
+    instrument: str | dict[str, Any] | AllomorphBaseModel = "30in",
     out_html: str | Path | None = None,
 ) -> Path:
     """
@@ -560,7 +560,7 @@ def generate_composite_instrument_chart(
       5. Target Voice Output (Authentic Target Voice)
     Illustrates: Bass Input -deconvolution-> Canonical Intermediate Baseline -voicing-> Target Output.
     """
-    inst = load_instrument(instrument) if not isinstance(instrument, dict) else instrument
+    inst = load_instrument(instrument) if not isinstance(instrument, (dict, AllomorphBaseModel)) else instrument
     inst_id = inst.get("id", "custom_instrument")
     inst_name = inst.get("name", inst_id)
 
@@ -772,7 +772,7 @@ def generate_composite_instrument_chart(
 
 
 def generate_interactive_chart(
-    instrument: str | dict[str, Any] = "30in",
+    instrument: str | dict[str, Any] | AllomorphBaseModel = "30in",
     out_html: str | Path | None = None,
     mode: str = "composite",
 ) -> Path:

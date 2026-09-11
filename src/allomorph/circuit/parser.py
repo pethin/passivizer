@@ -10,30 +10,19 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
+from pydantic import BaseModel
+
+from allomorph.config.schema import MagnetPropertiesConfig, parse_spice_unit
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 
 
 def parse_spice_val(val_str: str) -> float:
     """Parses standard SPICE engineering suffix notation (k, Meg, p, n, u, m, g)."""
-    s = val_str.strip()
-    if s.lower().endswith("meg"):
-        return float(s[:-3]) * 1e6
-    suffix_map = {
-        "p": 1e-12,
-        "n": 1e-9,
-        "u": 1e-6,
-        "m": 1e-3,
-        "k": 1e3,
-        "g": 1e9,
-    }
-    last_char = s[-1].lower()
-    if last_char in suffix_map:
-        return float(s[:-1]) * suffix_map[last_char]
-    return float(s)
+    return float(parse_spice_unit(val_str))
 
 
-MAGNET_PROPERTIES = {
+_RAW_MAGNET_PROPERTIES: dict[str, dict[str, float]] = {
     "alnico_v": {
         "k_core": 0.08,
         "f_core": 2500.0,
@@ -196,6 +185,10 @@ MAGNET_PROPERTIES = {
         "k_stein": 0.000,
     },
 }
+
+MAGNET_PROPERTIES: dict[str, MagnetPropertiesConfig] = {
+    k: MagnetPropertiesConfig.model_validate(v) for k, v in _RAW_MAGNET_PROPERTIES.items()
+}
 MAGNET_PROPERTIES["hybrid"] = MAGNET_PROPERTIES["ceramic_alnico_hybrid"]
 
 
@@ -206,21 +199,28 @@ def eval_pot_taper(pos: float, taper: str = "audio") -> float:
       - 'linear': f(theta) = theta
       - 'audio' / 'audio10': Standard CTS 10% audio taper (f(0.5) = 0.10).
       - 'audio15': Standard Bourns 15% audio taper (f(0.5) = 0.15).
+      - 'reverse_audio': Standard reverse log taper.
+      - 'mn_blend': Bourns MN blend pot taper.
     Satisfies Guardrail 5.2: C^inf smooth, strictly monotonic, zero slope kinks, exact (0,0) and (1,1) endpoints.
     Formula: f(theta; gamma) = (exp(gamma * theta) - 1.0) / (exp(gamma) - 1.0)
     where gamma = 2 * ln(1/k - 1).
     """
     theta = float(np.clip(pos, 0.0, 1.0))
-    t = taper.lower().strip() if isinstance(taper, str) else "audio"
+    t = taper.lower().strip() if isinstance(taper, str) and taper.lower().strip() not in ("", "none") else "audio"
     if t == "linear":
         return theta
     elif t in ("audio", "audio10"):
         gamma = 4.394449154672439  # ln(81) = 2 * ln(9) -> 10% at 50% rotation
     elif t == "audio15":
         gamma = 3.4689389547514337  # 2 * ln(1/0.15 - 1) -> 15% at 50% rotation
+    elif t == "reverse_audio":
+        gamma = 4.394449154672439
+        return float(1.0 - np.expm1(gamma * (1.0 - theta)) / np.expm1(gamma))
+    elif t == "mn_blend":
+        return theta
     else:
         raise ValueError(
-            f"Unknown pot taper '{taper}'. Supported tapers: 'audio', 'audio10', 'audio15', 'linear'."
+            f"Unknown pot taper '{taper}'. Supported tapers: 'audio', 'audio10', 'audio15', 'linear', 'reverse_audio', 'mn_blend'."
         )
 
     return float(np.expm1(gamma * theta) / np.expm1(gamma))
@@ -406,7 +406,13 @@ class CircuitModel:
         - pot_taper: 'audio' (10% CTS), 'audio15' (15% Bourns), or 'linear'. Default is self.pot_taper or 'audio'.
         When wipers are at default positions (vol=1.0, tone=1.0, blend=0.5), preserves exact netlist defaults.
         """
-        taper = pot_taper if pot_taper is not None else getattr(self, "pot_taper", "audio")
+        taper = (
+            pot_taper.lower().strip()
+            if pot_taper is not None and pot_taper.lower().strip() not in ("", "none")
+            else getattr(self, "pot_taper", "audio")
+        )
+        if taper in ("", "none", None):
+            taper = "audio"
 
         if vol_pos is not None:
             self.vol_pos = float(np.clip(vol_pos, 0.0, 1.0))
@@ -540,18 +546,18 @@ class CircuitModel:
         model.Rpot_b = _val(cfg.get("Rpot_b"), 0.0)
 
         # Active preamp & buffer
-        active = bool(cfg.get("active", cfg.get("has_active_buffer", False)))
-        preamp = cfg.get("preamp", cfg.get("preamp_type", "none"))
-        if preamp != "none" or active:
+        active = bool(cfg.get("active", False) or cfg.get("has_active_buffer", False))
+        preamp_val = cfg.get("preamp") or cfg.get("preamp_type") or "none"
+        if preamp_val != "none" or active:
             model.has_active_buffer = True
-            model.preamp_type = preamp
+            model.preamp_type = preamp_val
 
         model.preamp_gain = _val(cfg.get("preamp_gain"), 1.0)
         model.R_preamp_in = _val(cfg.get("R_preamp_in", cfg.get("Rin")), 1.0e6)
         model.C_preamp_in = _val(cfg.get("C_preamp_in", cfg.get("Cin")), 25e-12)
         model.R_out = _val(cfg.get("R_out", cfg.get("Rout")), 100.0)
         model.no_eq = bool(cfg.get("no_eq", False))
-        if "preamp_bands" in cfg:
+        if cfg.get("preamp_bands"):
             model.preamp_bands = cfg["preamp_bands"]
 
         # Cable & load
@@ -592,7 +598,12 @@ class CircuitModel:
         model.Rvol_total = model.Rtop + model.Rbot
         model.Rtone_total = model.Rtone if model.Rtone > 0.0 else 250000.0
         model.Rblend_total = _val(cfg.get("Rblend", cfg.get("Rblend_total")), 250000.0)
-        model.pot_taper = str(cfg.get("pot_taper", "audio")).lower()
+        taper_cfg = cfg.get("pot_taper")
+        model.pot_taper = (
+            str(taper_cfg).lower().strip()
+            if taper_cfg is not None and str(taper_cfg).lower().strip() not in ("", "none")
+            else "audio"
+        )
         model.blend_pos = _val(cfg.get("blend_pos"), 0.5)
         model.Rtop_default = model.Rtop
         model.Rbot_default = model.Rbot
@@ -600,24 +611,33 @@ class CircuitModel:
         model.Rpot_n_default = model.Rpot_n
         model.Rpot_b_default = model.Rpot_b
 
-        if "vol_pos" in cfg or "tone_pos" in cfg or "blend_pos" in cfg:
+        has_vol = cfg.get("vol_pos") is not None
+        has_tone = cfg.get("tone_pos") is not None
+        has_blend = cfg.get("blend_pos") is not None
+        if has_vol or has_tone or has_blend:
             model.apply_pot_positions(
                 cfg.get("vol_pos"),
                 cfg.get("tone_pos"),
                 cfg.get("blend_pos"),
-                cfg.get("pot_taper"),
+                model.pot_taper,
             )
 
         return model
 
 
-def load_circuit(source: CircuitModel | dict[str, Any] | str | Path) -> CircuitModel:
-    """Loads a CircuitModel from a dict, file path (.toml), voice ID, or instrument ID."""
+def load_circuit(source: CircuitModel | dict[str, Any] | BaseModel | str | Path) -> CircuitModel:
+    """Loads a CircuitModel from a dict, Pydantic model, file path (.toml), voice ID, or instrument ID."""
     if isinstance(source, CircuitModel):
         return copy.copy(source)
+    if isinstance(source, BaseModel):
+        dumped = source.model_dump()
+        if "circuit" in dumped and isinstance(dumped["circuit"], dict):
+            return CircuitModel.from_dict(dumped["circuit"])
+        return CircuitModel.from_dict(dumped)
     if isinstance(source, dict):
-        if "circuit" in source and isinstance(source["circuit"], dict):
-            return CircuitModel.from_dict(source["circuit"])
+        if "circuit" in source and isinstance(source["circuit"], (dict, BaseModel)):
+            c_val = source["circuit"]
+            return CircuitModel.from_dict(c_val.model_dump() if isinstance(c_val, BaseModel) else c_val)
         if "circuit" in source and isinstance(source["circuit"], (str, Path)):
             return load_circuit(source["circuit"])
         return CircuitModel.from_dict(source)
@@ -678,6 +698,6 @@ def load_circuit(source: CircuitModel | dict[str, Any] | str | Path) -> CircuitM
     raise ValueError(f"Could not load circuit from: {source}")
 
 
-def parse_netlist(source: CircuitModel | dict[str, Any] | str | Path) -> CircuitModel:
+def parse_netlist(source: CircuitModel | dict[str, Any] | BaseModel | str | Path) -> CircuitModel:
     """Parses a netlist or declarative circuit configuration into a CircuitModel."""
     return load_circuit(source)

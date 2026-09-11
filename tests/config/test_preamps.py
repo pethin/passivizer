@@ -2,7 +2,7 @@
 Tests for reusable onboard active preamps and buffer catalog configuration.
 """
 
-from allomorph.config import PREAMPS, get_preamp
+from allomorph.config import PREAMPS, PreampConfig, get_preamp
 
 
 def test_preamps_catalog_loading():
@@ -17,17 +17,16 @@ def test_preamps_catalog_loading():
     for pid in expected_presets:
         assert pid in PREAMPS, f"Missing preamp preset '{pid}'"
         cfg = PREAMPS[pid]
-        assert "name" in cfg
-        assert "input_impedance_meg" in cfg and cfg["input_impedance_meg"] >= 0.5
-        assert "output_impedance_ohm" in cfg and cfg["output_impedance_ohm"] <= 1000.0
-        assert "bands" in cfg
-        assert isinstance(cfg["bands"], list)
+        assert isinstance(cfg, PreampConfig)
+        assert cfg.name
+        assert cfg.input_impedance_meg >= 0.5
+        assert cfg.output_impedance_ohm <= 1000.0
+        assert isinstance(cfg.bands, list)
 
-        for b in cfg["bands"]:
-            assert "type" in b
-            assert b["type"] in ["low_shelf", "high_shelf", "bell", "low_pass", "high_pass"]
-            assert "freq_hz" in b and 20.0 <= b["freq_hz"] <= 20000.0
-            assert "gain_db" in b and -20.0 <= b["gain_db"] <= 20.0
+        for b in cfg.bands:
+            assert b.type in ["low_shelf", "high_shelf", "bell", "low_pass", "high_pass"]
+            assert 20.0 <= b.freq_hz <= 20000.0
+            assert -20.0 <= b.gain_db <= 20.0
 
 
 def test_get_preamp_resolution():
