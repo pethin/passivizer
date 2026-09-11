@@ -614,7 +614,6 @@ def simulate_voice(
     )
     inst_id = inst_cfg.id
     inst_audio_dir = AUDIO_DIR / inst_id
-    inst_audio_dir.mkdir(parents=True, exist_ok=True)
 
     if not input_wav or not Path(input_wav).exists():
         found = find_default_input_audio()

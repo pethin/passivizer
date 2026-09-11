@@ -13,14 +13,15 @@ from allomorph.pipeline.stages import run_circuit_simulation
 
 
 def _run_circuit_simulation_task(
-    task_args: tuple[str, str, str | Path | None, int | None],
+    task_args: tuple[str, str, str | Path | None, int | None, str | Path | None],
 ) -> tuple[str, bool]:
     """Top-level picklable task runner for multiprocessing."""
-    voice, instrument, input_wav, max_samples = task_args
+    voice, instrument, input_wav, max_samples, output_wav = task_args
     success = run_circuit_simulation(
         voice=voice,
         instrument=instrument,
         input_wav=input_wav,
+        output_wav=output_wav,
         max_samples=max_samples,
     )
     return voice, success
@@ -33,6 +34,7 @@ def run_spice_batch(
     backend: str = "native",
     jobs: int | None = None,
     max_samples: int | None = None,
+    output_dir: str | Path | None = None,
 ) -> bool:
     """Executes batch simulation of specified voice circuit models with multi-process concurrency."""
     if backend != "native":
@@ -48,7 +50,16 @@ def run_spice_batch(
         print(
             f"\n[Stage 3] Executing circuit simulations in parallel ({len(target_voices)} voices, {max_workers} workers, Max Samples: {samples_str})..."
         )
-        tasks = [(v, instrument, input_wav, max_samples) for v in target_voices]
+        tasks = [
+            (
+                v,
+                instrument,
+                input_wav,
+                max_samples,
+                Path(output_dir) / f"out_{v}.wav" if output_dir is not None else None,
+            )
+            for v in target_voices
+        ]
         failed = []
         with ProcessPoolExecutor(max_workers=max_workers) as executor:
             futures = [executor.submit(_run_circuit_simulation_task, task) for task in tasks]
@@ -80,10 +91,12 @@ def run_spice_batch(
         all_ok = True
         for idx, voice in enumerate(target_voices, 1):
             print(f"\n[{idx}/{len(target_voices)}] Circuit simulation: {voice}...")
+            out_wav = Path(output_dir) / f"out_{voice}.wav" if output_dir is not None else None
             ok = run_circuit_simulation(
                 voice,
                 instrument=instrument,
                 input_wav=input_wav,
+                output_wav=out_wav,
                 max_samples=max_samples,
             )
             if not ok:

@@ -108,7 +108,11 @@ def generate_canonical_sweep(input_wav: Path | None = None, output_wav: Path | N
 
 
 def export_frontend_ir(
-    inst_id: str, pickup_key: str, out_path: Path | None = None, num_taps: int = 2048
+    inst_id: str,
+    pickup_key: str,
+    out_path: Path | None = None,
+    output_dir: Path | str | None = None,
+    num_taps: int = 2048,
 ) -> Path:
     """
     Synthesizes a 2048-tap minimum-phase deconvolution IR transforming a source pickup into the Canonical Intermediate.
@@ -166,7 +170,8 @@ def export_frontend_ir(
         fir = -fir
 
     if out_path is None:
-        inst_dir = FRONTENDS_DIR / inst_id
+        base_dir = Path(output_dir) if output_dir is not None else FRONTENDS_DIR
+        inst_dir = base_dir / inst_id
         inst_dir.mkdir(parents=True, exist_ok=True)
         # Avoid repetitive token if inst_id already ends with pickup prefix (e.g. 30in_emg_mmtw + mmtw_dual)
         if inst_id.endswith("mmtw") and pickup_key.startswith("mmtw_"):
@@ -201,9 +206,10 @@ def export_all_frontend_irs(output_dir: Path | None = None):
             continue
         pickups = inst.pickups
         for p_key in sorted(pickups.keys()):
-            p_file = export_frontend_ir(inst_id, p_key)
+            p_file = export_frontend_ir(inst_id, p_key, output_dir=out_dir)
             exported.append(p_file)
-            print(f" [Frontend IR] Exported {p_file.relative_to(REPO_ROOT)}")
+            rel_p = p_file.relative_to(REPO_ROOT) if p_file.is_relative_to(REPO_ROOT) else p_file
+            print(f" [Frontend IR] Exported {rel_p}")
     print(f"Successfully exported {len(exported)} frontend IRs to {out_dir}")
     return exported
 

@@ -38,6 +38,7 @@ def run_circuit_simulation(
     voice: str,
     instrument: str = "30in",
     input_wav: str | Path | None = None,
+    output_wav: str | Path | None = None,
     backend: str = "native",
     max_samples: int | None = None,
 ) -> bool:
@@ -51,6 +52,7 @@ def run_circuit_simulation(
         return simulate_voice(
             voice,
             input_wav=input_wav,
+            output_wav=output_wav,
             instrument=instrument,
             prefiltered=False,
             max_samples=max_samples,

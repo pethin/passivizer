@@ -13,7 +13,6 @@ import numpy as np
 import pytest
 
 from allomorph.circuit import (
-    CANONICAL_SWEEP_PATH,
     INTERMEDIATE_TARGET_PEAK_DBFS,
     export_all_frontend_irs,
     generate_canonical_sweep,
@@ -52,13 +51,13 @@ def test_canonical_intermediate_config():
     assert p.resonant_frequency_hz is not None and p.resonant_frequency_hz >= 20000.0
 
 
-def test_canonical_sweep_calibration():
+def test_canonical_sweep_calibration(tmp_path: Path):
     """Validates that the Canonical Intermediate sweep peak is strictly -1.50 dBFS."""
-    if not CANONICAL_SWEEP_PATH.exists():
-        generate_canonical_sweep()
+    sweep_path = tmp_path / "canonical_sweep.wav"
+    generate_canonical_sweep(output_wav=sweep_path)
 
-    assert CANONICAL_SWEEP_PATH.exists()
-    with wave.open(str(CANONICAL_SWEEP_PATH), "rb") as wf:
+    assert sweep_path.exists()
+    with wave.open(str(sweep_path), "rb") as wf:
         assert wf.getframerate() == 48000
         assert wf.getsampwidth() == 3  # 24-bit
         assert wf.getnchannels() == 1
@@ -78,9 +77,9 @@ def test_canonical_sweep_calibration():
     assert not np.isinf(audio).any()
 
 
-def test_frontend_ir_generation():
+def test_frontend_ir_generation(tmp_path: Path):
     """Validates that all 32 frontend IRs are exported with exact 2048-tap length and positive polarity."""
-    exported = export_all_frontend_irs()
+    exported = export_all_frontend_irs(output_dir=tmp_path)
     assert len(exported) == 32
 
     for ir_path in exported:

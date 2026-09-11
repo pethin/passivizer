@@ -14,7 +14,6 @@ import pedalboard.io
 import pytest
 
 from allomorph.circuit import (
-    AUDIO_DIR,
     CircuitModel,
     apply_magnet_properties_to_model,
     apply_oversampled_saturation,
@@ -23,7 +22,7 @@ from allomorph.circuit import (
     simulate_circuit_audio,
     simulate_voice,
 )
-from allomorph.config import VOICES, load_instrument
+from allomorph.config import VOICES
 from allomorph.dsp import FREQS, NUM_TAPS, write_wav_24bit
 from allomorph.naming import resolve_voices
 from allomorph.physics import compute_voice_prefilter_firs
@@ -619,26 +618,24 @@ def test_passive_rlc_thermal_noise_dither():
         assert abs(diff_rms_db - (-108.0)) < 2.0
 
 
-def test_run_spice_batch_parallel():
+def test_run_spice_batch_parallel(tmp_path: Path):
     """Verify that run_spice_batch executes multiple voices concurrently across ProcessPoolExecutor workers."""
     test_voices = ["04_modern_p_ceramic", "05_vintage_62_p_alnico"]
     inst = "30in"
-    inst_cfg = load_instrument(inst)
-    inst_id = inst_cfg.id
-    audio_dir = AUDIO_DIR / inst_id
 
-    # Execute batch with jobs=2 and max_samples=4800 (fast test bounding)
+    # Execute batch with jobs=2 and max_samples=4800 (fast test bounding) in tmp_path
     ok = run_spice_batch(
         voices=test_voices,
         instrument=inst,
         jobs=2,
         max_samples=4800,
+        output_dir=tmp_path,
     )
     assert ok is True
 
     # Verify both outputs exist and are valid non-empty audio files
     for v in test_voices:
-        out_wav = audio_dir / f"out_{v}.wav"
+        out_wav = tmp_path / f"out_{v}.wav"
         assert out_wav.exists(), (
             f"Expected output {out_wav} to be created by parallel batch simulation"
         )
