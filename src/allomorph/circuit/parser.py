@@ -201,6 +201,33 @@ MAGNET_PROPERTIES = {
 MAGNET_PROPERTIES["hybrid"] = MAGNET_PROPERTIES["ceramic_alnico_hybrid"]
 
 
+def eval_pot_taper(pos: float, taper: str = "audio") -> float:
+    """
+    Evaluates potentiometer electrical resistance fraction (0.0 to 1.0) given mechanical wiper rotation pos (0.0 to 1.0).
+    Supported tapers:
+      - 'linear': f(theta) = theta
+      - 'audio' / 'audio10': Standard CTS 10% audio taper (f(0.5) = 0.10).
+      - 'audio15': Standard Bourns 15% audio taper (f(0.5) = 0.15).
+    Satisfies Guardrail 5.2: C^inf smooth, strictly monotonic, zero slope kinks, exact (0,0) and (1,1) endpoints.
+    Formula: f(theta; gamma) = (exp(gamma * theta) - 1.0) / (exp(gamma) - 1.0)
+    where gamma = 2 * ln(1/k - 1).
+    """
+    theta = float(np.clip(pos, 0.0, 1.0))
+    t = taper.lower().strip() if isinstance(taper, str) else "audio"
+    if t == "linear":
+        return theta
+    elif t in ("audio", "audio10"):
+        gamma = 4.394449154672439  # ln(81) = 2 * ln(9) -> 10% at 50% rotation
+    elif t == "audio15":
+        gamma = 3.4689389547514337  # 2 * ln(1/0.15 - 1) -> 15% at 50% rotation
+    else:
+        raise ValueError(
+            f"Unknown pot taper '{taper}'. Supported tapers: 'audio', 'audio10', 'audio15', 'linear'."
+        )
+
+    return float(np.expm1(gamma * theta) / np.expm1(gamma))
+
+
 class CircuitModel:
     """Represents a parsed RLC guitar circuit digital twin."""
 
@@ -285,40 +312,81 @@ class CircuitModel:
         self.k_skin_b = 0.0
         self.f_skin_b = 3200.0
 
-        # Potentiometer wiper positions (1.0 = full open/bright baseline)
+        # Potentiometer wiper positions (1.0 = full open/bright baseline, 0.5 = center for blend)
         self.vol_pos = 1.0
         self.tone_pos = 1.0
+        self.blend_pos = 0.5
+        self.pot_taper = "audio"
         self.Rvol_total = 500000.0
         self.Rtone_total = 250000.0
+        self.Rblend_total = 250000.0
 
-    def apply_pot_positions(self, vol_pos: float = None, tone_pos: float = None):
+        self.Rtop_default = 10.0
+        self.Rbot_default = 500000.0
+        self.Rtone_default = 0.0
+        self.Rpot_n_default = 0.0
+        self.Rpot_b_default = 0.0
+
+    def apply_pot_positions(
+        self,
+        vol_pos: Optional[float] = None,
+        tone_pos: Optional[float] = None,
+        blend_pos: Optional[float] = None,
+        pot_taper: Optional[str] = None,
+    ):
         """
-        Dynamically positions Volume and Tone pot wipers (0.0 to 1.0, default 1.0 full open).
-        At vol_pos < 1.0, splits volume pot into series Rtop and shunt Rbot, loading cable capacitance.
-        At tone_pos < 1.0, reduces series resistance in front of tone capacitor (increasing roll-off).
-        When wipers are at 1.0, preserves exact netlist defaults.
+        Dynamically positions Volume, Tone, and Blend pot wipers.
+        - vol_pos: 0.0 (muted) to 1.0 (full open). Splits volume pot into series Rtop and shunt Rbot.
+        - tone_pos: 0.0 (dark / max cap shunting) to 1.0 (open / bright). Scales series Rtone.
+        - blend_pos: 0.0 (Neck 100%, Bridge muted) to 0.5 (Center detent 100%/100%) to 1.0 (Neck muted, Bridge 100%).
+        - pot_taper: 'audio' (10% CTS), 'audio15' (15% Bourns), or 'linear'. Default is self.pot_taper or 'audio'.
+        When wipers are at default positions (vol=1.0, tone=1.0, blend=0.5), preserves exact netlist defaults.
         """
+        taper = pot_taper if pot_taper is not None else getattr(self, "pot_taper", "audio")
+
         if vol_pos is not None:
             self.vol_pos = float(np.clip(vol_pos, 0.0, 1.0))
             if self.vol_pos >= 0.9999 and hasattr(self, "Rtop_default"):
                 self.Rtop = self.Rtop_default
                 self.Rbot = self.Rbot_default
             else:
+                eff_vol = eval_pot_taper(self.vol_pos, taper)
                 r_total = getattr(self, "Rvol_total", self.Rtop + self.Rbot)
                 self.Rtop = max(
-                    r_total * (1.0 - self.vol_pos), getattr(self, "Rtop_default", 0.01)
+                    r_total * (1.0 - eff_vol), getattr(self, "Rtop_default", 0.01)
                 )
-                self.Rbot = max(r_total * self.vol_pos, 1.0)
+                self.Rbot = max(r_total * eff_vol, 1.0)
 
         if tone_pos is not None:
             self.tone_pos = float(np.clip(tone_pos, 0.0, 1.0))
             if self.tone_pos >= 0.9999 and hasattr(self, "Rtone_default"):
                 self.Rtone = self.Rtone_default
             else:
+                eff_tone = eval_pot_taper(self.tone_pos, taper)
                 r_tone_tot = getattr(
                     self, "Rtone_total", self.Rtone if self.Rtone > 0.0 else 250000.0
                 )
-                self.Rtone = max(r_tone_tot * self.tone_pos, 0.0)
+                self.Rtone = max(r_tone_tot * eff_tone, 0.0)
+
+        if blend_pos is not None:
+            self.blend_pos = float(np.clip(blend_pos, 0.0, 1.0))
+            r_blend = getattr(self, "Rblend_total", 250000.0)
+            if abs(self.blend_pos - 0.5) < 1e-4:
+                # Center detent: unattenuated 100%/100% (0 dB insertion loss)
+                self.Rpot_n = getattr(self, "Rpot_n_default", 0.0)
+                self.Rpot_b = getattr(self, "Rpot_b_default", 0.0)
+            elif self.blend_pos < 0.5:
+                # Turning toward Neck (Neck 100%, Bridge attenuated)
+                self.Rpot_n = getattr(self, "Rpot_n_default", 0.0)
+                norm_atten = (0.5 - self.blend_pos) / 0.5  # 0.0 at center to 1.0 at full Neck
+                eff_atten = eval_pot_taper(norm_atten, taper)
+                self.Rpot_b = getattr(self, "Rpot_b_default", 0.0) + r_blend * eff_atten
+            else:
+                # Turning toward Bridge (Bridge 100%, Neck attenuated)
+                self.Rpot_b = getattr(self, "Rpot_b_default", 0.0)
+                norm_atten = (self.blend_pos - 0.5) / 0.5  # 0.0 at center to 1.0 at full Bridge
+                eff_atten = eval_pot_taper(norm_atten, taper)
+                self.Rpot_n = getattr(self, "Rpot_n_default", 0.0) + r_blend * eff_atten
 
     @classmethod
     def from_dict(cls, cfg: dict) -> "CircuitModel":
@@ -459,226 +527,28 @@ class CircuitModel:
         # Pot defaults
         model.Rvol_total = model.Rtop + model.Rbot
         model.Rtone_total = model.Rtone if model.Rtone > 0.0 else 250000.0
+        model.Rblend_total = _val(cfg.get("Rblend", cfg.get("Rblend_total")), 250000.0)
+        model.pot_taper = str(cfg.get("pot_taper", "audio")).lower()
+        model.blend_pos = _val(cfg.get("blend_pos"), 0.5)
         model.Rtop_default = model.Rtop
         model.Rbot_default = model.Rbot
         model.Rtone_default = model.Rtone
+        model.Rpot_n_default = model.Rpot_n
+        model.Rpot_b_default = model.Rpot_b
 
-        if "vol_pos" in cfg or "tone_pos" in cfg:
-            model.apply_pot_positions(cfg.get("vol_pos"), cfg.get("tone_pos"))
+        if "vol_pos" in cfg or "tone_pos" in cfg or "blend_pos" in cfg:
+            model.apply_pot_positions(
+                cfg.get("vol_pos"),
+                cfg.get("tone_pos"),
+                cfg.get("blend_pos"),
+                cfg.get("pot_taper"),
+            )
 
         return model
 
 
-@functools.lru_cache(maxsize=128)
-def _parse_netlist_cached(cir_path_str: str) -> CircuitModel:
-    """Internal cached parser for an Allomorph .cir netlist."""
-    cir_path = Path(cir_path_str)
-    model = CircuitModel()
-    with open(cir_path, "r", encoding="utf-8") as f:
-        lines = f.readlines()
-
-    has_neck = False
-    has_bridge = False
-    is_series = False
-
-    # Check filename for known active configurations
-    stem = cir_path.stem.lower()
-    if "01_modern_jazz" in stem:
-        model.has_active_buffer = True
-        model.preamp_type = "sadowsky_2band"
-    elif "stingray" in stem:
-        model.has_active_buffer = True
-        model.preamp_type = "stingray_2band"
-    elif "16_active_character" in stem or "active_character" in stem:
-        model.has_active_buffer = True
-        model.preamp_type = "none"
-    elif "15_source_direct" in stem or "source_direct" in stem:
-        model.no_eq = True
-
-    for line in lines:
-        line_clean = line.strip()
-        if not line_clean:
-            continue
-
-        line_lower = line_clean.lower()
-        if "mode: no_eq" in line_lower or "no_eq" in line_lower:
-            model.no_eq = True
-        elif "sadowsky_2band" in line_lower or "sadowsky" in line_lower:
-            model.has_active_buffer = True
-            model.preamp_type = "sadowsky_2band"
-        elif "stingray_2band" in line_lower:
-            model.has_active_buffer = True
-            model.preamp_type = "stingray_2band"
-        elif "preamp voicing: none" in line_lower or "flat buffer" in line_lower:
-            model.has_active_buffer = True
-            model.preamp_type = "none"
-
-        if line_clean.startswith("*") or line_clean.startswith("."):
-            continue
-
-        tokens = line_clean.split()
-        tag = tokens[0].upper()
-
-        # Behavioral soft-knee compliance
-        if tag.startswith("B_COMP"):
-            match = re.search(r"V\s*=\s*([0-9\.]+)\s*\*\s*tanh", line_clean, re.IGNORECASE)
-            if match:
-                v = float(match.group(1))
-                if tag == "B_COMP_N":
-                    model.vsat_n = v
-                elif tag == "B_COMP_B":
-                    model.vsat_b = v
-                else:
-                    model.vsat = v
-
-        # Inductors
-        elif tag in ["L_COIL", "L_NECK"]:
-            model.L = parse_spice_val(tokens[3])
-            if tag == "L_NECK":
-                has_neck = True
-                if tokens[2] == "node_mid":
-                    is_series = True
-        elif tag == "L_BRIDGE":
-            model.L_b = parse_spice_val(tokens[3])
-            has_bridge = True
-            if tokens[1] in ["node_mid", "in_dyn_b"] and tokens[2] in ["node1_b"]:
-                pass
-
-        # Core Eddy Diffusion
-        elif tag in ["L_CORE", "L_CORE_N"]:
-            model.L_core = parse_spice_val(tokens[3])
-        elif tag == "L_CORE_B":
-            model.L_core_b = parse_spice_val(tokens[3])
-        elif tag in ["R_CORE", "R_CORE_N"]:
-            model.R_core = parse_spice_val(tokens[3])
-        elif tag == "R_CORE_B":
-            model.R_core_b = parse_spice_val(tokens[3])
-
-        # DC Resistance
-        elif tag in ["R_DC", "R_DC_N"]:
-            model.Rdc = parse_spice_val(tokens[3])
-        elif tag == "R_DC_B":
-            model.Rdc_b = parse_spice_val(tokens[3])
-
-        # Eddy Resistance
-        elif tag in ["R_EDDY", "R_EDDY_N"]:
-            model.Reddy = parse_spice_val(tokens[3])
-        elif tag == "R_EDDY_B":
-            model.Reddy_b = parse_spice_val(tokens[3])
-
-        # Coil Self-Capacitance
-        elif tag in ["C_COIL", "C_COIL_N"]:
-            model.Ccoil = parse_spice_val(tokens[3])
-        elif tag == "C_COIL_B":
-            model.Ccoil_b = parse_spice_val(tokens[3])
-            if tokens[2] == "node_mid":
-                is_series = True
-
-        # Tone / HPF
-        elif tag == "C_TONE":
-            model.Ctone = parse_spice_val(tokens[3])
-        elif tag in ["R_TONE", "R_TONE_ESR"]:
-            model.Rtone = parse_spice_val(tokens[3])
-        elif tag == "C_RICK":
-            model.Crick = parse_spice_val(tokens[3])
-
-        # Volume Pot
-        elif tag == "R_POT_TOP":
-            model.Rtop = parse_spice_val(tokens[3])
-        elif tag == "R_POT_BOT":
-            model.Rbot = parse_spice_val(tokens[3])
-        elif tag in ["R_POT_N", "R_POT_NECK"]:
-            model.Rpot_n = parse_spice_val(tokens[3])
-        elif tag in ["R_POT_B", "R_POT_BRIDGE"]:
-            model.Rpot_b = parse_spice_val(tokens[3])
-
-        # Treble Bleed
-        elif tag == "C_TB":
-            model.Ctb = parse_spice_val(tokens[3])
-        elif tag == "R_TB_PAR":
-            model.Rtb_par = parse_spice_val(tokens[3])
-        elif tag == "R_TB_SER":
-            model.Rtb_ser = parse_spice_val(tokens[3])
-
-        # Active Preamp Buffer
-        elif tag in ["E_PREAMP", "E_BUF"]:
-            model.has_active_buffer = True
-            if len(tokens) > 5:
-                model.preamp_gain = parse_spice_val(tokens[5])
-        elif tag == "R_PREAMP_IN":
-            model.R_preamp_in = parse_spice_val(tokens[3])
-            model.has_active_buffer = True
-        elif tag == "C_PREAMP_IN":
-            model.C_preamp_in = parse_spice_val(tokens[3])
-            model.has_active_buffer = True
-        elif tag == "R_OUT":
-            model.R_out = parse_spice_val(tokens[3])
-            model.has_active_buffer = True
-
-        # Cable
-        elif tag == "C_CABLE":
-            model.Ccable = parse_spice_val(tokens[3])
-
-        # Anagram
-        elif tag == "R_ANAGRAM":
-            model.Ranagram = parse_spice_val(tokens[3])
-        elif tag == "C_ANAGRAM":
-            model.Canagram = parse_spice_val(tokens[3])
-
-        # Mutual coupling directives
-        elif tag in ["K_COUPLE", "K_MUTUAL", "K1", "K_COIL"]:
-            model.k_mutual = (
-                parse_spice_val(tokens[3]) if len(tokens) > 3 else parse_spice_val(tokens[1])
-            )
-        elif tag in ["C_MUTUAL", "C_M"]:
-            model.C_mutual = (
-                parse_spice_val(tokens[3]) if len(tokens) > 3 else parse_spice_val(tokens[1])
-            )
-
-        # Dielectric absorption overrides
-        elif tag in ["ALPHA_TONE", "ALPHA_DIEL_TONE"]:
-            model.alpha_dielectric_tone = float(tokens[1])
-        elif tag in ["ALPHA_CABLE", "ALPHA_DIEL_CABLE"]:
-            model.alpha_dielectric_cable = float(tokens[1])
-
-        # Solid core eddy skin-effect directives
-        elif tag in ["K_SKIN", "K_SKIN_N"]:
-            model.k_skin = (
-                parse_spice_val(tokens[1]) if len(tokens) > 1 else parse_spice_val(tokens[3])
-            )
-        elif tag == "K_SKIN_B":
-            model.k_skin_b = (
-                parse_spice_val(tokens[1]) if len(tokens) > 1 else parse_spice_val(tokens[3])
-            )
-        elif tag in ["F_SKIN", "F_SKIN_N"]:
-            model.f_skin = (
-                parse_spice_val(tokens[1]) if len(tokens) > 1 else parse_spice_val(tokens[3])
-            )
-        elif tag == "F_SKIN_B":
-            model.f_skin_b = (
-                parse_spice_val(tokens[1]) if len(tokens) > 1 else parse_spice_val(tokens[3])
-            )
-
-    if has_neck and has_bridge:
-        model.topology = "series" if is_series else "parallel"
-        if model.k_mutual <= 0.0:
-            model.k_mutual = 0.05
-        if model.C_mutual <= 0.0:
-            model.C_mutual = 20e-12
-    else:
-        model.topology = "single"
-
-    model.Rvol_total = model.Rtop + model.Rbot
-    model.Rtone_total = model.Rtone if model.Rtone > 0.0 else 250000.0
-    model.Rtop_default = model.Rtop
-    model.Rbot_default = model.Rbot
-    model.Rtone_default = model.Rtone
-
-    return model
-
-
 def load_circuit(source: Union[CircuitModel, dict, str, Path]) -> CircuitModel:
-    """Loads a CircuitModel from a dict, file path (.toml or .cir), voice ID, or instrument ID."""
+    """Loads a CircuitModel from a dict, file path (.toml), voice ID, or instrument ID."""
     if isinstance(source, CircuitModel):
         return copy.copy(source)
     if isinstance(source, dict):
@@ -690,6 +560,13 @@ def load_circuit(source: Union[CircuitModel, dict, str, Path]) -> CircuitModel:
 
     if isinstance(source, (str, Path)):
         p = Path(source)
+        if p.exists() and p.is_file() and p.suffix == ".cir":
+            raise ValueError(
+                f"Legacy SPICE ASCII netlists (.cir) are deprecated and no longer supported. "
+                f"Circuits must be defined as declarative TOML files or tables. "
+                f"Attempted to load: {source}"
+            )
+
         if p.exists() and p.is_file():
             if p.suffix == ".toml":
                 import tomllib
@@ -697,8 +574,6 @@ def load_circuit(source: Union[CircuitModel, dict, str, Path]) -> CircuitModel:
                 with open(p, "rb") as f:
                     data = tomllib.load(f)
                 return load_circuit(data)
-            elif p.suffix == ".cir":
-                return copy.copy(_parse_netlist_cached(str(p.resolve())))
 
         # Try relative to REPO_ROOT
         repo_rel = REPO_ROOT / source
@@ -751,6 +626,13 @@ def load_circuit(source: Union[CircuitModel, dict, str, Path]) -> CircuitModel:
                         return load_circuit(p["circuit"])
         except ImportError:
             pass
+
+        if p.suffix == ".cir" or str(source).endswith(".cir"):
+            raise ValueError(
+                f"Legacy SPICE ASCII netlists (.cir) are deprecated and no longer supported. "
+                f"Circuits must be defined as declarative TOML files or tables. "
+                f"Attempted to load: {source}"
+            )
 
     raise ValueError(f"Could not load circuit from: {source}")
 

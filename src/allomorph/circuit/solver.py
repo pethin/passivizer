@@ -349,6 +349,22 @@ def compute_circuit_transfer_functions(model: CircuitModel, freqs=FREQS, return_
             H_n = H_n_to_2 * H_eq * H_buf_to_out
             H_b = H_b_to_2 * H_eq * H_buf_to_out
 
+            blend_pos = getattr(model, "blend_pos", 0.5)
+            if abs(blend_pos - 0.5) >= 1e-4:
+                taper = getattr(model, "pot_taper", "audio")
+                from allomorph.circuit.parser import eval_pot_taper
+
+                if blend_pos < 0.5:
+                    gain_n = 1.0
+                    norm_atten = (0.5 - blend_pos) / 0.5
+                    gain_b = max(1.0 - eval_pot_taper(norm_atten, taper), 0.0)
+                else:
+                    gain_b = 1.0
+                    norm_atten = (blend_pos - 0.5) / 0.5
+                    gain_n = max(1.0 - eval_pot_taper(norm_atten, taper), 0.0)
+                H_n = H_n * gain_n
+                H_b = H_b * gain_b
+
             return _ret([np.abs(H_n), np.abs(H_b)])
 
         elif model.topology == "series":
@@ -389,6 +405,22 @@ def compute_circuit_transfer_functions(model: CircuitModel, freqs=FREQS, return_
 
             H_n = T2_n * H_eq * H_buf_to_out
             H_b = T2_b * H_eq * H_buf_to_out
+
+            blend_pos = getattr(model, "blend_pos", 0.5)
+            if abs(blend_pos - 0.5) >= 1e-4:
+                taper = getattr(model, "pot_taper", "audio")
+                from allomorph.circuit.parser import eval_pot_taper
+
+                if blend_pos < 0.5:
+                    gain_n = 1.0
+                    norm_atten = (0.5 - blend_pos) / 0.5
+                    gain_b = max(1.0 - eval_pot_taper(norm_atten, taper), 0.0)
+                else:
+                    gain_b = 1.0
+                    norm_atten = (blend_pos - 0.5) / 0.5
+                    gain_n = max(1.0 - eval_pot_taper(norm_atten, taper), 0.0)
+                H_n = H_n * gain_n
+                H_b = H_b * gain_b
 
             return _ret([np.abs(H_n), np.abs(H_b)])
 
@@ -484,8 +516,26 @@ def compute_circuit_transfer_functions(model: CircuitModel, freqs=FREQS, return_
             H_b_to_2 = Y_br_b / Y_total
 
         H_2_to_3 = Zload / (Z23 + Zload)
+        H_n = H_n_to_2 * H_2_to_3
+        H_b = H_b_to_2 * H_2_to_3
 
-        return _ret([np.abs(H_n_to_2 * H_2_to_3), np.abs(H_b_to_2 * H_2_to_3)])
+        blend_pos = getattr(model, "blend_pos", 0.5)
+        if abs(blend_pos - 0.5) >= 1e-4:
+            taper = getattr(model, "pot_taper", "audio")
+            from allomorph.circuit.parser import eval_pot_taper
+
+            if blend_pos < 0.5:
+                gain_n = 1.0
+                norm_atten = (0.5 - blend_pos) / 0.5
+                gain_b = max(1.0 - eval_pot_taper(norm_atten, taper), 0.0)
+            else:
+                gain_b = 1.0
+                norm_atten = (blend_pos - 0.5) / 0.5
+                gain_n = max(1.0 - eval_pot_taper(norm_atten, taper), 0.0)
+            H_n = H_n * gain_n
+            H_b = H_b * gain_b
+
+        return _ret([np.abs(H_n), np.abs(H_b)])
 
     elif model.topology == "series":
         Z_L = compute_core_impedance(
@@ -527,7 +577,26 @@ def compute_circuit_transfer_functions(model: CircuitModel, freqs=FREQS, return_
         T2_b = ((Y_br_n + Y_cn) * Y_br_b) / delta
         T_2_to_3 = Zload / (Z23 + Zload)
 
-        return _ret([np.abs(T2_n * T_2_to_3), np.abs(T2_b * T_2_to_3)])
+        H_n = T2_n * T_2_to_3
+        H_b = T2_b * T_2_to_3
+
+        blend_pos = getattr(model, "blend_pos", 0.5)
+        if abs(blend_pos - 0.5) >= 1e-4:
+            taper = getattr(model, "pot_taper", "audio")
+            from allomorph.circuit.parser import eval_pot_taper
+
+            if blend_pos < 0.5:
+                gain_n = 1.0
+                norm_atten = (0.5 - blend_pos) / 0.5
+                gain_b = max(1.0 - eval_pot_taper(norm_atten, taper), 0.0)
+            else:
+                gain_b = 1.0
+                norm_atten = (blend_pos - 0.5) / 0.5
+                gain_n = max(1.0 - eval_pot_taper(norm_atten, taper), 0.0)
+            H_n = H_n * gain_n
+            H_b = H_b * gain_b
+
+        return _ret([np.abs(H_n), np.abs(H_b)])
 
     raise ValueError(f"Unknown circuit topology: {model.topology}")
 

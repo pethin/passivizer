@@ -7,7 +7,7 @@ from allomorph.circuit.parser import (
     parse_spice_val,
     MAGNET_PROPERTIES,
     CircuitModel,
-    _parse_netlist_cached,
+    eval_pot_taper,
     load_circuit,
     parse_netlist,
 )
@@ -71,7 +71,7 @@ __all__ = [
     "parse_spice_val",
     "MAGNET_PROPERTIES",
     "CircuitModel",
-    "_parse_netlist_cached",
+    "eval_pot_taper",
     "load_circuit",
     "parse_netlist",
     "compute_core_impedance",

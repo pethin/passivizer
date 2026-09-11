@@ -109,6 +109,8 @@ def simulate_circuit_audio(
     lambda_Ls=None,
     vol_pos: float = None,
     tone_pos: float = None,
+    blend_pos: float = None,
+    pot_taper: str = None,
     slew_limit: bool = True,
     f_slew: float = 16000.0,
     is_identity: bool = False,
@@ -162,14 +164,23 @@ def simulate_circuit_audio(
     in_peak_db = 20.0 * math.log10(max(in_peak, 1e-9))
     in_rms_db = 20.0 * math.log10(max(in_rms, 1e-9))
 
-    if prefilter_firs is not None:
+    can_fuse_stages = bypass_saturation and prefilter_firs is not None
+
+    if can_fuse_stages:
+        pass
+    elif prefilter_firs is not None:
         audio = apply_prefilter_to_audio(audio, sr, prefilter_firs)
     elif not bypass_saturation and in_peak > 0.10:
         target_drive_peak = min(in_peak * 0.687, 0.70)
         audio = (audio / max(in_peak, 1e-9)) * target_drive_peak
 
-    if vol_pos is not None or tone_pos is not None:
-        model.apply_pot_positions(vol_pos=vol_pos, tone_pos=tone_pos)
+    if vol_pos is not None or tone_pos is not None or blend_pos is not None or pot_taper is not None:
+        model.apply_pot_positions(
+            vol_pos=vol_pos,
+            tone_pos=tone_pos,
+            blend_pos=blend_pos,
+            pot_taper=pot_taper,
+        )
 
     if circuit_curves is not None:
         mag_curves = circuit_curves
@@ -188,6 +199,34 @@ def simulate_circuit_audio(
                 in_ch = audio * 0.75
             else:
                 in_ch = audio
+
+        if can_fuse_stages:
+            p_fir = (
+                prefilter_firs[ch_idx]
+                if ch_idx < len(prefilter_firs)
+                else prefilter_firs[0]
+            )
+            c_fir = np.array(
+                synthesize_minimum_phase_fir(mag_curve, num_taps=NUM_TAPS, normalize=False),
+                dtype=np.float32,
+            )
+            # Convolve p_fir and c_fir into fused compound impulse response
+            n_fir_fft = 1 << (len(p_fir) + len(c_fir) - 1).bit_length()
+            fused_fir = np.fft.irfft(
+                np.fft.rfft(p_fir, n_fir_fft) * np.fft.rfft(c_fir, n_fir_fft),
+                n_fir_fft,
+            )[: (len(p_fir) + len(c_fir) - 1)].astype(np.float32)
+
+            # High-speed FFT convolution of input with compound FIR
+            n_sig = len(in_ch)
+            n_ir = len(fused_fir)
+            n_fft = 1 << (n_sig + n_ir - 1).bit_length()
+            out_ch = np.fft.irfft(
+                np.fft.rfft(in_ch, n_fft) * np.fft.rfft(fused_fir, n_fft),
+                n_fft,
+            )[:n_sig]
+            channel_outputs.append(out_ch)
+            continue
 
         # Dynamic magnetic saturation: bypassed when linear or already physically saturated
         if bypass_saturation:
@@ -481,6 +520,8 @@ def simulate_voice(
     lambda_L: float = None,
     vol_pos: float = None,
     tone_pos: float = None,
+    blend_pos: float = None,
+    pot_taper: str = None,
     cable_pf: float = None,
     slew_limit: bool = True,
     f_slew: float = 16000.0,
@@ -544,8 +585,13 @@ def simulate_voice(
         output_wav = Path(output_wav)
 
     apply_magnet_properties_to_model(model, vcfg, eddy_diffusion=eddy_diffusion)
-    if vol_pos is not None or tone_pos is not None:
-        model.apply_pot_positions(vol_pos=vol_pos, tone_pos=tone_pos)
+    if vol_pos is not None or tone_pos is not None or blend_pos is not None or pot_taper is not None:
+        model.apply_pot_positions(
+            vol_pos=vol_pos,
+            tone_pos=tone_pos,
+            blend_pos=blend_pos,
+            pot_taper=pot_taper,
+        )
     if cable_pf is not None:
         model.Ccable = cable_pf * 1e-12 if cable_pf > 1e-6 else cable_pf
 
@@ -1000,6 +1046,8 @@ def simulate_voice(
         lambda_Ls=eff_lambda_Ls,
         vol_pos=vol_pos,
         tone_pos=tone_pos,
+        blend_pos=blend_pos,
+        pot_taper=pot_taper,
         slew_limit=slew_limit,
         f_slew=f_slew,
         noise_dither=noise_dither,

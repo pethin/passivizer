@@ -404,6 +404,20 @@ def main(argv=None):
         help="Tone pot wiper position (0.0 to 1.0, default 1.0 full open/bright)",
     )
     parser.add_argument(
+        "--blend",
+        "--blend-pos",
+        type=float,
+        default=None,
+        dest="blend",
+        help="Pickup blend wiper position (0.0 Neck to 1.0 Bridge, default: 0.5 Center detent 100%%/100%%)",
+    )
+    parser.add_argument(
+        "--pot-taper",
+        choices=["audio", "audio10", "audio15", "linear"],
+        default="audio",
+        help="Potentiometer resistance curve law (default: 'audio' for standard 10%% CTS audio pot)",
+    )
+    parser.add_argument(
         "--cable-pf",
         type=float,
         default=None,
@@ -496,20 +510,23 @@ def main(argv=None):
 
         target_voices = resolve_voices(args.voice)
         for vid in target_voices:
-            res = compute_parametric_sweep(vid, param=args.sweep)
-            print(f"\n=======================================================")
-            print(f"  PARAMETRIC SWEEP: {vid} (Param: {args.sweep})")
-            print(f"=======================================================")
-            print(f"Evaluated {len(res.values)} steps ({', '.join(res.labels)}) across {len(res.freqs)} frequencies.")
+            res = compute_parametric_sweep(vid, param=args.sweep, pot_taper=args.pot_taper)
+            print(f"\n=========================================================================================")
+            print(f"  PARAMETRIC SWEEP: {vid} (Param: {args.sweep}, Taper: {args.pot_taper})")
+            print(f"=========================================================================================")
+            print(f"Evaluated {len(res.values)} steps ({', '.join(res.labels)}) across {len(res.freqs)} frequencies.\n")
+            print("--- Frequency Response Grid ---")
             sample_freqs = [100.0, 500.0, 1000.0, 2500.0, 5000.0]
-            header = f"{'Value / Label':<18}" + "".join([f"{f'{f:.0f} Hz':>12}" for f in sample_freqs])
+            header = f"{'Value / Label':<24}" + "".join([f"{f'{f:.0f} Hz':>12}" for f in sample_freqs])
             print(header)
             print("-" * len(header))
             f_arr = np.asarray(res.freqs)
             f_indices = [int(np.argmin(np.abs(f_arr - sf))) for sf in sample_freqs]
             for lbl, curve in zip(res.labels, res.curves):
-                row = f"{lbl:<18}" + "".join([f"{curve[idx]:>11.1f}dB" for idx in f_indices])
+                row = f"{lbl:<24}" + "".join([f"{curve[idx]:>11.1f}dB" for idx in f_indices])
                 print(row)
+            print("\n--- Analytical Circuit Metrics ---")
+            res.print_metrics()
         return
 
     if args.stage == "canonical":
@@ -566,6 +583,8 @@ def main(argv=None):
         k_stein=args.k_stein,
         vol_pos=args.vol,
         tone_pos=args.tone,
+        blend_pos=args.blend,
+        pot_taper=args.pot_taper,
         cable_pf=args.cable_pf,
         slew_limit=slew_limit,
         f_slew=args.f_slew,
