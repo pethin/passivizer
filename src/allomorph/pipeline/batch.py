@@ -9,21 +9,16 @@ from typing import Optional, Sequence, Union
 from pathlib import Path
 
 from allomorph.config import VOICES
-from allomorph.pipeline.stages import (
-    DEFAULT_LTSPICE_BIN,
-    run_circuit_simulation,
-)
+from allomorph.pipeline.stages import run_circuit_simulation
 
 
 def _run_circuit_simulation_task(task_args):
     """Top-level picklable task runner for multiprocessing."""
-    voice, instrument, input_wav, backend, ltspice_bin, max_samples = task_args
+    voice, instrument, input_wav, max_samples = task_args
     success = run_circuit_simulation(
         voice=voice,
         instrument=instrument,
         input_wav=input_wav,
-        backend=backend,
-        ltspice_bin=ltspice_bin,
         max_samples=max_samples,
     )
     return voice, success
@@ -34,18 +29,22 @@ def run_spice_batch(
     instrument: str = "30in",
     input_wav: Optional[Union[str, Path]] = None,
     backend: str = "native",
-    ltspice_bin: str = DEFAULT_LTSPICE_BIN,
     jobs: Optional[int] = None,
     max_samples: Optional[int] = None,
 ) -> bool:
     """Executes batch simulation of specified voice circuit models with multi-process concurrency."""
+    if backend != "native":
+        raise ValueError(
+            f"Unsupported backend '{backend}'. The legacy LTspice pipeline has been removed; "
+            "Allomorph uses the built-in native Apple Silicon WAV SPICE engine."
+        )
     target_voices = voices if voices else list(VOICES.keys())
     max_workers = jobs if jobs is not None else min(4, os.cpu_count() or 4)
     samples_str = str(max_samples) if max_samples is not None else "full"
 
     if len(target_voices) > 1 and max_workers > 1:
-        print(f"\n[Stage 3] Executing circuit simulations in parallel ({len(target_voices)} voices, {max_workers} workers, Backend: {backend}, Max Samples: {samples_str})...")
-        tasks = [(v, instrument, input_wav, backend, ltspice_bin, max_samples) for v in target_voices]
+        print(f"\n[Stage 3] Executing circuit simulations in parallel ({len(target_voices)} voices, {max_workers} workers, Max Samples: {samples_str})...")
+        tasks = [(v, instrument, input_wav, max_samples) for v in target_voices]
         failed = []
         with ProcessPoolExecutor(max_workers=max_workers) as executor:
             futures = [executor.submit(_run_circuit_simulation_task, task) for task in tasks]
@@ -69,16 +68,14 @@ def run_spice_batch(
         return True
     else:
         mode_desc = "sequentially" if len(target_voices) > 1 else "single voice"
-        print(f"\n[Stage 3] Executing circuit simulation {mode_desc} ({len(target_voices)} voice{'s' if len(target_voices) > 1 else ''}, Backend: {backend}, Max Samples: {samples_str})...")
+        print(f"\n[Stage 3] Executing circuit simulation {mode_desc} ({len(target_voices)} voice{'s' if len(target_voices) > 1 else ''}, Max Samples: {samples_str})...")
         all_ok = True
         for idx, voice in enumerate(target_voices, 1):
-            print(f"\n[{idx}/{len(target_voices)}] Circuit simulation: {voice} (Backend: {backend})...")
+            print(f"\n[{idx}/{len(target_voices)}] Circuit simulation: {voice}...")
             ok = run_circuit_simulation(
                 voice,
                 instrument=instrument,
                 input_wav=input_wav,
-                backend=backend,
-                ltspice_bin=ltspice_bin,
                 max_samples=max_samples,
             )
             if not ok:

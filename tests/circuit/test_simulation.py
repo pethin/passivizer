@@ -580,7 +580,6 @@ def test_run_spice_batch_parallel():
     ok = run_spice_batch(
         voices=test_voices,
         instrument=inst,
-        backend="native",
         jobs=2,
         max_samples=4800,
     )
@@ -591,6 +590,18 @@ def test_run_spice_batch_parallel():
         out_wav = audio_dir / f"out_{v}.wav"
         assert out_wav.exists(), f"Expected output {out_wav} to be created by parallel batch simulation"
         assert out_wav.stat().st_size > 44, f"Output {out_wav} is too small"
+
+
+def test_unsupported_ltspice_backend_raises_error():
+    """Verify that attempting to invoke the removed legacy LTspice backend raises ValueError."""
+    import pytest
+    from allomorph.pipeline import run_circuit_simulation
+
+    with pytest.raises(ValueError, match="The legacy LTspice pipeline has been removed"):
+        run_circuit_simulation("04_modern_p_ceramic", backend="ltspice")
+
+    with pytest.raises(ValueError, match="The legacy LTspice pipeline has been removed"):
+        run_spice_batch(["04_modern_p_ceramic"], backend="ltspice")
 
 
 def test_run_pipeline_cli_jobs_and_voices():

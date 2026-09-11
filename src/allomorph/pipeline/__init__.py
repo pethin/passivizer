@@ -5,7 +5,6 @@ and NAM neural model training.
 """
 
 from allomorph.pipeline.stages import (
-    DEFAULT_LTSPICE_BIN,
     run_visualization,
     run_prep_audio,
     run_circuit_simulation,
@@ -23,7 +22,6 @@ from allomorph.pipeline.cli import (
 )
 
 __all__ = [
-    "DEFAULT_LTSPICE_BIN",
     "run_visualization",
     "run_prep_audio",
     "run_circuit_simulation",

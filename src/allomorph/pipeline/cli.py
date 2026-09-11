@@ -31,7 +31,6 @@ from allomorph.circuit import (
     simulate_backend_targets,
 )
 from allomorph.pipeline.stages import (
-    DEFAULT_LTSPICE_BIN,
     run_visualization,
     run_prep_audio,
     run_training,
@@ -101,12 +100,6 @@ def main(argv: Optional[Sequence[str]] = None):
         help="Physical pickup setting for source instrument ('auto' to resolve from pickup_mapping, or explicit pickup ID; default when using --bake is 'auto')"
     )
     parser.add_argument(
-        "--backend",
-        choices=["native", "ltspice"],
-        default="native",
-        help="Circuit simulation engine: 'native' (built-in Apple Silicon WAV SPICE simulator) or 'ltspice' (legacy external app)"
-    )
-    parser.add_argument(
         "--voice", "-v",
         default="all",
         help="Target pickup voice for audio pre-filtering, simulation, and training (voice ID, comma-separated list, or 'all'; default: 'all')"
@@ -149,11 +142,6 @@ def main(argv: Optional[Sequence[str]] = None):
         "--fast-dev-run",
         action="store_true",
         help="Run 1-batch dry run for smoke testing NAM training"
-    )
-    parser.add_argument(
-        "--ltspice-path",
-        default=DEFAULT_LTSPICE_BIN,
-        help="Path to LTspice binary for headless simulation (when using --backend ltspice)"
     )
     parser.add_argument(
         "--list-instruments",
@@ -300,8 +288,6 @@ def main(argv: Optional[Sequence[str]] = None):
                 voices=voices_to_run,
                 instrument=inst,
                 input_wav=input_wav,
-                backend=args.backend,
-                ltspice_bin=args.ltspice_path,
                 jobs=args.jobs,
                 max_samples=args.max_samples,
             )

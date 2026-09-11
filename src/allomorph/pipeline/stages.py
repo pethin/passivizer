@@ -26,7 +26,6 @@ from allomorph.circuit import (
 
 DOCS_DIR = REPO_ROOT / "docs"
 SCRIPTS_DIR = REPO_ROOT / "scripts"
-DEFAULT_LTSPICE_BIN = "/Applications/LTspice.app/Contents/MacOS/LTspice"
 
 
 def run_visualization(instrument: str = "all"):
@@ -78,49 +77,24 @@ def run_circuit_simulation(
     instrument: str = "30in",
     input_wav: Optional[Union[str, Path]] = None,
     backend: str = "native",
-    ltspice_bin: str = DEFAULT_LTSPICE_BIN,
     max_samples: Optional[int] = None,
 ) -> bool:
-    """Executes circuit simulation for a single target voice netlist."""
-    if backend == "native":
-        try:
-            return simulate_voice(voice, input_wav=input_wav, instrument=instrument, prefiltered=False, max_samples=max_samples)
-        except Exception as e:
-            print(f"Error during native circuit simulation: {e}")
-            return False
-
-    # LTspice backend requires intermediate aperture audio on disk
-    run_prep_audio(input_wav=input_wav, instrument=instrument, voice=voice)
-    if not os.path.exists(ltspice_bin):
-        print(f"Notice: LTspice executable not found at '{ltspice_bin}'. Falling back to native VA backend.")
-        return simulate_voice(voice, input_wav=input_wav, instrument=instrument, prefiltered=False, max_samples=max_samples)
-
-    vcfg = VOICES.get(voice, {})
-    cir_rel = vcfg.get("circuit", f"circuits/{voice}.cir")
-    cir_path = REPO_ROOT / cir_rel
-    if not cir_path.exists():
-        cir_path = CIRCUITS_DIR / f"{voice}.cir"
-    if not cir_path.exists():
-        print(f"Warning: Netlist '{cir_path.name}' not found.")
-        return False
-
-    input_aperture = AUDIO_DIR / instrument / f"aperture_{voice}.wav"
-    if not input_aperture.exists():
-        input_aperture = CIRCUITS_DIR / "aperture.wav"
-    if not input_aperture.exists():
-        print(f"Notice: Audio source '{input_aperture.name}' not found in circuits/.")
-        return False
-
-    print(f"  -> Simulating SPICE (LTspice): {cir_path.name}...")
-    cmd = [ltspice_bin, "-b", str(cir_path.resolve())]
+    """Executes circuit simulation for a single target voice netlist using the native Apple Silicon WAV SPICE engine."""
+    if backend != "native":
+        raise ValueError(
+            f"Unsupported backend '{backend}'. The legacy LTspice pipeline has been removed; "
+            "Allomorph uses the built-in native Apple Silicon WAV SPICE engine."
+        )
     try:
-        res = subprocess.run(cmd, cwd=str(CIRCUITS_DIR), timeout=300)
-        if res.returncode != 0:
-            print(f"     Warning: Simulation of {cir_path.name} exited with code {res.returncode}")
-            return False
-        return True
-    except subprocess.TimeoutExpired:
-        print(f"     Warning: Simulation of {cir_path.name} timed out after 300s")
+        return simulate_voice(
+            voice,
+            input_wav=input_wav,
+            instrument=instrument,
+            prefiltered=False,
+            max_samples=max_samples,
+        )
+    except Exception as e:
+        print(f"Error during native circuit simulation: {e}")
         return False
 
 
@@ -128,12 +102,17 @@ def run_spice_voice(
     voice: str,
     instrument: str = "30in",
     input_wav: Optional[Union[str, Path]] = None,
-    ltspice_bin: str = DEFAULT_LTSPICE_BIN,
     backend: str = "native",
     max_samples: Optional[int] = None,
 ) -> bool:
     """Legacy alias for run_circuit_simulation."""
-    return run_circuit_simulation(voice, instrument=instrument, input_wav=input_wav, backend=backend, ltspice_bin=ltspice_bin, max_samples=max_samples)
+    return run_circuit_simulation(
+        voice,
+        instrument=instrument,
+        input_wav=input_wav,
+        backend=backend,
+        max_samples=max_samples,
+    )
 
 
 def run_training(
