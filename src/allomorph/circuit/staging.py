@@ -8,7 +8,6 @@ and provides the allomorph-sim CLI binary entrypoint.
 import argparse
 import math
 import os
-import wave
 from pathlib import Path
 
 import numpy as np
@@ -36,6 +35,8 @@ from allomorph.config.schema import CoilConfig
 from allomorph.config.voices import VOICES
 from allomorph.dsp import (
     FREQS,
+    fft_convolve,
+    read_wav,
     synthesize_minimum_phase_fir,
     write_wav_24bit,
 )
@@ -64,22 +65,7 @@ def generate_canonical_sweep(input_wav: Path | None = None, output_wav: Path | N
     output_wav = Path(output_wav) if output_wav else CANONICAL_SWEEP_PATH
     output_wav.parent.mkdir(parents=True, exist_ok=True)
 
-    with wave.open(str(input_wav), "rb") as wf:
-        sr = wf.getframerate()
-        sw = wf.getsampwidth()
-        n_frames = wf.getnframes()
-        raw = wf.readframes(n_frames)
-
-    if sw == 3:
-        raw_padded = bytearray()
-        for i in range(0, len(raw), 3):
-            raw_padded.extend(raw[i : i + 3])
-            raw_padded.append(0 if raw[i + 2] < 128 else 255)
-        audio = np.frombuffer(raw_padded, dtype=np.int32).astype(np.float64) / 8388607.0
-    elif sw == 2:
-        audio = np.frombuffer(raw, dtype=np.int16).astype(np.float64) / 32767.0
-    else:
-        audio = np.frombuffer(raw, dtype=np.float32).astype(np.float64)
+    audio, sr = read_wav(input_wav, dtype=np.float64)
 
     f = np.asarray(FREQS, dtype=np.float64)
     can_coils = [
@@ -101,7 +87,7 @@ def generate_canonical_sweep(input_wav: Path | None = None, output_wav: Path | N
 
     can_fir = synthesize_minimum_phase_fir(h_can_total, num_taps=2048)
 
-    filtered = np.convolve(audio, can_fir, mode="same")
+    filtered = fft_convolve(audio, np.asarray(can_fir, dtype=np.float64), mode="same")
 
     raw_peak = float(np.max(np.abs(filtered)))
     raw_rms = float(np.sqrt(np.mean(filtered**2)))

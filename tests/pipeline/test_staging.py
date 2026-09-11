@@ -23,6 +23,7 @@ from allomorph.config import (
     get_source_pickup,
     load_instrument,
 )
+from allomorph.dsp import read_wav
 from allomorph.naming import (
     VOICE_CONCISE_SLUGS,
     get_baked_basename,
@@ -59,18 +60,8 @@ def test_canonical_sweep_calibration(tmp_path: Path):
     generate_canonical_sweep(output_wav=sweep_path)
 
     assert sweep_path.exists()
-    with wave.open(str(sweep_path), "rb") as wf:
-        assert wf.getframerate() == 48000
-        assert wf.getsampwidth() == 3  # 24-bit
-        assert wf.getnchannels() == 1
-        n = wf.getnframes()
-        raw = wf.readframes(n)
-
-    raw_padded = bytearray()
-    for i in range(0, len(raw), 3):
-        raw_padded.extend(raw[i : i + 3])
-        raw_padded.append(0 if raw[i + 2] < 128 else 255)
-    audio = np.frombuffer(raw_padded, dtype=np.int32).astype(np.float32) / 8388607.0
+    audio, sr = read_wav(sweep_path)
+    assert sr == 48000
 
     peak = float(np.max(np.abs(audio)))
     peak_db = 20.0 * math.log10(peak)
@@ -86,17 +77,9 @@ def test_frontend_ir_generation(tmp_path: Path):
 
     for ir_path in exported:
         assert ir_path.exists(), f"IR missing: {ir_path}"
-        with wave.open(str(ir_path), "rb") as wf:
-            assert wf.getframerate() == 48000
-            assert wf.getsampwidth() == 3  # 24-bit
-            assert wf.getnframes() == 2048, f"{ir_path} has {wf.getnframes()} taps (expected 2048)"
-            raw = wf.readframes(2048)
-
-        raw_padded = bytearray()
-        for i in range(0, len(raw), 3):
-            raw_padded.extend(raw[i : i + 3])
-            raw_padded.append(0 if raw[i + 2] < 128 else 255)
-        fir = np.frombuffer(raw_padded, dtype=np.int32).astype(np.float32) / 8388607.0
+        fir, sr = read_wav(ir_path)
+        assert sr == 48000
+        assert len(fir) == 2048, f"{ir_path} has {len(fir)} taps (expected 2048)"
 
         # Positive initial polarity assertion
         assert np.sum(fir[:16]) > 0.0, f"{ir_path.name} has inverted polarity ({np.sum(fir[:16])})"

@@ -23,7 +23,7 @@ from allomorph.circuit import (
     load_circuit,
 )
 from allomorph.config import VOICES, load_instrument
-from allomorph.dsp import FREQS
+from allomorph.dsp import FREQS, read_wav
 from allomorph.visualizer import build_voice_dataframe
 
 
@@ -350,7 +350,6 @@ def test_guardrail_visualizer_signal_flow_inspector_fidelity():
       Stage 3: Block 2 Target Voicing (universal target transfer function)
       Stage 4: Resulting Output (exact 0.00 dB for matching identity, Stage 2 + Stage 3 = Stage 4)"""
     import tempfile
-    import wave
     from pathlib import Path
 
     import numpy as np
@@ -362,14 +361,7 @@ def test_guardrail_visualizer_signal_flow_inspector_fidelity():
     # 1. Physical IR Equivalence: Visualizer Block 1 must match export_frontend_ir FIR
     with tempfile.TemporaryDirectory() as tmpdir:
         ir_path = export_frontend_ir("34in_standard_p", "split_p", output_dir=Path(tmpdir))
-        with wave.open(str(ir_path), "rb") as wf:
-            n_frames = wf.getnframes()
-            raw = wf.readframes(n_frames)
-            raw_padded = bytearray()
-            for i in range(0, len(raw), 3):
-                raw_padded.extend(raw[i : i + 3])
-                raw_padded.append(0 if raw[i + 2] < 128 else 255)
-            fir = np.frombuffer(raw_padded, dtype=np.int32).astype(np.float64) / 8388607.0
+        fir, _ = read_wav(ir_path, dtype=np.float64)
 
     n_fft = 8192
     h_ir = np.fft.rfft(fir, n_fft)
@@ -429,7 +421,6 @@ def test_guardrail_visualizer_frontend_deconvolutions_fidelity():
     strictly match the actual 2048-tap minimum-phase FIR from export_frontend_ir within < 0.5 dB
     across 20 Hz to 20 kHz with bounded Wiener regularization and finite DC transmission."""
     import tempfile
-    import wave
     from pathlib import Path
 
     import numpy as np
@@ -451,13 +442,7 @@ def test_guardrail_visualizer_frontend_deconvolutions_fidelity():
     for inst_id, pkey in test_cases:
         with tempfile.TemporaryDirectory() as tmpdir:
             ir_path = export_frontend_ir(inst_id, pkey, output_dir=Path(tmpdir))
-            with wave.open(str(ir_path), "rb") as wf:
-                raw = wf.readframes(wf.getnframes())
-                raw_padded = bytearray()
-                for i in range(0, len(raw), 3):
-                    raw_padded.extend(raw[i : i + 3])
-                    raw_padded.append(0 if raw[i + 2] < 128 else 255)
-                fir = np.frombuffer(raw_padded, dtype=np.int32).astype(np.float64) / 8388607.0
+            fir, _ = read_wav(ir_path, dtype=np.float64)
 
         n_fft = 8192
         h_ir = np.fft.rfft(fir, n_fft)
