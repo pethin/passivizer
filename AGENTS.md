@@ -33,6 +33,9 @@ When contributing to or maintaining this repository, strictly adhere to these ar
   - 24-bit audio file I/O uses **Spotify's `pedalboard`** (JUCE-backed SIMD C++ engine).
   - Minimum-phase FIR synthesis uses our internal homomorphic real-cepstrum Hilbert transform engine vectorized with NumPy.
   - Do **NOT** add `scipy` or `soundfile` as dependencies (they carry legacy C/Fortran bloat).
+- **Linting, Code Quality & Static Typing:**
+  - Strictly use **`ruff`** (`uv run ruff check`, `uv run ruff check --fix`) for linting, code formatting, and import sorting targeting Python 3.14 (`py314`).
+  - Strictly use **`pyrefly`** (`uv run pyrefly check`) with the strict preset (`preset = "strict"` in `pyproject.toml`) for type checking across the entire codebase. Do NOT disable rules, downscale presets, or suppress type checks with `# type: ignore` unless proven fundamentally impossible. Use `pydantic` for structured schemas and runtime validation where appropriate.
 - **Git & Contribution Governance:** All commits must be signed off using `git commit -s` (or `Signed-off-by: Legal Name <email>`) to satisfy `CLA.md` and pass automated DCO CI checks.
 - **Circuit Simulation Engine:**
   - **Native WAV SPICE Engine:** Built-in Apple Silicon (`arm64`) WAV SPICE circuit simulation engine (`src/allomorph/circuit/`, `allomorph-sim`) providing zero-external-dependency SPICE netlist parsing, analytical nodal RLC solving, regularized differential SPICE transfer functions ($H_{\text{diff}} = H_{\text{target}} / H_{\text{source}}$), dynamic core saturation bypass, and vector soft-knee saturation ($V_{\text{sat}} \cdot \tanh(v/V_{\text{sat}})$) directly on audio waveforms at >1500x speed.
@@ -130,4 +133,4 @@ All code contributions must strictly satisfy the following normative invariants 
 To maintain simulation speeds exceeding $>1500\times$ real time:
 1. **Buffer & Recurrence Acceleration:** Never execute interpreted Python loops over audio buffers. Compile recursive ODE state solvers with Numba (`@njit(fastmath=True)`). Pack 24-bit little-endian WAV bytes via C view slicing (`.astype("<i4").view(np.uint8)`). Formulate nodal circuit transfers on complex NumPy vectors ($s = 1j \cdot \omega$).
 2. **Stage Fusion & Caching:** Fuse linear filter stages in the frequency domain. Broadcast input forward FFTs across channels. Cache parsed netlists with `@functools.lru_cache`. Precompute global target voice dataframes once.
-3. **Automated Verification:** All changes must satisfy automated property assertions in `tests/test_guardrails.py`.
+3. **Automated Verification:** All changes must satisfy automated property assertions in `tests/test_guardrails.py` as well as zero errors under `uv run ruff check` and `uv run pyrefly check`.
