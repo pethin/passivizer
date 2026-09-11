@@ -71,7 +71,7 @@ def test_generate_all_charts():
             if inst_id == "canonical_intermediate":
                 continue
             assert inst_id in portal_content
-            assert inst_cfg.get("name", inst_id) in portal_content
+            assert inst_cfg.name in portal_content
 
 
 def test_generate_interactive_chart_modes():
@@ -126,7 +126,9 @@ def test_portal_html_scripts_valid():
     for p in portal_files:
         assert p.exists()
         content = p.read_text(encoding="utf-8")
-        scripts = re.findall(r"<script(?:\s+type=\"text/javascript\")?>(.*?)</script>", content, re.DOTALL)
+        scripts = re.findall(
+            r"<script(?:\s+type=\"text/javascript\")?>(.*?)</script>", content, re.DOTALL
+        )
         for s in scripts:
             # Strip comments and string literals
             clean_s = re.sub(r"//.*", "", s)
@@ -136,12 +138,14 @@ def test_portal_html_scripts_valid():
             clean_s = re.sub(r"`(?:\\.|[^`])*`", "``", clean_s)
 
             stack = []
-            matching = {')': '(', '}': '{', ']': '['}
+            matching = {")": "(", "}": "{", "]": "["}
             for char in clean_s:
                 if char in "({[":
                     stack.append(char)
                 elif char in ")}]":
                     assert stack, f"Unmatched closing '{char}' in {p.name}"
                     top = stack.pop()
-                    assert top == matching[char], f"Mismatched '{char}' in {p.name}: expected {matching[char]}, got {top}"
+                    assert top == matching[char], (
+                        f"Mismatched '{char}' in {p.name}: expected {matching[char]}, got {top}"
+                    )
             assert not stack, f"Unclosed brackets {stack} in {p.name}"

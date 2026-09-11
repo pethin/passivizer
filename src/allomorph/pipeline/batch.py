@@ -45,7 +45,9 @@ def run_spice_batch(
     samples_str = str(max_samples) if max_samples is not None else "full"
 
     if len(target_voices) > 1 and max_workers > 1:
-        print(f"\n[Stage 3] Executing circuit simulations in parallel ({len(target_voices)} voices, {max_workers} workers, Max Samples: {samples_str})...")
+        print(
+            f"\n[Stage 3] Executing circuit simulations in parallel ({len(target_voices)} voices, {max_workers} workers, Max Samples: {samples_str})..."
+        )
         tasks = [(v, instrument, input_wav, max_samples) for v in target_voices]
         failed = []
         with ProcessPoolExecutor(max_workers=max_workers) as executor:
@@ -57,10 +59,14 @@ def run_spice_batch(
                         failed.append(v)
                         print(f"  [{completed}/{len(target_voices)}] Voice simulation FAILED: {v}")
                     else:
-                        print(f"  [{completed}/{len(target_voices)}] Voice simulation finished: {v}")
+                        print(
+                            f"  [{completed}/{len(target_voices)}] Voice simulation finished: {v}"
+                        )
                 except (OSError, RuntimeError, ValueError) as e:
                     failed.append(f"unknown (error: {e})")
-                    print(f"  [{completed}/{len(target_voices)}] Voice simulation worker error: {e}")
+                    print(
+                        f"  [{completed}/{len(target_voices)}] Voice simulation worker error: {e}"
+                    )
         if failed:
             print(f"Warning: {len(failed)} voice simulations failed: {', '.join(failed)}")
             return False
@@ -68,7 +74,9 @@ def run_spice_batch(
         return True
     else:
         mode_desc = "sequentially" if len(target_voices) > 1 else "single voice"
-        print(f"\n[Stage 3] Executing circuit simulation {mode_desc} ({len(target_voices)} voice{'s' if len(target_voices) > 1 else ''}, Max Samples: {samples_str})...")
+        print(
+            f"\n[Stage 3] Executing circuit simulation {mode_desc} ({len(target_voices)} voice{'s' if len(target_voices) > 1 else ''}, Max Samples: {samples_str})..."
+        )
         all_ok = True
         for idx, voice in enumerate(target_voices, 1):
             print(f"\n[{idx}/{len(target_voices)}] Circuit simulation: {voice}...")

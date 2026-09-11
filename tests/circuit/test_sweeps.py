@@ -52,7 +52,7 @@ def test_volume_pot_sweep_attenuation():
     mag_full = res.curves[-1][idx_1k]
 
     assert mag_zero < -60.0  # Fully attenuated
-    assert mag_full > -3.0   # Nominal unattenuated passband
+    assert mag_full > -3.0  # Nominal unattenuated passband
     assert mag_full > mag_zero + 50.0
 
 
@@ -77,7 +77,7 @@ def test_cable_capacitance_resonance_downshift():
     # Increasing capacitance must downshift resonance monotonically
     for i in range(len(peak_freqs) - 1):
         assert peak_freqs[i] >= peak_freqs[i + 1], (
-            f"Expected downward resonance shift, got {peak_freqs[i]} -> {peak_freqs[i+1]}"
+            f"Expected downward resonance shift, got {peak_freqs[i]} -> {peak_freqs[i + 1]}"
         )
 
     # Treble at 4 kHz must roll off monotonically with higher cable capacitance
@@ -89,7 +89,9 @@ def test_cable_capacitance_resonance_downshift():
 
 def test_active_preamp_boost_sweep():
     """Active preamp bass boost sweep must increase low-frequency gain."""
-    res = compute_parametric_sweep("01_modern_jazz_active", param="bass_boost", values=[0.0, 6.0, 12.0])
+    res = compute_parametric_sweep(
+        "01_modern_jazz_active", param="bass_boost", values=[0.0, 6.0, 12.0]
+    )
 
     assert len(res.curves) == 3
     f_arr = np.asarray(res.freqs)
@@ -119,7 +121,9 @@ def test_sweep_performance_benchmark():
     best_ms = float(min(runs))
     assert res is not None
     assert len(res.curves) == 100
-    assert best_ms < 50.0, f"Expected < 50 ms for 100 steps, best was {best_ms:.2f} ms (runs: {runs})"
+    assert best_ms < 50.0, (
+        f"Expected < 50 ms for 100 steps, best was {best_ms:.2f} ms (runs: {runs})"
+    )
 
 
 def test_to_dataframe_schema():

@@ -18,5 +18,7 @@ def test_scales_structure():
         assert cfg.scale_length_m is not None and cfg.scale_length_m > 0
 
     # 30" wave speeds should be lower than 34" wave speeds, and 34" lower than upright
-    for s30, s34, sup in zip(SCALES["30in"].speeds, SCALES["34in"].speeds, SCALES["upright"].speeds):
+    for s30, s34, sup in zip(
+        SCALES["30in"].speeds, SCALES["34in"].speeds, SCALES["upright"].speeds
+    ):
         assert s30 < s34 < sup

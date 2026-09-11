@@ -33,28 +33,30 @@ def test_get_preamp_resolution():
     """Verify get_preamp resolves presets, default fallbacks, and inline overrides."""
     # 1. None/empty returns flat buffer
     default_pre = get_preamp(None)
-    assert default_pre["name"] == "Flat Studio Active Buffer"
-    assert len(default_pre["bands"]) == 0
+    assert default_pre.name == "Flat Studio Active Buffer"
+    assert len(default_pre.bands) == 0
 
     # 2. String preset lookup
     sad = get_preamp("sadowsky_2band")
-    assert sad["name"] == "Sadowsky 2-Band Boost-Only Preamp"
-    assert len(sad["bands"]) == 2
-    assert sad["bands"][0]["freq_hz"] == 60.0
-    assert sad["bands"][0]["gain_db"] == 3.5
-    assert sad["bands"][1]["freq_hz"] == 3500.0
-    assert sad["bands"][1]["gain_db"] == 3.5
+    assert sad.name == "Sadowsky 2-Band Boost-Only Preamp"
+    assert len(sad.bands) == 2
+    assert sad.bands[0].freq_hz == 60.0
+    assert sad.bands[0].gain_db == 3.5
+    assert sad.bands[1].freq_hz == 3500.0
+    assert sad.bands[1].gain_db == 3.5
 
     # 3. Dict with preset override
     overridden = get_preamp({"preset": "sadowsky_2band", "gain_db": 2.0})
-    assert overridden["gain_db"] == 2.0
-    assert len(overridden["bands"]) == 2
+    assert overridden.gain_db == 2.0
+    assert len(overridden.bands) == 2
 
     # 4. Pure custom dict
-    custom = get_preamp({
-        "name": "Custom 1-Band",
-        "output_impedance_ohm": 150.0,
-        "bands": [{"type": "low_shelf", "freq_hz": 50.0, "gain_db": 4.0}]
-    })
-    assert custom["name"] == "Custom 1-Band"
-    assert len(custom["bands"]) == 1
+    custom = get_preamp(
+        {
+            "name": "Custom 1-Band",
+            "output_impedance_ohm": 150.0,
+            "bands": [{"type": "low_shelf", "freq_hz": 50.0, "gain_db": 4.0}],
+        }
+    )
+    assert custom.name == "Custom 1-Band"
+    assert len(custom.bands) == 1

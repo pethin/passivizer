@@ -3,13 +3,12 @@ Pickup coil geometry resolution, multi-coil component decomposition,
 and magnetic pole piece geometry inference.
 """
 
-
 from collections.abc import Sequence
-from typing import Any
 
 from allomorph.config.schema import (
-    AllomorphBaseModel,
     CoilConfig,
+    InstrumentConfig,
+    PickupComponentConfig,
     PickupConfig,
     VoiceCoilConfig,
     VoiceConfig,
@@ -17,19 +16,26 @@ from allomorph.config.schema import (
 )
 
 
-def _infer_pole_type(pickup_or_voice: Any = None, coil: Any = None) -> str:
+def _infer_pole_type(
+    pickup_or_voice: PickupConfig | VoiceConfig | VoicePickupConfig | None = None,
+    coil: CoilConfig | VoiceCoilConfig | PickupComponentConfig | None = None,
+) -> str:
     """
     Infers magnetic pole geometry: 'rod' (cylindrical Alnico rod, Airy/Bessel spatial window)
     or 'blade' (continuous steel/ceramic bar blade, 1D rectangular slit).
     """
-    if coil and coil.get("pole_type"):
-        return str(coil["pole_type"]).lower()
-    if pickup_or_voice:
-        if pickup_or_voice.get("pole_type"):
-            return str(pickup_or_voice["pole_type"]).lower()
-        mag = str(pickup_or_voice.get("magnet_type", pickup_or_voice.get("magnet", ""))).lower()
-        p_type = str(pickup_or_voice.get("type", pickup_or_voice.get("topology", ""))).lower()
-        p_name = str(pickup_or_voice.get("name", "")).lower()
+    if coil and coil.pole_type:
+        return str(coil.pole_type).lower()
+    if pickup_or_voice is not None:
+        if isinstance(pickup_or_voice, PickupConfig) and pickup_or_voice.pole_type:
+            return str(pickup_or_voice.pole_type).lower()
+        mag = str(pickup_or_voice.magnet_type or "").lower()
+        p_type = str(
+            pickup_or_voice.topology
+            if isinstance(pickup_or_voice, VoiceConfig)
+            else pickup_or_voice.type
+        ).lower()
+        p_name = str(pickup_or_voice.name).lower()
         if "blade" in p_name or "blade" in p_type or "bar" in p_name:
             return "blade"
         if "emg" in p_name or "emg" in p_type:
@@ -42,7 +48,7 @@ def _infer_pole_type(pickup_or_voice: Any = None, coil: Any = None) -> str:
 
 
 def resolve_pickup_coils(
-    pickup_dict: dict[str, Any] | PickupConfig, instrument: Any = None
+    pickup: PickupConfig, instrument: InstrumentConfig | None = None
 ) -> list[CoilConfig]:
     """
     Resolves an instrument pickup configuration into a canonical list of CoilConfig models.
@@ -53,23 +59,20 @@ def resolve_pickup_coils(
       - Single-coil / split-coil fallbacks
     """
     # 1. Composite blend / sum
-    p_type = pickup_dict.get("type")
-    components = pickup_dict.get("components")
-    if p_type == "composite" or components:
+    if pickup.type == "composite" or bool(pickup.components):
         resolved: list[CoilConfig] = []
-        comp_list = components or []
-        empty_pickups: dict[str, Any] = {}
-        pickups_map: dict[str, Any] = instrument.get("pickups", empty_pickups) if instrument else empty_pickups
+        comp_list = pickup.components or []
+        pickups_map: dict[str, PickupConfig] = instrument.pickups if instrument else {}
         for comp in comp_list:
-            p_ref = comp.get("pickup")
-            c_weight = float(comp.get("weight", 1.0))
-            c_pol = float(comp.get("polarity", 1.0))
+            p_ref = comp.pickup
+            c_weight = float(comp.weight)
+            c_pol = float(comp.polarity)
             if p_ref:
                 if p_ref not in pickups_map:
+                    inst_id = instrument.id if instrument else "unknown"
                     raise KeyError(
                         f"Composite pickup references non-existent pickup '{p_ref}' in instrument "
-                        f"'{instrument.get('id', 'unknown') if instrument else 'unknown'}'. "
-                        f"Available pickups: {list(pickups_map.keys())}"
+                        f"'{inst_id}'. Available pickups: {list(pickups_map.keys())}"
                     )
                 sub_coils = resolve_pickup_coils(pickups_map[p_ref], instrument)
                 for sc in sub_coils:
@@ -79,45 +82,36 @@ def resolve_pickup_coils(
                     if not sc_copy.pole_type:
                         sc_copy.pole_type = _infer_pole_type(pickups_map[p_ref], sc)
                     resolved.append(sc_copy)
-            elif "position_from_bridge_m" in comp and comp["position_from_bridge_m"] is not None:
-                resolved.append(CoilConfig(
-                    position_from_bridge_m=float(comp["position_from_bridge_m"]),
-                    aperture_width_in=float(comp.get("aperture_width_in", 0.75)),
-                    weight=c_weight,
-                    polarity=c_pol,
-                    strings=list(comp.get("strings", ["all"])),
-                    pole_type=_infer_pole_type(pickup_dict, comp),
-                ))
+            elif comp.position_from_bridge_m is not None:
+                resolved.append(
+                    CoilConfig(
+                        position_from_bridge_m=float(comp.position_from_bridge_m),
+                        aperture_width_in=float(comp.aperture_width_in),
+                        weight=c_weight,
+                        polarity=c_pol,
+                        strings=list(comp.strings),
+                        pole_type=_infer_pole_type(pickup, comp),
+                    )
+                )
             else:
+                inst_id = instrument.id if instrument else "unknown"
                 raise ValueError(
-                    f"Composite pickup component in '{instrument.get('id', 'unknown') if instrument else 'unknown'}' "
+                    f"Composite pickup component in '{inst_id}' "
                     "must specify either 'pickup' or 'position_from_bridge_m'."
                 )
         if resolved:
             return resolved
 
     # 2. Explicit coils list
-    raw_coils = pickup_dict.get("coils")
-    if raw_coils:
-        coils = []
-        default_w = float(pickup_dict.get("aperture_width_in", 0.75))
-        for c in raw_coils:
-            coils.append(CoilConfig(
-                position_from_bridge_m=float(c.get("position_from_bridge_m", 0.08)),
-                aperture_width_in=float(c.get("aperture_width_in", default_w)),
-                weight=float(c.get("weight", 1.0)),
-                polarity=float(c.get("polarity", 1.0)),
-                strings=list(c.get("strings", ["all"])),
-                pole_type=_infer_pole_type(pickup_dict, c),
-            ))
-        return coils
+    if pickup.coils:
+        return [c.model_copy(deep=True) for c in pickup.coils]
 
     # 3. Dual-coil humbucker via coil_spacing_in
-    pos_m = float(pickup_dict.get("position_from_bridge_m", 0.08) or 0.08)
-    w_in = float(pickup_dict.get("aperture_width_in", 0.75))
-    d_in = float(pickup_dict.get("coil_spacing_in", 0.0))
+    pos_m = float(pickup.position_from_bridge_m or 0.08)
+    w_in = float(pickup.aperture_width_in)
+    d_in = float(pickup.coil_spacing_in)
     d_m = d_in * 0.0254
-    p_pole = _infer_pole_type(pickup_dict)
+    p_pole = _infer_pole_type(pickup)
     if d_in > 0:
         return [
             CoilConfig(
@@ -151,53 +145,23 @@ def resolve_pickup_coils(
     ]
 
 
-def resolve_voice_pickups(
-    voice_cfg: dict[str, Any] | AllomorphBaseModel,
-) -> list[VoicePickupConfig]:
+def resolve_voice_pickups(voice_cfg: VoiceConfig) -> list[VoicePickupConfig]:
     """
     Resolves a target voice configuration into a canonical list of VoicePickupConfig models.
     Handles multi-pickup voices and single-pickup fallbacks.
     """
-    if isinstance(voice_cfg, VoiceConfig) and voice_cfg.pickups:
+    if voice_cfg.pickups:
         return voice_cfg.pickups
-
-    pickups = voice_cfg.get("pickups")
-    if pickups:
-        resolved = []
-        for p in pickups:
-            p_coils = []
-            for c in p.get("coils", []):
-                p_coils.append(VoiceCoilConfig(
-                    position_from_bridge_m=float(c.get("position_from_bridge_m", 0.08)),
-                    aperture_width_in=float(c.get("aperture_width_in", 0.75)),
-                    weight=float(c.get("weight", 1.0)),
-                    polarity=float(c.get("polarity", 1.0)),
-                    strings=list(c.get("strings", ["all"])),
-                    pole_type=_infer_pole_type(p, c),
-                ))
-            resolved.append(VoicePickupConfig(
-                name=str(p.get("name", "Pickup")),
-                type=str(p.get("type", "single_coil")),
-                magnet_type=p.get("magnet_type"),
-                alpha=p.get("alpha"),
-                fr=float(p.get("fr", voice_cfg.get("fr", 3000.0))),
-                Q=float(p.get("Q", voice_cfg.get("Q", 1.5))),
-                weight=float(p.get("weight", 1.0)),
-                polarity=float(p.get("polarity", 1.0)),
-                coils=p_coils,
-            ))
-        if resolved:
-            return resolved
 
     # Fallback for single-pickup voices: wrap top-level voice coils/fr/Q
     top_coils = resolve_voice_coils(voice_cfg, _from_pickups=False)
     return [
         VoicePickupConfig(
-            name=str(voice_cfg.get("name", "Target Pickup")),
-            type=str(voice_cfg.get("topology", "single")),
-            magnet_type=voice_cfg.get("magnet_type"),
-            fr=float(voice_cfg.get("fr", 3000.0)),
-            Q=float(voice_cfg.get("Q", 1.5)),
+            name=voice_cfg.name,
+            type=voice_cfg.topology,
+            magnet_type=voice_cfg.magnet_type,
+            fr=voice_cfg.fr,
+            Q=voice_cfg.Q,
             weight=1.0,
             polarity=1.0,
             coils=top_coils,
@@ -206,104 +170,50 @@ def resolve_voice_pickups(
 
 
 def resolve_voice_coils(
-    voice_cfg: dict[str, Any] | AllomorphBaseModel, _from_pickups: bool = True
+    voice_cfg: VoiceConfig, _from_pickups: bool = True
 ) -> list[VoiceCoilConfig]:
     """Resolves target voice configuration into a canonical list of VoiceCoilConfig models."""
-    if _from_pickups and isinstance(voice_cfg, VoiceConfig) and voice_cfg.pickups:
+
+    if _from_pickups and voice_cfg.pickups:
         all_coils = []
         for p in voice_cfg.pickups:
             p_weight = float(p.weight)
             p_pol = float(p.polarity)
             for c in p.coils:
-                all_coils.append(VoiceCoilConfig(
-                    position_from_bridge_m=c.position_from_bridge_m,
-                    aperture_width_in=c.aperture_width_in,
-                    weight=c.weight * p_weight,
-                    polarity=c.polarity * p_pol,
-                    strings=list(c.strings),
-                    pole_type=c.pole_type or "rod",
-                ))
+                all_coils.append(
+                    VoiceCoilConfig(
+                        position_from_bridge_m=c.position_from_bridge_m,
+                        aperture_width_in=c.aperture_width_in,
+                        weight=c.weight * p_weight,
+                        polarity=c.polarity * p_pol,
+                        strings=list(c.strings),
+                        pole_type=c.pole_type or "rod",
+                    )
+                )
         if all_coils:
             return all_coils
 
-    pickups = voice_cfg.get("pickups")
-    if _from_pickups and pickups:
-        all_coils = []
-        for p in pickups:
-            p_weight = float(p.get("weight", 1.0))
-            p_pol = float(p.get("polarity", 1.0))
-            for c in p.get("coils", []):
-                all_coils.append(VoiceCoilConfig(
-                    position_from_bridge_m=float(c.get("position_from_bridge_m", 0.08)),
-                    aperture_width_in=float(c.get("aperture_width_in", 0.75)),
-                    weight=float(c.get("weight", 1.0)) * p_weight,
-                    polarity=float(c.get("polarity", 1.0)) * p_pol,
-                    strings=list(c.get("strings", ["all"])),
-                    pole_type=_infer_pole_type(p, c),
-                ))
-        if all_coils:
-            return all_coils
+    if voice_cfg.coils:
+        return [c.model_copy(deep=True) for c in voice_cfg.coils]
 
-    raw_coils = voice_cfg.get("coils")
-    if raw_coils:
-        normalized = []
-        for c in raw_coils:
-            normalized.append(VoiceCoilConfig(
-                position_from_bridge_m=float(c.get("position_from_bridge_m", 0.08)),
-                aperture_width_in=float(c.get("aperture_width_in", 0.75)),
-                weight=float(c.get("weight", 1.0)),
-                polarity=float(c.get("polarity", 1.0)),
-                strings=list(c.get("strings", ["all"])),
-                pole_type=_infer_pole_type(voice_cfg, c),
-            ))
-        return normalized
-
-    pos_m = float(voice_cfg.get("pos_34", 0.088))
-    w_in = float(voice_cfg.get("w", 0.75))
-    d_in = float(voice_cfg.get("d", 0.0))
-    d_m = d_in * 0.0254
-    v_pole = _infer_pole_type(voice_cfg)
-    if d_in > 0:
-        return [
-            VoiceCoilConfig(
-                position_from_bridge_m=pos_m - d_m / 2.0,
-                aperture_width_in=w_in / 2.0,
-                weight=0.5,
-                polarity=1.0,
-                strings=["all"],
-                pole_type=v_pole,
-            ),
-            VoiceCoilConfig(
-                position_from_bridge_m=pos_m + d_m / 2.0,
-                aperture_width_in=w_in / 2.0,
-                weight=0.5,
-                polarity=1.0,
-                strings=["all"],
-                pole_type=v_pole,
-            ),
-        ]
     return [
         VoiceCoilConfig(
-            position_from_bridge_m=pos_m,
-            aperture_width_in=w_in,
+            position_from_bridge_m=0.088,
+            aperture_width_in=0.75,
             weight=1.0,
             polarity=1.0,
             strings=["all"],
-            pole_type=v_pole,
+            pole_type=_infer_pole_type(voice_cfg),
         )
     ]
 
 
-def compute_effective_position(coils: Sequence[Any]) -> float:
+def compute_effective_position(coils: Sequence[CoilConfig | VoiceCoilConfig]) -> float:
     """Computes weighted average physical position from bridge in meters."""
     if not coils:
         return 0.08
-    total_w = sum(float(c.get("weight", 1.0) if hasattr(c, "get") else getattr(c, "weight", 1.0)) for c in coils)
+    total_w = sum(float(c.weight) for c in coils)
     if total_w == 0:
         c0 = coils[0]
-        return float(c0.get("position_from_bridge_m", 0.08) if hasattr(c0, "get") else getattr(c0, "position_from_bridge_m", 0.08))
-    return sum(
-        float(c.get("position_from_bridge_m", 0.08) if hasattr(c, "get") else getattr(c, "position_from_bridge_m", 0.08))
-        * float(c.get("weight", 1.0) if hasattr(c, "get") else getattr(c, "weight", 1.0))
-        for c in coils
-    ) / total_w
+        return float(c0.position_from_bridge_m)
+    return sum(float(c.position_from_bridge_m) * float(c.weight) for c in coils) / total_w

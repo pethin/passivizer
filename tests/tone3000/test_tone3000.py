@@ -108,11 +108,11 @@ def test_tone3000_multi_pickup_tags():
 
         # Find all numbered voicing lines (e.g. "01. Modern Active Jazz Bass...")
         voicing_lines = [
-            line.strip()
-            for line in content.splitlines()
-            if re.match(r"^\d{2}\.", line.strip())
+            line.strip() for line in content.splitlines() if re.match(r"^\d{2}\.", line.strip())
         ]
-        assert len(voicing_lines) == 22, f"{pack}.txt expected 22 voicing lines, found {len(voicing_lines)}"
+        assert len(voicing_lines) == 22, (
+            f"{pack}.txt expected 22 voicing lines, found {len(voicing_lines)}"
+        )
 
         for line in voicing_lines:
             has_tag = any(tag in line for tag in tags)
@@ -144,7 +144,9 @@ def test_tone3000_production_artwork_assets():
 
         # High-res JPG size verification (> 50 KB)
         jpg_size = jpg_file.stat().st_size
-        assert jpg_size > 50000, f"JPG artwork {jpg_file} appears corrupted (size: {jpg_size} bytes)"
+        assert jpg_size > 50000, (
+            f"JPG artwork {jpg_file} appears corrupted (size: {jpg_size} bytes)"
+        )
 
 
 def test_tone3000_catalog_readme_integrity():
@@ -156,5 +158,9 @@ def test_tone3000_catalog_readme_integrity():
 
     for pack in PACK_EDITIONS:
         assert f"{pack}.txt" in content, f"README.md does not reference {pack}.txt"
-        assert f"allomorph_{pack}.svg" in content, f"README.md does not reference allomorph_{pack}.svg"
-        assert f"allomorph_{pack}.jpg" in content, f"README.md does not reference allomorph_{pack}.jpg"
+        assert f"allomorph_{pack}.svg" in content, (
+            f"README.md does not reference allomorph_{pack}.svg"
+        )
+        assert f"allomorph_{pack}.jpg" in content, (
+            f"README.md does not reference allomorph_{pack}.jpg"
+        )

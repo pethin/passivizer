@@ -113,7 +113,9 @@ def test_circuit_simulation_vs_theory_consistency():
         prefilter_firs = compute_voice_prefilter_firs(voice_id, instrument=inst_id)
 
         with tempfile.NamedTemporaryFile(suffix=".wav") as tmp_out:
-            simulate_circuit_audio(impulse, Path(tmp_out.name), model, prefilter_firs=prefilter_firs)
+            simulate_circuit_audio(
+                impulse, Path(tmp_out.name), model, prefilter_firs=prefilter_firs
+            )
             with pedalboard.io.AudioFile(tmp_out.name) as f:
                 out_audio = f.read(f.frames)[0]
 
@@ -132,7 +134,9 @@ def test_circuit_simulation_vs_theory_consistency():
             val_sim = float(np.interp(test_f, freqs_sim, sim_db))
             val_theory = float(np.interp(test_f, f_theory, mag_theory_db))
             diff = abs(val_sim - val_theory)
-            assert diff < 2.0, f"{voice_id} at {test_f} Hz diff={diff:.2f} dB exceeds 2.0 dB (sim={val_sim:.2f}, theory={val_theory:.2f})"
+            assert diff < 2.0, (
+                f"{voice_id} at {test_f} Hz diff={diff:.2f} dB exceeds 2.0 dB (sim={val_sim:.2f}, theory={val_theory:.2f})"
+            )
 
 
 def test_upright_voicing_simulation_vs_theory_consistency():
@@ -170,17 +174,32 @@ def test_upright_voicing_simulation_vs_theory_consistency():
         val_sim = float(np.interp(test_f, freqs_sim, sim_db))
         val_theory = float(np.interp(test_f, f_theory, mag_theory_db))
         diff = abs(val_sim - val_theory)
-        assert diff < 1.5, f"Upright at {test_f} Hz diff={diff:.2f} dB exceeds 1.5 dB (sim={val_sim:.2f}, theory={val_theory:.2f})"
+        assert diff < 1.5, (
+            f"Upright at {test_f} Hz diff={diff:.2f} dB exceeds 1.5 dB (sim={val_sim:.2f}, theory={val_theory:.2f})"
+        )
 
 
 def test_passive_source_simulation_runs():
     """Verify end-to-end simulate_voice runs for passive source instruments."""
-    with tempfile.NamedTemporaryFile(suffix=".wav") as tmp1, tempfile.NamedTemporaryFile(suffix=".wav") as tmp2:
-        res1 = simulate_voice("05_vintage_62_p_alnico", output_wav=Path(tmp1.name), instrument="34in_standard_p", max_samples=4800)
+    with (
+        tempfile.NamedTemporaryFile(suffix=".wav") as tmp1,
+        tempfile.NamedTemporaryFile(suffix=".wav") as tmp2,
+    ):
+        res1 = simulate_voice(
+            "05_vintage_62_p_alnico",
+            output_wav=Path(tmp1.name),
+            instrument="34in_standard_p",
+            max_samples=4800,
+        )
         assert res1 is True
         assert os.path.exists(tmp1.name) and os.path.getsize(tmp1.name) > 1000
 
-        res2 = simulate_voice("02_jazz_bass_pair", output_wav=Path(tmp2.name), instrument="34in_standard_jazz", max_samples=4800)
+        res2 = simulate_voice(
+            "02_jazz_bass_pair",
+            output_wav=Path(tmp2.name),
+            instrument="34in_standard_jazz",
+            max_samples=4800,
+        )
         assert res2 is True
         assert os.path.exists(tmp2.name) and os.path.getsize(tmp2.name) > 1000
 
@@ -189,7 +208,9 @@ def test_auto_output_level_normalization_to_input_sweep():
     """Verify that simulated output automatically normalizes its RMS to match the input sweep dBFS."""
     sr = 48000
     t = np.linspace(0, 1.0, sr, endpoint=False)
-    in_signal = (0.5 * np.sin(2 * np.pi * 150 * t) + 0.3 * np.sin(2 * np.pi * 800 * t)).astype(np.float32)
+    in_signal = (0.5 * np.sin(2 * np.pi * 150 * t) + 0.3 * np.sin(2 * np.pi * 800 * t)).astype(
+        np.float32
+    )
 
     with tempfile.TemporaryDirectory() as td:
         in_path = Path(td) / "test_in.wav"
@@ -198,16 +219,22 @@ def test_auto_output_level_normalization_to_input_sweep():
 
         with pedalboard.io.AudioFile(str(in_path)) as f:
             in_audio = f.read(f.frames)[0]
-        in_rms = float(np.sqrt(np.mean(in_audio ** 2)))
+        in_rms = float(np.sqrt(np.mean(in_audio**2)))
         in_rms_db = 20.0 * math.log10(in_rms)
 
-        res = simulate_voice("04_modern_p_ceramic", input_wav=in_path, output_wav=out_path, instrument="30in", normalize="auto")
+        res = simulate_voice(
+            "04_modern_p_ceramic",
+            input_wav=in_path,
+            output_wav=out_path,
+            instrument="30in",
+            normalize="auto",
+        )
         assert res is True
 
         with pedalboard.io.AudioFile(str(out_path)) as f:
             out_audio = f.read(f.frames)[0]
 
-        out_rms = float(np.sqrt(np.mean(out_audio ** 2)))
+        out_rms = float(np.sqrt(np.mean(out_audio**2)))
         out_rms_db = 20.0 * math.log10(out_rms)
         out_peak = float(np.max(np.abs(out_audio)))
 
@@ -221,7 +248,9 @@ def test_output_normalization_modes_and_target_dbfs():
     """Verify custom target_dbfs override and normalize modes (rms, peak, none)."""
     sr = 48000
     t = np.linspace(0, 1.0, sr, endpoint=False)
-    in_signal = (0.5 * np.sin(2 * np.pi * 150 * t) + 0.3 * np.sin(2 * np.pi * 800 * t)).astype(np.float32)
+    in_signal = (0.5 * np.sin(2 * np.pi * 150 * t) + 0.3 * np.sin(2 * np.pi * 800 * t)).astype(
+        np.float32
+    )
 
     with tempfile.TemporaryDirectory() as td:
         in_path = Path(td) / "test_in.wav"
@@ -229,18 +258,31 @@ def test_output_normalization_modes_and_target_dbfs():
 
         # 1. Custom target dBFS (-24.0 dBFS)
         out_path = Path(td) / "out_24.wav"
-        simulate_voice("04_modern_p_ceramic", input_wav=in_path, output_wav=out_path, instrument="30in", normalize="rms", target_dbfs=-24.0)
+        simulate_voice(
+            "04_modern_p_ceramic",
+            input_wav=in_path,
+            output_wav=out_path,
+            instrument="30in",
+            normalize="rms",
+            target_dbfs=-24.0,
+        )
         with pedalboard.io.AudioFile(str(out_path)) as f:
             out_audio = f.read(f.frames)[0]
-        out_rms_db = 20.0 * math.log10(np.sqrt(np.mean(out_audio ** 2)))
+        out_rms_db = 20.0 * math.log10(np.sqrt(np.mean(out_audio**2)))
         assert abs(out_rms_db - (-24.0)) < 0.05
 
         # 2. None (raw unnormalized)
         out_none = Path(td) / "out_none.wav"
-        simulate_voice("04_modern_p_ceramic", input_wav=in_path, output_wav=out_none, instrument="30in", normalize="none")
+        simulate_voice(
+            "04_modern_p_ceramic",
+            input_wav=in_path,
+            output_wav=out_none,
+            instrument="30in",
+            normalize="none",
+        )
         with pedalboard.io.AudioFile(str(out_none)) as f:
             out_audio = f.read(f.frames)[0]
-        out_rms_none = 20.0 * math.log10(np.sqrt(np.mean(out_audio ** 2)))
+        out_rms_none = 20.0 * math.log10(np.sqrt(np.mean(out_audio**2)))
         assert out_rms_none < -5.0
 
 
@@ -261,7 +303,10 @@ def test_subaudible_dc_blocking_filter():
 
     model = load_circuit("04_modern_p_ceramic")
 
-    with tempfile.NamedTemporaryFile(suffix=".wav") as tmp_dc_on, tempfile.NamedTemporaryFile(suffix=".wav") as tmp_dc_off:
+    with (
+        tempfile.NamedTemporaryFile(suffix=".wav") as tmp_dc_on,
+        tempfile.NamedTemporaryFile(suffix=".wav") as tmp_dc_off,
+    ):
         # 1. With DC blocker enabled (default)
         simulate_circuit_audio(tone, Path(tmp_dc_on.name), model, alpha=0.25, dc_block=True)
         with pedalboard.io.AudioFile(tmp_dc_on.name) as f:
@@ -344,17 +389,23 @@ def test_string_mass_momentum_weighting():
     sig_low = (0.60 * np.sin(2.0 * np.pi * 41.2 * t)).astype(np.float32)
     sig_hi = (0.60 * np.sin(2.0 * np.pi * 1000.0 * t)).astype(np.float32)
 
-    sat_low = apply_oversampled_saturation(sig_low, vsat=0.50, alpha=0.20, oversample=1, displacement_weighting=True)
-    sat_hi = apply_oversampled_saturation(sig_hi, vsat=0.50, alpha=0.20, oversample=1, displacement_weighting=True)
+    sat_low = apply_oversampled_saturation(
+        sig_low, vsat=0.50, alpha=0.20, oversample=1, displacement_weighting=True
+    )
+    sat_hi = apply_oversampled_saturation(
+        sig_hi, vsat=0.50, alpha=0.20, oversample=1, displacement_weighting=True
+    )
 
-    cf_low = np.max(np.abs(sat_low)) / np.sqrt(np.mean(sat_low ** 2))
-    cf_hi = np.max(np.abs(sat_hi)) / np.sqrt(np.mean(sat_hi ** 2))
+    cf_low = np.max(np.abs(sat_low)) / np.sqrt(np.mean(sat_low**2))
+    cf_hi = np.max(np.abs(sat_hi)) / np.sqrt(np.mean(sat_hi**2))
     assert cf_low < cf_hi
 
     # 3. Small-signal impulse bypass
     impulse = np.zeros(1024, dtype=np.float32)
     impulse[0] = 0.08
-    out_small = apply_oversampled_saturation(impulse, vsat=0.50, alpha=0.20, oversample=1, displacement_weighting=True)
+    out_small = apply_oversampled_saturation(
+        impulse, vsat=0.50, alpha=0.20, oversample=1, displacement_weighting=True
+    )
     assert np.allclose(impulse, out_small, atol=1e-7)
 
 
@@ -378,8 +429,12 @@ def test_calibrated_drive_excursion_item3():
         out_large = Path(td) / "out_large.wav"
         out_small = Path(td) / "out_small.wav"
 
-        simulate_circuit_audio(large_sig, out_large, m, prefilter_firs=None, is_passive=False, normalize="none")
-        simulate_circuit_audio(small_sig, out_small, m, prefilter_firs=None, is_passive=False, normalize="none")
+        simulate_circuit_audio(
+            large_sig, out_large, m, prefilter_firs=None, is_passive=False, normalize="none"
+        )
+        simulate_circuit_audio(
+            small_sig, out_small, m, prefilter_firs=None, is_passive=False, normalize="none"
+        )
 
         with pedalboard.io.AudioFile(str(out_large)) as f:
             audio_large = f.read(f.frames)[0]
@@ -412,7 +467,9 @@ def test_no_double_voicing_on_aperture_input():
         out_wav = Path(td) / "out_04.wav"
 
         # Write simulated aperture prefiltered audio
-        with pedalboard.io.AudioFile(str(aperture_wav), "w", samplerate=sr, num_channels=1, bit_depth=24) as f:
+        with pedalboard.io.AudioFile(
+            str(aperture_wav), "w", samplerate=sr, num_channels=1, bit_depth=24
+        ) as f:
             f.write(impulse[np.newaxis, :])
 
         # Call simulate_voice WITHOUT passing prefiltered=True
@@ -421,7 +478,7 @@ def test_no_double_voicing_on_aperture_input():
             input_wav=aperture_wav,
             output_wav=out_wav,
             instrument="30in",
-            prefiltered=False, # explicitly False: should be overridden by auto-detection!
+            prefiltered=False,  # explicitly False: should be overridden by auto-detection!
             normalize="none",
         )
         assert success is True
@@ -474,7 +531,9 @@ def test_jaco_bridge_growl_bias_voicing():
     assert 6.0 <= diff_db_1k <= 14.0
 
     # Pre-filter FIRs for 02c must exist and synthesize cleanly
-    firs = compute_voice_prefilter_firs("02c_jazz_bridge_growl_bias", instrument="34in_standard_jazz", num_taps=512)
+    firs = compute_voice_prefilter_firs(
+        "02c_jazz_bridge_growl_bias", instrument="34in_standard_jazz", num_taps=512
+    )
     assert len(firs) == 2
     assert np.all(np.isfinite(firs[0]))
     assert np.all(np.isfinite(firs[1]))
@@ -487,7 +546,9 @@ def test_multi_pickup_excursion_ratio():
     """
     model = load_circuit("02_jazz_bass_pair")
     n_samples = 4800
-    mono_audio = (np.sin(2 * np.pi * 100.0 * np.linspace(0, 0.1, n_samples)) * 0.8).astype(np.float32)
+    mono_audio = (np.sin(2 * np.pi * 100.0 * np.linspace(0, 0.1, n_samples)) * 0.8).astype(
+        np.float32
+    )
 
     with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp_out:
         out_wav = Path(tmp_out.name)
@@ -530,21 +591,29 @@ def test_passive_rlc_thermal_noise_dither():
         out_nodither = Path(td) / "nodither.wav"
 
         # 1. Deterministic reproducibility across multiple calls
-        simulate_circuit_audio(sweep, out1, model, noise_dither=True, is_identity=False, normalize="none")
-        simulate_circuit_audio(sweep, out2, model, noise_dither=True, is_identity=False, normalize="none")
+        simulate_circuit_audio(
+            sweep, out1, model, noise_dither=True, is_identity=False, normalize="none"
+        )
+        simulate_circuit_audio(
+            sweep, out2, model, noise_dither=True, is_identity=False, normalize="none"
+        )
 
         with open(out1, "rb") as f1, open(out2, "rb") as f2:
-            assert f1.read() == f2.read(), "Thermal noise dither must be bit-exact reproducible with PRNG seed 42"
+            assert f1.read() == f2.read(), (
+                "Thermal noise dither must be bit-exact reproducible with PRNG seed 42"
+            )
 
         # 2. Dither difference from clean un-dithered output
-        simulate_circuit_audio(sweep, out_nodither, model, noise_dither=False, is_identity=False, normalize="none")
+        simulate_circuit_audio(
+            sweep, out_nodither, model, noise_dither=False, is_identity=False, normalize="none"
+        )
         with pedalboard.io.AudioFile(str(out1)) as f:
             a_dither = f.read(f.frames)[0]
         with pedalboard.io.AudioFile(str(out_nodither)) as f:
             a_clean = f.read(f.frames)[0]
 
         diff = a_dither - a_clean
-        diff_rms = np.sqrt(np.mean(diff ** 2))
+        diff_rms = np.sqrt(np.mean(diff**2))
         diff_rms_db = 20.0 * math.log10(diff_rms)
         # Injected noise should be calibrated around -108 dBFS (within 2.0 dB)
         assert abs(diff_rms_db - (-108.0)) < 2.0
@@ -555,7 +624,7 @@ def test_run_spice_batch_parallel():
     test_voices = ["04_modern_p_ceramic", "05_vintage_62_p_alnico"]
     inst = "30in"
     inst_cfg = load_instrument(inst)
-    inst_id = inst_cfg.get("id", "30in_emg_mmtw")
+    inst_id = inst_cfg.id
     audio_dir = AUDIO_DIR / inst_id
 
     # Execute batch with jobs=2 and max_samples=4800 (fast test bounding)
@@ -570,7 +639,9 @@ def test_run_spice_batch_parallel():
     # Verify both outputs exist and are valid non-empty audio files
     for v in test_voices:
         out_wav = audio_dir / f"out_{v}.wav"
-        assert out_wav.exists(), f"Expected output {out_wav} to be created by parallel batch simulation"
+        assert out_wav.exists(), (
+            f"Expected output {out_wav} to be created by parallel batch simulation"
+        )
         assert out_wav.stat().st_size > 44, f"Output {out_wav} is too small"
 
 
@@ -593,7 +664,11 @@ def test_run_pipeline_cli_jobs_and_voices():
 
     # Simulate parser logic
     parser = argparse.ArgumentParser()
-    parser.add_argument("--stage", choices=["all", "viz", "canonical", "frontends", "targets", "train", "bake"], default="all")
+    parser.add_argument(
+        "--stage",
+        choices=["all", "viz", "canonical", "frontends", "targets", "train", "bake"],
+        default="all",
+    )
     parser.add_argument("--voice", "-v", default="all")
     parser.add_argument("--jobs", "-j", type=int, default=None)
 
@@ -628,31 +703,38 @@ def test_simulate_voice_strict_configuration_errors():
         simulate_voice("imaginary_bass_voice")
 
     # 2. Unknown pickup on instrument
-    with pytest.raises(KeyError, match="Pickup 'non_existent_pickup' not found on instrument '30in_emg_mmtw'"):
+    with pytest.raises(
+        KeyError, match="Pickup 'non_existent_pickup' not found on instrument '30in_emg_mmtw'"
+    ):
         simulate_voice("04_modern_p_ceramic", instrument="30in", pickup="non_existent_pickup")
 
+    from allomorph.config.schema import InstrumentConfig, PickupConfig
+
     # 3. Passive source pickup missing a [circuit] block
-    passive_inst_no_cir = {
-        "id": "broken_passive_bass",
-        "electronics": "passive",
-        "default_pickup": "p",
-        "pickups": {
-            "p": {
-                "name": "Passive P",
-                "position_from_bridge_m": 0.125,
-                "aperture_width_in": 0.75,
-                "coil_spacing_in": 0.0,
-                "magnet_type": "alnico_v",
+    passive_inst_no_cir = InstrumentConfig(
+        id="broken_passive_bass",
+        name="Broken Passive Bass",
+        electronics="passive",
+        default_pickup="p",
+        pickups={
+            "p": PickupConfig(
+                name="Passive P",
+                position_from_bridge_m=0.125,
+                aperture_width_in=0.75,
+                coil_spacing_in=0.0,
+                magnet_type="alnico_v",
                 # Note: No 'circuit' defined!
-            }
+            )
         },
-        "string_wave_speeds": [73.4, 98.0, 130.8, 174.6],
-        "scale_length_in": 34.0,
-    }
+        string_wave_speeds=[73.4, 98.0, 130.8, 174.6],
+        scale_length_in=34.0,
+    )
     with pytest.raises(ValueError, match="does not define a '\\[circuit\\]' block"):
         simulate_voice("04_modern_p_ceramic", instrument=passive_inst_no_cir, max_samples=100)
 
     # 4. Unknown magnet type in solver
     model = CircuitModel()
     with pytest.raises(KeyError, match="Unknown magnet type 'unobtainium'"):
-        apply_magnet_properties_to_model(model, {"magnet_type": "unobtainium"})
+        apply_magnet_properties_to_model(
+            model, PickupConfig(name="mock", magnet_type="unobtainium")
+        )

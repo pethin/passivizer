@@ -27,6 +27,7 @@ from allomorph.circuit import (
     simulate_circuit_audio,
     simulate_voice,
 )
+from allomorph.config.schema import PickupConfig
 from allomorph.dsp import write_wav_24bit
 
 
@@ -38,7 +39,10 @@ def test_passive_saturation_bypassed():
 
     m = load_circuit("05_vintage_62_p_alnico")
 
-    with tempfile.NamedTemporaryFile(suffix=".wav") as tmp_act, tempfile.NamedTemporaryFile(suffix=".wav") as tmp_pas:
+    with (
+        tempfile.NamedTemporaryFile(suffix=".wav") as tmp_act,
+        tempfile.NamedTemporaryFile(suffix=".wav") as tmp_pas,
+    ):
         # Active simulation: applies tanh
         simulate_circuit_audio(in_heavy, Path(tmp_act.name), m, is_passive=False)
         # Passive simulation: bypasses tanh
@@ -59,8 +63,12 @@ def test_anti_aliased_oversampling_suppression():
     t = np.linspace(0, 0.1, int(sr * 0.1), endpoint=False)
     tone = 0.5 * np.sin(2 * np.pi * 15000 * t).astype(np.float32)
 
-    out_1x = apply_oversampled_saturation(tone, vsat=0.45, alpha=0.20, oversample=1, displacement_weighting=False, magnet_drag=False)
-    out_2x = apply_oversampled_saturation(tone, vsat=0.45, alpha=0.20, oversample=2, displacement_weighting=False, magnet_drag=False)
+    out_1x = apply_oversampled_saturation(
+        tone, vsat=0.45, alpha=0.20, oversample=1, displacement_weighting=False, magnet_drag=False
+    )
+    out_2x = apply_oversampled_saturation(
+        tone, vsat=0.45, alpha=0.20, oversample=2, displacement_weighting=False, magnet_drag=False
+    )
 
     f_arr = np.fft.rfftfreq(len(tone), 1.0 / sr)
     fft_1x = np.abs(np.fft.rfft(out_1x))
@@ -85,8 +93,12 @@ def test_displacement_domain_imd_reduction():
     sig = 0.6 * np.sin(2 * np.pi * 50 * t) + 0.1 * np.sin(2 * np.pi * 2500 * t)
     sig = sig.astype(np.float32)
 
-    out_flat = apply_oversampled_saturation(sig, vsat=0.45, alpha=0.20, oversample=1, displacement_weighting=False, magnet_drag=False)
-    out_disp = apply_oversampled_saturation(sig, vsat=0.45, alpha=0.20, oversample=1, displacement_weighting=True, magnet_drag=False)
+    out_flat = apply_oversampled_saturation(
+        sig, vsat=0.45, alpha=0.20, oversample=1, displacement_weighting=False, magnet_drag=False
+    )
+    out_disp = apply_oversampled_saturation(
+        sig, vsat=0.45, alpha=0.20, oversample=1, displacement_weighting=True, magnet_drag=False
+    )
 
     f_arr = np.fft.rfftfreq(len(sig), 1.0 / sr)
     fft_flat = np.abs(np.fft.rfft(out_flat))
@@ -110,11 +122,17 @@ def test_magnet_specific_saturation_voicing():
     tone = (0.50 * np.sin(2 * np.pi * fund_f * t)).astype(np.float32)
 
     # 1. Alnico V (alpha=0.26)
-    out_alnico = apply_oversampled_saturation(tone, vsat=0.45, alpha=0.26, oversample=2, displacement_weighting=False, magnet_drag=False)
+    out_alnico = apply_oversampled_saturation(
+        tone, vsat=0.45, alpha=0.26, oversample=2, displacement_weighting=False, magnet_drag=False
+    )
     # 2. Ceramic (alpha=0.12)
-    out_ceramic = apply_oversampled_saturation(tone, vsat=0.45, alpha=0.12, oversample=2, displacement_weighting=False, magnet_drag=False)
+    out_ceramic = apply_oversampled_saturation(
+        tone, vsat=0.45, alpha=0.12, oversample=2, displacement_weighting=False, magnet_drag=False
+    )
     # 3. Piezo (alpha=0.00)
-    out_piezo = apply_oversampled_saturation(tone, vsat=0.45, alpha=0.00, oversample=2, displacement_weighting=False, magnet_drag=False)
+    out_piezo = apply_oversampled_saturation(
+        tone, vsat=0.45, alpha=0.00, oversample=2, displacement_weighting=False, magnet_drag=False
+    )
 
     f_arr = np.fft.rfftfreq(len(tone), 1.0 / sr)
     fft_alnico = np.abs(np.fft.rfft(out_alnico))
@@ -146,14 +164,18 @@ def test_fractional_core_eddy_diffusion():
     # 1. Alnico V
     model_alnico = CircuitModel()
     model_alnico.L = L0
-    apply_magnet_properties_to_model(model_alnico, {"magnet_type": "alnico_v"})
+    apply_magnet_properties_to_model(
+        model_alnico, PickupConfig(name="mock", magnet_type="alnico_v")
+    )
     assert model_alnico.L_core == pytest.approx(0.08 * L0)
     assert model_alnico.R_core > 0.0
 
     # Evaluate at 10 kHz
     w_hi = 2.0 * math.pi * 10000.0
     s_hi = 1j * w_hi
-    Z_hi_alnico = compute_core_impedance(s_hi, model_alnico.L, model_alnico.L_core, model_alnico.R_core)
+    Z_hi_alnico = compute_core_impedance(
+        s_hi, model_alnico.L, model_alnico.L_core, model_alnico.R_core
+    )
 
     # Inductance at high frequency should be dropped by ~7-8%
     L_eff_hi = Z_hi_alnico.imag / w_hi
@@ -166,9 +188,13 @@ def test_fractional_core_eddy_diffusion():
     # 2. Ceramic (insulating ferrite core)
     model_ceramic = CircuitModel()
     model_ceramic.L = L0
-    apply_magnet_properties_to_model(model_ceramic, {"magnet_type": "ceramic"})
+    apply_magnet_properties_to_model(
+        model_ceramic, PickupConfig(name="mock", magnet_type="ceramic")
+    )
     assert model_ceramic.L_core == pytest.approx(0.02 * L0)
-    Z_hi_ceramic = compute_core_impedance(s_hi, model_ceramic.L, model_ceramic.L_core, model_ceramic.R_core)
+    Z_hi_ceramic = compute_core_impedance(
+        s_hi, model_ceramic.L, model_ceramic.L_core, model_ceramic.R_core
+    )
     L_eff_ceramic = Z_hi_ceramic.imag / w_hi
     drop_ceramic = (L0 - L_eff_ceramic) / L0 * 100.0
     assert drop_ceramic <= 2.2
@@ -176,10 +202,14 @@ def test_fractional_core_eddy_diffusion():
     # 3. Disabled eddy diffusion
     model_disabled = CircuitModel()
     model_disabled.L = L0
-    apply_magnet_properties_to_model(model_disabled, {"magnet_type": "alnico_v"}, eddy_diffusion=False)
+    apply_magnet_properties_to_model(
+        model_disabled, PickupConfig(name="mock", magnet_type="alnico_v"), eddy_diffusion=False
+    )
     assert model_disabled.L_core == 0.0
     assert model_disabled.R_core == 0.0
-    Z_hi_disabled = compute_core_impedance(s_hi, model_disabled.L, model_disabled.L_core, model_disabled.R_core)
+    Z_hi_disabled = compute_core_impedance(
+        s_hi, model_disabled.L, model_disabled.L_core, model_disabled.R_core
+    )
     assert Z_hi_disabled.imag / w_hi == pytest.approx(L0)
     assert Z_hi_disabled.real == 0.0
 
@@ -255,7 +285,13 @@ def test_higher_order_dipole_expansion_and_sag():
     )
     # Cubic proximity stiffening (alpha=0.20, alpha3=0.10)
     out_cubic = apply_oversampled_saturation(
-        sig, vsat=0.6, alpha=0.20, alpha3=0.10, k_sag=0.0, displacement_weighting=False, oversample=1
+        sig,
+        vsat=0.6,
+        alpha=0.20,
+        alpha3=0.10,
+        k_sag=0.0,
+        displacement_weighting=False,
+        oversample=1,
     )
 
     diff_sig = out_cubic - out_quad
@@ -280,8 +316,8 @@ def test_higher_order_dipole_expansion_and_sag():
     )
 
     # RMS of sagged burst must be lower due to dynamic Lenz braking
-    rms_nosag = np.sqrt(np.mean(out_nosag ** 2))
-    rms_sag = np.sqrt(np.mean(out_sag ** 2))
+    rms_nosag = np.sqrt(np.mean(out_nosag**2))
+    rms_sag = np.sqrt(np.mean(out_sag**2))
     assert rms_sag < rms_nosag
 
     # 4. Small-signal linearity
@@ -308,7 +344,13 @@ def test_differential_magnetic_softening_neodymium_to_alnico():
         out_wav = Path(td) / "out_softened.wav"
         write_wav_24bit(str(in_wav), forte_signal, sample_rate=sr)
 
-        res = simulate_voice("05_vintage_62_p_alnico", input_wav=in_wav, output_wav=out_wav, instrument="34in_dingwall_sp1", normalize="none")
+        res = simulate_voice(
+            "05_vintage_62_p_alnico",
+            input_wav=in_wav,
+            output_wav=out_wav,
+            instrument="34in_dingwall_sp1",
+            normalize="none",
+        )
         assert res is True
 
         with pedalboard.io.AudioFile(str(out_wav)) as f:
@@ -323,7 +365,9 @@ def test_differential_magnetic_softening_neodymium_to_alnico():
         fund_level = fft_mag[fund_idx]
         h2_level = fft_mag[h2_idx]
         # Second harmonic is present due to differential asymmetry (alpha > 0)
-        assert h2_level > 1e-4 * fund_level, f"Expected 2nd harmonic bloom from differential alpha, got H2/H1 = {h2_level/fund_level:.6f}"
+        assert h2_level > 1e-4 * fund_level, (
+            f"Expected 2nd harmonic bloom from differential alpha, got H2/H1 = {h2_level / fund_level:.6f}"
+        )
 
 
 def test_differential_magnetic_softening_alnico_to_neodymium_bypassed():
@@ -345,8 +389,20 @@ def test_differential_magnetic_softening_alnico_to_neodymium_bypassed():
         write_wav_24bit(str(in_full), sig_full, sample_rate=sr)
         write_wav_24bit(str(in_half), sig_half, sample_rate=sr)
 
-        simulate_voice("13_dingwall_multiscale_bridge", input_wav=in_full, output_wav=out_full, instrument="34in_standard_p", normalize="none")
-        simulate_voice("13_dingwall_multiscale_bridge", input_wav=in_half, output_wav=out_half, instrument="34in_standard_p", normalize="none")
+        simulate_voice(
+            "13_dingwall_multiscale_bridge",
+            input_wav=in_full,
+            output_wav=out_full,
+            instrument="34in_standard_p",
+            normalize="none",
+        )
+        simulate_voice(
+            "13_dingwall_multiscale_bridge",
+            input_wav=in_half,
+            output_wav=out_half,
+            instrument="34in_standard_p",
+            normalize="none",
+        )
 
         with pedalboard.io.AudioFile(str(out_full)) as f:
             y_full = f.read(f.frames)[0]
@@ -377,8 +433,20 @@ def test_differential_magnetic_softening_active_to_passive():
         write_wav_24bit(str(in_full), sig_full, sample_rate=sr)
         write_wav_24bit(str(in_half), sig_half, sample_rate=sr)
 
-        simulate_voice("05_vintage_62_p_alnico", input_wav=in_full, output_wav=out_full, instrument="30in_emg_mmtw", normalize="none")
-        simulate_voice("05_vintage_62_p_alnico", input_wav=in_half, output_wav=out_half, instrument="30in_emg_mmtw", normalize="none")
+        simulate_voice(
+            "05_vintage_62_p_alnico",
+            input_wav=in_full,
+            output_wav=out_full,
+            instrument="30in_emg_mmtw",
+            normalize="none",
+        )
+        simulate_voice(
+            "05_vintage_62_p_alnico",
+            input_wav=in_half,
+            output_wav=out_half,
+            instrument="30in_emg_mmtw",
+            normalize="none",
+        )
 
         with pedalboard.io.AudioFile(str(out_full)) as f:
             y_full = f.read(f.frames)[0]
@@ -386,7 +454,9 @@ def test_differential_magnetic_softening_active_to_passive():
             y_half = f.read(f.frames)[0]
 
         rel_diff = float(np.max(np.abs(y_full - 2.0 * y_half)) / np.max(np.abs(y_full)))
-        assert rel_diff > 0.05, f"Expected non-linear saturation (rel_diff > 0.05), got {rel_diff:.4f}"
+        assert rel_diff > 0.05, (
+            f"Expected non-linear saturation (rel_diff > 0.05), got {rel_diff:.4f}"
+        )
 
 
 def test_differential_magnetic_softening_identity_bypassed():
@@ -408,8 +478,20 @@ def test_differential_magnetic_softening_identity_bypassed():
         write_wav_24bit(str(in_full), sig_full, sample_rate=sr)
         write_wav_24bit(str(in_half), sig_half, sample_rate=sr)
 
-        simulate_voice("05_vintage_62_p_alnico", input_wav=in_full, output_wav=out_full, instrument="34in_standard_p", normalize="none")
-        simulate_voice("05_vintage_62_p_alnico", input_wav=in_half, output_wav=out_half, instrument="34in_standard_p", normalize="none")
+        simulate_voice(
+            "05_vintage_62_p_alnico",
+            input_wav=in_full,
+            output_wav=out_full,
+            instrument="34in_standard_p",
+            normalize="none",
+        )
+        simulate_voice(
+            "05_vintage_62_p_alnico",
+            input_wav=in_half,
+            output_wav=out_half,
+            instrument="34in_standard_p",
+            normalize="none",
+        )
 
         with pedalboard.io.AudioFile(str(out_full)) as f:
             y_full = f.read(f.frames)[0]
@@ -534,11 +616,15 @@ def test_dynamic_eddy_de_qing():
     alpha_c = 1.0 - math.exp(-2.0 * math.pi * 750.0 / fs)
 
     # Low eddy (ceramic / modern active) vs high eddy (vintage Alnico V)
-    out_no_eddy = _lenz_velocity_drag_core(x, env, vsat=0.45, k_sag=0.08, alpha_c=alpha_c, k_eddy=0.0)
-    out_with_eddy = _lenz_velocity_drag_core(x, env, vsat=0.45, k_sag=0.08, alpha_c=alpha_c, k_eddy=0.16)
+    out_no_eddy = _lenz_velocity_drag_core(
+        x, env, vsat=0.45, k_sag=0.08, alpha_c=alpha_c, k_eddy=0.0
+    )
+    out_with_eddy = _lenz_velocity_drag_core(
+        x, env, vsat=0.45, k_sag=0.08, alpha_c=alpha_c, k_eddy=0.16
+    )
 
-    rms_no = np.sqrt(np.mean(out_no_eddy ** 2))
-    rms_with = np.sqrt(np.mean(out_with_eddy ** 2))
+    rms_no = np.sqrt(np.mean(out_no_eddy**2))
+    rms_with = np.sqrt(np.mean(out_with_eddy**2))
 
     # Eddy current de-Qing must add transient damping to the peak attack
     assert rms_with < rms_no
@@ -611,7 +697,9 @@ def test_dynamic_core_inductance_wobble():
     )
 
     diff = out_with_curv - out_no_curv
-    assert np.max(np.abs(diff)) > 1e-5, "Inductance curvature must modulate signal on forte excursions"
+    assert np.max(np.abs(diff)) > 1e-5, (
+        "Inductance curvature must modulate signal on forte excursions"
+    )
 
     # Small-signal test (<= 0.10): must bypass completely and remain bit-exact
     sig_small = (0.05 * np.sin(2.0 * np.pi * 200.0 * t)).astype(np.float32)
@@ -642,7 +730,9 @@ def test_transient_magnetic_slew_limiting():
     sine = (0.5 * np.sin(2.0 * np.pi * 1000.0 * t)).astype(np.float64)
     slewed_sine = _slew_limit_core(sine, max_delta)
     # Should be virtually identical to clean sine
-    assert np.allclose(slewed_sine, sine, atol=1e-3), "Smooth musical audio must pass through slew-limiter untouched"
+    assert np.allclose(slewed_sine, sine, atol=1e-3), (
+        "Smooth musical audio must pass through slew-limiter untouched"
+    )
 
     # 2. Extreme step discontinuity (e.g. fret clank transient with instantaneous jump from 0.0 to 1.0)
     step = np.zeros(100, dtype=np.float64)
@@ -665,20 +755,34 @@ def test_nonlinear_magnetic_string_pull_dynamics():
     small_x = (0.05 * np.sin(2.0 * np.pi * 440.0 * t)).astype(np.float64)
     small_env = np.full_like(small_x, 0.05)
 
-    out_small_nopull = _lenz_velocity_drag_core(small_x, small_env, vsat, k_sag=k_sag, alpha_c=0.1, k_eddy=0.0, beta_curv=0.0, k_pull=0.0)
-    out_small_pull = _lenz_velocity_drag_core(small_x, small_env, vsat, k_sag=k_sag, alpha_c=0.1, k_eddy=0.0, beta_curv=0.0, k_pull=k_pull)
-    assert np.allclose(out_small_nopull, out_small_pull, atol=1e-6), "Small signals must not experience magnetic string pull"
+    out_small_nopull = _lenz_velocity_drag_core(
+        small_x, small_env, vsat, k_sag=k_sag, alpha_c=0.1, k_eddy=0.0, beta_curv=0.0, k_pull=0.0
+    )
+    out_small_pull = _lenz_velocity_drag_core(
+        small_x, small_env, vsat, k_sag=k_sag, alpha_c=0.1, k_eddy=0.0, beta_curv=0.0, k_pull=k_pull
+    )
+    assert np.allclose(out_small_nopull, out_small_pull, atol=1e-6), (
+        "Small signals must not experience magnetic string pull"
+    )
 
     # 2. Forte signal (amplitude 0.9 >> vsat): magnetic string pull must damp upper harmonics and induce pitch sag
-    forte_x = (0.9 * np.sin(2.0 * np.pi * 440.0 * t) + 0.3 * np.sin(2.0 * np.pi * 1320.0 * t)).astype(np.float64)
+    forte_x = (
+        0.9 * np.sin(2.0 * np.pi * 440.0 * t) + 0.3 * np.sin(2.0 * np.pi * 1320.0 * t)
+    ).astype(np.float64)
     forte_env = np.full_like(forte_x, 0.9)
 
-    out_forte_nopull = _lenz_velocity_drag_core(forte_x, forte_env, vsat, k_sag=k_sag, alpha_c=0.1, k_eddy=0.0, beta_curv=0.0, k_pull=0.0)
-    out_forte_pull = _lenz_velocity_drag_core(forte_x, forte_env, vsat, k_sag=k_sag, alpha_c=0.1, k_eddy=0.0, beta_curv=0.0, k_pull=k_pull)
+    out_forte_nopull = _lenz_velocity_drag_core(
+        forte_x, forte_env, vsat, k_sag=k_sag, alpha_c=0.1, k_eddy=0.0, beta_curv=0.0, k_pull=0.0
+    )
+    out_forte_pull = _lenz_velocity_drag_core(
+        forte_x, forte_env, vsat, k_sag=k_sag, alpha_c=0.1, k_eddy=0.0, beta_curv=0.0, k_pull=k_pull
+    )
 
     # Output with pull must differ on forte attack, demonstrating physical interaction
     diff = out_forte_pull - out_forte_nopull
-    assert np.max(np.abs(diff)) > 1e-4, "Nonlinear magnetic pull must modulate signal on forte excursions"
+    assert np.max(np.abs(diff)) > 1e-4, (
+        "Nonlinear magnetic pull must modulate signal on forte excursions"
+    )
 
 
 def test_excursion_dependent_touch_spectral_tilt():
@@ -702,13 +806,17 @@ def test_excursion_dependent_touch_spectral_tilt():
 
     hf_energy_notilt = np.sum(fft_notilt[hf_mask] ** 2)
     hf_energy_tilt = np.sum(fft_tilt[hf_mask] ** 2)
-    assert hf_energy_tilt > hf_energy_notilt, "Touch spectral tilt must increase harmonic excitation on forte strikes"
+    assert hf_energy_tilt > hf_energy_notilt, (
+        "Touch spectral tilt must increase harmonic excitation on forte strikes"
+    )
 
     # 2. Quiet signal (amplitude 0.05 << vsat): linear small-signal bypass
     quiet_in = (0.05 * np.sin(2.0 * np.pi * 200.0 * t)).astype(np.float32)
     out_quiet_notilt = apply_oversampled_saturation(quiet_in, vsat=vsat, tau_touch=0.0)
     out_quiet_tilt = apply_oversampled_saturation(quiet_in, vsat=vsat, tau_touch=tau_touch)
-    assert np.allclose(out_quiet_notilt, out_quiet_tilt, atol=1e-5), "Small signals must be identical"
+    assert np.allclose(out_quiet_notilt, out_quiet_tilt, atol=1e-5), (
+        "Small signals must be identical"
+    )
 
 
 def test_conformal_geometric_clearance_asymmetry():
@@ -727,7 +835,9 @@ def test_conformal_geometric_clearance_asymmetry():
     # Positive peak should be pulled higher (proximity field divergence)
     pos_max_base = np.max(out_base)
     pos_max_geom = np.max(out_geom)
-    assert pos_max_geom > pos_max_base, "Positive excursion must increase due to pole proximity divergence"
+    assert pos_max_geom > pos_max_base, (
+        "Positive excursion must increase due to pole proximity divergence"
+    )
 
     # Must be bounded, no NaNs
     assert not np.any(np.isnan(out_geom))
@@ -737,7 +847,9 @@ def test_conformal_geometric_clearance_asymmetry():
     quiet_in = (0.05 * np.sin(2.0 * np.pi * 120.0 * t)).astype(np.float32)
     out_q_base = apply_oversampled_saturation(quiet_in, vsat=vsat, kappa_geom=0.0)
     out_q_geom = apply_oversampled_saturation(quiet_in, vsat=vsat, kappa_geom=kappa_geom)
-    assert np.allclose(out_q_base, out_q_geom, atol=1e-5), "Small signal must linearly bypass geometric clearance"
+    assert np.allclose(out_q_base, out_q_geom, atol=1e-5), (
+        "Small signal must linearly bypass geometric clearance"
+    )
 
 
 def test_dynamic_steinmetz_ac_core_loss():
@@ -750,12 +862,32 @@ def test_dynamic_steinmetz_ac_core_loss():
     x_transient = (0.80 * np.sin(2.0 * np.pi * 800.0 * t)).astype(np.float64)
     env = np.full(n, 0.80, dtype=np.float64)
 
-    out_nostein = _lenz_velocity_drag_core(x_transient, env, vsat, k_sag=0.05, alpha_c=0.1, k_eddy=0.0, beta_curv=0.0, k_pull=0.0, k_stein=0.0)
-    out_stein = _lenz_velocity_drag_core(x_transient, env, vsat, k_sag=0.05, alpha_c=0.1, k_eddy=0.0, beta_curv=0.0, k_pull=0.0, k_stein=k_stein)
+    out_nostein = _lenz_velocity_drag_core(
+        x_transient,
+        env,
+        vsat,
+        k_sag=0.05,
+        alpha_c=0.1,
+        k_eddy=0.0,
+        beta_curv=0.0,
+        k_pull=0.0,
+        k_stein=0.0,
+    )
+    out_stein = _lenz_velocity_drag_core(
+        x_transient,
+        env,
+        vsat,
+        k_sag=0.05,
+        alpha_c=0.1,
+        k_eddy=0.0,
+        beta_curv=0.0,
+        k_pull=0.0,
+        k_stein=k_stein,
+    )
 
     # Steinmetz loss adds high-frequency damping on rapid flux changes
-    rms_nostein = np.sqrt(np.mean(out_nostein ** 2))
-    rms_stein = np.sqrt(np.mean(out_stein ** 2))
+    rms_nostein = np.sqrt(np.mean(out_nostein**2))
+    rms_stein = np.sqrt(np.mean(out_stein**2))
     assert rms_stein < rms_nostein, "Steinmetz loss must damp high dB/dt transient flux spikes"
     assert not np.any(np.isnan(out_stein))
 
@@ -769,23 +901,37 @@ def test_register_dependent_string_pull():
     t = np.linspace(0, 0.05, int(sr * 0.05), endpoint=False)
 
     # 1. Low register note (40 Hz fundamental) + upper harmonic clank
-    low_note = (0.80 * np.sin(2.0 * np.pi * 40.0 * t) + 0.30 * np.sin(2.0 * np.pi * 1200.0 * t)).astype(np.float64)
+    low_note = (
+        0.80 * np.sin(2.0 * np.pi * 40.0 * t) + 0.30 * np.sin(2.0 * np.pi * 1200.0 * t)
+    ).astype(np.float64)
     env_low = np.full_like(low_note, 0.80)
 
-    out_low_nopull = _lenz_velocity_drag_core(low_note, env_low, vsat, k_sag=k_sag, alpha_c=0.1, k_pull=0.0)
-    out_low_pull = _lenz_velocity_drag_core(low_note, env_low, vsat, k_sag=k_sag, alpha_c=0.1, k_pull=k_pull)
+    out_low_nopull = _lenz_velocity_drag_core(
+        low_note, env_low, vsat, k_sag=k_sag, alpha_c=0.1, k_pull=0.0
+    )
+    out_low_pull = _lenz_velocity_drag_core(
+        low_note, env_low, vsat, k_sag=k_sag, alpha_c=0.1, k_pull=k_pull
+    )
     diff_low = np.max(np.abs(out_low_pull - out_low_nopull))
 
     # 2. High register note (400 Hz fundamental) + upper harmonic clank
-    high_note = (0.80 * np.sin(2.0 * np.pi * 400.0 * t) + 0.30 * np.sin(2.0 * np.pi * 1200.0 * t)).astype(np.float64)
+    high_note = (
+        0.80 * np.sin(2.0 * np.pi * 400.0 * t) + 0.30 * np.sin(2.0 * np.pi * 1200.0 * t)
+    ).astype(np.float64)
     env_high = np.full_like(high_note, 0.80)
 
-    out_high_nopull = _lenz_velocity_drag_core(high_note, env_high, vsat, k_sag=k_sag, alpha_c=0.1, k_pull=0.0)
-    out_high_pull = _lenz_velocity_drag_core(high_note, env_high, vsat, k_sag=k_sag, alpha_c=0.1, k_pull=k_pull)
+    out_high_nopull = _lenz_velocity_drag_core(
+        high_note, env_high, vsat, k_sag=k_sag, alpha_c=0.1, k_pull=0.0
+    )
+    out_high_pull = _lenz_velocity_drag_core(
+        high_note, env_high, vsat, k_sag=k_sag, alpha_c=0.1, k_pull=k_pull
+    )
     diff_high = np.max(np.abs(out_high_pull - out_high_nopull))
 
     # Low register has higher |x_low| so w_reg is higher, resulting in greater pull modulation
-    assert diff_low > diff_high, f"Low register pull diff ({diff_low:.4f}) must exceed high register ({diff_high:.4f})"
+    assert diff_low > diff_high, (
+        f"Low register pull diff ({diff_low:.4f}) must exceed high register ({diff_high:.4f})"
+    )
 
 
 def test_dynamic_reluctance_inductance_modulation():
@@ -801,7 +947,9 @@ def test_dynamic_reluctance_inductance_modulation():
     np.testing.assert_array_equal(out_alnico, small_sig)
 
     # 2. Large signal transient (peak = 0.70 > vsat = 0.50): lambda_L modulates transient clank
-    forte_sig = (0.70 * np.sin(2.0 * np.pi * 100.0 * t) + 0.30 * np.sin(2.0 * np.pi * 2500.0 * t)).astype(np.float32)
+    forte_sig = (
+        0.70 * np.sin(2.0 * np.pi * 100.0 * t) + 0.30 * np.sin(2.0 * np.pi * 2500.0 * t)
+    ).astype(np.float32)
     out_nolin = apply_oversampled_saturation(forte_sig, vsat=0.5, lambda_L=0.0)
     out_mod = apply_oversampled_saturation(forte_sig, vsat=0.5, lambda_L=0.05)
     diff = float(np.max(np.abs(out_mod - out_nolin)))
@@ -821,11 +969,13 @@ def test_electromechanical_back_emf_braking():
     np.testing.assert_array_equal(out_emf, small_sig)
 
     # 2. Large transient spike: back-EMF decelerates string velocity, adding dynamic drag
-    forte_spike = (0.75 * np.sin(2.0 * np.pi * 80.0 * t) + 0.35 * np.sin(2.0 * np.pi * 3000.0 * t)).astype(np.float32)
+    forte_spike = (
+        0.75 * np.sin(2.0 * np.pi * 80.0 * t) + 0.35 * np.sin(2.0 * np.pi * 3000.0 * t)
+    ).astype(np.float32)
     out_no_emf = apply_oversampled_saturation(forte_spike, vsat=0.5, k_emf=0.0)
     out_emf = apply_oversampled_saturation(forte_spike, vsat=0.5, k_emf=0.04)
     diff = float(np.max(np.abs(out_emf - out_no_emf)))
     assert diff > 1e-4, "Back-EMF braking must dynamically engage on forte excursions"
-    rms_no_emf = np.sqrt(np.mean(out_no_emf ** 2))
-    rms_emf = np.sqrt(np.mean(out_emf ** 2))
+    rms_no_emf = np.sqrt(np.mean(out_no_emf**2))
+    rms_emf = np.sqrt(np.mean(out_emf**2))
     assert rms_emf <= rms_no_emf, "Back-EMF damping must reduce or maintain total energy"

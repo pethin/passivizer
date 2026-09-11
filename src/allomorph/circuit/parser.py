@@ -207,7 +207,11 @@ def eval_pot_taper(pos: float, taper: str = "audio") -> float:
     where gamma = 2 * ln(1/k - 1).
     """
     theta = float(np.clip(pos, 0.0, 1.0))
-    t = taper.lower().strip() if isinstance(taper, str) and taper.lower().strip() not in ("", "none") else "audio"
+    t = (
+        taper.lower().strip()
+        if isinstance(taper, str) and taper.lower().strip() not in ("", "none")
+        else "audio"
+    )
     if t == "linear":
         return theta
     elif t in ("audio", "audio10"):
@@ -268,6 +272,7 @@ class CircuitModel(AllomorphBaseModel):
     preamp_type: str = "none"  # "sadowsky_2band", "stingray_2band", or "none"
     preamp_bands: list[PreampBandConfig] | None = None
     preamp_gain: float = 1.0
+    preamp_gain_db: float = 0.0
     R_preamp_in: SpiceFloat = Field(default=1.0e6, gt=0.0)
     C_preamp_in: SpiceFloat = Field(default=25e-12, ge=0.0)
     R_out: SpiceFloat = Field(default=100.0, ge=0.0)
@@ -352,58 +357,59 @@ class CircuitModel(AllomorphBaseModel):
         taper = (
             pot_taper.lower().strip()
             if pot_taper is not None and pot_taper.lower().strip() not in ("", "none")
-            else getattr(self, "pot_taper", "audio")
+            else self.pot_taper
         )
         if taper in ("", "none", None):
             taper = "audio"
 
         if vol_pos is not None:
             self.vol_pos = float(np.clip(vol_pos, 0.0, 1.0))
-            if self.vol_pos >= 0.9999 and hasattr(self, "Rtop_default"):
+            if self.vol_pos >= 0.9999:
                 self.Rtop = self.Rtop_default
                 self.Rbot = self.Rbot_default
             else:
                 eff_vol = eval_pot_taper(self.vol_pos, taper)
-                r_total = getattr(self, "Rvol_total", self.Rtop + self.Rbot)
-                self.Rtop = max(
-                    r_total * (1.0 - eff_vol), getattr(self, "Rtop_default", 0.01)
-                )
+                r_total = self.Rvol_total if self.Rvol_total > 0.0 else (self.Rtop + self.Rbot)
+                self.Rtop = max(r_total * (1.0 - eff_vol), self.Rtop_default)
                 self.Rbot = max(r_total * eff_vol, 1.0)
 
         if tone_pos is not None:
             self.tone_pos = float(np.clip(tone_pos, 0.0, 1.0))
-            if self.tone_pos >= 0.9999 and hasattr(self, "Rtone_default"):
+            if self.tone_pos >= 0.9999:
                 self.Rtone = self.Rtone_default
             else:
                 eff_tone = eval_pot_taper(self.tone_pos, taper)
-                r_tone_tot = getattr(
-                    self, "Rtone_total", self.Rtone if self.Rtone > 0.0 else 250000.0
+                r_tone_tot = (
+                    self.Rtone_total
+                    if self.Rtone_total > 0.0
+                    else (self.Rtone if self.Rtone > 0.0 else 250000.0)
                 )
                 self.Rtone = max(r_tone_tot * eff_tone, 0.0)
 
         if blend_pos is not None:
             self.blend_pos = float(np.clip(blend_pos, 0.0, 1.0))
-            r_blend = getattr(self, "Rblend_total", 250000.0)
+            r_blend = self.Rblend_total if self.Rblend_total > 0.0 else 250000.0
             if abs(self.blend_pos - 0.5) < 1e-4:
                 # Center detent: unattenuated 100%/100% (0 dB insertion loss)
-                self.Rpot_n = getattr(self, "Rpot_n_default", 0.0)
-                self.Rpot_b = getattr(self, "Rpot_b_default", 0.0)
+                self.Rpot_n = self.Rpot_n_default
+                self.Rpot_b = self.Rpot_b_default
             elif self.blend_pos < 0.5:
                 # Turning toward Neck (Neck 100%, Bridge attenuated)
-                self.Rpot_n = getattr(self, "Rpot_n_default", 0.0)
+                self.Rpot_n = self.Rpot_n_default
                 norm_atten = (0.5 - self.blend_pos) / 0.5  # 0.0 at center to 1.0 at full Neck
                 eff_atten = eval_pot_taper(norm_atten, taper)
-                self.Rpot_b = getattr(self, "Rpot_b_default", 0.0) + r_blend * eff_atten
+                self.Rpot_b = self.Rpot_b_default + r_blend * eff_atten
             else:
                 # Turning toward Bridge (Bridge 100%, Neck attenuated)
-                self.Rpot_b = getattr(self, "Rpot_b_default", 0.0)
+                self.Rpot_b = self.Rpot_b_default
                 norm_atten = (self.blend_pos - 0.5) / 0.5  # 0.0 at center to 1.0 at full Bridge
                 eff_atten = eval_pot_taper(norm_atten, taper)
-                self.Rpot_n = getattr(self, "Rpot_n_default", 0.0) + r_blend * eff_atten
+                self.Rpot_n = self.Rpot_n_default + r_blend * eff_atten
 
     @classmethod
     def from_dict(cls, cfg: dict[str, Any]) -> CircuitModel:
         """Creates a CircuitModel from a declarative configuration dictionary."""
+
         def _val(v: Any, default: float = 0.0) -> float:
             if v is None or isinstance(v, bool):
                 return default
@@ -414,7 +420,9 @@ class CircuitModel(AllomorphBaseModel):
             return default
 
         model = cls()
-        model.topology = cast(Literal["single", "parallel", "series"], str(cfg.get("topology", "single")).lower())
+        model.topology = cast(
+            Literal["single", "parallel", "series"], str(cfg.get("topology", "single")).lower()
+        )
 
         # Dynamic saturation limit
         model.vsat = _val(cfg.get("vsat"), 0.50)
@@ -584,7 +592,9 @@ def load_circuit(source: CircuitModel | dict[str, Any] | BaseModel | str | Path)
     if isinstance(source, dict):
         if "circuit" in source and isinstance(source["circuit"], (dict, BaseModel)):
             c_val = source["circuit"]
-            return CircuitModel.from_dict(c_val.model_dump() if isinstance(c_val, BaseModel) else c_val)
+            return CircuitModel.from_dict(
+                c_val.model_dump() if isinstance(c_val, BaseModel) else c_val
+            )
         if "circuit" in source and isinstance(source["circuit"], (str, Path)):
             return load_circuit(source["circuit"])
         return CircuitModel.from_dict(source)
@@ -631,14 +641,14 @@ def load_circuit(source: CircuitModel | dict[str, Any] | BaseModel | str | Path)
 
             if str(source) in INSTRUMENTS:
                 inst = INSTRUMENTS[str(source)]
-                default_p = inst.get("default_pickup")
-                if default_p and default_p in inst.get("pickups", {}):
-                    p = inst["pickups"][default_p]
-                    if "circuit" in p:
-                        return load_circuit(p["circuit"])
-                for p in inst.get("pickups", {}).values():
-                    if "circuit" in p:
-                        return load_circuit(p["circuit"])
+                default_p = inst.default_pickup
+                if default_p and default_p in inst.pickups:
+                    p = inst.pickups[default_p]
+                    if p.circuit is not None:
+                        return load_circuit(p.circuit)
+                for p in inst.pickups.values():
+                    if p.circuit is not None:
+                        return load_circuit(p.circuit)
         except ImportError:
             pass
 

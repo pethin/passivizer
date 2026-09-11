@@ -81,12 +81,14 @@ def test_scale_config_validation():
 
     # Extra fields forbidden
     with pytest.raises(ValidationError):
-        ScaleConfig.model_validate({
-            "name": "Bad",
-            "scale_length_in": 34.0,
-            "string_wave_speeds": [77.4, 103.4, 137.9, 184.2],
-            "bogus_key": 123,
-        })
+        ScaleConfig.model_validate(
+            {
+                "name": "Bad",
+                "scale_length_in": 34.0,
+                "string_wave_speeds": [77.4, 103.4, 137.9, 184.2],
+                "bogus_key": 123,
+            }
+        )
 
 
 def test_string_preset_config_validation():
@@ -106,16 +108,18 @@ def test_string_preset_config_validation():
 
     # Disallow unexpected field
     with pytest.raises(ValidationError):
-        StringPresetConfig.model_validate({
-            "name": "Bad",
-            "type": "roundwound",
-            "wrap": "nickel",
-            "core": "steel",
-            "tension_lbs": 42.8,
-            "damping_cutoff_hz": 1200.0,
-            "damping_order": 1.5,
-            "extra_field": True,
-        })
+        StringPresetConfig.model_validate(
+            {
+                "name": "Bad",
+                "type": "roundwound",
+                "wrap": "nickel",
+                "core": "steel",
+                "tension_lbs": 42.8,
+                "damping_cutoff_hz": 1200.0,
+                "damping_order": 1.5,
+                "extra_field": True,
+            }
+        )
 
 
 def test_preamp_band_and_catalog_validation():
@@ -140,12 +144,14 @@ def test_preamp_band_and_catalog_validation():
 
     # Disallow invalid extra key in band
     with pytest.raises(ValidationError):
-        PreampBandConfig.model_validate({
-            "type": "bell",
-            "freq_hz": 800.0,
-            "gain_db": 2.0,
-            "unknown": "not_allowed",
-        })
+        PreampBandConfig.model_validate(
+            {
+                "type": "bell",
+                "freq_hz": 800.0,
+                "gain_db": 2.0,
+                "unknown": "not_allowed",
+            }
+        )
 
 
 def test_pickup_and_instrument_config_validation():
@@ -181,16 +187,18 @@ def test_pickup_and_instrument_config_validation():
 
     # Extra field forbidden on InstrumentConfig
     with pytest.raises(ValidationError):
-        InstrumentConfig.model_validate({
-            "id": "test_bass",
-            "name": "Test Bass",
-            "scale_length_in": 34.0,
-            "scale_length_m": 0.8636,
-            "string_wave_speeds": [77.4, 103.4, 137.9, 184.2],
-            "pickups": {"bridge": pickup},
-            "default_pickup": "bridge",
-            "unregistered_custom_attr": "forbidden",
-        })
+        InstrumentConfig.model_validate(
+            {
+                "id": "test_bass",
+                "name": "Test Bass",
+                "scale_length_in": 34.0,
+                "scale_length_m": 0.8636,
+                "string_wave_speeds": [77.4, 103.4, 137.9, 184.2],
+                "pickups": {"bridge": pickup},
+                "default_pickup": "bridge",
+                "unregistered_custom_attr": "forbidden",
+            }
+        )
 
 
 def test_voice_config_validation():
@@ -221,18 +229,16 @@ def test_voice_config_validation():
 
     # Extra field forbidden on VoiceConfig
     with pytest.raises(ValidationError):
-        VoiceConfig.model_validate({
-            "id": "03_test_voice",
-            "name": "Test Voice",
-            "topology": "single",
-            "description": "A test target voice",
-            "fr": 3200.0,
-            "Q": 1.6,
-            "circuit": {"topology": "single", "L": 3.2, "Rdc": 8000.0, "Reddy": 150000.0},
-            "pickups": [{"name": "Bridge Single", "fr": 3200.0, "Q": 1.6}],
-            "extra_bad_arg": "bad",
-        })
-
-
-
-
+        VoiceConfig.model_validate(
+            {
+                "id": "03_test_voice",
+                "name": "Test Voice",
+                "topology": "single",
+                "description": "A test target voice",
+                "fr": 3200.0,
+                "Q": 1.6,
+                "circuit": {"topology": "single", "L": 3.2, "Rdc": 8000.0, "Reddy": 150000.0},
+                "pickups": [{"name": "Bridge Single", "fr": 3200.0, "Q": 1.6}],
+                "extra_bad_arg": "bad",
+            }
+        )

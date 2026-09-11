@@ -35,6 +35,7 @@ VOICE_CONCISE_SLUGS = {
     "16_active_character": "16_act_buffer",
 }
 
+
 def get_baked_basename(voice_id: str, tier: str = "dynamic", pickup: str = "auto") -> str:
     """
     Generates a concise, distinct model/wav basename for baked voice transformations.
@@ -57,6 +58,7 @@ def get_baked_basename(voice_id: str, tier: str = "dynamic", pickup: str = "auto
     if pickup and pickup != "auto":
         return f"{prefix}{slug}_{pickup}"
     return f"{prefix}{slug}"
+
 
 def resolve_voices(voice_arg: str | Sequence[str] | None) -> list[str]:
     """
@@ -85,6 +87,7 @@ def resolve_voices(voice_arg: str | Sequence[str] | None) -> list[str]:
             else:
                 print(f"Warning: Unknown voice identifier '{token}'.")
     return resolved if resolved else list(VOICES.keys())
+
 
 def resolve_instruments(instrument_arg: str | Sequence[str] | None) -> list[str]:
     """

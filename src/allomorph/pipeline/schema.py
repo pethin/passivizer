@@ -123,4 +123,3 @@ class ArtworkPackConfig(AllomorphBaseModel):
     badge2: str
     badge3: str
     content: Callable[[str], str]
-

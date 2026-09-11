@@ -15,7 +15,11 @@ from pydantic import Field, model_validator
 from allomorph.base import AllomorphBaseModel, SpiceFloat, parse_spice_unit
 from allomorph.circuit.schema import CircuitConfig
 
-warnings.filterwarnings("ignore", message=r'.*Field name "register".*shadows an attribute in parent.*', category=UserWarning)
+warnings.filterwarnings(
+    "ignore",
+    message=r'.*Field name "register".*shadows an attribute in parent.*',
+    category=UserWarning,
+)
 
 __all__ = [
     "AllomorphBaseModel",
@@ -64,7 +68,11 @@ class ScaleConfig(AllomorphBaseModel):
 
     @property
     def scale_m(self) -> float:
-        return self.scale_length_m if self.scale_length_m is not None else self.scale_length_in * 0.0254
+        return (
+            self.scale_length_m
+            if self.scale_length_m is not None
+            else self.scale_length_in * 0.0254
+        )
 
     @property
     def speeds(self) -> list[float]:
@@ -157,9 +165,6 @@ class PreampsCatalog(AllomorphBaseModel):
     preamps: dict[str, PreampConfig] = Field(default_factory=dict)
 
 
-
-
-
 # ==============================================================================
 # 5. COIL & PICKUP SCHEMAS
 # ==============================================================================
@@ -198,6 +203,7 @@ class PickupConfig(AllomorphBaseModel):
     coil_spacing_in: float = 0.0
     type: str = "single_coil"
     magnet_type: str | None = None
+    pole_type: str | None = None
     resonant_frequency_hz: float | None = None
     q_factor: float | None = None
     coils: list[CoilConfig] = Field(default_factory=list)
@@ -213,9 +219,9 @@ class PickupConfig(AllomorphBaseModel):
 class InstrumentConfig(AllomorphBaseModel):
     """Complete source instrument definition."""
 
-    id: str
-    name: str
-    scale_length_in: float = Field(..., gt=0.0)
+    id: str = "custom"
+    name: str = ""
+    scale_length_in: float = Field(34.0, gt=0.0)
     scale_length_m: float | None = None
     scale_min_in: float | None = None
     scale_max_in: float | None = None
@@ -229,6 +235,8 @@ class InstrumentConfig(AllomorphBaseModel):
 
     @model_validator(mode="after")
     def validate_instrument(self) -> Self:
+        if not self.name:
+            self.name = self.id
         if self.scale_length_m is None:
             self.scale_length_m = self.scale_length_in * 0.0254
         if self.default_pickup and self.pickups and self.default_pickup not in self.pickups:
@@ -322,5 +330,3 @@ class VoiceConfig(AllomorphBaseModel):
         if isinstance(identifier_or_path, str) and identifier_or_path in VOICES:
             return VOICES[identifier_or_path]
         return load_voice_config(identifier_or_path)
-
-

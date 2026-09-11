@@ -48,12 +48,14 @@ def test_circuit_config_validation():
 
     # Rejection of extra fields
     with pytest.raises(ValidationError):
-        CircuitConfig.model_validate({
-            "topology": "single",
-            "L": 3.4,
-            "Rdc": 10500.0,
-            "bogus_circuit_parameter": 999,
-        })
+        CircuitConfig.model_validate(
+            {
+                "topology": "single",
+                "L": 3.4,
+                "Rdc": 10500.0,
+                "bogus_circuit_parameter": 999,
+            }
+        )
 
 
 def test_spice_float_validation():
@@ -66,16 +68,18 @@ def test_spice_float_validation():
     assert parse_spice_unit(None) is None
 
     # CircuitConfig accepts string engineering notation
-    cfg = CircuitConfig.model_validate({
-        "topology": "single",
-        "L": "3.6H",
-        "Rdc": "8.2k",
-        "Reddy": "120k",
-        "Ccoil": "80pF",
-        "Rvol": "500k",
-        "Ctone": "47nF",
-        "Ccable": "750pF",
-    })
+    cfg = CircuitConfig.model_validate(
+        {
+            "topology": "single",
+            "L": "3.6H",
+            "Rdc": "8.2k",
+            "Reddy": "120k",
+            "Ccoil": "80pF",
+            "Rvol": "500k",
+            "Ctone": "47nF",
+            "Ccable": "750pF",
+        }
+    )
     assert cfg.L == 3.6
     assert cfg.Rdc == 8200.0
     assert cfg.Reddy == 120000.0
@@ -213,20 +217,22 @@ def test_circuit_model_validation():
     assert model.tone_pos == 1.0
 
     # Test engineering notation string parsing via from_dict
-    custom = CircuitModel.from_dict({
-        "topology": "single",
-        "L": "3.4H",
-        "Rdc": "10.5k",
-        "Reddy": "180k",
-        "Ccoil": "60pF",
-        "Rvol": "250k",
-        "Ctone": "47nF",
-        "vol_pos": 0.7,
-        "preamp_bands": [
-            {"type": "low_shelf", "freq_hz": 40.0, "gain_db": 12.0, "q": 0.707},
-            {"type": "high_shelf", "freq_hz": 4000.0, "gain_db": -6.0, "q": 0.707},
-        ],
-    })
+    custom = CircuitModel.from_dict(
+        {
+            "topology": "single",
+            "L": "3.4H",
+            "Rdc": "10.5k",
+            "Reddy": "180k",
+            "Ccoil": "60pF",
+            "Rvol": "250k",
+            "Ctone": "47nF",
+            "vol_pos": 0.7,
+            "preamp_bands": [
+                {"type": "low_shelf", "freq_hz": 40.0, "gain_db": 12.0, "q": 0.707},
+                {"type": "high_shelf", "freq_hz": 4000.0, "gain_db": -6.0, "q": 0.707},
+            ],
+        }
+    )
     assert custom.L == 3.4
     assert custom.Rdc == 10500.0
     assert custom.Reddy == 180000.0
@@ -287,7 +293,8 @@ def test_circuit_metrics_record_validation():
 
     # Rejection of missing required fields
     with pytest.raises(ValidationError):
-        CircuitMetricsRecord.model_validate({
-            "param": "vol_pos",
-        })
-
+        CircuitMetricsRecord.model_validate(
+            {
+                "param": "vol_pos",
+            }
+        )

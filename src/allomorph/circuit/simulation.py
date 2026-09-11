@@ -37,7 +37,7 @@ from allomorph.circuit.solver import (
 )
 from allomorph.config.instruments import get_source_pickup, load_instrument
 from allomorph.config.scales import REPO_ROOT
-from allomorph.config.schema import PickupConfig
+from allomorph.config.schema import InstrumentConfig, VoiceConfig
 from allomorph.config.strings import get_instrument_string
 from allomorph.config.voices import VOICES
 from allomorph.dsp import (
@@ -180,7 +180,7 @@ def simulate_circuit_audio(
     # Capture input sweep baseline levels before filtering
     in_mono = audio[0] if audio.ndim > 1 else audio
     in_peak = float(np.max(np.abs(in_mono)))
-    in_rms = float(np.sqrt(np.mean(in_mono ** 2)))
+    in_rms = float(np.sqrt(np.mean(in_mono**2)))
     in_rms_db = 20.0 * math.log10(max(in_rms, 1e-9))
 
     can_fuse_stages = bool(bypass_saturation and prefilter_firs is not None)
@@ -193,7 +193,12 @@ def simulate_circuit_audio(
         target_drive_peak = min(in_peak * 0.687, 0.70)
         audio = (audio / max(in_peak, 1e-9)) * target_drive_peak
 
-    if vol_pos is not None or tone_pos is not None or blend_pos is not None or pot_taper is not None:
+    if (
+        vol_pos is not None
+        or tone_pos is not None
+        or blend_pos is not None
+        or pot_taper is not None
+    ):
         model.apply_pot_positions(
             vol_pos=vol_pos,
             tone_pos=tone_pos,
@@ -218,11 +223,7 @@ def simulate_circuit_audio(
                 in_ch = audio
 
         if can_fuse_stages and prefilter_firs is not None:
-            p_fir = (
-                prefilter_firs[ch_idx]
-                if ch_idx < len(prefilter_firs)
-                else prefilter_firs[0]
-            )
+            p_fir = prefilter_firs[ch_idx] if ch_idx < len(prefilter_firs) else prefilter_firs[0]
             c_fir = np.array(
                 synthesize_minimum_phase_fir(mag_curve, num_taps=NUM_TAPS, normalize=False),
                 dtype=np.float32,
@@ -402,9 +403,7 @@ def simulate_circuit_audio(
 
             eps = 1e-9
             X_out = M_blend * (X_coh / (np.abs(X_coh) + eps))
-            out_total = np.fft.irfft(X_out, n_fft_sum)[: len(channel_outputs[0])].astype(
-                np.float32
-            )
+            out_total = np.fft.irfft(X_out, n_fft_sum)[: len(channel_outputs[0])].astype(np.float32)
         else:
             out_total = np.sum(channel_outputs, axis=0)
     else:
@@ -421,9 +420,7 @@ def simulate_circuit_audio(
         rng = np.random.RandomState(42)
         white_noise = rng.normal(0.0, 1.0, len(out_total)).astype(np.float64)
         avg_mag = (
-            np.mean(mag_curves, axis=0)
-            if isinstance(mag_curves, (list, tuple))
-            else mag_curves
+            np.mean(mag_curves, axis=0) if isinstance(mag_curves, (list, tuple)) else mag_curves
         )
         n_dither_taps = 512
         dither_fir = np.array(
@@ -435,13 +432,13 @@ def simulate_circuit_audio(
         colored_noise = np.fft.irfft(
             np.fft.rfft(white_noise, n_fft_d) * np.fft.rfft(dither_fir, n_fft_d), n_fft_d
         )[:n_sig_d]
-        colored_rms = max(float(np.sqrt(np.mean(colored_noise ** 2))), 1e-9)
+        colored_rms = max(float(np.sqrt(np.mean(colored_noise**2))), 1e-9)
         target_dither_rms = 10.0 ** (-108.0 / 20.0)
         dither = (colored_noise / colored_rms) * target_dither_rms
         out_total = out_total + dither.astype(np.float32)
 
     raw_peak = float(np.max(np.abs(out_total)))
-    raw_rms = float(np.sqrt(np.mean(out_total ** 2)))
+    raw_rms = float(np.sqrt(np.mean(out_total**2)))
     raw_rms_db = 20.0 * math.log10(max(raw_rms, 1e-9))
 
     should_normalize = (
@@ -454,17 +451,13 @@ def simulate_circuit_audio(
     if should_normalize:
         norm_mode = "rms" if normalize == "auto" else normalize
         if norm_mode == "rms":
-            target_rms = (
-                10.0 ** (target_dbfs / 20.0) if target_dbfs is not None else in_rms
-            )
+            target_rms = 10.0 ** (target_dbfs / 20.0) if target_dbfs is not None else in_rms
             if raw_rms > 1e-9:
                 scale = target_rms / raw_rms
                 out_total = out_total * scale
         elif norm_mode == "peak":
             target_peak = (
-                10.0 ** (target_dbfs / 20.0)
-                if target_dbfs is not None
-                else min(in_peak, 0.988)
+                10.0 ** (target_dbfs / 20.0) if target_dbfs is not None else min(in_peak, 0.988)
             )
             if raw_peak > 1e-9:
                 scale = target_peak / raw_peak
@@ -476,7 +469,7 @@ def simulate_circuit_audio(
         out_total = out_total * (0.988 / max_val)
 
     final_peak = float(np.max(np.abs(out_total)))
-    final_rms = float(np.sqrt(np.mean(out_total ** 2)))
+    final_rms = float(np.sqrt(np.mean(out_total**2)))
     final_peak_db = 20.0 * math.log10(max(final_peak, 1e-9))
     final_rms_db = 20.0 * math.log10(max(final_rms, 1e-9))
 
@@ -511,7 +504,7 @@ def simulate_voice(
     voice_id: str,
     input_wav: str | Path | None = None,
     output_wav: str | Path | None = None,
-    instrument: str | dict[str, Any] | None = "30in",
+    instrument: InstrumentConfig | str | Path | None = "30in",
     pickup: str | None = None,
     tier: str | None = None,
     prefiltered: bool = False,
@@ -556,14 +549,18 @@ def simulate_voice(
     if config is not None:
         input_wav = config.input_wav if input_wav is None else input_wav
         output_wav = config.output_wav if output_wav is None else output_wav
-        instrument = config.instrument if instrument == "30in" and config.instrument is not None else instrument
+        instrument = (
+            config.instrument
+            if instrument == "30in" and config.instrument is not None
+            else instrument
+        )
         pickup = config.pickup if pickup is None else pickup
         tier = config.tier if tier is None else tier
-        prefiltered = config.prefiltered or prefiltered
+        prefiltered = config.prefiltered if prefiltered is False else prefiltered
         cir_path = config.cir_path if cir_path is None else cir_path
         normalize = config.normalize if normalize == "auto" else normalize
         target_dbfs = config.target_dbfs if target_dbfs is None else target_dbfs
-        oversample = config.oversample if oversample == 2 else oversample
+        oversample = config.oversample
         displacement_weighting = config.displacement_weighting
         magnet_drag = config.magnet_drag
         alpha = config.alpha if alpha is None else alpha
@@ -592,7 +589,15 @@ def simulate_voice(
         max_samples = config.max_samples if max_samples is None else max_samples
     if cir_path:
         model = load_circuit(cir_path)
-        vcfg = VOICES.get(voice_id, {})
+        vcfg = VOICES.get(voice_id) or VoiceConfig(
+            id=voice_id,
+            name=voice_id,
+            topology="single",
+            description="",
+            fr=3000.0,
+            Q=1.5,
+            circuit=model,
+        )
     else:
         if voice_id not in VOICES:
             raise KeyError(
@@ -600,9 +605,9 @@ def simulate_voice(
                 f"Available voices: {list(VOICES.keys())}"
             )
         vcfg = VOICES[voice_id]
-        if "circuit" in vcfg:
-            model = load_circuit(vcfg["circuit"])
-        elif vcfg.get("no_eq", False) or vcfg.get("sensor_type") == "direct":
+        if vcfg.circuit is not None:
+            model = load_circuit(vcfg.circuit)
+        elif vcfg.sensor_type == "direct":
             model = load_circuit(voice_id)
         else:
             raise ValueError(
@@ -610,13 +615,11 @@ def simulate_voice(
             )
 
     inst_cfg = (
-        load_instrument("30in" if instrument is None else instrument)
-        if not isinstance(instrument, dict)
-        else instrument
+        instrument
+        if isinstance(instrument, InstrumentConfig)
+        else load_instrument("30in" if instrument is None else instrument)
     )
-    if "id" not in inst_cfg:
-        raise ValueError("Instrument configuration missing required 'id' field.")
-    inst_id = inst_cfg["id"]
+    inst_id = inst_cfg.id
     inst_audio_dir = AUDIO_DIR / inst_id
     inst_audio_dir.mkdir(parents=True, exist_ok=True)
 
@@ -639,12 +642,15 @@ def simulate_voice(
                 f"  [Auto-detected pre-filtered aperture input: {in_wav_path.name} -> setting prefiltered=True]"
             )
 
-    out_wav: Path = (
-        inst_audio_dir / f"out_{voice_id}.wav" if not output_wav else Path(output_wav)
-    )
+    out_wav: Path = inst_audio_dir / f"out_{voice_id}.wav" if not output_wav else Path(output_wav)
 
     apply_magnet_properties_to_model(model, vcfg, eddy_diffusion=eddy_diffusion)
-    if vol_pos is not None or tone_pos is not None or blend_pos is not None or pot_taper is not None:
+    if (
+        vol_pos is not None
+        or tone_pos is not None
+        or blend_pos is not None
+        or pot_taper is not None
+    ):
         model.apply_pot_positions(
             vol_pos=vol_pos,
             tone_pos=tone_pos,
@@ -657,66 +663,80 @@ def simulate_voice(
     # Dynamic bridge compliance scaling based on source string pluck excursion
     if "upright_bridge_transducer" in voice_id:
         src_string = get_instrument_string(inst_cfg)
-        excursion = float(src_string.get("pluck_excursion_factor", 1.0))
+        excursion = float(src_string.pluck_excursion_factor or 1.0)
         if excursion > 0:
             model.vsat = round(model.vsat / excursion, 3)
 
     # Resolve magnet-specific saturation profile and Dahl hysteresis coupling
-    mag_type_global = vcfg.get("magnet_type", "alnico_v")
+    mag_type_global = vcfg.magnet_type or "alnico_v"
     global_props = MAGNET_PROPERTIES.get(mag_type_global, MAGNET_PROPERTIES["alnico_v"])
 
-    voice_alpha = alpha if alpha is not None else float(vcfg.get("alpha", global_props["alpha"]))
+    voice_alpha = (
+        alpha if alpha is not None else (vcfg.alpha if vcfg.alpha != 0.0 else global_props.alpha)
+    )
     voice_alpha3 = (
-        alpha3 if alpha3 is not None else float(vcfg.get("alpha3", global_props["alpha3"]))
+        alpha3
+        if alpha3 is not None
+        else (vcfg.alpha3 if vcfg.alpha3 is not None else global_props.alpha3)
     )
     voice_eta = (
-        eta_hyst if eta_hyst is not None else float(vcfg.get("eta_hyst", global_props["eta_hyst"]))
+        eta_hyst
+        if eta_hyst is not None
+        else (vcfg.eta_hyst if vcfg.eta_hyst is not None else global_props.eta_hyst)
     )
-    voice_sag = k_sag if k_sag is not None else float(vcfg.get("k_sag", global_props["k_sag"]))
+    voice_sag = (
+        k_sag
+        if k_sag is not None
+        else (vcfg.k_sag if vcfg.k_sag is not None else global_props.k_sag)
+    )
     voice_eddy = (
-        k_eddy if k_eddy is not None else float(vcfg.get("k_eddy", global_props["k_eddy"]))
+        k_eddy
+        if k_eddy is not None
+        else (vcfg.k_eddy if vcfg.k_eddy is not None else global_props.k_eddy)
     )
     voice_orbit = (
         kappa_orbit
         if kappa_orbit is not None
-        else float(vcfg.get("kappa_orbit", global_props["kappa_orbit"]))
+        else (vcfg.kappa_orbit if vcfg.kappa_orbit is not None else global_props.kappa_orbit)
     )
     voice_beta = (
         beta_curv
         if beta_curv is not None
-        else float(vcfg.get("beta_curv", global_props.get("beta_curv", 0.0)))
+        else (vcfg.beta_curv if vcfg.beta_curv is not None else global_props.beta_curv)
     )
     voice_pull = (
         k_pull
         if k_pull is not None
-        else float(vcfg.get("k_pull", global_props.get("k_pull", 0.0)))
+        else (vcfg.k_pull if vcfg.k_pull is not None else global_props.k_pull)
     )
     voice_touch = (
         tau_touch
         if tau_touch is not None
-        else float(vcfg.get("tau_touch", global_props.get("tau_touch", 0.0)))
+        else (vcfg.tau_touch if vcfg.tau_touch is not None else global_props.tau_touch)
     )
     voice_geom = (
         kappa_geom
         if kappa_geom is not None
-        else float(vcfg.get("kappa_geom", global_props.get("kappa_geom", 0.0)))
+        else (vcfg.kappa_geom if vcfg.kappa_geom is not None else global_props.kappa_geom)
     )
     voice_stein = (
         k_stein
         if k_stein is not None
-        else float(vcfg.get("k_stein", global_props.get("k_stein", 0.0)))
+        else (vcfg.k_stein if vcfg.k_stein is not None else global_props.k_stein)
     )
     voice_emf = (
-        k_emf if k_emf is not None else float(vcfg.get("k_emf", global_props.get("k_emf", 0.0)))
+        k_emf
+        if k_emf is not None
+        else (vcfg.k_emf if vcfg.k_emf is not None else global_props.k_emf)
     )
     voice_lambda = (
         lambda_L
         if lambda_L is not None
-        else float(vcfg.get("lambda_L", global_props.get("lambda_L", 0.0)))
+        else (vcfg.lambda_L if vcfg.lambda_L is not None else global_props.lambda_L)
     )
 
-    pickups_cfg = vcfg.get("pickups", [])
-    if pickups_cfg and len(pickups_cfg) > 1:
+    pickups_cfg = vcfg.pickups or []
+    if len(pickups_cfg) > 1:
         voice_alphas = []
         voice_alpha3s = []
         voice_eta_hysts = []
@@ -731,39 +751,21 @@ def simulate_voice(
         voice_k_emfs = []
         voice_lambda_Ls = []
         for p in pickups_cfg:
-            p_mag = p.get("magnet_type", mag_type_global)
+            p_mag = p.magnet_type or mag_type_global
             p_props = MAGNET_PROPERTIES.get(p_mag, MAGNET_PROPERTIES["alnico_v"])
-            voice_alphas.append(float(p["alpha"]) if "alpha" in p else p_props["alpha"])
-            voice_alpha3s.append(float(p["alpha3"]) if "alpha3" in p else p_props["alpha3"])
-            voice_eta_hysts.append(
-                float(p["eta_hyst"]) if "eta_hyst" in p else p_props["eta_hyst"]
-            )
-            voice_k_sags.append(float(p["k_sag"]) if "k_sag" in p else p_props["k_sag"])
-            voice_k_eddys.append(float(p["k_eddy"]) if "k_eddy" in p else p_props["k_eddy"])
-            voice_kappa_orbits.append(
-                float(p["kappa_orbit"]) if "kappa_orbit" in p else p_props["kappa_orbit"]
-            )
-            voice_beta_curvs.append(
-                float(p["beta_curv"]) if "beta_curv" in p else p_props.get("beta_curv", 0.0)
-            )
-            voice_k_pulls.append(
-                float(p["k_pull"]) if "k_pull" in p else p_props.get("k_pull", 0.0)
-            )
-            voice_tau_touches.append(
-                float(p["tau_touch"]) if "tau_touch" in p else p_props.get("tau_touch", 0.0)
-            )
-            voice_kappa_geoms.append(
-                float(p["kappa_geom"]) if "kappa_geom" in p else p_props.get("kappa_geom", 0.0)
-            )
-            voice_k_steins.append(
-                float(p["k_stein"]) if "k_stein" in p else p_props.get("k_stein", 0.0)
-            )
-            voice_k_emfs.append(
-                float(p["k_emf"]) if "k_emf" in p else p_props.get("k_emf", 0.0)
-            )
-            voice_lambda_Ls.append(
-                float(p["lambda_L"]) if "lambda_L" in p else p_props.get("lambda_L", 0.0)
-            )
+            voice_alphas.append(float(p.alpha) if p.alpha is not None else p_props.alpha)
+            voice_alpha3s.append(p_props.alpha3)
+            voice_eta_hysts.append(p_props.eta_hyst)
+            voice_k_sags.append(p_props.k_sag)
+            voice_k_eddys.append(p_props.k_eddy)
+            voice_kappa_orbits.append(p_props.kappa_orbit)
+            voice_beta_curvs.append(p_props.beta_curv)
+            voice_k_pulls.append(p_props.k_pull)
+            voice_tau_touches.append(p_props.tau_touch)
+            voice_kappa_geoms.append(p_props.kappa_geom)
+            voice_k_steins.append(p_props.k_stein)
+            voice_k_emfs.append(p_props.k_emf)
+            voice_lambda_Ls.append(p_props.lambda_L)
     else:
         voice_alphas = None
         voice_alpha3s = None
@@ -779,37 +781,31 @@ def simulate_voice(
         voice_k_emfs = None
         voice_lambda_Ls = None
 
-    is_passive = inst_cfg.get("electronics") == "passive"
+    is_passive = inst_cfg.electronics == "passive"
     is_spatial_match = is_voice_matching_source(inst_cfg, voice_id, vcfg)
     if pickup and pickup != "auto":
-        pickups = inst_cfg.get("pickups", {})
+        pickups = inst_cfg.pickups
         if pickup not in pickups:
             raise KeyError(
                 f"Pickup '{pickup}' not found on instrument '{inst_id}'. "
                 f"Available pickups: {list(pickups.keys())}"
             )
         p_raw = pickups[pickup]
-        src_pickup = p_raw.model_copy() if isinstance(p_raw, PickupConfig) else p_raw.copy()
-        src_pickup["id"] = pickup
+        src_pickup = p_raw.model_copy()
+        src_pickup.id = pickup
     else:
         src_pickup = get_source_pickup(inst_cfg, voice_id)
 
     diff_curves = None
-    if (
-        vcfg.get("no_eq", False)
-        or getattr(model, "no_eq", False)
-        or (voice_id == "16_active_character" and not is_passive)
-    ):
+    if model.no_eq or (voice_id == "16_active_character" and not is_passive):
         diff_curves = [np.ones(len(FREQS), dtype=np.float64).tolist()]
-    elif src_pickup.get("circuit"):
-        src_model = load_circuit(src_pickup["circuit"])
+    elif src_pickup.circuit is not None:
+        src_model = load_circuit(src_pickup.circuit)
         apply_magnet_properties_to_model(src_model, src_pickup, eddy_diffusion=eddy_diffusion)
-        diff_curves = compute_differential_circuit_transfer_functions(
-            model, src_model, freqs=FREQS
-        )
+        diff_curves = compute_differential_circuit_transfer_functions(model, src_model, freqs=FREQS)
     elif is_passive:
         raise ValueError(
-            f"Passive instrument '{inst_id}' pickup '{src_pickup.get('id', 'unknown')}' "
+            f"Passive instrument '{inst_id}' pickup '{src_pickup.id or 'unknown'}' "
             f"does not define a '[circuit]' block. Passive source pickups require an explicit "
             f"circuit model for differential deconvolution."
         )
@@ -826,23 +822,22 @@ def simulate_voice(
     if not is_passive:
         src_props = MAGNET_PROPERTIES["active"]
     else:
-        src_mag = src_pickup.get("magnet_type")
-        if not src_mag and src_pickup.get("components"):
-            for c in src_pickup["components"]:
-                c_p = inst_cfg.get("pickups", {}).get(c.get("pickup"), {})
-                if c_p.get("magnet_type"):
-                    src_mag = c_p.get("magnet_type")
-                    break
-        if not src_mag:
-            src_mag = inst_cfg.get("magnet_type")
+        src_mag = src_pickup.magnet_type
+        if not src_mag and src_pickup.components:
+            for c in src_pickup.components:
+                if c.pickup and c.pickup in inst_cfg.pickups:
+                    c_p = inst_cfg.pickups[c.pickup]
+                    if c_p.magnet_type:
+                        src_mag = c_p.magnet_type
+                        break
         if not src_mag:
             raise KeyError(
-                f"Passive pickup '{src_pickup.get('id', 'unknown')}' on instrument '{inst_id}' "
+                f"Passive pickup '{src_pickup.id or 'unknown'}' on instrument '{inst_id}' "
                 f"does not specify 'magnet_type'. Available magnet types: {list(MAGNET_PROPERTIES.keys())}"
             )
         if src_mag not in MAGNET_PROPERTIES:
             raise KeyError(
-                f"Unknown magnet type '{src_mag}' on pickup '{src_pickup.get('id', 'unknown')}'. "
+                f"Unknown magnet type '{src_mag}' on pickup '{src_pickup.id or 'unknown'}'. "
                 f"Available magnet types: {list(MAGNET_PROPERTIES.keys())}"
             )
         src_props = MAGNET_PROPERTIES[src_mag]
@@ -924,20 +919,16 @@ def simulate_voice(
             ch_eta = max(voice_eta_hysts[i] - src_eta, 0.0) if voice_eta_hysts else diff_eta
             ch_sag = max(voice_k_sags[i] - src_sag, 0.0) if voice_k_sags else diff_sag
             ch_eddy = max(voice_k_eddys[i] - src_eddy, 0.0) if voice_k_eddys else diff_eddy
-            ch_orbit = max(voice_kappa_orbits[i] - src_orbit, 0.0) if voice_kappa_orbits else diff_orbit
-            ch_beta = (
-                max(voice_beta_curvs[i] - src_beta, 0.0) if voice_beta_curvs else diff_beta
+            ch_orbit = (
+                max(voice_kappa_orbits[i] - src_orbit, 0.0) if voice_kappa_orbits else diff_orbit
             )
+            ch_beta = max(voice_beta_curvs[i] - src_beta, 0.0) if voice_beta_curvs else diff_beta
             ch_pull = max(voice_k_pulls[i] - src_pull, 0.0) if voice_k_pulls else diff_pull
             ch_touch = (
                 max(voice_tau_touches[i] - src_touch, 0.0) if voice_tau_touches else diff_touch
             )
-            ch_geom = (
-                max(voice_kappa_geoms[i] - src_geom, 0.0) if voice_kappa_geoms else diff_geom
-            )
-            ch_stein = (
-                max(voice_k_steins[i] - src_stein, 0.0) if voice_k_steins else diff_stein
-            )
+            ch_geom = max(voice_kappa_geoms[i] - src_geom, 0.0) if voice_kappa_geoms else diff_geom
+            ch_stein = max(voice_k_steins[i] - src_stein, 0.0) if voice_k_steins else diff_stein
             ch_emf = max(voice_k_emfs[i] - src_emf, 0.0) if voice_k_emfs else diff_emf
             ch_lambda = (
                 max(voice_lambda_Ls[i] - src_lambda, 0.0) if voice_lambda_Ls else diff_lambda
@@ -1068,7 +1059,7 @@ def simulate_voice(
     prefilter_firs = None
     if not prefiltered:
         prefilter_firs = compute_voice_prefilter_firs(
-            voice_id, instrument=inst_cfg, src_pickup_key=src_pickup.get("id")
+            voice_id, instrument=inst_cfg, src_pickup_key=src_pickup.id
         )
         if has_source_circuit:
             stage_desc = f"Acoustic Aperture + Differential Circuit Simulation ({'Passive' if is_passive else 'Active'} Source)"

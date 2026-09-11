@@ -69,27 +69,29 @@ __all__ = [
 
 def main(argv: Sequence[str] | None = None) -> None:
     """CLI entrypoint for interactive frequency response visualizer."""
-    parser = argparse.ArgumentParser(description="Generate interactive Altair visualization of Allomorph voices.")
-    parser.add_argument(
-        "--instrument", "-i",
-        default="all",
-        help="Source instrument configuration (ID, alias like 30in, 32in, path to .toml, or 'all' to generate all)"
+    parser = argparse.ArgumentParser(
+        description="Generate interactive Altair visualization of Allomorph voices."
     )
     parser.add_argument(
-        "--mode", "-m",
+        "--instrument",
+        "-i",
+        default="all",
+        help="Source instrument configuration (ID, alias like 30in, 32in, path to .toml, or 'all' to generate all)",
+    )
+    parser.add_argument(
+        "--mode",
+        "-m",
         choices=["composite", "unified", "output", "difference", "targets", "frontends"],
         default="composite",
-        help="Chart mode: 'composite' (3-curve overlay), 'unified', 'output', 'difference', 'targets', or 'frontends'"
+        help="Chart mode: 'composite' (3-curve overlay), 'unified', 'output', 'difference', 'targets', or 'frontends'",
     )
     parser.add_argument(
-        "--all",
-        action="store_true",
-        help="Build interactive charts for all configured instruments"
+        "--all", action="store_true", help="Build interactive charts for all configured instruments"
     )
     parser.add_argument(
         "--out",
         default=None,
-        help="Output HTML file or directory path (default: docs/frequency_responses/<instrument_id>.html)"
+        help="Output HTML file or directory path (default: docs/frequency_responses/<instrument_id>.html)",
     )
     args = parser.parse_args(argv)
     cli_cfg = VisualizerCliConfig(

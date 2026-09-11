@@ -5,11 +5,9 @@ scale-length wave-speed conversions, and transducer deconvolution.
 """
 
 from pathlib import Path
-from typing import Any
 
 import numpy as np
 
-from allomorph.base import AllomorphBaseModel
 from allomorph.config.geometry import (
     compute_effective_position,
     resolve_pickup_coils,
@@ -17,8 +15,8 @@ from allomorph.config.geometry import (
     resolve_voice_pickups,
 )
 from allomorph.config.instruments import get_source_pickup, load_instrument
-from allomorph.config.scales import REPO_ROOT, SCALES
-from allomorph.config.schema import PickupConfig
+from allomorph.config.scales import SCALES
+from allomorph.config.schema import InstrumentConfig, PickupComponentConfig
 from allomorph.config.strings import get_instrument_string
 from allomorph.config.voices import VOICES
 from allomorph.dsp import FREQS, NUM_TAPS, synthesize_minimum_phase_fir
@@ -41,8 +39,8 @@ from allomorph.physics.strings import (
 
 def compute_voice_prefilter_firs(
     voice_id: str,
-    instrument: str | Path | dict[str, Any] | AllomorphBaseModel = "30in",
-    src_scale: float | tuple[float, float] | list[float] | str | None = None,
+    instrument: InstrumentConfig | str | Path = "30in",
+    src_scale: InstrumentConfig | str | float | tuple[float, float] | list[float] | None = None,
     num_taps: int = NUM_TAPS,
     src_pickup_key: str | None = None,
 ) -> list[list[float]]:
@@ -53,15 +51,20 @@ def compute_voice_prefilter_firs(
     [fir_pickup_0, fir_pickup_1, ...], enabling independent channel excitation in SPICE.
     """
     cfg = VOICES[voice_id]
-    if cfg.get("no_eq", False) or cfg.get("preserve_aperture", False):
+    if cfg.preserve_aperture:
         impulse = [1.0] + [0.0] * (num_taps - 1)
         return [impulse]
 
-    target_scale_key = cfg.get("scale", "34in")
+    target_scale_key = cfg.scale
+    if target_scale_key not in SCALES:
+        raise KeyError(
+            f"Target scale '{target_scale_key}' not found in SCALES configuration. "
+            f"Available scales: {list(SCALES.keys())}"
+        )
     tgt = SCALES[target_scale_key]
 
     inst_selector = src_scale if src_scale is not None else instrument
-    if isinstance(inst_selector, (dict, AllomorphBaseModel)):
+    if isinstance(inst_selector, InstrumentConfig):
         inst = inst_selector
     elif isinstance(inst_selector, (str, Path)):
         inst = load_instrument(inst_selector)
@@ -76,15 +79,15 @@ def compute_voice_prefilter_firs(
     tgt_scale_in = tgt_scale_m / 0.0254
 
     if src_pickup_key and src_pickup_key != "auto":
-        pickups = inst.get("pickups", {})
+        pickups = inst.pickups
         if src_pickup_key not in pickups:
             raise KeyError(
-                f"Pickup '{src_pickup_key}' not found on instrument '{inst.get('id', 'unknown')}'. "
+                f"Pickup '{src_pickup_key}' not found on instrument '{inst.id}'. "
                 f"Available pickups: {list(pickups.keys())}"
             )
         p_raw = pickups[src_pickup_key]
-        src_pickup = p_raw.model_copy() if isinstance(p_raw, PickupConfig) else p_raw.copy()
-        src_pickup["id"] = src_pickup_key
+        src_pickup = p_raw.model_copy(deep=True)
+        src_pickup.id = src_pickup_key
     else:
         src_pickup = get_source_pickup(inst, voice_id)
     src_coils = resolve_pickup_coils(src_pickup, inst)
@@ -92,12 +95,14 @@ def compute_voice_prefilter_firs(
 
     freqs = np.asarray(FREQS, dtype=np.float64)
 
-    h_src_acoustic = numpy_pickup_acoustic_response(freqs, src_coils, scale_length_m=src_scale_range)
+    h_src_acoustic = numpy_pickup_acoustic_response(
+        freqs, src_coils, scale_length_m=src_scale_range
+    )
 
     src_string = get_instrument_string(inst)
     tgt_string = get_voice_string(cfg)
 
-    sensor_type = cfg.get("sensor_type", "magnetic")
+    sensor_type = cfg.sensor_type
     pickups = resolve_voice_pickups(cfg)
     is_identity = (sensor_type not in ["bridge_force", "direct"]) and is_voice_matching_source(
         inst, voice_id, cfg
@@ -107,36 +112,28 @@ def compute_voice_prefilter_firs(
     if is_identity:
         h_tension = np.ones_like(freqs)
     elif target_scale_key == "upright":
-        delta_bloom = float(tgt_string.get("bloom_db", 2.8)) - float(src_string.get("bloom_db", 0.0))
+        delta_bloom = float(tgt_string.bloom_db) - float(src_string.bloom_db)
         g_bloom = 10.0 ** (max(delta_bloom, 0.5) / 20.0)
-        h_bloom = np.sqrt((g_bloom ** 2 + (freqs / 100.0) ** 2) / (1.0 + (freqs / 100.0) ** 2))
+        h_bloom = np.sqrt((g_bloom**2 + (freqs / 100.0) ** 2) / (1.0 + (freqs / 100.0) ** 2))
         h_tension = h_bloom
     elif src_scale_in < tgt_scale_in - 0.2:
         snap_db = min(3.5, 1.8 * (tgt_scale_in - src_scale_in) / 4.0)
         g_snap = 10.0 ** (snap_db / 20.0)
         h_tension = np.sqrt(
-            (1.0 + g_snap ** 2 * (freqs / 2800.0) ** 2) / (1.0 + (freqs / 2800.0) ** 2)
+            (1.0 + g_snap**2 * (freqs / 2800.0) ** 2) / (1.0 + (freqs / 2800.0) ** 2)
         )
     else:
         h_tension = np.ones_like(freqs)
 
-    tgt_circ = cfg.get("circuit")
-    if isinstance(tgt_circ, dict):
-        has_multichannel_circuit = bool(len(pickups) > 1)
-    elif isinstance(tgt_circ, (str, Path)):
-        cir_path = REPO_ROOT / tgt_circ
-        has_multichannel_circuit = bool(cir_path.exists() and len(pickups) > 1)
-    else:
-        has_multichannel_circuit = False
+    has_multichannel_circuit = bool(len(pickups) > 1)
 
-    empty_comp: list[dict[str, Any]] = []
-    src_components = (
-        src_pickup.get("components", empty_comp) if src_pickup.get("type") == "composite" else empty_comp
+    src_components: list[PickupComponentConfig] = (
+        src_pickup.components if src_pickup.type == "composite" and src_pickup.components else []
     )
     use_branch_matching = len(src_components) == len(pickups) and len(pickups) > 1
 
-    has_src_circuit = bool(src_pickup.get("circuit"))
-    is_passive = inst.get("electronics") == "passive"
+    has_src_circuit = bool(src_pickup.circuit)
+    is_passive = inst.electronics == "passive"
     h_elec_inv = (
         np.ones_like(freqs)
         if (is_identity or is_passive or has_src_circuit)
@@ -166,7 +163,7 @@ def compute_voice_prefilter_firs(
 
         if sensor_type == "bridge_force":
             eps = 0.08
-            h_decomb_raw = b_src_acoustic / (b_src_acoustic ** 2 + eps)
+            h_decomb_raw = b_src_acoustic / (b_src_acoustic**2 + eps)
             mid_mask = (freqs >= 100.0) & (freqs <= 1000.0)
             h_decomb_raw = h_decomb_raw / np.median(h_decomb_raw[mid_mask])
 
@@ -184,7 +181,7 @@ def compute_voice_prefilter_firs(
             h_damp = 1.0 / np.sqrt((1.0 - (freqs / f_damp) ** 2) ** 2 + 2.0 * (freqs / f_damp) ** 2)
 
             g_sub = 0.15
-            h_sub = np.sqrt((g_sub ** 2 * 32.0 ** 2 + freqs ** 2) / (32.0 ** 2 + freqs ** 2))
+            h_sub = np.sqrt((g_sub**2 * 32.0**2 + freqs**2) / (32.0**2 + freqs**2))
 
             h_acoustic_transfer = h_decomb * h_damp * h_sub
 
@@ -204,7 +201,7 @@ def compute_voice_prefilter_firs(
                 freqs, b_src_coils, scale_length_m=src_scale_range
             )
             eps = 0.01
-            h_quotient = (h_tgt_acoustic * h_src_macro) / (h_src_macro ** 2 + eps ** 2)
+            h_quotient = (h_tgt_acoustic * h_src_macro) / (h_src_macro**2 + eps**2)
             q_db = 20.0 * np.log10(np.maximum(h_quotient, 1e-6))
             g_max_db = 12.0 if sensor_type == "direct" else 8.0
             g_min_db = -14.0
@@ -225,10 +222,10 @@ def compute_voice_prefilter_firs(
                 g_low = 10.0 ** (tilt_db / 20.0)
                 g_hi = 10.0 ** (-tilt_db / 20.0)
                 h_low_tilt = np.sqrt(
-                    (g_low ** 2 + (freqs / 250.0) ** 2) / (1.0 + (freqs / 250.0) ** 2)
+                    (g_low**2 + (freqs / 250.0) ** 2) / (1.0 + (freqs / 250.0) ** 2)
                 )
                 h_hi_tilt = np.sqrt(
-                    (1.0 + g_hi ** 2 * (freqs / 2200.0) ** 2) / (1.0 + (freqs / 2200.0) ** 2)
+                    (1.0 + g_hi**2 * (freqs / 2200.0) ** 2) / (1.0 + (freqs / 2200.0) ** 2)
                 )
                 h_tilt = h_low_tilt * h_hi_tilt
 
@@ -280,9 +277,7 @@ def compute_voice_prefilter_firs(
             tau_i = 0.0
         elif use_branch_matching:
             src_positions = [
-                compute_effective_position(
-                    resolve_pickup_coils(inst["pickups"][c["pickup"]], inst)
-                )
+                compute_effective_position(resolve_pickup_coils(inst["pickups"][c["pickup"]], inst))
                 for c in src_components
             ]
             src_pos_max = max(src_positions) if src_positions else 0.0
@@ -312,8 +307,8 @@ def compute_voice_prefilter_firs(
 
 def compute_aperture_prefilter_fir(
     voice_id: str,
-    instrument: str | Path | dict[str, Any] | AllomorphBaseModel = "30in",
-    src_scale: float | tuple[float, float] | list[float] | str | None = None,
+    instrument: InstrumentConfig | str | Path = "30in",
+    src_scale: InstrumentConfig | str | float | tuple[float, float] | list[float] | None = None,
     num_taps: int = NUM_TAPS,
 ) -> list[float]:
     """
@@ -329,11 +324,16 @@ def compute_aperture_prefilter_fir(
         )
         return firs[0]
 
-    target_scale_key = cfg.get("scale", "34in")
+    target_scale_key = cfg.scale
+    if target_scale_key not in SCALES:
+        raise KeyError(
+            f"Target scale '{target_scale_key}' not found in SCALES configuration. "
+            f"Available scales: {list(SCALES.keys())}"
+        )
     tgt = SCALES[target_scale_key]
 
     inst_selector = src_scale if src_scale is not None else instrument
-    if isinstance(inst_selector, (dict, AllomorphBaseModel)):
+    if isinstance(inst_selector, InstrumentConfig):
         inst = inst_selector
     elif isinstance(inst_selector, (str, Path)):
         inst = load_instrument(inst_selector)
@@ -341,7 +341,7 @@ def compute_aperture_prefilter_fir(
         inst = load_instrument(instrument)
 
     src_scale_range = resolve_scale_range(inst)
-    tgt_scale_range = resolve_scale_range(tgt if target_scale_key in SCALES else target_scale_key)
+    tgt_scale_range = resolve_scale_range(tgt)
     src_scale_m = (src_scale_range[0] + src_scale_range[1]) / 2.0
     tgt_scale_m = (tgt_scale_range[0] + tgt_scale_range[1]) / 2.0
     src_scale_in = src_scale_m / 0.0254
@@ -356,16 +356,18 @@ def compute_aperture_prefilter_fir(
 
     freqs = np.asarray(FREQS, dtype=np.float64)
 
-    h_src_acoustic = numpy_pickup_acoustic_response(freqs, src_coils, scale_length_m=src_scale_range)
+    h_src_acoustic = numpy_pickup_acoustic_response(
+        freqs, src_coils, scale_length_m=src_scale_range
+    )
 
     src_string = get_instrument_string(inst)
     tgt_string = get_voice_string(cfg)
 
-    sensor_type = cfg.get("sensor_type", "magnetic")
+    sensor_type = cfg.sensor_type
     is_identity = (sensor_type != "bridge_force") and is_voice_matching_source(inst, voice_id, cfg)
     if sensor_type == "bridge_force":
         eps = 0.08
-        h_decomb_raw = h_src_acoustic / (h_src_acoustic ** 2 + eps)
+        h_decomb_raw = h_src_acoustic / (h_src_acoustic**2 + eps)
         mid_mask = (freqs >= 100.0) & (freqs <= 1000.0)
         h_decomb_raw = h_decomb_raw / np.median(h_decomb_raw[mid_mask])
 
@@ -378,12 +380,12 @@ def compute_aperture_prefilter_fir(
         w = 0.5 * (1.0 + np.cos(np.pi * t))
         h_decomb = w * h_decomb_raw + (1.0 - w) * 1.0
 
-        is_flatwound = "flat" in src_string.get("type", "")
+        is_flatwound = "flat" in src_string.type
         f_damp = 4200.0 if is_flatwound else 3600.0
         h_damp = 1.0 / np.sqrt((1.0 - (freqs / f_damp) ** 2) ** 2 + 2.0 * (freqs / f_damp) ** 2)
 
         g_sub = 0.15
-        h_sub = np.sqrt((g_sub ** 2 * 32.0 ** 2 + freqs ** 2) / (32.0 ** 2 + freqs ** 2))
+        h_sub = np.sqrt((g_sub**2 * 32.0**2 + freqs**2) / (32.0**2 + freqs**2))
 
         h_acoustic_transfer = h_decomb * h_damp * h_sub
 
@@ -398,7 +400,7 @@ def compute_aperture_prefilter_fir(
         )
         h_src_macro = numpy_pickup_macro_aperture(freqs, src_coils, scale_length_m=src_scale_range)
         eps = 0.01
-        h_quotient = (h_tgt_acoustic * h_src_macro) / (h_src_macro ** 2 + eps ** 2)
+        h_quotient = (h_tgt_acoustic * h_src_macro) / (h_src_macro**2 + eps**2)
         q_db = 20.0 * np.log10(np.maximum(h_quotient, 1e-6))
         g_max_db = 8.0
         g_min_db = -14.0
@@ -414,30 +416,30 @@ def compute_aperture_prefilter_fir(
         tilt_db = delta_in * 1.5
         g_low = 10.0 ** (tilt_db / 20.0)
         g_hi = 10.0 ** (-tilt_db / 20.0)
-        h_low_tilt = np.sqrt((g_low ** 2 + (freqs / 250.0) ** 2) / (1.0 + (freqs / 250.0) ** 2))
-        h_hi_tilt = np.sqrt((1.0 + g_hi ** 2 * (freqs / 2200.0) ** 2) / (1.0 + (freqs / 2200.0) ** 2))
+        h_low_tilt = np.sqrt((g_low**2 + (freqs / 250.0) ** 2) / (1.0 + (freqs / 250.0) ** 2))
+        h_hi_tilt = np.sqrt((1.0 + g_hi**2 * (freqs / 2200.0) ** 2) / (1.0 + (freqs / 2200.0) ** 2))
         h_tilt = h_low_tilt * h_hi_tilt
 
     if is_identity:
         h_tension = np.ones_like(freqs)
     elif target_scale_key == "upright":
-        delta_bloom = float(tgt_string.get("bloom_db", 2.8)) - float(src_string.get("bloom_db", 0.0))
+        delta_bloom = float(tgt_string.bloom_db) - float(src_string.bloom_db)
         g_bloom = 10.0 ** (max(delta_bloom, 0.5) / 20.0)
-        h_bloom = np.sqrt((g_bloom ** 2 + (freqs / 100.0) ** 2) / (1.0 + (freqs / 100.0) ** 2))
+        h_bloom = np.sqrt((g_bloom**2 + (freqs / 100.0) ** 2) / (1.0 + (freqs / 100.0) ** 2))
         h_tension = h_bloom
     elif src_scale_in < tgt_scale_in - 0.2:
         snap_db = min(3.5, 1.8 * (tgt_scale_in - src_scale_in) / 4.0)
         g_snap = 10.0 ** (snap_db / 20.0)
         h_tension = np.sqrt(
-            (1.0 + g_snap ** 2 * (freqs / 2800.0) ** 2) / (1.0 + (freqs / 2800.0) ** 2)
+            (1.0 + g_snap**2 * (freqs / 2800.0) ** 2) / (1.0 + (freqs / 2800.0) ** 2)
         )
     else:
         h_tension = np.ones_like(freqs)
 
     if (
         sensor_type != "bridge_force"
-        and cfg.get("target_string")
-        and cfg.get("target_string") != "roundwound_nickel_standard"
+        and cfg.target_string
+        and cfg.target_string != "roundwound_nickel_standard"
     ):
         h_str_diff = compute_differential_string_transfer(freqs, src_string, tgt_string)
         h_long_diff = compute_differential_longitudinal_transfer(
@@ -447,8 +449,8 @@ def compute_aperture_prefilter_fir(
         h_str_diff = np.ones_like(freqs)
         h_long_diff = np.ones_like(freqs)
 
-    has_src_circuit = bool(src_pickup.get("circuit"))
-    is_passive = inst.get("electronics") == "passive"
+    has_src_circuit = bool(src_pickup.circuit)
+    is_passive = inst.electronics == "passive"
     h_elec_inv = (
         np.ones_like(freqs)
         if (is_identity or is_passive or has_src_circuit)
@@ -482,3 +484,6 @@ def compute_aperture_prefilter_fir(
     resp_norm = prefilter_curve / max_val if max_val > 0 else prefilter_curve
 
     return synthesize_minimum_phase_fir(resp_norm, num_taps=num_taps)
+
+
+compute_voice_prefilter_fir = compute_aperture_prefilter_fir

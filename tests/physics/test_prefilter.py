@@ -21,8 +21,8 @@ def test_compute_aperture_prefilter_fir_30in():
     assert math.isclose(max_peak, 0.99, rel_tol=1e-3)
 
     # Causal minimum phase: early energy should dominate late energy
-    early_energy = sum(x ** 2 for x in fir[:256])
-    late_energy = sum(x ** 2 for x in fir[1024:])
+    early_energy = sum(x**2 for x in fir[:256])
+    late_energy = sum(x**2 for x in fir[1024:])
     assert early_energy > late_energy * 5
 
     # Tail should taper to near zero
@@ -37,8 +37,8 @@ def test_compute_aperture_prefilter_fir_32in():
     max_peak = max(abs(x) for x in fir)
     assert math.isclose(max_peak, 0.99, rel_tol=1e-3)
 
-    early_energy = sum(x ** 2 for x in fir[:256])
-    late_energy = sum(x ** 2 for x in fir[1024:])
+    early_energy = sum(x**2 for x in fir[:256])
+    late_energy = sum(x**2 for x in fir[1024:])
     assert early_energy > late_energy * 5
 
 
@@ -50,8 +50,8 @@ def test_compute_aperture_prefilter_multiscale():
     max_peak = max(abs(x) for x in fir)
     assert math.isclose(max_peak, 0.99, rel_tol=1e-3)
 
-    early_energy = sum(x ** 2 for x in fir[:256])
-    late_energy = sum(x ** 2 for x in fir[1024:])
+    early_energy = sum(x**2 for x in fir[:256])
+    late_energy = sum(x**2 for x in fir[1024:])
     assert early_energy > late_energy * 5
 
 
@@ -77,7 +77,9 @@ def test_prefilter_audio_pipeline():
 
 def test_compute_voice_prefilter_firs_single_and_multi():
     # Single-pickup voice -> exactly 1 channel
-    firs_single = compute_voice_prefilter_firs("04_modern_p_ceramic", src_scale="30in", num_taps=512)
+    firs_single = compute_voice_prefilter_firs(
+        "04_modern_p_ceramic", src_scale="30in", num_taps=512
+    )
     assert len(firs_single) == 1
     assert len(firs_single[0]) == 512
     max_peak_single = max(abs(x) for x in firs_single[0])

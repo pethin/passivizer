@@ -14,15 +14,20 @@ from allomorph.circuit.schema import SaturationConfig
 
 try:
     from numba import njit
+
     _HAS_NUMBA = True
 except ImportError:
+
     def njit(*args: Any, **kwargs: Any) -> Callable[[Any], Any]:
         def decorator(func: Any) -> Any:
             return func
+
         return decorator
+
     _HAS_NUMBA = False
 
 if _HAS_NUMBA:
+
     @njit(fastmath=True)
     def _dahl_core(x_arr: np.ndarray, eta: float, r: float) -> np.ndarray:
         n = len(x_arr)
@@ -139,6 +144,7 @@ if _HAS_NUMBA:
             out[i] = prev
         return out
 else:
+
     def _dahl_core(x_arr: np.ndarray, eta: float, r: float) -> np.ndarray:
         n = len(x_arr)
         z = np.empty(n, dtype=np.float64)
@@ -371,20 +377,24 @@ def apply_oversampled_saturation(
 
     # For unipolar test vectors (e.g. DC step tests), bypass differentiation and apply direct saturation
     if float(np.min(audio)) >= 0.0:
-        v_asym = x + alpha * (x ** 2) + alpha3 * (x ** 3)
+        v_asym = x + alpha * (x**2) + alpha3 * (x**3)
         return (vsat * np.tanh(v_asym / vsat)).astype(np.float32)
 
     # 1. Dynamic Lenz-Law Core Flux Sag on forte peak excursions (velocity-proportional high-frequency damping),
     # dynamic core inductance curvature wobble, localized magnetic string pull damping / pitch sag, Steinmetz loss,
     # electromechanical back-EMF string braking, and dynamic reluctance inductance modulation
-    if magnet_drag and vsat > 0 and (
-        k_sag > 0.0
-        or k_eddy > 0.0
-        or beta_curv > 0.0
-        or k_pull > 0.0
-        or k_stein > 0.0
-        or k_emf > 0.0
-        or lambda_L > 0.0
+    if (
+        magnet_drag
+        and vsat > 0
+        and (
+            k_sag > 0.0
+            or k_eddy > 0.0
+            or beta_curv > 0.0
+            or k_pull > 0.0
+            or k_stein > 0.0
+            or k_emf > 0.0
+            or lambda_L > 0.0
+        )
     ):
         tau_att = 0.006  # 6 ms fast attack on string strike
         tau_rel = 0.045  # 45 ms smooth domain relaxation release
@@ -421,7 +431,7 @@ def apply_oversampled_saturation(
                 )
             if kappa_geom > 0.0 and vsat > 0.0:
                 x_disp = x_disp / (1.0 - kappa_geom * np.tanh(x_disp / vsat))
-            v_asym = x_disp + alpha * (x_disp ** 2) + alpha3 * (x_disp ** 3)
+            v_asym = x_disp + alpha * (x_disp**2) + alpha3 * (x_disp**3)
             v_sat = vsat * np.tanh(v_asym / vsat)
             if slew_limit and vsat > 0.0 and f_slew > 0.0:
                 max_delta = 2.0 * math.pi * f_slew * vsat / 48000.0
@@ -434,7 +444,7 @@ def apply_oversampled_saturation(
                 x = apply_elliptical_orbit_projection(x, vsat=vsat, kappa_orbit=kappa_orbit)
             if kappa_geom > 0.0 and vsat > 0.0:
                 x = x / (1.0 - kappa_geom * np.tanh(x / vsat))
-            v_asym = x + alpha * (x ** 2) + alpha3 * (x ** 3)
+            v_asym = x + alpha * (x**2) + alpha3 * (x**3)
             out = vsat * np.tanh(v_asym / vsat)
             if slew_limit and vsat > 0.0 and f_slew > 0.0:
                 max_delta = 2.0 * math.pi * f_slew * vsat / 48000.0
@@ -480,7 +490,7 @@ def apply_oversampled_saturation(
             )
         if kappa_geom > 0.0 and vsat > 0.0:
             x_up_disp = x_up_disp / (1.0 - kappa_geom * np.tanh(x_up_disp / vsat))
-        v_asym = x_up_disp + alpha * (x_up_disp ** 2) + alpha3 * (x_up_disp ** 3)
+        v_asym = x_up_disp + alpha * (x_up_disp**2) + alpha3 * (x_up_disp**3)
         v_sat = vsat * np.tanh(v_asym / vsat)
         if slew_limit and vsat > 0.0 and f_slew > 0.0:
             max_delta = 2.0 * math.pi * f_slew * vsat / float(sr_up)
@@ -495,7 +505,7 @@ def apply_oversampled_saturation(
             x_up = apply_elliptical_orbit_projection(x_up, vsat=vsat, kappa_orbit=kappa_orbit)
         if kappa_geom > 0.0 and vsat > 0.0:
             x_up = x_up / (1.0 - kappa_geom * np.tanh(x_up / vsat))
-        v_asym = x_up + alpha * (x_up ** 2) + alpha3 * (x_up ** 3)
+        v_asym = x_up + alpha * (x_up**2) + alpha3 * (x_up**3)
         v_sat = vsat * np.tanh(v_asym / vsat)
         if slew_limit and vsat > 0.0 and f_slew > 0.0:
             max_delta = 2.0 * math.pi * f_slew * vsat / float(sr_up)

@@ -73,13 +73,19 @@ def run_training(
     basename: str | None = None,
 ):
     """Trains a Neural Amp Modeler (NAM) Architecture 2 model locally with MPS GPU acceleration."""
-    print(f"\n[Training] Training Neural Amp Modeler A2 model for {voice} (Instrument: {instrument})...")
+    print(
+        f"\n[Training] Training Neural Amp Modeler A2 model for {voice} (Instrument: {instrument})..."
+    )
     script = SCRIPTS_DIR / "train_nam.py"
     cmd = [
-        sys.executable, str(script),
-        "--instrument", instrument,
-        "--voice", voice,
-        "--epochs", str(epochs),
+        sys.executable,
+        str(script),
+        "--instrument",
+        instrument,
+        "--voice",
+        voice,
+        "--epochs",
+        str(epochs),
     ]
     if tier:
         cmd.extend(["--tier", tier])

@@ -7,11 +7,9 @@ spatial responses across the continuous wave-speed continuum.
 
 import math
 from collections.abc import Sequence
-from typing import Any
 
 import numpy as np
 
-from allomorph.base import AllomorphBaseModel
 from allomorph.config.geometry import resolve_pickup_coils, resolve_voice_coils
 from allomorph.config.instruments import get_source_pickup, load_instrument
 from allomorph.config.scales import SCALES
@@ -19,6 +17,7 @@ from allomorph.config.schema import (
     CoilConfig,
     InstrumentConfig,
     PickupConfig,
+    ScaleConfig,
     VoiceCoilConfig,
     VoiceConfig,
 )
@@ -32,19 +31,19 @@ from allomorph.physics.strings import (
 
 BODY_COUPLING_PROPERTIES = {
     "alnico_v": 0.08,
+    "alnico_iii": 0.09,
     "alnico_ii": 0.10,
     "ceramic": 0.03,
-    "ceramic_alnico_hybrid": 0.05,
-    "neodymium": 0.02,
     "active": 0.00,
+    "neodymium": 0.02,
 }
 
 
 def compute_body_microphonic_coupling(
     freqs: Sequence[float] | np.ndarray,
-    src_pickup: PickupConfig | dict[str, Any] | AllomorphBaseModel,
-    tgt_voice: VoiceConfig | dict[str, Any] | AllomorphBaseModel,
-    inst: InstrumentConfig | dict[str, Any] | AllomorphBaseModel | None = None,
+    src_pickup: PickupConfig,
+    tgt_voice: VoiceConfig,
+    inst: InstrumentConfig | None = None,
 ) -> np.ndarray:
     """
     Computes diffuse mechanical body-pickup microphonic coupling transfer curve.
@@ -54,12 +53,12 @@ def compute_body_microphonic_coupling(
     Evaluated differentially: Δk_body = max(k_tgt - k_src, 0.0).
     """
     freqs = np.asarray(freqs, dtype=np.float64)
-    if inst is not None and inst.get("electronics") == "active":
+    if inst is not None and inst.electronics == "active":
         src_mag = "active"
     else:
-        src_mag = src_pickup.get("magnet_type", src_pickup.get("magnet", "active"))
+        src_mag = src_pickup.magnet_type or "active"
 
-    tgt_mag = tgt_voice.get("magnet_type", tgt_voice.get("magnet", "alnico_v"))
+    tgt_mag = tgt_voice.magnet_type or "alnico_v"
 
     k_src = BODY_COUPLING_PROPERTIES.get(src_mag, 0.0)
     k_tgt = BODY_COUPLING_PROPERTIES.get(tgt_mag, BODY_COUPLING_PROPERTIES["alnico_v"])
@@ -73,7 +72,7 @@ def compute_body_microphonic_coupling(
     fdamp = 9500.0
 
     fn = freqs / fb
-    denom = Qb * np.sqrt((1.0 - fn ** 2) ** 2 + (fn / Qb) ** 2)
+    denom = Qb * np.sqrt((1.0 - fn**2) ** 2 + (fn / Qb) ** 2)
     resonance = np.where(freqs > 10.0, fn / np.maximum(denom, 1e-9), 0.0)
     damping = np.exp(-((freqs / fdamp) ** 2))
 
@@ -97,7 +96,7 @@ def compute_coil_aperture(
     f = np.asarray(freqs, dtype=np.float64)
     if pole_type == "blade":
         arg = (math.pi * w_m * f) / v_disp
-        return 1.0 / np.sqrt(1.0 + (1.0 / 3.0) * (arg ** 2))
+        return 1.0 / np.sqrt(1.0 + (1.0 / 3.0) * (arg**2))
     else:
         r_p = w_m / 2.0
         k = 2.0 * math.pi * f / v_disp
@@ -122,25 +121,27 @@ def compute_saddle_boundary_coupling(
     shelf_db = -4.0 * (1.0 - ratio)
     g = 10.0 ** (shelf_db / 20.0)
     f0 = 4500.0
-    return np.sqrt((1.0 + (g ** 2) * (f / f0) ** 2) / (1.0 + (f / f0) ** 2))
+    return np.sqrt((1.0 + (g**2) * (f / f0) ** 2) / (1.0 + (f / f0) ** 2))
 
 
 def is_voice_matching_source(
-    instrument: InstrumentConfig | dict[str, Any] | AllomorphBaseModel | str,
+    instrument: InstrumentConfig | str,
     voice_id: str,
-    voice_cfg: VoiceConfig | dict[str, Any] | AllomorphBaseModel | None = None,
+    voice_cfg: VoiceConfig | None = None,
 ) -> bool:
     """
     Determines if a target voice matches the source instrument's physical scale and pickup geometry,
     meaning zero spatial or acoustic transfer is required (identity transformation).
     Tuning- and string-count-agnostic: matches on physical scale length and coil geometry.
     """
-    inst = load_instrument(instrument) if not isinstance(instrument, (dict, AllomorphBaseModel)) else instrument
-    vcfg = voice_cfg or VOICES.get(voice_id, {})
+    inst = load_instrument(instrument) if isinstance(instrument, str) else instrument
+    vcfg = voice_cfg or VOICES.get(voice_id)
+    if vcfg is None:
+        return False
 
     src_range = resolve_scale_range(inst)
-    tgt_scale = vcfg.get("scale", "34in")
-    tgt_scale_info: Any = SCALES.get(tgt_scale, {})
+    tgt_scale = vcfg.scale
+    tgt_scale_info = SCALES.get(tgt_scale)
     tgt_range = resolve_scale_range(tgt_scale_info)
 
     # Scale match based on physical vibrating length range (within 1.2 cm)
@@ -154,32 +155,24 @@ def is_voice_matching_source(
     if len(src_coils) != len(tgt_coils):
         return False
 
-    s_sort = sorted(src_coils, key=lambda c: c["position_from_bridge_m"])
-    t_sort = sorted(tgt_coils, key=lambda c: c["position_from_bridge_m"])
+    s_sort = sorted(src_coils, key=lambda c: c.position_from_bridge_m)
+    t_sort = sorted(tgt_coils, key=lambda c: c.position_from_bridge_m)
 
     for sc, tc in zip(s_sort, t_sort):
-        if abs(sc["position_from_bridge_m"] - tc["position_from_bridge_m"]) > 0.005:
+        if abs(sc.position_from_bridge_m - tc.position_from_bridge_m) > 0.005:
             return False
-        if abs(sc.get("aperture_width_in", 0.75) - tc.get("aperture_width_in", 0.75)) > 0.15:
+        if abs(sc.aperture_width_in - tc.aperture_width_in) > 0.15:
             return False
 
     return True
 
 
-def get_coil_register(coil: CoilConfig | VoiceCoilConfig | dict[str, Any] | AllomorphBaseModel) -> str:
+def get_coil_register(coil: CoilConfig | VoiceCoilConfig) -> str:
     """
     Identifies whether a coil half is 'lower' (bass strings register),
     'upper' (treble strings register), or 'all' across the string bed.
     """
-    reg = coil.get("register")
-    if reg in ["lower", "bass", "low"]:
-        return "lower"
-    if reg in ["upper", "treble", "high"]:
-        return "upper"
-    if reg == "all":
-        return "all"
-
-    strings = coil.get("strings", ["all"])
+    strings = coil.strings
     if "all" in strings:
         return "all"
 
@@ -199,8 +192,14 @@ def get_coil_register(coil: CoilConfig | VoiceCoilConfig | dict[str, Any] | Allo
 
 def numpy_pickup_acoustic_response(
     freqs: Sequence[float] | np.ndarray,
-    coils: Sequence[CoilConfig | VoiceCoilConfig | dict[str, Any] | AllomorphBaseModel],
-    scale_length_m: float | tuple[float, float] | list[float] | Sequence[float] | None = None,
+    coils: Sequence[CoilConfig | VoiceCoilConfig],
+    scale_length_m: float
+    | tuple[float, float]
+    | list[float]
+    | Sequence[float]
+    | ScaleConfig
+    | InstrumentConfig
+    | None = None,
     string_speeds: Sequence[float] | None = None,
     string_names: Sequence[str | int] | None = None,
 ) -> np.ndarray:
@@ -212,7 +211,11 @@ def numpy_pickup_acoustic_response(
     """
     f = np.asarray(freqs, dtype=np.float64)
 
-    if isinstance(scale_length_m, (list, tuple, np.ndarray)) and len(scale_length_m) > 0 and any(float(v) > 10.0 for v in scale_length_m):
+    if (
+        isinstance(scale_length_m, (list, tuple, np.ndarray))
+        and len(scale_length_m) > 0
+        and any(float(v) > 10.0 for v in scale_length_m)
+    ):
         string_speeds = scale_length_m
         scale_length_m = None
 
@@ -229,7 +232,22 @@ def numpy_pickup_acoustic_response(
                 s_name = string_names[s_idx]
                 if s_name in [1, 2, "1", "2", "D", "G", "C", "high", "upper", "treble"]:
                     reg = "upper"
-                elif s_name in [3, 4, 5, 6, "3", "4", "5", "6", "E", "A", "B", "low", "lower", "bass"]:
+                elif s_name in [
+                    3,
+                    4,
+                    5,
+                    6,
+                    "3",
+                    "4",
+                    "5",
+                    "6",
+                    "E",
+                    "A",
+                    "B",
+                    "low",
+                    "lower",
+                    "bass",
+                ]:
                     reg = "lower"
                 else:
                     reg = "lower" if s_idx < half else "upper"
@@ -259,7 +277,7 @@ def numpy_pickup_acoustic_response(
 
         v_disp = compute_dispersive_wave_speed(f, v, f0=f0, scale_length_m=pt_scale_m)
 
-        active: list[dict[str, Any] | AllomorphBaseModel] = []
+        active: list[CoilConfig | VoiceCoilConfig] = []
         for c in coils:
             coil_reg = get_coil_register(c)
             if coil_reg == "all" or coil_reg == pt_reg:
@@ -268,38 +286,38 @@ def numpy_pickup_acoustic_response(
         if not active:
             active = list(coils)
 
-        total_w = sum(abs(c.get("weight", 1.0)) for c in active) or 1.0
-        center_pos = sum(c["position_from_bridge_m"] * abs(c.get("weight", 1.0)) for c in active) / total_w
+        total_w = sum(abs(c.weight) for c in active) or 1.0
+        center_pos = sum(c.position_from_bridge_m * abs(c.weight) for c in active) / total_w
 
         coil_sum = np.zeros_like(f, dtype=np.complex128)
         p_incoh = np.zeros_like(f, dtype=np.float64)
 
         for c in active:
-            pos_m = c["position_from_bridge_m"]
-            w_m = c.get("aperture_width_in", 0.75) * 0.0254
-            weight = c.get("weight", 1.0)
-            polarity = c.get("polarity", 1.0)
+            pos_m = c.position_from_bridge_m
+            w_m = c.aperture_width_in * 0.0254
+            weight = c.weight
+            polarity = c.polarity
 
             delta_x = pos_m - center_pos
             phase = 2.0 * math.pi * f * delta_x / v_disp
-            c_pole = c.get("pole_type", "rod")
+            c_pole = c.pole_type or "rod"
             ap_w = compute_coil_aperture(f, v_disp, w_m, pole_type=c_pole)
             w_eff = weight * ap_w
 
             coil_sum += w_eff * polarity * np.exp(-1j * phase)
-            p_incoh += w_eff ** 2
+            p_incoh += w_eff**2
 
         p_coh = np.abs(coil_sum) ** 2
 
         if len(active) > 1:
-            delta_x_span = max(c["position_from_bridge_m"] for c in active) - min(
-                c["position_from_bridge_m"] for c in active
+            delta_x_span = max(c.position_from_bridge_m for c in active) - min(
+                c.position_from_bridge_m for c in active
             )
             if delta_x_span > 0.002:
                 eps_quad = 0.18
-                p_coh_reg = p_coh + (eps_quad ** 2) * p_incoh
-                dc_incoh = sum(abs(c.get("weight", 1.0)) ** 2 for c in active)
-                dc_norm = math.sqrt(total_w ** 2 + (eps_quad ** 2) * dc_incoh) / total_w
+                p_coh_reg = p_coh + (eps_quad**2) * p_incoh
+                dc_incoh = sum(abs(c.weight) ** 2 for c in active)
+                dc_norm = math.sqrt(total_w**2 + (eps_quad**2) * dc_incoh) / total_w
 
                 f_start = v / delta_x_span
                 f_end = 1.8 * v / delta_x_span
@@ -319,8 +337,14 @@ def numpy_pickup_acoustic_response(
 
 def numpy_pickup_macro_aperture(
     freqs: Sequence[float] | np.ndarray,
-    coils: Sequence[CoilConfig | VoiceCoilConfig | dict[str, Any] | AllomorphBaseModel],
-    scale_length_m: float | tuple[float, float] | list[float] | Sequence[float] | None = None,
+    coils: Sequence[CoilConfig | VoiceCoilConfig],
+    scale_length_m: float
+    | tuple[float, float]
+    | list[float]
+    | Sequence[float]
+    | ScaleConfig
+    | InstrumentConfig
+    | None = None,
     string_speeds: Sequence[float] | None = None,
     string_names: Sequence[str | int] | None = None,
 ) -> np.ndarray:
@@ -331,10 +355,14 @@ def numpy_pickup_macro_aperture(
     Used for safe, non-inverting deconvolution of multi-coil source pickups.
     """
     f = np.asarray(freqs, dtype=np.float64)
-    w_in = coils[0].get("aperture_width_in", 0.75) if coils else 0.75
+    w_in = coils[0].aperture_width_in if coils else 0.75
     w_m = w_in * 0.0254
 
-    if isinstance(scale_length_m, (list, tuple, np.ndarray)) and len(scale_length_m) > 0 and any(float(v) > 10.0 for v in scale_length_m):
+    if (
+        isinstance(scale_length_m, (list, tuple, np.ndarray))
+        and len(scale_length_m) > 0
+        and any(float(v) > 10.0 for v in scale_length_m)
+    ):
         string_speeds = scale_length_m
         scale_length_m = None
 
@@ -357,7 +385,7 @@ def numpy_pickup_macro_aperture(
 
     acc = np.zeros_like(f, dtype=np.float64)
     total_w = 0.0
-    c_pole = coils[0].get("pole_type", "rod") if coils else "rod"
+    c_pole = (coils[0].pole_type or "rod") if coils else "rod"
     for pt in continuum:
         f0 = float(pt.f0)
         v = float(pt.v0)

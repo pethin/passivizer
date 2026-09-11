@@ -6,11 +6,9 @@ inharmonicity B_s interpolation, scale-length conversions, and dispersive wave s
 
 import math
 from collections.abc import Sequence
-from typing import Any
 
 import numpy as np
 
-from allomorph.base import AllomorphBaseModel
 from allomorph.config.scales import SCALES, resolve_scale_range
 from allomorph.config.schema import InstrumentConfig, ScaleConfig, StringPresetConfig
 from allomorph.config.strings import get_voice_string
@@ -31,21 +29,14 @@ __all__ = [
     "get_voice_string",
     "infer_string_names",
     "pitch_to_note_name",
-    "resolve_scale_length",
     "resolve_scale_range",
 ]
 
-NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
+# Standard open string fundamentals (EADG 4-string bass)
+STRING_FUNDAMENTALS = [41.20, 55.00, 73.42, 98.00]
+NOTE_NAMES = ["E", "A", "D", "G"]
 
-STRING_FUNDAMENTALS = {
-    "B": 30.868,
-    "E": 41.203,
-    "A": 55.000,
-    "D": 73.416,
-    "G": 97.999,
-    "C": 130.813,
-}
-
+# Empirical inharmonicity coefficient anchors across bass registers
 INHARMONICITY_ANCHORS_F0 = np.array(
     [27.50, 30.87, 41.20, 55.00, 73.42, 98.00, 130.81, 196.00], dtype=np.float64
 )
@@ -53,13 +44,15 @@ INHARMONICITY_ANCHORS_BS = np.array(
     [0.000028, 0.000025, 0.000020, 0.000012, 0.000006, 0.000003, 0.0000015, 0.0000008],
     dtype=np.float64,
 )
-MEAN_BASS_F0 = 66.9045  # Mean open-string fundamental frequency (E1=41.203, A1=55.000, D2=73.416, G2=97.999)
+MEAN_BASS_F0 = (
+    66.9045  # Mean open-string fundamental frequency (E1=41.203, A1=55.000, D2=73.416, G2=97.999)
+)
 
 
 def compute_differential_string_transfer(
     freqs: Sequence[float] | np.ndarray,
-    src_string: StringPresetConfig | dict[str, Any] | AllomorphBaseModel,
-    tgt_string: StringPresetConfig | dict[str, Any] | AllomorphBaseModel,
+    src_string: StringPresetConfig,
+    tgt_string: StringPresetConfig,
 ) -> np.ndarray:
     """
     Computes differential transfer function between source instrument strings
@@ -70,11 +63,11 @@ def compute_differential_string_transfer(
     """
     f = np.asarray(freqs, dtype=np.float64)
 
-    f_damp_src = float(src_string.get("damping_cutoff_hz", 8500.0))
-    n_src = float(src_string.get("damping_order", 1.0))
+    f_damp_src = float(src_string.damping_cutoff_hz)
+    n_src = float(src_string.damping_order)
 
-    f_damp_tgt = float(tgt_string.get("damping_cutoff_hz", 8500.0))
-    n_tgt = float(tgt_string.get("damping_order", 1.0))
+    f_damp_tgt = float(tgt_string.damping_cutoff_hz)
+    n_tgt = float(tgt_string.damping_order)
 
     # Calculate magnitude damping curves
     src_mag = 1.0 / np.sqrt(1.0 + (f / f_damp_src) ** (2.0 * n_src))
@@ -91,20 +84,20 @@ def compute_differential_string_transfer(
     )
     h_damp_ratio = 10.0 ** (r_soft_db / 20.0)
 
-    bloom_src = float(src_string.get("bloom_db", 0.0))
-    bloom_tgt = float(tgt_string.get("bloom_db", 0.0))
+    bloom_src = float(src_string.bloom_db)
+    bloom_tgt = float(tgt_string.bloom_db)
     delta_bloom_db = bloom_tgt - bloom_src
 
     g_bloom = 10.0 ** (delta_bloom_db / 20.0)
-    h_bloom = np.sqrt((g_bloom ** 2 + (f / 90.0) ** 2) / (1.0 + (f / 90.0) ** 2))
+    h_bloom = np.sqrt((g_bloom**2 + (f / 90.0) ** 2) / (1.0 + (f / 90.0) ** 2))
 
     return h_damp_ratio * h_bloom
 
 
 def compute_differential_longitudinal_transfer(
     freqs: Sequence[float] | np.ndarray,
-    src_string: StringPresetConfig | dict[str, Any] | AllomorphBaseModel,
-    tgt_string: StringPresetConfig | dict[str, Any] | AllomorphBaseModel,
+    src_string: StringPresetConfig,
+    tgt_string: StringPresetConfig,
     scale_length_inches: float = 34.0,
 ) -> np.ndarray:
     """
@@ -115,8 +108,8 @@ def compute_differential_longitudinal_transfer(
     percussive clank resonance. Returns 1.0 when matching source or delta <= 0.
     """
     f = np.asarray(freqs, dtype=np.float64)
-    k_long_src = float(src_string.get("k_long", 0.20))
-    k_long_tgt = float(tgt_string.get("k_long", 0.20))
+    k_long_src = float(src_string.k_long)
+    k_long_tgt = float(tgt_string.k_long)
     delta_k_long = max(k_long_tgt - k_long_src, 0.0)
     if delta_k_long <= 0.0:
         return np.ones_like(f)
@@ -133,20 +126,15 @@ def compute_differential_longitudinal_transfer(
 
 
 def pitch_to_note_name(f0: float) -> str:
-    """Converts fundamental frequency f0 to equal-temperament note name (A4 = 440 Hz)."""
-    if f0 <= 0:
-        return "C"
-    midi_num = 69.0 + 12.0 * math.log2(f0 / 440.0)
-    note_idx = round(midi_num) % 12
-    return NOTE_NAMES[note_idx]
+    """Converts a fundamental frequency in Hz to closest standard note name."""
+    semitones = round(12.0 * math.log2(max(f0, 10.0) / 440.0)) + 69
+    names = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
+    return names[semitones % 12]
 
 
 def get_inharmonicity_for_f0(f0: float) -> float:
-    """
-    Returns the physical string stiffness / inharmonicity parameter B_s
-    interpolated smoothly in log-frequency space.
-    """
-    log_f0 = np.log2(np.clip(f0, 20.0, 300.0))
+    """Interpolates empirical string stiffness / inharmonicity constant B_s for a given f0."""
+    log_f0 = math.log2(max(f0, 20.0))
     log_anchors = np.log2(INHARMONICITY_ANCHORS_F0)
     b_s = float(np.interp(log_f0, log_anchors, INHARMONICITY_ANCHORS_BS))
     return b_s
@@ -156,7 +144,13 @@ def get_inharmonicity_for_f0(f0: float) -> float:
 
 
 def generate_wave_speed_continuum(
-    scale_length_m: float | tuple[float, float] | list[float] | ScaleConfig | InstrumentConfig | dict[str, Any] | AllomorphBaseModel | str | None = 0.8636,
+    scale_length_m: float
+    | tuple[float, float]
+    | list[float]
+    | ScaleConfig
+    | InstrumentConfig
+    | str
+    | None = 0.8636,
     num_points: int = 24,
 ) -> list[WaveSpeedContinuumPoint]:
     """
@@ -169,12 +163,12 @@ def generate_wave_speed_continuum(
     f_min = 30.87
     f_max = 100.00
     log_f = np.linspace(np.log2(f_min), np.log2(f_max), num_points)
-    f0_arr = 2.0 ** log_f
+    f0_arr = 2.0**log_f
 
     if isinstance(scale_length_m, (tuple, list)) and len(scale_length_m) == 2:
         l_min_m = float(min(scale_length_m))
         l_max_m = float(max(scale_length_m))
-    elif isinstance(scale_length_m, (dict, AllomorphBaseModel)) or (
+    elif isinstance(scale_length_m, (ScaleConfig, InstrumentConfig)) or (
         isinstance(scale_length_m, str) and scale_length_m in SCALES
     ):
         l_min_m, l_max_m = resolve_scale_range(scale_length_m)
@@ -229,7 +223,9 @@ def resolve_scale_length(
     return 0.8636
 
 
-def infer_string_names(string_speeds: Sequence[float], scale_length_m: float | None = None) -> list[str]:
+def infer_string_names(
+    string_speeds: Sequence[float], scale_length_m: float | None = None
+) -> list[str]:
     """Infers note names for each string in string_speeds based on physical tuning physics."""
     n = len(string_speeds)
     if scale_length_m is not None and scale_length_m > 0:
@@ -285,7 +281,9 @@ def compute_dispersive_wave_speed(
             if abs((v0 / (2.0 * l_check)) - f0_std) / f0_std < 0.15:
                 f0 = f0_std
         if f0 is None:
-            l_eff = scale_length_m if (scale_length_m is not None and scale_length_m > 0) else 0.8636
+            l_eff = (
+                scale_length_m if (scale_length_m is not None and scale_length_m > 0) else 0.8636
+            )
             f0 = max(v0 / (2.0 * l_eff), 15.0)
 
     b_s = get_inharmonicity_for_f0(f0)

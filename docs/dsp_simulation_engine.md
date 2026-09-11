@@ -165,7 +165,7 @@ A 1-pole crossover filter at $750\text{ Hz}$ separates low-frequency string excu
 
 ```python
 drag_high = 1.0 - (k_sag + eddy_factor + pull_damping + stein_damping + emf_damping) * excess
-drag_low  = 1.0 - (0.25 * k_sag + 0.50 * pull_damping) * excess
+drag_low = 1.0 - (0.25 * k_sag + 0.50 * pull_damping) * excess
 ```
 
 1. **Lenz Core Flux Sag ($k_{\text{sag}}$):** Dynamically demagnetizes the core on peak transient velocities, reining in harsh treble clank.

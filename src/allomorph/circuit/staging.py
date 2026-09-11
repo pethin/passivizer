@@ -30,6 +30,7 @@ from allomorph.circuit.solver import compute_differential_circuit_transfer_funct
 from allomorph.config.geometry import resolve_pickup_coils
 from allomorph.config.instruments import load_all_instruments, load_instrument
 from allomorph.config.scales import REPO_ROOT, resolve_scale_range
+from allomorph.config.schema import CoilConfig
 from allomorph.config.voices import VOICES
 from allomorph.dsp import (
     FREQS,
@@ -69,7 +70,7 @@ def generate_canonical_sweep(input_wav: Path | None = None, output_wav: Path | N
     if sw == 3:
         raw_padded = bytearray()
         for i in range(0, len(raw), 3):
-            raw_padded.extend(raw[i: i + 3])
+            raw_padded.extend(raw[i : i + 3])
             raw_padded.append(0 if raw[i + 2] < 128 else 255)
         audio = np.frombuffer(raw_padded, dtype=np.int32).astype(np.float64) / 8388607.0
     elif sw == 2:
@@ -79,7 +80,9 @@ def generate_canonical_sweep(input_wav: Path | None = None, output_wav: Path | N
 
     f = np.asarray(FREQS, dtype=np.float64)
     can_coils = [
-        {"strings": ["all"], "position_from_bridge_m": 0.0935, "aperture_width_in": 0.75, "weight": 1.0}
+        CoilConfig(
+            strings=["all"], position_from_bridge_m=0.0935, aperture_width_in=0.75, weight=1.0
+        )
     ]
     h_can_ac = numpy_pickup_acoustic_response(f, can_coils, scale_length_m=(0.8636, 0.8636))
     can_fir = synthesize_minimum_phase_fir(h_can_ac, num_taps=2048)
@@ -87,7 +90,7 @@ def generate_canonical_sweep(input_wav: Path | None = None, output_wav: Path | N
     filtered = np.convolve(audio, can_fir, mode="same")
 
     raw_peak = float(np.max(np.abs(filtered)))
-    raw_rms = float(np.sqrt(np.mean(filtered ** 2)))
+    raw_rms = float(np.sqrt(np.mean(filtered**2)))
 
     peak_gain = (10.0 ** (INTERMEDIATE_TARGET_PEAK_DBFS / 20.0)) / max(raw_peak, 1e-9)
     rms_gain = (10.0 ** (INTERMEDIATE_TARGET_RMS_DBFS / 20.0)) / max(raw_rms, 1e-9)
@@ -97,7 +100,7 @@ def generate_canonical_sweep(input_wav: Path | None = None, output_wav: Path | N
 
     write_wav_24bit(str(output_wav), calibrated, sr)
     final_peak_db = 20.0 * math.log10(max(float(np.max(np.abs(calibrated))), 1e-9))
-    final_rms_db = 20.0 * math.log10(max(float(np.sqrt(np.mean(calibrated ** 2))), 1e-9))
+    final_rms_db = 20.0 * math.log10(max(float(np.sqrt(np.mean(calibrated**2))), 1e-9))
     print(
         f"[Canonical Sweep] Generated {output_wav.name}: Peak = {final_peak_db:.2f} dBFS, RMS = {final_rms_db:.2f} dBFS"
     )
@@ -112,7 +115,7 @@ def export_frontend_ir(
     Enforces strictly positive initial polarity to ensure zero phase cancellation when blended in parallel.
     """
     inst = load_instrument(inst_id)
-    pickups = inst.get("pickups", {})
+    pickups = inst.pickups
     if pickup_key not in pickups:
         raise KeyError(f"Pickup key '{pickup_key}' not found in instrument '{inst_id}'")
     pickup = pickups[pickup_key]
@@ -126,23 +129,24 @@ def export_frontend_ir(
 
     # 2. Canonical acoustic response (34in standard scale, 93.5mm datum, 0.75in slit)
     can_coils = [
-        {"strings": ["all"], "position_from_bridge_m": 0.0935, "aperture_width_in": 0.75, "weight": 1.0}
+        CoilConfig(
+            strings=["all"], position_from_bridge_m=0.0935, aperture_width_in=0.75, weight=1.0
+        )
     ]
     h_can_ac = numpy_pickup_acoustic_response(f, can_coils, scale_length_m=(0.8636, 0.8636))
 
-    h_aperture_deconv = (h_can_ac * h_src_ac) / (h_src_ac ** 2 + 0.01)
+    h_aperture_deconv = (h_can_ac * h_src_ac) / (h_src_ac**2 + 0.01)
 
     # 3. Circuit deconvolution
-    p_circ = pickup.get("circuit")
-    can_circ = VOICES.get("00_canonical_intermediate", {}).get("circuit")
+    p_circ = pickup.circuit
+    can_voice = VOICES.get("00_canonical_intermediate")
+    can_circ = can_voice.circuit if can_voice is not None else None
     if p_circ and can_circ:
         can_model = load_circuit(can_circ)
         src_model = load_circuit(p_circ)
-        diff_curves = compute_differential_circuit_transfer_functions(
-            can_model, src_model, freqs=f
-        )
+        diff_curves = compute_differential_circuit_transfer_functions(can_model, src_model, freqs=f)
         h_circuit_deconv = np.asarray(diff_curves[0], dtype=np.float64)
-    elif inst.get("electronics") == "passive":
+    elif inst.electronics == "passive":
         raise ValueError(
             f"Passive instrument '{inst_id}' pickup '{pickup_key}' does not define a '[pickups.{pickup_key}.circuit]' "
             f"configuration. Passive source pickups require an explicit circuit model for differential deconvolution."
@@ -166,7 +170,7 @@ def export_frontend_ir(
         inst_dir.mkdir(parents=True, exist_ok=True)
         # Avoid repetitive token if inst_id already ends with pickup prefix (e.g. 30in_emg_mmtw + mmtw_dual)
         if inst_id.endswith("mmtw") and pickup_key.startswith("mmtw_"):
-            p_name = pickup_key[len("mmtw_"):]
+            p_name = pickup_key[len("mmtw_") :]
             out_name = f"{inst_id}_{p_name}.wav"
         else:
             out_name = f"{inst_id}_{pickup_key}.wav"
@@ -195,7 +199,7 @@ def export_all_frontend_irs(output_dir: Path | None = None):
     for inst_id, inst in sorted(all_insts.items()):
         if inst_id == "canonical_intermediate":
             continue
-        pickups = inst.get("pickups", {})
+        pickups = inst.pickups
         for p_key in sorted(pickups.keys()):
             p_file = export_frontend_ir(inst_id, p_key)
             exported.append(p_file)
@@ -247,8 +251,8 @@ def simulate_backend_targets(tier: str = "standard", voice_id: str | None = None
             out_file = target_out_dir / f"out_{vid}.wav"
             print(f"[{t.upper()}] Simulating {vid} -> {out_file.name}...")
 
-            vcfg = VOICES.get(vid, {})
-            v_alpha = vcfg.get("alpha", 0.25)
+            vcfg = VOICES.get(vid)
+            v_alpha = vcfg.alpha if vcfg is not None else 0.25
 
             if t == "clean":
                 sim_alpha = 0.0
@@ -506,13 +510,21 @@ def main(argv: list[str] | None = None) -> None:
         target_voices = resolve_voices(args.voice)
         for vid in target_voices:
             res = compute_parametric_sweep(vid, param=args.sweep, pot_taper=args.pot_taper)
-            print("\n=========================================================================================")
+            print(
+                "\n========================================================================================="
+            )
             print(f"  PARAMETRIC SWEEP: {vid} (Param: {args.sweep}, Taper: {args.pot_taper})")
-            print("=========================================================================================")
-            print(f"Evaluated {len(res.values)} steps ({', '.join(res.labels)}) across {len(res.freqs)} frequencies.\n")
+            print(
+                "========================================================================================="
+            )
+            print(
+                f"Evaluated {len(res.values)} steps ({', '.join(res.labels)}) across {len(res.freqs)} frequencies.\n"
+            )
             print("--- Frequency Response Grid ---")
             sample_freqs = [100.0, 500.0, 1000.0, 2500.0, 5000.0]
-            header = f"{'Value / Label':<24}" + "".join([f"{f'{f:.0f} Hz':>12}" for f in sample_freqs])
+            header = f"{'Value / Label':<24}" + "".join(
+                [f"{f'{f:.0f} Hz':>12}" for f in sample_freqs]
+            )
             print(header)
             print("-" * len(header))
             f_arr = np.asarray(res.freqs)

@@ -121,6 +121,7 @@ def test_nam_training_config_validation():
 
 def test_artwork_pack_config_validation():
     """Verify ArtworkPackConfig hex color pattern and required metadata."""
+
     def dummy_renderer(accent: str) -> str:
         return f"<svg color='{accent}'></svg>"
 
@@ -149,4 +150,3 @@ def test_artwork_pack_config_validation():
             badge3="PASSIVE",
             content=dummy_renderer,
         )
-

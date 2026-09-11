@@ -5,8 +5,9 @@ Supports tone pot, volume pot, cable capacitance, tone capacitor, and active EQ 
 """
 
 import copy
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Any, Self
+from typing import Self
 
 import numpy as np
 import polars as pl
@@ -18,7 +19,7 @@ from allomorph.circuit.solver import (
     apply_magnet_properties_to_model,
     compute_circuit_transfer_functions,
 )
-from allomorph.config.schema import PreampBandConfig
+from allomorph.config.schema import PreampBandConfig, VoiceConfig
 from allomorph.dsp import FREQS
 
 
@@ -154,7 +155,9 @@ class ParametricSweepResult(BaseModel):
                     # Analytical 2nd-order lowpass loaded Q from peaking factor Mp = 10^(peak_boost/20)
                     mp = 10.0 ** (peak_boost / 20.0)
                     if mp > 1.0:
-                        q_loaded = float(np.sqrt((mp**2 + mp * np.sqrt(max(0.0, mp**2 - 1.0))) / 2.0))
+                        q_loaded = float(
+                            np.sqrt((mp**2 + mp * np.sqrt(max(0.0, mp**2 - 1.0))) / 2.0)
+                        )
                         bw_hz = float(f_res / q_loaded) if q_loaded > 0 else None
 
             # -3 dB cutoff frequency relative to low-frequency baseline (loss_db - 3.0)
@@ -232,13 +235,21 @@ class ParametricSweepResult(BaseModel):
 def _get_default_sweep_values(param: str) -> list[float]:
     """Provides default numerical values for a given sweep parameter."""
     p = param.lower().strip()
-    if p in ("tone", "tone_pos", "tone_wiper", "tone_pot") or p in ("vol", "vol_pos", "volume", "vol_wiper", "volume_pot") or p in ("blend", "blend_pos", "pan", "balance"):
+    if (
+        p in ("tone", "tone_pos", "tone_wiper", "tone_pot")
+        or p in ("vol", "vol_pos", "volume", "vol_wiper", "volume_pot")
+        or p in ("blend", "blend_pos", "pan", "balance")
+    ):
         return [0.0, 0.25, 0.5, 0.75, 1.0]
     elif p in ("cable", "cable_pf", "ccable", "cable_capacitance"):
         return [200.0, 500.0, 750.0, 1000.0, 1500.0]
     elif p in ("tone_cap", "ctone", "cap", "tone_capacitance", "tone_cap_nf"):
         return [22.0, 33.0, 47.0, 68.0, 100.0]
-    elif p in ("bass_boost", "preamp_bass", "bass") or p in ("treble_boost", "preamp_treble", "treble"):
+    elif p in ("bass_boost", "preamp_bass", "bass") or p in (
+        "treble_boost",
+        "preamp_treble",
+        "treble",
+    ):
         return [0.0, 3.0, 6.0, 9.0, 12.0]
     return [0.0, 0.5, 1.0]
 
@@ -260,9 +271,9 @@ def _generate_default_labels(param: str, values: list[float]) -> list[str]:
         }
         return [lbl_map.get(round(v, 2), f"Blend {round(v * 100)}%") for v in values]
     elif p in ("cable", "cable_pf", "ccable", "cable_capacitance"):
-        return [f"Cable {v:.0f} pF" if v > 1e-6 else f"Cable {v*1e12:.0f} pF" for v in values]
+        return [f"Cable {v:.0f} pF" if v > 1e-6 else f"Cable {v * 1e12:.0f} pF" for v in values]
     elif p in ("tone_cap", "ctone", "cap", "tone_capacitance", "tone_cap_nf"):
-        return [f"Cap {v:.0f} nF" if v > 1e-6 else f"Cap {v*1e9:.0f} nF" for v in values]
+        return [f"Cap {v:.0f} nF" if v > 1e-6 else f"Cap {v * 1e9:.0f} nF" for v in values]
     elif p in ("bass_boost", "preamp_bass", "bass"):
         return [f"Bass {v:+.1f} dB" for v in values]
     elif p in ("treble_boost", "preamp_treble", "treble"):
@@ -272,21 +283,20 @@ def _generate_default_labels(param: str, values: list[float]) -> list[str]:
 
 
 def compute_parametric_sweep(
-    circuit_or_voice: CircuitModel | dict[str, Any] | str | Path,
-    param: str,
-    values: list[float] | np.ndarray | None = None,
-    freqs: list[float] | np.ndarray = FREQS,
+    circuit_or_voice: CircuitModel | VoiceConfig | str | Path,
+    param: str = "tone",
+    values: Sequence[float] | np.ndarray | None = None,
+    freqs: Sequence[float] | np.ndarray = FREQS,
     labels: list[str] | None = None,
     pickup_channel: int | str = 0,
     pot_taper: str = "audio",
 ) -> ParametricSweepResult:
     """
-    Computes closed-form nodal AC transfer functions across a continuous parameter sweep.
-    Executes in < 45 ms by utilizing vectorized NumPy operations and in-place circuit restoration.
+    Computes continuous frequency response curves across a swept electrical parameter.
 
     Parameters:
-        circuit_or_voice: A CircuitModel instance, dictionary config, voice ID string, or Path.
-        param: Parameter name to sweep:
+        circuit_or_voice: CircuitModel, VoiceConfig, or voice identifier string/path.
+        param: Circuit parameter to sweep:
             - 'tone' / 'tone_pos': Pot wiper position (0.0 to 1.0).
             - 'vol' / 'vol_pos': Pot wiper position (0.0 to 1.0).
             - 'blend' / 'blend_pos': Pickup blend balance (0.0 Neck to 1.0 Bridge, 0.5 center).
@@ -306,7 +316,11 @@ def compute_parametric_sweep(
     """
     if isinstance(circuit_or_voice, CircuitModel):
         model = circuit_or_voice
-        voice_id = getattr(model, "voice_id", None)
+        voice_id = None
+    elif isinstance(circuit_or_voice, VoiceConfig):
+        voice_id = circuit_or_voice.id
+        model = load_circuit(circuit_or_voice)
+        apply_magnet_properties_to_model(model, circuit_or_voice)
     elif isinstance(circuit_or_voice, (str, Path)):
         voice_id = Path(circuit_or_voice).stem
         model = load_circuit(circuit_or_voice)
@@ -316,12 +330,8 @@ def compute_parametric_sweep(
             cfg = VOICES.get(str(circuit_or_voice)) or VOICES.get(voice_id)
             if cfg:
                 apply_magnet_properties_to_model(model, cfg)
-        except (KeyError, ImportError, AttributeError, ValueError):
+        except KeyError, ImportError, AttributeError, ValueError:
             pass
-    elif isinstance(circuit_or_voice, dict):
-        voice_id = circuit_or_voice.get("id") or circuit_or_voice.get("name")
-        model = load_circuit(circuit_or_voice)
-        apply_magnet_properties_to_model(model, circuit_or_voice)
     else:
         raise TypeError(f"Invalid circuit_or_voice: {type(circuit_or_voice)}")
 
@@ -343,7 +353,7 @@ def compute_parametric_sweep(
     if p in ("tone", "tone_pos", "tone_wiper", "tone_pot"):
         orig_tone_pos = model.tone_pos
         orig_Rtone = model.Rtone
-        orig_taper = getattr(model, "pot_taper", "audio")
+        orig_taper = model.pot_taper
         try:
             for v in values:
                 model.apply_pot_positions(tone_pos=v, pot_taper=pot_taper)
@@ -360,7 +370,7 @@ def compute_parametric_sweep(
         orig_vol_pos = model.vol_pos
         orig_Rtop = model.Rtop
         orig_Rbot = model.Rbot
-        orig_taper = getattr(model, "pot_taper", "audio")
+        orig_taper = model.pot_taper
         try:
             for v in values:
                 model.apply_pot_positions(vol_pos=v, pot_taper=pot_taper)
@@ -376,7 +386,7 @@ def compute_parametric_sweep(
 
     elif p in ("blend", "blend_pos", "pan", "balance"):
         orig_blend = model.blend_pos
-        orig_taper = getattr(model, "pot_taper", "audio")
+        orig_taper = model.pot_taper
         orig_r_n = model.Rpot_n
         orig_r_b = model.Rpot_b
         try:
@@ -384,8 +394,7 @@ def compute_parametric_sweep(
                 model.apply_pot_positions(blend_pos=v, pot_taper=pot_taper)
                 tr = compute_circuit_transfer_functions(model, freqs=f_arr, return_numpy=True)
                 if len(tr) > 1 and (
-                    pickup_channel in ("sum", -1, 0)
-                    or str(pickup_channel).lower() == "sum"
+                    pickup_channel in ("sum", -1, 0) or str(pickup_channel).lower() == "sum"
                 ):
                     combined = np.abs(tr[0] + tr[1])
                     mag_db = 20.0 * np.log10(np.maximum(combined, 1e-6))

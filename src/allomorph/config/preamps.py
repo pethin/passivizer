@@ -56,7 +56,9 @@ def get_preamp(preamp_spec: str | dict[str, Any] | PreampConfig | None) -> Pream
     if isinstance(preamp_spec, str):
         if preamp_spec in PREAMPS:
             return PREAMPS[preamp_spec].model_copy(deep=True)
-        raise KeyError(f"Unknown preamp preset '{preamp_spec}'. Available presets: {list(PREAMPS.keys())}")
+        raise KeyError(
+            f"Unknown preamp preset '{preamp_spec}'. Available presets: {list(PREAMPS.keys())}"
+        )
 
     if isinstance(preamp_spec, dict):
         preset_name = preamp_spec.get("preset")
@@ -66,7 +68,9 @@ def get_preamp(preamp_spec: str | dict[str, Any] | PreampConfig | None) -> Pream
                 overlay = {k: v for k, v in preamp_spec.items() if k != "preset"}
                 base_dict.update(overlay)
                 return PreampConfig.model_validate(base_dict)
-            raise KeyError(f"Unknown preamp preset '{preset_name}'. Available presets: {list(PREAMPS.keys())}")
+            raise KeyError(
+                f"Unknown preamp preset '{preset_name}'. Available presets: {list(PREAMPS.keys())}"
+            )
         return PreampConfig.model_validate(preamp_spec)
 
     raise TypeError(f"Invalid preamp specification type: {type(preamp_spec)}")

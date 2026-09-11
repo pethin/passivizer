@@ -1,6 +1,7 @@
 """
 Allomorph Visualizer - Interactive Altair Charts Generation
 """
+
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
@@ -8,7 +9,6 @@ from typing import Any
 import altair as alt
 import polars as pl
 
-from allomorph.base import AllomorphBaseModel
 from allomorph.config.instruments import load_all_instruments, load_instrument
 from allomorph.config.schema import InstrumentConfig
 from allomorph.config.voices import VOICES
@@ -41,8 +41,7 @@ def render_chart_to_file(
         mode_selection = alt.selection_point(
             fields=["mode"],
             bind=alt.binding_radio(
-                options=["Input/Output Difference", "Output Voice"],
-                name="Display Mode: "
+                options=["Input/Output Difference", "Output Voice"], name="Display Mode: "
             ),
             value="Input/Output Difference",
         )
@@ -61,19 +60,19 @@ def render_chart_to_file(
                     values=[20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000],
                     grid=True,
                     gridDash=[3, 3],
-                    gridColor="#333333"
-                )
+                    gridColor="#333333",
+                ),
             ),
             y=alt.Y(
                 "magnitude_db:Q",
                 scale=alt.Scale(domain=y_domain),
                 title=y_title,
-                axis=alt.Axis(grid=True, gridDash=[3, 3], gridColor="#333333")
+                axis=alt.Axis(grid=True, gridDash=[3, 3], gridColor="#333333"),
             ),
             color=alt.Color(
                 "voice_name:N",
                 title="Allomorph Pickup Profile (Click to isolate)",
-                scale=alt.Scale(scheme="tableau20")
+                scale=alt.Scale(scheme="tableau20"),
             ),
             opacity=alt.condition(voice_selection, alt.value(1.0), alt.value(0.12)),
             strokeWidth=alt.condition(voice_selection, alt.value(2.8), alt.value(1.0)),
@@ -82,8 +81,8 @@ def render_chart_to_file(
                 alt.Tooltip("topology:N", title="Topology"),
                 alt.Tooltip("description:N", title="Circuit / Acoustic Description"),
                 alt.Tooltip("frequency:Q", title="Frequency (Hz)", format=".1f"),
-                alt.Tooltip("magnitude_db:Q", title="Magnitude (dB)", format="+.1f")
-            ]
+                alt.Tooltip("magnitude_db:Q", title="Magnitude (dB)", format="+.1f"),
+            ],
         )
     )
 
@@ -92,17 +91,22 @@ def render_chart_to_file(
     for p in params:
         chart = chart.add_params(p)
 
-    chart = chart.properties(
-        title=alt.TitleParams(
-            text=chart_title,
-            subtitle=chart_subtitle,
-            fontSize=16,
-            subtitleFontSize=12,
-            anchor="start"
-        ),
-        width=740,
-        height=480
-    ).configure_view(strokeWidth=0).configure_legend(orient="right", labelLimit=320).interactive()
+    chart = (
+        chart.properties(
+            title=alt.TitleParams(
+                text=chart_title,
+                subtitle=chart_subtitle,
+                fontSize=16,
+                subtitleFontSize=12,
+                anchor="start",
+            ),
+            width=740,
+            height=480,
+        )
+        .configure_view(strokeWidth=0)
+        .configure_legend(orient="right", labelLimit=320)
+        .interactive()
+    )
 
     chart.save(str(target_path))
     print(f"Saved interactive Altair visualization: {target_path}")
@@ -135,19 +139,19 @@ def generate_universal_targets_chart(target_path: Path | None = None) -> Path:
                     values=[20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000],
                     grid=True,
                     gridDash=[3, 3],
-                    gridColor="#333333"
-                )
+                    gridColor="#333333",
+                ),
             ),
             y=alt.Y(
                 "magnitude_db:Q",
                 scale=alt.Scale(domain=[-30, 15]),
                 title="Voicing Magnitude relative to Intermediate (dB)",
-                axis=alt.Axis(grid=True, gridDash=[3, 3], gridColor="#333333")
+                axis=alt.Axis(grid=True, gridDash=[3, 3], gridColor="#333333"),
             ),
             color=alt.Color(
                 "voice_name:N",
                 title="Universal Target Voice (Click to isolate)",
-                scale=alt.Scale(scheme="tableau20")
+                scale=alt.Scale(scheme="tableau20"),
             ),
             opacity=alt.condition(voice_selection, alt.value(1.0), alt.value(0.12)),
             strokeWidth=alt.condition(voice_selection, alt.value(2.8), alt.value(1.0)),
@@ -156,20 +160,20 @@ def generate_universal_targets_chart(target_path: Path | None = None) -> Path:
                 alt.Tooltip("topology:N", title="Topology"),
                 alt.Tooltip("description:N", title="Circuit / Acoustic Description"),
                 alt.Tooltip("frequency:Q", title="Frequency (Hz)", format=".1f"),
-                alt.Tooltip("magnitude_db:Q", title="Magnitude (dB)", format="+.1f")
-            ]
+                alt.Tooltip("magnitude_db:Q", title="Magnitude (dB)", format="+.1f"),
+            ],
         )
         .add_params(voice_selection)
         .properties(
             title=alt.TitleParams(
                 text="Allomorph Master Voices: Universal Target Voicings (Block 2)",
-                subtitle="Target Passive Acoustic Apertures & SPICE Loaded RLC Resonances relative to Canonical Intermediate Baseline (34\" @ 93.5mm)",
+                subtitle='Target Passive Acoustic Apertures & SPICE Loaded RLC Resonances relative to Canonical Intermediate Baseline (34" @ 93.5mm)',
                 fontSize=16,
                 subtitleFontSize=12,
-                anchor="start"
+                anchor="start",
             ),
             width=740,
-            height=480
+            height=480,
         )
         .configure_view(strokeWidth=0)
         .configure_legend(orient="right", labelLimit=320)
@@ -239,15 +243,15 @@ def generate_universal_targets_chart(target_path: Path | None = None) -> Path:
 
 
 def generate_instrument_frontend_chart(
-    inst: InstrumentConfig | dict[str, Any] | AllomorphBaseModel,
+    inst: InstrumentConfig,
     target_path: Path | None = None,
 ) -> Path:
     """
     Renders the Frontend Deconvolutions chart (Block 1) for a single source instrument.
     Allows users to click any pickup switch position in the legend to isolate that specific pickup key.
     """
-    inst_id = inst.get("id", "instrument")
-    inst_name = inst.get("name", inst_id)
+    inst_id = inst.id
+    inst_name = inst.name
     if target_path is None:
         target_path = RESPONSES_DIR / f"{inst_id}_frontend.html"
     target_path = Path(target_path)
@@ -275,8 +279,8 @@ def generate_instrument_frontend_chart(
                     values=[20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000],
                     grid=True,
                     gridDash=[3, 3],
-                    gridColor="#333333"
-                )
+                    gridColor="#333333",
+                ),
             ),
             y=alt.Y(
                 "magnitude_db:Q",
@@ -286,22 +290,22 @@ def generate_instrument_frontend_chart(
                     values=[-8, -6, -4, -2, 0, 2, 4, 6, 8, 10, 12],
                     grid=True,
                     gridDash=[3, 3],
-                    gridColor="#333333"
-                )
+                    gridColor="#333333",
+                ),
             ),
             color=alt.Color(
                 "pickup_name:N",
                 title="Pickup Switch Position (Click to isolate)",
-                scale=alt.Scale(scheme="category10")
+                scale=alt.Scale(scheme="category10"),
             ),
             tooltip=[
                 alt.Tooltip("pickup_name:N", title="Pickup Switch Position"),
                 alt.Tooltip("position_mm:Q", title="Bridge Distance (mm)", format=".1f"),
                 alt.Tooltip("frequency:Q", title="Frequency (Hz)", format=".1f"),
-                alt.Tooltip("magnitude_db:Q", title="Gain / Cut (dB)", format="+.1f")
+                alt.Tooltip("magnitude_db:Q", title="Gain / Cut (dB)", format="+.1f"),
             ],
             opacity=alt.condition(pickup_selection, alt.value(0.96), alt.value(0.12)),
-            strokeWidth=alt.condition(pickup_selection, alt.value(3.0), alt.value(1.2))
+            strokeWidth=alt.condition(pickup_selection, alt.value(3.0), alt.value(1.2)),
         )
     )
 
@@ -314,10 +318,10 @@ def generate_instrument_frontend_chart(
                 subtitle="Inverting Physical Pickup Aperture Sinc & RLC Impedance to Canonical Intermediate Baseline (0.00 dB Target)",
                 fontSize=16,
                 subtitleFontSize=12,
-                anchor="start"
+                anchor="start",
             ),
             width=740,
-            height=480
+            height=480,
         )
         .configure_view(strokeWidth=0)
         .configure_legend(orient="right", labelLimit=320)
@@ -392,9 +396,20 @@ def generate_frontend_deconvolutions_chart(target_path: Path | None = None) -> P
         generate_instrument_frontend_chart(icfg, target_path=inst_chart_file)
         inst_items.append({"id": iid, "name": iname, "url": f"{iid}_frontend.html"})
 
-    default_item = inst_items[0] if inst_items else {"id": "30in_emg_mmtw", "url": "30in_emg_mmtw_frontend.html"}
-    options_html = "\n".join([f'        <option value="{item["url"]}">{item["name"]}</option>' for item in inst_items])
-    tabs_html = "\n".join([f'      <button class="inst-tab-btn{" active" if item["id"] == default_item["id"] else ""}" data-url="{item["url"]}" onclick="switchInstrument(\'{item["url"]}\', this)">{item["name"]}</button>' for item in inst_items])
+    default_item = (
+        inst_items[0]
+        if inst_items
+        else {"id": "30in_emg_mmtw", "url": "30in_emg_mmtw_frontend.html"}
+    )
+    options_html = "\n".join(
+        [f'        <option value="{item["url"]}">{item["name"]}</option>' for item in inst_items]
+    )
+    tabs_html = "\n".join(
+        [
+            f'      <button class="inst-tab-btn{" active" if item["id"] == default_item["id"] else ""}" data-url="{item["url"]}" onclick="switchInstrument(\'{item["url"]}\', this)">{item["name"]}</button>'
+            for item in inst_items
+        ]
+    )
 
     html_content = f"""<!DOCTYPE html>
 <html lang="en">
@@ -527,7 +542,7 @@ def generate_frontend_deconvolutions_chart(target_path: Path | None = None) -> P
   <div id="pickup-sublevel"></div>
 
   <div class="chart-frame-wrap">
-    <iframe id="frontend-frame" class="chart-frame" src="{default_item['url']}" title="Per-Instrument Frontend Deconvolutions Chart"></iframe>
+    <iframe id="frontend-frame" class="chart-frame" src="{default_item["url"]}" title="Per-Instrument Frontend Deconvolutions Chart"></iframe>
   </div>
 
   <script>
@@ -554,7 +569,7 @@ def generate_frontend_deconvolutions_chart(target_path: Path | None = None) -> P
 
 
 def generate_composite_instrument_chart(
-    instrument: InstrumentConfig | str | dict[str, Any] | AllomorphBaseModel = "30in",
+    instrument: InstrumentConfig | str = "30in",
     out_html: str | Path | None = None,
 ) -> Path:
     """
@@ -566,9 +581,9 @@ def generate_composite_instrument_chart(
       5. Target Voice Output (Authentic Target Voice)
     Illustrates: Bass Input -deconvolution-> Canonical Intermediate Baseline -voicing-> Target Output.
     """
-    inst = load_instrument(instrument) if not isinstance(instrument, (dict, AllomorphBaseModel)) else instrument
-    inst_id = inst.get("id", "custom_instrument")
-    inst_name = inst.get("name", inst_id)
+    inst = instrument if isinstance(instrument, InstrumentConfig) else load_instrument(instrument)
+    inst_id = inst.id
+    inst_name = inst.name
 
     if out_html is None:
         target_path = RESPONSES_DIR / f"{inst_id}.html"
@@ -590,11 +605,8 @@ def generate_composite_instrument_chart(
 
     voice_select = alt.selection_point(
         fields=["voice_name"],
-        bind=alt.binding_select(
-            options=voice_names,
-            name="Target Voicing (Block 2): "
-        ),
-        value=default_voice
+        bind=alt.binding_select(options=voice_names, name="Target Voicing (Block 2): "),
+        value=default_voice,
     )
 
     stage_selection = alt.selection_point(fields=["stage"], bind="legend")
@@ -604,16 +616,12 @@ def generate_composite_instrument_chart(
         "2. Block 1 Deconvolution",
         "3. Canonical Intermediate (0 dB)",
         "4. Block 2 Target Voicing",
-        "5. Target Voice Output"
+        "5. Target Voice Output",
     ]
     color_scale = alt.Scale(
-        domain=stage_order,
-        range=["#38bdf8", "#26a69a", "#8b949e", "#ff7043", "#ffd54f"]
+        domain=stage_order, range=["#38bdf8", "#26a69a", "#8b949e", "#ff7043", "#ffd54f"]
     )
-    dash_scale = alt.Scale(
-        domain=stage_order,
-        range=[[0], [3, 3], [6, 4], [8, 4], [0]]
-    )
+    dash_scale = alt.Scale(domain=stage_order, range=[[0], [3, 3], [6, 4], [8, 4], [0]])
 
     base_chart = (
         alt.Chart(master_df)
@@ -627,8 +635,8 @@ def generate_composite_instrument_chart(
                     values=[20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000],
                     grid=True,
                     gridDash=[3, 3],
-                    gridColor="#333333"
-                )
+                    gridColor="#333333",
+                ),
             ),
             y=alt.Y(
                 "magnitude_db:Q",
@@ -638,59 +646,51 @@ def generate_composite_instrument_chart(
                     values=[-24, -18, -12, -6, 0, 6, 12, 18, 24],
                     grid=True,
                     gridDash=[3, 3],
-                    gridColor="#333333"
-                )
+                    gridColor="#333333",
+                ),
             ),
             color=alt.Color(
                 "stage:O",
                 scale=color_scale,
                 sort=stage_order,
-                title="Signal Flow Stage (Click to isolate)"
+                title="Signal Flow Stage (Click to isolate)",
             ),
             strokeDash=alt.StrokeDash(
                 "stage:O",
                 scale=dash_scale,
                 sort=stage_order,
-                title="Signal Flow Stage (Click to isolate)"
+                title="Signal Flow Stage (Click to isolate)",
             ),
             opacity=alt.condition(stage_selection, alt.value(0.96), alt.value(0.12)),
             strokeWidth=alt.StrokeWidth(
                 "stage:O",
                 scale=alt.Scale(domain=stage_order, range=[2.2, 1.8, 1.5, 1.8, 3.2]),
                 sort=stage_order,
-                legend=None
+                legend=None,
             ),
             tooltip=[
                 alt.Tooltip("stage:O", title="Signal Stage"),
                 alt.Tooltip("pickup_name:N", title="Source Pickup"),
                 alt.Tooltip("voice_name:N", title="Target Voicing"),
                 alt.Tooltip("frequency:Q", title="Frequency (Hz)", format=".1f"),
-                alt.Tooltip("magnitude_db:Q", title="Magnitude (dB)", format="+.1f")
-            ]
+                alt.Tooltip("magnitude_db:Q", title="Magnitude (dB)", format="+.1f"),
+            ],
         )
     )
 
     if len(pickup_names) > 1:
         pickup_select = alt.selection_point(
             fields=["pickup_name"],
-            bind=alt.binding_select(
-                options=pickup_names,
-                name="Source Pickup (Block 1): "
-            ),
-            value=default_pickup
+            bind=alt.binding_select(options=pickup_names, name="Source Pickup (Block 1): "),
+            value=default_pickup,
         )
         chart = (
-            base_chart
-            .add_params(voice_select, pickup_select, stage_selection)
+            base_chart.add_params(voice_select, pickup_select, stage_selection)
             .transform_filter(voice_select)
             .transform_filter(pickup_select)
         )
     else:
-        chart = (
-            base_chart
-            .add_params(voice_select, stage_selection)
-            .transform_filter(voice_select)
-        )
+        chart = base_chart.add_params(voice_select, stage_selection).transform_filter(voice_select)
 
     chart = (
         chart.properties(
@@ -699,10 +699,10 @@ def generate_composite_instrument_chart(
                 subtitle="Signal Flow: Source Bass Input ➔ [Block 1 Deconvolution] ➔ Canonical Intermediate (0 dB) ➔ [Block 2 Voicing] ➔ Target Output",
                 fontSize=16,
                 subtitleFontSize=12,
-                anchor="start"
+                anchor="start",
             ),
             width=740,
-            height=480
+            height=480,
         )
         .configure_view(strokeWidth=0)
         .configure_legend(orient="right", labelLimit=320)
@@ -778,7 +778,7 @@ def generate_composite_instrument_chart(
 
 
 def generate_interactive_chart(
-    instrument: InstrumentConfig | str | dict[str, Any] | AllomorphBaseModel = "30in",
+    instrument: InstrumentConfig | str = "30in",
     out_html: str | Path | None = None,
     mode: str = "composite",
 ) -> Path:
@@ -793,13 +793,17 @@ def generate_interactive_chart(
       - 'frontends': standalone chart strictly plotting the Frontend Deconvolution curves.
     """
     if mode == "targets":
-        return generate_universal_targets_chart(target_path=Path(out_html) if out_html is not None else None)
+        return generate_universal_targets_chart(
+            target_path=Path(out_html) if out_html is not None else None
+        )
     elif mode == "frontends":
-        return generate_frontend_deconvolutions_chart(target_path=Path(out_html) if out_html is not None else None)
+        return generate_frontend_deconvolutions_chart(
+            target_path=Path(out_html) if out_html is not None else None
+        )
 
-    inst = load_instrument(instrument) if not isinstance(instrument, (dict, AllomorphBaseModel)) else instrument
-    inst_id = inst.get("id", "custom_instrument")
-    inst_name = inst.get("name", inst_id)
+    inst = instrument if isinstance(instrument, InstrumentConfig) else load_instrument(instrument)
+    inst_id = inst.id
+    inst_name = inst.name
 
     if out_html is None:
         target_path = RESPONSES_DIR / f"{inst_id}.html"
@@ -818,22 +822,36 @@ def generate_interactive_chart(
 
     print(f"Computing voice frequency responses (mode={mode}, instrument={inst_name})...")
     if mode == "output":
-        dfs = [build_voice_dataframe(vid, cfg, instrument=inst, mode="output") for vid, cfg in VOICES.items()]
+        dfs = [
+            build_voice_dataframe(vid, cfg, instrument=inst, mode="output")
+            for vid, cfg in VOICES.items()
+        ]
         master_df = pl.concat(dfs)
         chart_title = "Allomorph Master Voices: Output Voice Frequency Responses"
         chart_subtitle = f"Target Passive Acoustic Apertures & SPICE Loaded RLC Resonances (Reference: {inst_name})"
         y_title = "Normalized Output Magnitude (dB)"
         y_domain = [-30, 10]
     elif mode == "difference":
-        dfs = [build_voice_dataframe(vid, cfg, instrument=inst, mode="difference") for vid, cfg in VOICES.items()]
+        dfs = [
+            build_voice_dataframe(vid, cfg, instrument=inst, mode="difference")
+            for vid, cfg in VOICES.items()
+        ]
         master_df = pl.concat(dfs)
         chart_title = "Allomorph Master Voices: Input/Output Differential Transfer Functions"
-        chart_subtitle = f"Source: {inst_name} -> Target: 34\" Standard & 37\" Multi-Scale Datums (Δ Transfer Filter)"
+        chart_subtitle = f'Source: {inst_name} -> Target: 34" Standard & 37" Multi-Scale Datums (Δ Transfer Filter)'
         y_title = "Differential Transfer Magnitude (dB)"
         y_domain = [-28, 15]
     else:  # mode == "unified"
-        dfs_out = [build_voice_dataframe(vid, cfg, instrument=inst, mode="output", include_mode_col=True) for vid, cfg in VOICES.items()]
-        dfs_diff = [build_voice_dataframe(vid, cfg, instrument=inst, mode="difference", include_mode_col=True) for vid, cfg in VOICES.items()]
+        dfs_out = [
+            build_voice_dataframe(vid, cfg, instrument=inst, mode="output", include_mode_col=True)
+            for vid, cfg in VOICES.items()
+        ]
+        dfs_diff = [
+            build_voice_dataframe(
+                vid, cfg, instrument=inst, mode="difference", include_mode_col=True
+            )
+            for vid, cfg in VOICES.items()
+        ]
         master_df = pl.concat(dfs_diff + dfs_out)
         chart_title = "Allomorph Master Voices: Acoustic & Electrical Response Curves"
         chart_subtitle = f"Interactive View ({inst_name}) — Switch between Input/Output Difference and Output Voice"
@@ -841,7 +859,9 @@ def generate_interactive_chart(
         y_domain = [-30, 15]
 
     print("Rendering interactive chart using Altair...")
-    return render_chart_to_file(master_df, target_path, chart_title, chart_subtitle, y_title, y_domain, mode=mode)
+    return render_chart_to_file(
+        master_df, target_path, chart_title, chart_subtitle, y_title, y_domain, mode=mode
+    )
 
 
 def generate_all_charts(output_dir: str | Path | None = None) -> dict[str, Path]:

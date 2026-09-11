@@ -1,18 +1,19 @@
 """
 Allomorph Visualizer - Interactive HTML Portal Generation
 """
+
 import json
 from collections.abc import Mapping
 from pathlib import Path
-from typing import Any
 
-from allomorph.base import AllomorphBaseModel
 from allomorph.config.instruments import load_all_instruments
 from allomorph.config.scales import REPO_ROOT
+from allomorph.config.schema import InstrumentConfig
 from allomorph.visualizer.schema import PortalInstrumentMeta
 
 DOCS_DIR = REPO_ROOT / "docs"
 RESPONSES_DIR = DOCS_DIR / "frequency_responses"
+
 
 def append_spec_panel(html_path: Path, panel_html: str) -> None:
     """Appends an informational HTML spec/directive panel before </body>."""
@@ -22,28 +23,26 @@ def append_spec_panel(html_path: Path, panel_html: str) -> None:
         html_path.write_text(content, encoding="utf-8")
 
 
-def format_instrument_meta(inst: dict[str, Any] | AllomorphBaseModel) -> PortalInstrumentMeta:
-    """Formats an instrument dictionary into metadata suitable for the portal."""
-    inst_id = str(inst.get("id", "custom"))
-    inst_name = str(inst.get("name", inst_id))
-    scale_in = float(inst.get("scale_length_in", 34.0))
-    scale_m = float(inst.get("scale_length_m", scale_in * 0.0254))
-    speeds = list(inst.get("string_wave_speeds", []))
+def format_instrument_meta(inst: InstrumentConfig) -> PortalInstrumentMeta:
+    """Formats an InstrumentConfig into metadata suitable for the portal."""
+    inst_id = inst.id
+    inst_name = inst.name
+    scale_in = inst.scale_length_in
+    scale_m = inst.scale_length_m or (scale_in * 0.0254)
+    speeds = inst.string_wave_speeds or []
     speeds_str = ", ".join(f"{float(s):.1f} m/s" for s in speeds) if speeds else "N/A"
 
-    pickups = inst.get("pickups", {})
     parts = []
-    if isinstance(pickups, dict):
-        for pid, pcfg in pickups.items():
-            if pcfg.get("type") == "composite":
-                continue
-            pname = pcfg.get("name", pid)
-            pos_m = pcfg.get("position_from_bridge_m")
-            if pos_m:
-                pos_mm = float(pos_m) * 1000.0
-                parts.append(f"{pname} (@ {pos_mm:.1f}mm)")
-            else:
-                parts.append(pname)
+    for pid, pcfg in inst.pickups.items():
+        if pcfg.type == "composite":
+            continue
+        pname = pcfg.name or pid
+        pos_m = pcfg.position_from_bridge_m
+        if pos_m:
+            pos_mm = float(pos_m) * 1000.0
+            parts.append(f"{pname} (@ {pos_mm:.1f}mm)")
+        else:
+            parts.append(pname)
     pickups_summary = " | ".join(parts) if parts else "Standard Pickups"
 
     return PortalInstrumentMeta(
@@ -53,19 +52,17 @@ def format_instrument_meta(inst: dict[str, Any] | AllomorphBaseModel) -> PortalI
         scale_m=round(scale_m, 4),
         speeds_str=speeds_str,
         pickups_summary=pickups_summary,
-        default_pickup=str(inst.get("default_pickup", "default")),
+        default_pickup=inst.default_pickup or "default",
     )
 
+
 def build_portal_html(
-    instruments_meta: Mapping[str, PortalInstrumentMeta | dict[str, Any]],
+    instruments_meta: Mapping[str, PortalInstrumentMeta],
     default_id: str,
     base_url_prefix: str = "./",
 ) -> str:
     """Constructs a responsive, dark-mode portal HTML string with 3-way Architecture C signal flow navigation."""
-    raw_meta = {
-        k: v.model_dump() if hasattr(v, "model_dump") else v
-        for k, v in instruments_meta.items()
-    }
+    raw_meta = {k: v.model_dump() for k, v in instruments_meta.items()}
     meta_json = json.dumps(raw_meta, indent=2)
 
     buttons_html = []
@@ -73,8 +70,8 @@ def build_portal_html(
         is_active = " active" if inst_id == default_id else ""
         buttons_html.append(
             f'<button class="tab-btn{is_active}" data-id="{inst_id}" onclick="selectInstrument(\'{inst_id}\')">'
-            f'<span>{meta["name"]}</span>'
-            f'</button>'
+            f"<span>{meta.name}</span>"
+            f"</button>"
         )
     tabs_markup = "\n    ".join(buttons_html)
 
@@ -578,6 +575,7 @@ def build_portal_html(
 """
     return html
 
+
 def generate_portal_pages(
     output_dir: str | Path | None = None,
     default_id: str | None = None,
@@ -615,7 +613,9 @@ def generate_portal_pages(
 
     # 2. Write docs/frequency_responses.html at root of docs/ (only if target directory is default RESPONSES_DIR)
     if out_dir.resolve() == RESPONSES_DIR.resolve():
-        root_portal_html = build_portal_html(active_meta, default_id=def_id, base_url_prefix="./frequency_responses/")
+        root_portal_html = build_portal_html(
+            active_meta, default_id=def_id, base_url_prefix="./frequency_responses/"
+        )
         root_portal_path = DOCS_DIR / "frequency_responses.html"
         root_portal_path.write_text(root_portal_html, encoding="utf-8")
         print(f"Saved master portal: {root_portal_path}")

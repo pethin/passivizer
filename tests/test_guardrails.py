@@ -50,7 +50,9 @@ def test_guardrail_zero_gibbs_ripples_in_differential_curves():
     for inst_id in active_sources:
         inst = load_instrument(inst_id)
         for voice_id in test_voices:
-            df = build_voice_dataframe(voice_id, VOICES[voice_id], instrument=inst, mode="difference")
+            df = build_voice_dataframe(
+                voice_id, VOICES[voice_id], instrument=inst, mode="difference"
+            )
             sub_df = df.filter((df["frequency"] >= 20.0) & (df["frequency"] <= 300.0))
             mags = sub_df["magnitude_db"].to_numpy()
 
@@ -58,8 +60,10 @@ def test_guardrail_zero_gibbs_ripples_in_differential_curves():
             diffs = np.diff(mags)
             # Count sign flips (extrema in 20-300 Hz)
             sign_flips = sum(
-                1 for i in range(len(diffs) - 1)
-                if (diffs[i] > 1e-4 and diffs[i + 1] < -1e-4) or (diffs[i] < -1e-4 and diffs[i + 1] > 1e-4)
+                1
+                for i in range(len(diffs) - 1)
+                if (diffs[i] > 1e-4 and diffs[i + 1] < -1e-4)
+                or (diffs[i] < -1e-4 and diffs[i + 1] > 1e-4)
             )
 
             assert sign_flips <= 1, (
@@ -77,14 +81,18 @@ def test_guardrail_zero_high_frequency_gibbs_ripples():
     for inst_id in active_sources:
         inst = load_instrument(inst_id)
         for voice_id in test_voices:
-            df = build_voice_dataframe(voice_id, VOICES[voice_id], instrument=inst, mode="difference")
+            df = build_voice_dataframe(
+                voice_id, VOICES[voice_id], instrument=inst, mode="difference"
+            )
             sub_df = df.filter((df["frequency"] >= 8000.0) & (df["frequency"] <= 20000.0))
             mags = sub_df["magnitude_db"].to_numpy()
 
             diffs = np.diff(mags)
             sign_flips = sum(
-                1 for i in range(len(diffs) - 1)
-                if (diffs[i] > 1e-4 and diffs[i + 1] < -1e-4) or (diffs[i] < -1e-4 and diffs[i + 1] > 1e-4)
+                1
+                for i in range(len(diffs) - 1)
+                if (diffs[i] > 1e-4 and diffs[i + 1] < -1e-4)
+                or (diffs[i] < -1e-4 and diffs[i + 1] > 1e-4)
             )
 
             assert sign_flips <= 1, (
@@ -103,7 +111,9 @@ def test_guardrail_identity_model_flatness():
     diff_ray = compute_differential_circuit_transfer_functions(m_tgt_ray, m_src_ray, freqs=FREQS)
     h_diff = np.asarray(diff_ray[0])
 
-    assert np.all(h_diff == 1.0), "Matching active StingRay models must produce bit-exact 1.000 (0.00 dB)"
+    assert np.all(h_diff == 1.0), (
+        "Matching active StingRay models must produce bit-exact 1.000 (0.00 dB)"
+    )
 
 
 def test_guardrail_small_signal_linearity():
@@ -129,7 +139,9 @@ def test_guardrail_small_signal_linearity():
     )
 
     # On small signals, the saturation engine must return a bit-exact identical array
-    assert np.array_equal(sat_out, small_sig), "Small signals (<= 0.10) must bypass saturation bit-exact"
+    assert np.array_equal(sat_out, small_sig), (
+        "Small signals (<= 0.10) must bypass saturation bit-exact"
+    )
 
 
 def test_guardrail_quadrature_null_floor_bounded():
@@ -138,15 +150,17 @@ def test_guardrail_quadrature_null_floor_bounded():
     from allomorph.physics import numpy_pickup_macro_aperture
 
     inst = load_instrument("30in_emg_mmtw")
-    src_pickup = inst["pickups"]["mmtw_dual"]
-    speeds = inst["string_wave_speeds"]
+    src_pickup = inst.pickups["mmtw_dual"]
+    speeds = inst.string_wave_speeds
 
     freqs = np.linspace(20.0, 15000.0, 1000)
-    macro_env = numpy_pickup_macro_aperture(freqs, src_pickup["coils"], speeds)
+    macro_env = numpy_pickup_macro_aperture(freqs, src_pickup.coils, speeds)
 
     min_val = np.min(macro_env)
     # The quadrature floor (0.18^2) guarantees transmission never drops below ~0.03 (-30 dB)
-    assert min_val > 0.02, f"Comb null dropped to {min_val:.5f} (< 0.02); quadrature floor is missing."
+    assert min_val > 0.02, (
+        f"Comb null dropped to {min_val:.5f} (< 0.02); quadrature floor is missing."
+    )
 
 
 def test_guardrail_buffer_loop_acceleration():
@@ -171,7 +185,9 @@ def test_guardrail_buffer_loop_acceleration():
 
     for core_name in recursive_cores:
         assert core_name in found_cores, f"Expected {core_name} to exist in {sim_script.name}"
-        assert "njit" in found_cores[core_name], f"{core_name} is missing @njit fastmath acceleration"
+        assert "njit" in found_cores[core_name], (
+            f"{core_name} is missing @njit fastmath acceleration"
+        )
 
 
 def test_guardrail_transducer_taxonomy_and_zero_conditional_deconvolution():
@@ -180,7 +196,7 @@ def test_guardrail_transducer_taxonomy_and_zero_conditional_deconvolution():
     # 1. Verify all registered voices declare a recognized physical sensor_type
     valid_sensors = {"magnetic", "bridge_force", "direct"}
     for vid, cfg in VOICES.items():
-        sensor = cfg.get("sensor_type", "magnetic")
+        sensor = cfg.sensor_type
         assert sensor in valid_sensors, f"Voice {vid} has invalid sensor_type: '{sensor}'"
 
     # 2. AST check: physics module must contain zero hardcoded voice ID conditionals in FIR synthesis
@@ -191,7 +207,11 @@ def test_guardrail_transducer_taxonomy_and_zero_conditional_deconvolution():
     for node in ast.walk(tree):
         if isinstance(node, ast.FunctionDef) and node.name == "compute_voice_prefilter_firs":
             for sub_node in ast.walk(node):
-                if isinstance(sub_node, ast.Constant) and isinstance(sub_node.value, str) and sub_node.value in prohibited_constants:
+                if (
+                    isinstance(sub_node, ast.Constant)
+                    and isinstance(sub_node.value, str)
+                    and sub_node.value in prohibited_constants
+                ):
                     raise AssertionError(
                         f"Found prohibited hardcoded voice ID '{sub_node.value}' inside compute_voice_prefilter_firs. "
                         "All acoustic filtering must be governed by first-class physical parameters (e.g. sensor_type)."
@@ -199,12 +219,17 @@ def test_guardrail_transducer_taxonomy_and_zero_conditional_deconvolution():
 
     # 3. Direct sensor target output mode must evaluate to bit-exact 0.00 dB
     vcfg = VOICES["15_source_direct"]
-    df_out = build_voice_dataframe("15_source_direct", vcfg, instrument="canonical_intermediate", mode="output")
+    df_out = build_voice_dataframe(
+        "15_source_direct", vcfg, instrument="canonical_intermediate", mode="output"
+    )
     mags_out = df_out["magnitude_db"].to_numpy()
-    assert np.all(mags_out == 0.0), f"15_source_direct output mode was not bit-exact 0.00 dB (max error: {np.max(np.abs(mags_out))})"
+    assert np.all(mags_out == 0.0), (
+        f"15_source_direct output mode was not bit-exact 0.00 dB (max error: {np.max(np.abs(mags_out))})"
+    )
 
     # 4. Universal deconvolution on Canonical Intermediate must smoothly invert aperture sinc without ripples
     from allomorph.physics import compute_voice_prefilter_firs
+
     firs = compute_voice_prefilter_firs("15_source_direct", instrument="canonical_intermediate")
     assert len(firs) == 1
     fir = np.array(firs[0])
@@ -219,10 +244,13 @@ def test_guardrail_transducer_taxonomy_and_zero_conditional_deconvolution():
     H_band = H[mask]
     diffs = np.diff(H_band)
     sign_flips = sum(
-        1 for i in range(len(diffs) - 1)
+        1
+        for i in range(len(diffs) - 1)
         if (diffs[i] > 1e-5 and diffs[i + 1] < -1e-5) or (diffs[i] < -1e-5 and diffs[i + 1] > 1e-5)
     )
-    assert sign_flips == 0, f"Deconvolution curve had {sign_flips} sign flips in 20-5000 Hz band (must be smoothly monotonic)"
+    assert sign_flips == 0, (
+        f"Deconvolution curve had {sign_flips} sign flips in 20-5000 Hz band (must be smoothly monotonic)"
+    )
 
 
 def test_guardrail_fail_fast_zero_silent_fallbacks():
@@ -235,25 +263,27 @@ def test_guardrail_fail_fast_zero_silent_fallbacks():
     from allomorph.circuit.parser import CircuitModel
     from allomorph.circuit.solver import apply_magnet_properties_to_model
     from allomorph.config.scales import resolve_scale_range
+    from allomorph.config.schema import InstrumentConfig, InstrumentStringsConfig, PickupConfig
     from allomorph.config.strings import get_instrument_string
 
     # 1. Passive instrument with missing pickup circuit must raise ValueError
-    dummy_passive = {
-        "id": "mock_passive_bass",
-        "electronics": "passive",
-        "default_pickup": "p",
-        "pickups": {
-            "p": {
-                "name": "Passive P",
-                "position_from_bridge_m": 0.125,
-                "aperture_width_in": 0.75,
-                "coil_spacing_in": 0.0,
-                "magnet_type": "alnico_v",
-            }
+    dummy_passive = InstrumentConfig(
+        id="mock_passive_bass",
+        name="Mock Passive Bass",
+        electronics="passive",
+        default_pickup="p",
+        pickups={
+            "p": PickupConfig(
+                name="Passive P",
+                position_from_bridge_m=0.125,
+                aperture_width_in=0.75,
+                coil_spacing_in=0.0,
+                magnet_type="alnico_v",
+            )
         },
-        "string_wave_speeds": [73.4, 98.0, 130.8, 174.6],
-        "scale_length_in": 34.0,
-    }
+        string_wave_speeds=[73.4, 98.0, 130.8, 174.6],
+        scale_length_in=34.0,
+    )
     with pytest.raises(ValueError, match="does not define a '\\[circuit\\]' block"):
         simulate_voice("04_modern_p_ceramic", instrument=dummy_passive, max_samples=100)
 
@@ -267,8 +297,12 @@ def test_guardrail_fail_fast_zero_silent_fallbacks():
 
     # 4. Unknown string preset must raise KeyError
     with pytest.raises(KeyError, match="String preset 'imaginary_flats' not found"):
-        get_instrument_string({"strings": {"preset": "imaginary_flats"}})
+        get_instrument_string(
+            InstrumentConfig(strings=InstrumentStringsConfig(preset="imaginary_flats"))
+        )
 
     # 5. Unknown magnet type must raise KeyError
     with pytest.raises(KeyError, match="Unknown magnet type 'kryptonite'"):
-        apply_magnet_properties_to_model(CircuitModel(), {"magnet_type": "kryptonite"})
+        apply_magnet_properties_to_model(
+            CircuitModel(), PickupConfig(name="mock", magnet_type="kryptonite")
+        )

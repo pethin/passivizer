@@ -36,19 +36,19 @@ from allomorph.physics import compute_voice_prefilter_firs
 def test_canonical_intermediate_config():
     """Validates the Canonical Intermediate configuration datums."""
     inst = load_instrument("canonical_intermediate")
-    assert inst["id"] == "canonical_intermediate"
-    assert inst["scale_length_in"] == 34.0
-    assert inst["scale_length_m"] == 0.8636
+    assert inst.id == "canonical_intermediate"
+    assert inst.scale_length_in == 34.0
+    assert inst.scale_length_m == 0.8636
 
-    pickups = inst.get("pickups", {})
+    pickups = inst.pickups
     assert len(pickups) == 1
     p = pickups["canonical_median"]
-    assert p["position_from_bridge_m"] == pytest.approx(0.0935, abs=1e-4)
-    assert p["aperture_width_in"] == pytest.approx(0.75, abs=1e-3)
-    assert p["coil_spacing_in"] == 0.0
+    assert p.position_from_bridge_m == pytest.approx(0.0935, abs=1e-4)
+    assert p.aperture_width_in == pytest.approx(0.75, abs=1e-3)
+    assert p.coil_spacing_in == 0.0
 
     # Wideband flat circuit
-    assert p["resonant_frequency_hz"] >= 20000.0
+    assert p.resonant_frequency_hz is not None and p.resonant_frequency_hz >= 20000.0
 
 
 def test_canonical_sweep_calibration():
@@ -66,8 +66,8 @@ def test_canonical_sweep_calibration():
 
     raw_padded = bytearray()
     for i in range(0, len(raw), 3):
-        raw_padded.extend(raw[i:i+3])
-        raw_padded.append(0 if raw[i+2] < 128 else 255)
+        raw_padded.extend(raw[i : i + 3])
+        raw_padded.append(0 if raw[i + 2] < 128 else 255)
     audio = np.frombuffer(raw_padded, dtype=np.int32).astype(np.float32) / 8388607.0
 
     peak = float(np.max(np.abs(audio)))
@@ -92,8 +92,8 @@ def test_frontend_ir_generation():
 
         raw_padded = bytearray()
         for i in range(0, len(raw), 3):
-            raw_padded.extend(raw[i:i+3])
-            raw_padded.append(0 if raw[i+2] < 128 else 255)
+            raw_padded.extend(raw[i : i + 3])
+            raw_padded.append(0 if raw[i + 2] < 128 else 255)
         fir = np.frombuffer(raw_padded, dtype=np.int32).astype(np.float32) / 8388607.0
 
         # Positive initial polarity assertion
@@ -109,15 +109,17 @@ def test_concise_naming_invariants():
     for slug in VOICE_CONCISE_SLUGS.values():
         for prefix in tier_prefixes:
             filename = f"{prefix}{slug}.nam"
-            assert len(filename) <= 22, f"Model filename '{filename}' exceeds 22 characters ({len(filename)} chars)"
+            assert len(filename) <= 22, (
+                f"Model filename '{filename}' exceeds 22 characters ({len(filename)} chars)"
+            )
 
 
 def test_backend_3_tier_dynamics():
     """Validates that Clean, Standard, and Hot Rod tiers have correct progressive saturation factors."""
     test_voice = "05_vintage_62_p_alnico"
     vcfg = VOICES[test_voice]
-    base_alpha = vcfg.get("alpha", 0.25)
-    base_vsat = vcfg.get("vsat", 0.50)
+    base_alpha = vcfg.alpha if vcfg.alpha is not None else 0.25
+    base_vsat = vcfg.vsat if vcfg.vsat is not None else 0.50
 
     # Clean: 0% saturation, high vsat
     clean_alpha = 0.0
@@ -154,9 +156,15 @@ def test_bake_dynamic_tier_and_auto_pickup():
     assert p_upright["id"] == "pcsx"
 
     # 2. compute_voice_prefilter_firs supports explicit pickup and auto fallback
-    firs_auto = compute_voice_prefilter_firs("04_modern_p_ceramic", instrument=inst_30, src_pickup_key="auto")
-    firs_dual = compute_voice_prefilter_firs("04_modern_p_ceramic", instrument=inst_30, src_pickup_key="mmtw_dual")
-    firs_single = compute_voice_prefilter_firs("04_modern_p_ceramic", instrument=inst_30, src_pickup_key="mmtw_single")
+    firs_auto = compute_voice_prefilter_firs(
+        "04_modern_p_ceramic", instrument=inst_30, src_pickup_key="auto"
+    )
+    firs_dual = compute_voice_prefilter_firs(
+        "04_modern_p_ceramic", instrument=inst_30, src_pickup_key="mmtw_dual"
+    )
+    firs_single = compute_voice_prefilter_firs(
+        "04_modern_p_ceramic", instrument=inst_30, src_pickup_key="mmtw_single"
+    )
     assert len(firs_auto) == 1
     assert len(firs_dual) == 1
     assert len(firs_single) == 1
@@ -189,7 +197,9 @@ def test_baked_short_distinct_names_and_instrument_directories():
 
     # 1. Check all voices produce unique, short distinct basenames under auto pickup
     for tier in ["dynamic", "standard", "clean", "hotrod"]:
-        tier_prefix = {"dynamic": "dyn_", "standard": "std_", "clean": "cln_", "hotrod": "hot_"}[tier]
+        tier_prefix = {"dynamic": "dyn_", "standard": "std_", "clean": "cln_", "hotrod": "hot_"}[
+            tier
+        ]
         basenames = set()
         for vid in all_voices:
             basename = get_baked_basename(vid, tier=tier, pickup="auto")
@@ -245,29 +255,34 @@ def test_export_frontend_ir_passive_missing_circuit_raises_error(
 ) -> None:
     """Verify that export_frontend_ir raises ValueError if a passive pickup lacks a circuit model."""
     import allomorph.circuit.staging as staging_mod
+    from allomorph.config.schema import InstrumentConfig, PickupConfig
 
     # Mock load_instrument to return a passive bass with a pickup missing 'circuit'
-    dummy_passive = {
-        "id": "mock_passive_p",
-        "electronics": "passive",
-        "scale_length_in": 34.0,
-        "string_wave_speeds": [73.4, 98.0, 130.8, 174.6],
-        "default_pickup": "p",
-        "pickups": {
-            "p": {
-                "name": "Passive P",
-                "position_from_bridge_m": 0.125,
-                "aperture_width_in": 0.75,
-                "coil_spacing_in": 0.0,
-                "magnet_type": "alnico_v",
+    dummy_passive = InstrumentConfig(
+        id="mock_passive_p",
+        name="Mock Passive P",
+        electronics="passive",
+        scale_length_in=34.0,
+        string_wave_speeds=[73.4, 98.0, 130.8, 174.6],
+        default_pickup="p",
+        pickups={
+            "p": PickupConfig(
+                name="Passive P",
+                position_from_bridge_m=0.125,
+                aperture_width_in=0.75,
+                coil_spacing_in=0.0,
+                magnet_type="alnico_v",
                 # Note: No 'circuit' defined!
-            }
+            )
         },
-    }
-    def mock_load(inst_id: Any) -> dict[str, Any]:
+    )
+
+    def mock_load(inst_id: Any) -> InstrumentConfig:
         return dummy_passive
 
     monkeypatch.setattr(staging_mod, "load_instrument", mock_load)
 
-    with pytest.raises(ValueError, match="does not define a '\\[pickups.p.circuit\\]' configuration"):
+    with pytest.raises(
+        ValueError, match="does not define a '\\[pickups.p.circuit\\]' configuration"
+    ):
         staging_mod.export_frontend_ir("mock_passive_p", "p")

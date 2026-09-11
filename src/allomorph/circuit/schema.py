@@ -90,7 +90,9 @@ class HarnessControls(AllomorphBaseModel):
     vol_pos: float = Field(default=1.0, ge=0.0, le=1.0)
     tone_pos: float = Field(default=1.0, ge=0.0, le=1.0)
     blend_pos: float = Field(default=0.5, ge=0.0, le=1.0)
-    pot_taper: Literal["audio", "audio10", "audio15", "linear", "reverse_audio", "mn_blend"] = "audio"
+    pot_taper: Literal["audio", "audio10", "audio15", "linear", "reverse_audio", "mn_blend"] = (
+        "audio"
+    )
     cable_pf: float = Field(default=750.0, ge=0.0, le=20000.0)
 
 
@@ -206,7 +208,9 @@ class SimulationConfig(AllomorphBaseModel):
     vol_pos: float | None = Field(default=None, ge=0.0, le=1.0)
     tone_pos: float | None = Field(default=None, ge=0.0, le=1.0)
     blend_pos: float | None = Field(default=None, ge=0.0, le=1.0)
-    pot_taper: Literal["audio", "audio10", "audio15", "linear", "reverse_audio", "mn_blend"] | None = None
+    pot_taper: (
+        Literal["audio", "audio10", "audio15", "linear", "reverse_audio", "mn_blend"] | None
+    ) = None
     cable_pf: float | None = Field(default=None, ge=0.0, le=20000.0)
     slew_limit: bool = True
     f_slew: float = 16000.0
@@ -261,4 +265,3 @@ class CircuitMetricsRecord(AllomorphBaseModel):
     bandwidth_hz: float | None = None
     cutoff_3db_hz: float | None = None
     hf_slope_db_oct: float
-

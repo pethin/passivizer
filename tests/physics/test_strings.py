@@ -15,6 +15,7 @@ from allomorph.config import (
     get_voice_string,
     load_instrument,
 )
+from allomorph.config.schema import CoilConfig
 from allomorph.dsp import FREQS, NUM_TAPS
 from allomorph.physics import (
     compute_differential_longitudinal_transfer,
@@ -99,7 +100,9 @@ def test_differential_damping_anti_double_muffling():
     source where harsh clank must be rolled off.
     """
     # Pre-filter FIR for 32" fretless (La Bella LTF source)
-    firs_fretless = compute_voice_prefilter_firs("14_upright_bridge_transducer", instrument="32in_fretless")
+    firs_fretless = compute_voice_prefilter_firs(
+        "14_upright_bridge_transducer", instrument="32in_fretless"
+    )
     # Pre-filter FIR for 30" (roundwound source)
     firs_round = compute_voice_prefilter_firs("14_upright_bridge_transducer", instrument="30in")
 
@@ -121,14 +124,16 @@ def test_differential_damping_anti_double_muffling():
     ratio_round = fft_round[idx_3k] / fft_round[idx_low]
 
     # The flatwound prefilter preserves greater relative treble transmission than the roundwound prefilter
-    assert ratio_fretless > ratio_round, "Flatwound prefilter should preserve more relative 3.5 kHz transmission to prevent double-muffling"
+    assert ratio_fretless > ratio_round, (
+        "Flatwound prefilter should preserve more relative 3.5 kHz transmission to prevent double-muffling"
+    )
 
 
 def test_bridge_compliance_scaling():
     """Verify that dynamic bridge compliance scales with pluck excursion."""
     inst_fretless = load_instrument("32in_fretless")
     str_fretless = get_instrument_string(inst_fretless)
-    excursion = float(str_fretless.get("pluck_excursion_factor", 1.0))
+    excursion = float(str_fretless.pluck_excursion_factor)
     assert excursion == 1.25
 
     model = load_circuit("14_upright_bridge_transducer")
@@ -144,7 +149,9 @@ def test_voices_01_to_04_string_identity_for_roundwounds():
     freqs = np.asarray(FREQS)
     s_std = STRINGS["roundwound_nickel_standard"]
     h_diff = compute_differential_string_transfer(freqs, s_std, s_std)
-    assert np.allclose(h_diff, 1.0, atol=1e-5), "String transfer between identical standard strings must be exactly 1.0"
+    assert np.allclose(h_diff, 1.0, atol=1e-5), (
+        "String transfer between identical standard strings must be exactly 1.0"
+    )
 
 
 def test_all_strings_identity():
@@ -152,7 +159,9 @@ def test_all_strings_identity():
     freqs = np.asarray(FREQS, dtype=np.float64)
     for name, s_cfg in STRINGS.items():
         h_diff = compute_differential_string_transfer(freqs, s_cfg, s_cfg)
-        assert np.allclose(h_diff, 1.0, atol=1e-5), f"String transfer for identical string '{name}' must be exactly 1.0, got min={np.min(h_diff):.4f}, max={np.max(h_diff):.4f}"
+        assert np.allclose(h_diff, 1.0, atol=1e-5), (
+            f"String transfer for identical string '{name}' must be exactly 1.0, got min={np.min(h_diff):.4f}, max={np.max(h_diff):.4f}"
+        )
 
 
 def test_string_transfer_smooth_saturation():
@@ -189,18 +198,28 @@ def test_differential_longitudinal_transfer():
     s_clank = STRINGS["roundwound_stainless_clank"]
 
     # 1. Matching string preset: exact 1.0 identity
-    h_ident = compute_differential_longitudinal_transfer(freqs, s_std, s_std, scale_length_inches=34.0)
-    assert np.allclose(h_ident, 1.0, atol=1e-5), "Longitudinal transfer between identical strings must be exact 1.0"
+    h_ident = compute_differential_longitudinal_transfer(
+        freqs, s_std, s_std, scale_length_inches=34.0
+    )
+    assert np.allclose(h_ident, 1.0, atol=1e-5), (
+        "Longitudinal transfer between identical strings must be exact 1.0"
+    )
 
     # 2. Nickel -> Stainless (higher k_long = 0.35 vs 0.20): resonant clank peak around ~2.95 kHz
-    h_clank = compute_differential_longitudinal_transfer(freqs, s_std, s_clank, scale_length_inches=34.0)
+    h_clank = compute_differential_longitudinal_transfer(
+        freqs, s_std, s_clank, scale_length_inches=34.0
+    )
     assert np.all(h_clank >= 1.0), "Longitudinal clank should be additive excitation"
     peak_idx = np.argmax(h_clank)
     peak_freq = freqs[peak_idx]
-    assert 2700.0 <= peak_freq <= 3200.0, f"Expected clank peak around 2.95 kHz, got {peak_freq:.1f} Hz"
+    assert 2700.0 <= peak_freq <= 3200.0, (
+        f"Expected clank peak around 2.95 kHz, got {peak_freq:.1f} Hz"
+    )
 
     # 3. Stainless -> Nickel (delta <= 0): returns 1.0 without false anti-resonance
-    h_reverse = compute_differential_longitudinal_transfer(freqs, s_clank, s_std, scale_length_inches=34.0)
+    h_reverse = compute_differential_longitudinal_transfer(
+        freqs, s_clank, s_std, scale_length_inches=34.0
+    )
     assert np.allclose(h_reverse, 1.0, atol=1e-5)
 
 
@@ -241,7 +260,13 @@ def test_per_string_acoustic_dispersion():
 
     # 3. Acoustic response with dispersion evaluates cleanly (4-string and 6-string)
     coils = [
-        {"position_from_bridge_m": 0.065, "aperture_width_in": 0.75, "weight": 1.0, "polarity": 1.0, "strings": ["all"]}
+        CoilConfig(
+            position_from_bridge_m=0.065,
+            aperture_width_in=0.75,
+            weight=1.0,
+            polarity=1.0,
+            strings=["all"],
+        )
     ]
     resp_4 = numpy_pickup_acoustic_response(freqs, coils, [71.16, 95.0, 126.81, 169.27])
     assert len(resp_4) == len(freqs)
@@ -249,7 +274,9 @@ def test_per_string_acoustic_dispersion():
     assert np.all(resp_4 > 0.0)
     assert math.isclose(resp_4[0], 1.0, rel_tol=1e-3)
 
-    resp_6 = numpy_pickup_acoustic_response(freqs, coils, [58.0, 71.16, 95.0, 126.81, 169.27, 225.0])
+    resp_6 = numpy_pickup_acoustic_response(
+        freqs, coils, [58.0, 71.16, 95.0, 126.81, 169.27, 225.0]
+    )
     assert len(resp_6) == len(freqs)
     assert np.all(np.isfinite(resp_6))
     assert np.all(resp_6 > 0.0)
@@ -273,14 +300,33 @@ def test_infer_string_names_and_split_coil_high_c():
     assert infer_string_names([62.79, 83.82, 111.89, 149.35, 199.36]) == ["E", "A", "D", "G", "C"]
 
     # 6-string
-    assert infer_string_names([53.28, 71.16, 95.0, 126.81, 169.27, 225.69]) == ["B", "E", "A", "D", "G", "C"]
+    assert infer_string_names([53.28, 71.16, 95.0, 126.81, 169.27, 225.69]) == [
+        "B",
+        "E",
+        "A",
+        "D",
+        "G",
+        "C",
+    ]
 
     # Split-coil P-Bass response with 5-string High-C:
     # Forward coil: E/A; Rearward coil: D/G. High-C should bind with D/G.
     freqs = np.asarray(FREQS, dtype=np.float64)
     split_p_coils = [
-        {"position_from_bridge_m": 0.138, "aperture_width_in": 1.0, "weight": 1.0, "polarity": 1.0, "strings": [3, 4]},
-        {"position_from_bridge_m": 0.112, "aperture_width_in": 1.0, "weight": 1.0, "polarity": 1.0, "strings": [1, 2]},
+        CoilConfig(
+            position_from_bridge_m=0.138,
+            aperture_width_in=1.0,
+            weight=1.0,
+            polarity=1.0,
+            strings=[3, 4],
+        ),
+        CoilConfig(
+            position_from_bridge_m=0.112,
+            aperture_width_in=1.0,
+            weight=1.0,
+            polarity=1.0,
+            strings=[1, 2],
+        ),
     ]
     # High-C 5-string speeds
     high_c_speeds = [71.16, 95.0, 126.81, 169.27, 225.69]
@@ -344,8 +390,20 @@ def test_alternate_tunings_dispersion_and_split_coil():
     # 4. Split-coil P-Bass response under Drop D and Drop C
     # Forward coil: 139mm (E/A strings); Rearward coil: 111mm (D/G strings)
     split_p_coils = [
-        {"position_from_bridge_m": 0.1390, "aperture_width_in": 1.0, "weight": 1.0, "polarity": 1.0, "strings": [3, 4]},
-        {"position_from_bridge_m": 0.1110, "aperture_width_in": 1.0, "weight": 1.0, "polarity": 1.0, "strings": [1, 2]},
+        CoilConfig(
+            position_from_bridge_m=0.1390,
+            aperture_width_in=1.0,
+            weight=1.0,
+            polarity=1.0,
+            strings=[3, 4],
+        ),
+        CoilConfig(
+            position_from_bridge_m=0.1110,
+            aperture_width_in=1.0,
+            weight=1.0,
+            polarity=1.0,
+            strings=[1, 2],
+        ),
     ]
 
     resp_drop_d = numpy_pickup_acoustic_response(freqs, split_p_coils, drop_d_speeds)
@@ -361,7 +419,9 @@ def test_alternate_tunings_dispersion_and_split_coil():
     assert math.isclose(resp_drop_c[0], 1.0, rel_tol=1e-3)
 
     # Verify that string 0 in Drop D (named "D") binds to the forward coil (0.139m), not rearward coil (0.111m)
-    single_string_0_d = numpy_pickup_acoustic_response(freqs, split_p_coils, [63.42], string_names=["D"])
+    single_string_0_d = numpy_pickup_acoustic_response(
+        freqs, split_p_coils, [63.42], string_names=["D"]
+    )
     # If it was matched to both coils or rearward coil, response would differ.
     fwd_coil_resp = numpy_pickup_acoustic_response(freqs, [split_p_coils[0]], [63.42])
     assert np.allclose(single_string_0_d, fwd_coil_resp, rtol=1e-4)
@@ -389,7 +449,7 @@ def test_multiscale_wave_speed_continuum_endpoints():
 
     # All intermediate scale lengths must monotonically decrease from 37" to 34"
     scales = [pt["scale_m"] for pt in continuum]
-    assert all(scales[i] >= scales[i+1] for i in range(len(scales)-1))
+    assert all(scales[i] >= scales[i + 1] for i in range(len(scales) - 1))
 
 
 def test_multiscale_sp1_wave_speed_continuum_endpoints():
@@ -414,4 +474,4 @@ def test_multiscale_sp1_wave_speed_continuum_endpoints():
 
     # All intermediate scale lengths must monotonically decrease from 35" to 32"
     scales = [pt["scale_m"] for pt in continuum]
-    assert all(scales[i] >= scales[i+1] for i in range(len(scales)-1))
+    assert all(scales[i] >= scales[i + 1] for i in range(len(scales) - 1))

@@ -76,6 +76,7 @@ def synthesize_minimum_phase_fir(
         fir = (fir / max_peak) * 0.99
     return fir.tolist()
 
+
 def write_wav_24bit(
     filepath: str | Path,
     samples: Sequence[float] | np.ndarray,
@@ -84,14 +85,19 @@ def write_wav_24bit(
     """Exports a 48 kHz / 24-bit mono PCM WAV file."""
     try:
         from pedalboard.io import AudioFile
+
         arr = np.array([samples], dtype=np.float32)
-        with AudioFile(str(filepath), "w", samplerate=sample_rate, num_channels=1, bit_depth=24) as f:
+        with AudioFile(
+            str(filepath), "w", samplerate=sample_rate, num_channels=1, bit_depth=24
+        ) as f:
             f.write(arr)
-    except (ImportError, RuntimeError, OSError, ValueError):
+    except ImportError, RuntimeError, OSError, ValueError:
         with wave.open(str(filepath), "wb") as wf:
             wf.setnchannels(1)
             wf.setsampwidth(3)  # 3 bytes = 24-bit PCM
             wf.setframerate(sample_rate)
-            scaled = np.clip(np.asarray(samples, dtype=np.float32) * 8388607.0, -8388608.0, 8388607.0).astype(np.int32)
+            scaled = np.clip(
+                np.asarray(samples, dtype=np.float32) * 8388607.0, -8388608.0, 8388607.0
+            ).astype(np.int32)
             raw_bytes = scaled.astype("<i4").view(np.uint8).reshape(-1, 4)[:, :3].tobytes()
             wf.writeframes(raw_bytes)

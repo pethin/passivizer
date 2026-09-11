@@ -322,13 +322,13 @@ def test_dingwall_composite_source_circuit():
     and computes differential SPICE transfer functions without falling back to generic RLC.
     """
     inst = load_instrument("37in_multiscale_dingwall")
-    pair_pickup = inst["pickups"]["pair_parallel"]
-    assert "circuit" in pair_pickup
-    assert isinstance(pair_pickup["circuit"], CircuitConfig)
+    pair_pickup = inst.pickups["pair_parallel"]
+    assert pair_pickup.circuit is not None
+    assert isinstance(pair_pickup.circuit, CircuitConfig)
 
     # Differential SPICE transfer functions evaluate cleanly
     tgt_model = load_circuit("02_jazz_bass_pair")
-    src_model = load_circuit(pair_pickup["circuit"])
+    src_model = load_circuit(pair_pickup.circuit)
     diff_curves = compute_differential_circuit_transfer_functions(tgt_model, src_model, freqs=FREQS)
     assert len(diff_curves) == 2
     for c in diff_curves:
@@ -384,7 +384,9 @@ def test_distributed_coil_transmission_line():
     hf_idx = np.where((freqs_arr >= 8000.0) & (freqs_arr <= 18000.0))[0]
     # Ratio between distributed and lumped should be smooth and bounded within +/- 3 dB
     ratio_db = 20.0 * np.log10(dist_curve[hf_idx] / lumped_curve[hf_idx])
-    assert np.all(np.abs(ratio_db) < 3.0), "Distributed transmission factor must be bounded and physically realistic"
+    assert np.all(np.abs(ratio_db) < 3.0), (
+        "Distributed transmission factor must be bounded and physically realistic"
+    )
 
 
 def test_potentiometer_wiper_positions():
@@ -396,7 +398,9 @@ def test_potentiometer_wiper_positions():
 
     h_def = compute_circuit_transfer_functions(m_default, freqs=FREQS)[0]
     h_open = compute_circuit_transfer_functions(m_open, freqs=FREQS)[0]
-    assert np.allclose(h_def, h_open, atol=1e-6), "Wiper at 1.0, 1.0 must match default netlist exactly"
+    assert np.allclose(h_def, h_open, atol=1e-6), (
+        "Wiper at 1.0, 1.0 must match default netlist exactly"
+    )
 
     # 2. Tone rolled off (tone_pos = 0.2) increases roll-off around 1-3 kHz
     m_tone_rolled = load_circuit("05_vintage_62_p_alnico")
@@ -419,7 +423,9 @@ def test_solid_pole_eddy_skin_dispersion():
     f_arr = np.asarray(FREQS)
 
     # 1. Direct impedance check: at DC, Z_skin is identically 0.0
-    z_skin_dc = compute_core_impedance(0.0, L=4.0, k_skin=0.10, omega_skin=2.0 * math.pi * 3200.0, Rdc=9000.0)
+    z_skin_dc = compute_core_impedance(
+        0.0, L=4.0, k_skin=0.10, omega_skin=2.0 * math.pi * 3200.0, Rdc=9000.0
+    )
     assert abs(z_skin_dc) == 0.0, "Skin impedance at DC must be exactly 0.0"
 
     # 2. Circuit model: Alnico V (k_skin=0.10, f_skin=3200) vs Ceramic (k_skin=0.0)
@@ -443,17 +449,20 @@ def test_solid_pole_eddy_skin_dispersion():
     # Above 2 kHz, Alnico exhibits fractional roll-off without peaking
     idx_3k = np.argmin(np.abs(f_arr - 3000.0))
     assert diff_db[idx_3k] <= 0.0, "Alnico skin effect must damp 3 kHz resonance"
-    assert np.all(diff_db <= 0.05), "Skin effect must never cause un-damped high-frequency resonance boost"
+    assert np.all(diff_db <= 0.05), (
+        "Skin effect must never cause un-damped high-frequency resonance boost"
+    )
 
 
 def test_generic_analog_preamp_bands():
     """Verify that evaluate_analog_band and compute_active_preamp_transfer evaluate continuous s-domain filters."""
     from allomorph.circuit.solver import compute_active_preamp_transfer, evaluate_analog_band
+    from allomorph.config.schema import PreampBandConfig
 
     # 1. Low shelf boost: +4.0 dB @ 60 Hz
     s_dc = 1j * 2.0 * math.pi * 1e-4
     s_hf = 1j * 2.0 * math.pi * 10000.0
-    band_low = {"type": "low_shelf", "freq_hz": 60.0, "gain_db": 4.0}
+    band_low = PreampBandConfig(type="low_shelf", freq_hz=60.0, gain_db=4.0)
 
     h_dc = abs(evaluate_analog_band(band_low, s_dc))
     h_hf = abs(evaluate_analog_band(band_low, s_hf))
@@ -463,7 +472,7 @@ def test_generic_analog_preamp_bands():
     assert h_hf == pytest.approx(1.0, rel=1e-3)
 
     # 2. High shelf boost: +3.0 dB @ 4000 Hz
-    band_high = {"type": "high_shelf", "freq_hz": 4000.0, "gain_db": 3.0}
+    band_high = PreampBandConfig(type="high_shelf", freq_hz=4000.0, gain_db=3.0)
     s_inf = 1j * 2.0 * math.pi * 1e7
     h_high_dc = abs(evaluate_analog_band(band_high, s_dc))
     h_high_inf = abs(evaluate_analog_band(band_high, s_inf))

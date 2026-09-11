@@ -41,7 +41,9 @@ class VoiceRegistry(dict[str, VoiceConfig]):
 
     @override
     def __contains__(self, key: object) -> bool:
-        return super().__contains__(key) or (isinstance(key, str) and key in self.ALIASES and super().__contains__(self.ALIASES[key]))
+        return super().__contains__(key) or (
+            isinstance(key, str) and key in self.ALIASES and super().__contains__(self.ALIASES[key])
+        )
 
 
 def load_voice_config(identifier_or_path: str | Path | dict[str, Any] | VoiceConfig) -> VoiceConfig:
@@ -61,7 +63,9 @@ def load_voice_config(identifier_or_path: str | Path | dict[str, Any] | VoiceCon
         elif (CONFIG_DIR / f"{key}.toml").exists():
             path = CONFIG_DIR / f"{key}.toml"
         else:
-            raise FileNotFoundError(f"Voice configuration not found: '{identifier_or_path}' (searched in {VOICES_DIR})")
+            raise FileNotFoundError(
+                f"Voice configuration not found: '{identifier_or_path}' (searched in {VOICES_DIR})"
+            )
 
     with open(path, "rb") as f:
         data = tomllib.load(f)
@@ -84,9 +88,9 @@ def load_voices_config(voices_path: str | Path | None = None) -> VoiceRegistry:
             with open(p, "rb") as f:
                 data = tomllib.load(f)
             if "voices" in data:
-                return VoiceRegistry({
-                    k: VoiceConfig.model_validate(v) for k, v in data["voices"].items()
-                })
+                return VoiceRegistry(
+                    {k: VoiceConfig.model_validate(v) for k, v in data["voices"].items()}
+                )
             vmodel = VoiceConfig.model_validate(data)
             return VoiceRegistry({vmodel.id: vmodel})
 
@@ -103,9 +107,9 @@ def load_voices_config(voices_path: str | Path | None = None) -> VoiceRegistry:
     if VOICES_FILE.exists():
         with open(VOICES_FILE, "rb") as f:
             data = tomllib.load(f)
-        return VoiceRegistry({
-            k: VoiceConfig.model_validate(v) for k, v in data.get("voices", {}).items()
-        })
+        return VoiceRegistry(
+            {k: VoiceConfig.model_validate(v) for k, v in data.get("voices", {}).items()}
+        )
 
     return VoiceRegistry({})
 

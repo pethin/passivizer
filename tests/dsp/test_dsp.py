@@ -23,8 +23,8 @@ def test_synthesize_minimum_phase_fir():
     assert math.isclose(max_peak, 0.99, rel_tol=1e-4)
 
     # Minimum phase causality: Energy should be concentrated at early taps
-    early_energy = sum(x ** 2 for x in fir[:512])
-    late_energy = sum(x ** 2 for x in fir[2048:])
+    early_energy = sum(x**2 for x in fir[:512])
+    late_energy = sum(x**2 for x in fir[2048:])
     assert early_energy > late_energy * 10
 
     # Tail should taper smoothly towards zero

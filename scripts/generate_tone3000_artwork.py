@@ -27,11 +27,11 @@ def make_pole(x: float, y: float, r: float = 11.0) -> str:
     return f"""
     <!-- Pole piece at {x:.1f}, {y:.1f} -->
     <g transform="translate({x:.1f}, {y:.1f})">
-      <circle cx="0" cy="0" r="{r+2.0:.1f}" fill="#080a0f" opacity="0.85"/>
+      <circle cx="0" cy="0" r="{r + 2.0:.1f}" fill="#080a0f" opacity="0.85"/>
       <circle cx="0" cy="0" r="{r:.1f}" fill="url(#poleGrad)"/>
-      <circle cx="0" cy="0" r="{r-1.5:.1f}" fill="none" stroke="#f8fafc" stroke-width="0.85" opacity="0.75"/>
-      <ellipse cx="-2.5" cy="-2.5" rx="{r*0.4:.1f}" ry="{r*0.25:.1f}" fill="#ffffff" opacity="0.65" transform="rotate(-30, -2.5, -2.5)"/>
-      <circle cx="0" cy="0" r="{r*0.5:.1f}" fill="none" stroke="#64748b" stroke-width="0.5" opacity="0.5"/>
+      <circle cx="0" cy="0" r="{r - 1.5:.1f}" fill="none" stroke="#f8fafc" stroke-width="0.85" opacity="0.75"/>
+      <ellipse cx="-2.5" cy="-2.5" rx="{r * 0.4:.1f}" ry="{r * 0.25:.1f}" fill="#ffffff" opacity="0.65" transform="rotate(-30, -2.5, -2.5)"/>
+      <circle cx="0" cy="0" r="{r * 0.5:.1f}" fill="none" stroke="#64748b" stroke-width="0.5" opacity="0.5"/>
     </g>
     """
 
@@ -69,23 +69,23 @@ def make_pbass_half(
     return f"""
     <!-- P-Bass Bobbin Half at {cx:.1f}, {cy:.1f} ({label}) -->
     <g filter="url(#dropShadow)">
-      <!-- Left Mounting Tab (R=25.0px with center 6.3px inside body at x={x+6.3:.1f}, screw at x={left_screw_x:.1f}) -->
+      <!-- Left Mounting Tab (R=25.0px with center 6.3px inside body at x={x + 6.3:.1f}, screw at x={left_screw_x:.1f}) -->
       <path d="M {x:.1f} {cy - 24.2:.1f} A 25 25 0 0 0 {x:.1f} {cy + 24.2:.1f} Z" fill="url(#coverGrad)" stroke="#222938" stroke-width="1.8"/>
       <circle cx="{left_screw_x:.1f}" cy="{cy:.1f}" r="4.0" fill="#080a0f" stroke="#475569" stroke-width="1"/>
       <circle cx="{left_screw_x:.1f}" cy="{cy:.1f}" r="1.8" fill="#1e293b"/>
 
-      <!-- Right Mounting Tab (R=25.0px with center 6.3px inside body at x={x+w-6.3:.1f}, screw at x={right_screw_x:.1f}) -->
+      <!-- Right Mounting Tab (R=25.0px with center 6.3px inside body at x={x + w - 6.3:.1f}, screw at x={right_screw_x:.1f}) -->
       <path d="M {x + w:.1f} {cy - 24.2:.1f} A 25 25 0 0 1 {x + w:.1f} {cy + 24.2:.1f} Z" fill="url(#coverGrad)" stroke="#222938" stroke-width="1.8"/>
       <circle cx="{right_screw_x:.1f}" cy="{cy:.1f}" r="4.0" fill="#080a0f" stroke="#475569" stroke-width="1"/>
       <circle cx="{right_screw_x:.1f}" cy="{cy:.1f}" r="1.8" fill="#1e293b"/>
 
       <!-- Main Bobbin Casing -->
       <rect x="{x:.1f}" y="{y:.1f}" width="{w:.1f}" height="{h:.1f}" rx="{rx:.1f}" fill="url(#coverGrad)" stroke="#334155" stroke-width="1.8"/>
-      <rect x="{x+3:.1f}" y="{y+3:.1f}" width="{w-6:.1f}" height="{h-6:.1f}" rx="{rx-2:.1f}" fill="none" stroke="#64748b" stroke-width="0.75" opacity="0.4"/>
-      <rect x="{x+8:.1f}" y="{y+8:.1f}" width="{w-16:.1f}" height="{h-16:.1f}" rx="{rx-6:.1f}" fill="#0f131a" stroke="#1c2330" stroke-width="1.2"/>
+      <rect x="{x + 3:.1f}" y="{y + 3:.1f}" width="{w - 6:.1f}" height="{h - 6:.1f}" rx="{rx - 2:.1f}" fill="none" stroke="#64748b" stroke-width="0.75" opacity="0.4"/>
+      <rect x="{x + 8:.1f}" y="{y + 8:.1f}" width="{w - 16:.1f}" height="{h - 16:.1f}" rx="{rx - 6:.1f}" fill="#0f131a" stroke="#1c2330" stroke-width="1.2"/>
 
       <!-- Internal Coil Indicator -->
-      <rect x="{x+16:.1f}" y="{y+16:.1f}" width="{w-32:.1f}" height="{h-32:.1f}" rx="8" fill="none" stroke="{accent}" stroke-width="0.75" stroke-opacity="0.35" stroke-dasharray="5 5"/>
+      <rect x="{x + 16:.1f}" y="{y + 16:.1f}" width="{w - 32:.1f}" height="{h - 32:.1f}" rx="8" fill="none" stroke="{accent}" stroke-width="0.75" stroke-opacity="0.35" stroke-dasharray="5 5"/>
       
       <!-- 4 Poles (2 pairs straddling each string) -->
       {make_pole(s1 - pole_offset, cy)}
@@ -139,11 +139,11 @@ def make_jbass_pickup(
 
       <!-- Main Bobbin Casing -->
       <rect x="{x:.1f}" y="{y:.1f}" width="{w:.1f}" height="{h:.1f}" rx="{rx:.1f}" fill="url(#coverGrad)" stroke="#334155" stroke-width="1.8"/>
-      <rect x="{x+3:.1f}" y="{y+3:.1f}" width="{w-6:.1f}" height="{h-6:.1f}" rx="{rx-2:.1f}" fill="none" stroke="#64748b" stroke-width="0.75" opacity="0.4"/>
-      <rect x="{x+6:.1f}" y="{y+6:.1f}" width="{w-12:.1f}" height="{h-12:.1f}" rx="{rx-4:.1f}" fill="#0f131a" stroke="#1c2330" stroke-width="1.2"/>
+      <rect x="{x + 3:.1f}" y="{y + 3:.1f}" width="{w - 6:.1f}" height="{h - 6:.1f}" rx="{rx - 2:.1f}" fill="none" stroke="#64748b" stroke-width="0.75" opacity="0.4"/>
+      <rect x="{x + 6:.1f}" y="{y + 6:.1f}" width="{w - 12:.1f}" height="{h - 12:.1f}" rx="{rx - 4:.1f}" fill="#0f131a" stroke="#1c2330" stroke-width="1.2"/>
 
       <!-- Internal Coil Indicator -->
-      <rect x="{x+14:.1f}" y="{y+14:.1f}" width="{w-28:.1f}" height="{h-28:.1f}" rx="6" fill="none" stroke="{accent}" stroke-width="0.75" stroke-opacity="0.35" stroke-dasharray="6 6"/>
+      <rect x="{x + 14:.1f}" y="{y + 14:.1f}" width="{w - 28:.1f}" height="{h - 28:.1f}" rx="6" fill="none" stroke="{accent}" stroke-width="0.75" stroke-opacity="0.35" stroke-dasharray="6 6"/>
 
       <!-- 8 Poles (4 pairs of 2 straddling E, A, D, G) -->
       {make_pole(x_strings[0] - pole_offset, cy)}
@@ -214,12 +214,12 @@ def make_stingray_pickup(
 
       <!-- Main Pickup Housing -->
       <rect x="{x:.1f}" y="{y:.1f}" width="{w:.1f}" height="{h:.1f}" rx="{rx:.1f}" fill="url(#coverGrad)" stroke="#334155" stroke-width="2.0"/>
-      <rect x="{x+3:.1f}" y="{y+3:.1f}" width="{w-6:.1f}" height="{h-6:.1f}" rx="{rx-2:.1f}" fill="none" stroke="#64748b" stroke-width="0.75" opacity="0.4"/>
-      <rect x="{x+7:.1f}" y="{y+7:.1f}" width="{w-14:.1f}" height="{h-14:.1f}" rx="{rx-4:.1f}" fill="#0f131a" stroke="#1c2330" stroke-width="1.2"/>
+      <rect x="{x + 3:.1f}" y="{y + 3:.1f}" width="{w - 6:.1f}" height="{h - 6:.1f}" rx="{rx - 2:.1f}" fill="none" stroke="#64748b" stroke-width="0.75" opacity="0.4"/>
+      <rect x="{x + 7:.1f}" y="{y + 7:.1f}" width="{w - 14:.1f}" height="{h - 14:.1f}" rx="{rx - 4:.1f}" fill="#0f131a" stroke="#1c2330" stroke-width="1.2"/>
 
       <!-- Internal Dual Coil Bobbin Outlines -->
-      <rect x="{x+14:.1f}" y="{y+12:.1f}" width="{w-28:.1f}" height="{h/2 - 16:.1f}" rx="6" fill="none" stroke="{accent}" stroke-width="0.75" stroke-opacity="0.35" stroke-dasharray="6 6"/>
-      <rect x="{x+14:.1f}" y="{cy + 4:.1f}" width="{w-28:.1f}" height="{h/2 - 16:.1f}" rx="6" fill="none" stroke="{accent}" stroke-width="0.75" stroke-opacity="0.35" stroke-dasharray="6 6"/>
+      <rect x="{x + 14:.1f}" y="{y + 12:.1f}" width="{w - 28:.1f}" height="{h / 2 - 16:.1f}" rx="6" fill="none" stroke="{accent}" stroke-width="0.75" stroke-opacity="0.35" stroke-dasharray="6 6"/>
+      <rect x="{x + 14:.1f}" y="{cy + 4:.1f}" width="{w - 28:.1f}" height="{h / 2 - 16:.1f}" rx="6" fill="none" stroke="{accent}" stroke-width="0.75" stroke-opacity="0.35" stroke-dasharray="6 6"/>
 
       <!-- 8 Massive Alnico V 3/8" Pole Pieces -->
       {upper_poles}
@@ -263,17 +263,17 @@ def make_soapbar_pickup(
     <g filter="url(#dropShadow)">
       <!-- Main Soapbar Casing -->
       <rect x="{x:.1f}" y="{y:.1f}" width="{w:.1f}" height="{h:.1f}" rx="{rx:.1f}" fill="url(#coverGrad)" stroke="#334155" stroke-width="1.8"/>
-      <rect x="{x+3:.1f}" y="{y+3:.1f}" width="{w-6:.1f}" height="{h-6:.1f}" rx="{rx-2:.1f}" fill="none" stroke="#64748b" stroke-width="0.75" opacity="0.4"/>
-      <rect x="{x+6:.1f}" y="{y+6:.1f}" width="{w-12:.1f}" height="{h-12:.1f}" rx="{rx-4:.1f}" fill="#0d1117" stroke="#1c2330" stroke-width="1.2"/>
+      <rect x="{x + 3:.1f}" y="{y + 3:.1f}" width="{w - 6:.1f}" height="{h - 6:.1f}" rx="{rx - 2:.1f}" fill="none" stroke="#64748b" stroke-width="0.75" opacity="0.4"/>
+      <rect x="{x + 6:.1f}" y="{y + 6:.1f}" width="{w - 12:.1f}" height="{h - 12:.1f}" rx="{rx - 4:.1f}" fill="#0d1117" stroke="#1c2330" stroke-width="1.2"/>
 
       <!-- Inset Mounting Tabs & Screw Recesses (EMG-X style) -->
       <!-- Left Inset Recess -->
-      <path d="M {x+6:.1f} {cy - 20:.1f} A 20 20 0 0 1 {x+6:.1f} {cy + 20:.1f} Z" fill="#080a0f" stroke="#1e293b" stroke-width="1.2"/>
+      <path d="M {x + 6:.1f} {cy - 20:.1f} A 20 20 0 0 1 {x + 6:.1f} {cy + 20:.1f} Z" fill="#080a0f" stroke="#1e293b" stroke-width="1.2"/>
       <circle cx="{left_screw_x:.1f}" cy="{cy:.1f}" r="4.2" fill="#080a0f" stroke="#475569" stroke-width="1"/>
       <circle cx="{left_screw_x:.1f}" cy="{cy:.1f}" r="1.8" fill="#1e293b"/>
 
       <!-- Right Inset Recess -->
-      <path d="M {x+w-6:.1f} {cy - 20:.1f} A 20 20 0 0 0 {x+w-6:.1f} {cy + 20:.1f} Z" fill="#080a0f" stroke="#1e293b" stroke-width="1.2"/>
+      <path d="M {x + w - 6:.1f} {cy - 20:.1f} A 20 20 0 0 0 {x + w - 6:.1f} {cy + 20:.1f} Z" fill="#080a0f" stroke="#1e293b" stroke-width="1.2"/>
       <circle cx="{right_screw_x:.1f}" cy="{cy:.1f}" r="4.2" fill="#080a0f" stroke="#475569" stroke-width="1"/>
       <circle cx="{right_screw_x:.1f}" cy="{cy:.1f}" r="1.8" fill="#1e293b"/>
 
@@ -286,10 +286,10 @@ def make_soapbar_pickup(
       <rect x="{cx - 142:.1f}" y="{cy + blade_offset - 1:.1f}" width="284" height="2" rx="1" fill="{accent}" fill-opacity="0.6"/>
 
       <!-- Internal Coil Boundary Indication -->
-      <rect x="{x+24:.1f}" y="{y+16:.1f}" width="{w-48:.1f}" height="{h-32:.1f}" rx="8" fill="none" stroke="{accent}" stroke-width="0.75" stroke-opacity="0.25" stroke-dasharray="6 6"/>
+      <rect x="{x + 24:.1f}" y="{y + 16:.1f}" width="{w - 48:.1f}" height="{h - 32:.1f}" rx="8" fill="none" stroke="{accent}" stroke-width="0.75" stroke-opacity="0.25" stroke-dasharray="6 6"/>
 
       <!-- Corner Technical Markings (EMG Style) -->
-      <text x="{x+w-24:.1f}" y="{y+h-14:.1f}" fill="#64748b" font-size="10" font-family="system-ui, -apple-system, sans-serif" font-weight="800" letter-spacing="1" text-anchor="end">ACTIVE DUAL-BLADE</text>
+      <text x="{x + w - 24:.1f}" y="{y + h - 14:.1f}" fill="#64748b" font-size="10" font-family="system-ui, -apple-system, sans-serif" font-weight="800" letter-spacing="1" text-anchor="end">ACTIVE DUAL-BLADE</text>
     </g>
     """
 
@@ -307,7 +307,9 @@ def generate_pack_svg(model_key: str) -> str:
             "scale": "34&quot; SCALE",
             "badge2": "ALNICO V SPLIT-P",
             "badge3": "11.2 kΩ DUAL-COIL",
-            "content": _svg_content(lambda accent: f"""
+            "content": _svg_content(
+                lambda accent: (
+                    f"""
                 <!-- Background Flux Lines -->
                 <g fill="none" stroke="{accent}" stroke-opacity="0.14" stroke-width="1.2">
                   <ellipse cx="520" cy="480" rx="145" ry="80"/>
@@ -332,7 +334,9 @@ def generate_pack_svg(model_key: str) -> str:
                   <text x="1070" y="606" text-anchor="end" font-size="12" fill="#94a3b8" font-weight="600">REVERSE-COIL OFFSET</text>
                   <line x1="835" y1="616" x2="1070" y2="616" stroke="#334155" stroke-dasharray="3 3" stroke-width="1"/>
                 </g>
-            """),
+            """
+                )
+            ),
         },
         "jazz": {
             "accent": "#0ea5e9",
@@ -342,7 +346,9 @@ def generate_pack_svg(model_key: str) -> str:
             "scale": "34&quot; SCALE",
             "badge2": "ALNICO V DUAL-J",
             "badge3": "60s PICKUP SPACING",
-            "content": _svg_content(lambda accent: f"""
+            "content": _svg_content(
+                lambda accent: (
+                    f"""
                 <!-- Background Flux Lines -->
                 <g fill="none" stroke="{accent}" stroke-opacity="0.14" stroke-width="1.2">
                   <ellipse cx="600" cy="430" rx="230" ry="70"/>
@@ -371,7 +377,9 @@ def generate_pack_svg(model_key: str) -> str:
                   <text x="1070" y="560" text-anchor="end" font-size="12" fill="#94a3b8" font-weight="600">HUM-CANCELLATION COMB</text>
                   <line x1="835" y1="570" x2="1070" y2="570" stroke="#334155" stroke-dasharray="3 3" stroke-width="1"/>
                 </g>
-            """),
+            """
+                )
+            ),
         },
         "pj": {
             "accent": "#a855f7",
@@ -381,7 +389,9 @@ def generate_pack_svg(model_key: str) -> str:
             "scale": "34&quot; SCALE",
             "badge2": "P/J HYBRID COILS",
             "badge3": "ACTIVE/PASSIVE HARNESS",
-            "content": _svg_content(lambda accent: f"""
+            "content": _svg_content(
+                lambda accent: (
+                    f"""
                 <!-- Background Flux Lines -->
                 <g fill="none" stroke="{accent}" stroke-opacity="0.14" stroke-width="1.2">
                   <ellipse cx="520" cy="410" rx="135" ry="70"/>
@@ -412,7 +422,9 @@ def generate_pack_svg(model_key: str) -> str:
                   <text x="1070" y="560" text-anchor="end" font-size="12" fill="#94a3b8" font-weight="600">DUAL-TOPOLOGY SUM</text>
                   <line x1="835" y1="570" x2="1070" y2="570" stroke="#334155" stroke-dasharray="3 3" stroke-width="1"/>
                 </g>
-            """),
+            """
+                )
+            ),
         },
         "mustang": {
             "accent": "#f43f5e",
@@ -422,7 +434,9 @@ def generate_pack_svg(model_key: str) -> str:
             "scale": "30&quot; SHORT SCALE",
             "badge2": "MUSTANG P/J HYBRID",
             "badge3": "FAST TRANSIENT DYNAMICS",
-            "content": _svg_content(lambda accent: f"""
+            "content": _svg_content(
+                lambda accent: (
+                    f"""
                 <!-- Racing Stripes Aesthetic (Mustang Heritage) -->
                 <g opacity="0.12">
                   <line x1="880" y1="60" x2="880" y2="1140" stroke="{accent}" stroke-width="28"/>
@@ -458,7 +472,9 @@ def generate_pack_svg(model_key: str) -> str:
                   <text x="1070" y="560" text-anchor="end" font-size="12" fill="#94a3b8" font-weight="600">LOW-TENSION BLOOM</text>
                   <line x1="835" y1="570" x2="1070" y2="570" stroke="#334155" stroke-dasharray="3 3" stroke-width="1"/>
                 </g>
-            """),
+            """
+                )
+            ),
         },
         "active_soapbar": {
             "accent": "#06b6d4",
@@ -468,7 +484,9 @@ def generate_pack_svg(model_key: str) -> str:
             "scale": "34&quot; SCALE",
             "badge2": "DUAL SOAPBARS",
             "badge3": "ACTIVE 3-BAND PREAMP",
-            "content": _svg_content(lambda accent: f"""
+            "content": _svg_content(
+                lambda accent: (
+                    f"""
                 <!-- Background Flux Lines -->
                 <g fill="none" stroke="{accent}" stroke-opacity="0.14" stroke-width="1.2">
                   <ellipse cx="600" cy="430" rx="220" ry="90"/>
@@ -497,7 +515,9 @@ def generate_pack_svg(model_key: str) -> str:
                   <text x="1070" y="560" text-anchor="end" font-size="12" fill="#94a3b8" font-weight="600">LOW-Z DUAL BLADES</text>
                   <line x1="815" y1="570" x2="1070" y2="570" stroke="#334155" stroke-dasharray="3 3" stroke-width="1"/>
                 </g>
-            """),
+            """
+                )
+            ),
         },
         "active_stingray": {
             "accent": "#f97316",
@@ -507,7 +527,9 @@ def generate_pack_svg(model_key: str) -> str:
             "scale": "34&quot; SCALE",
             "badge2": "SWEET-SPOT HUMBUCKER",
             "badge3": "ACTIVE 2-BAND PREAMP",
-            "content": _svg_content(lambda accent: f"""
+            "content": _svg_content(
+                lambda accent: (
+                    f"""
                 <!-- Background Magnetic Flux Field -->
                 <g fill="none" stroke="{accent}" stroke-opacity="0.14" stroke-width="1.2">
                   <ellipse cx="600" cy="550" rx="240" ry="130"/>
@@ -530,7 +552,9 @@ def generate_pack_svg(model_key: str) -> str:
                   <text x="1070" y="552" text-anchor="end" font-size="12" fill="#94a3b8" font-weight="600">ACTIVE 2-BAND PREAMP</text>
                   <line x1="820" y1="562" x2="1070" y2="562" stroke="#334155" stroke-dasharray="3 3" stroke-width="1"/>
                 </g>
-            """),
+            """
+                )
+            ),
         },
     }
 

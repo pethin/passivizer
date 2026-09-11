@@ -38,7 +38,9 @@ def test_passive_identity_differential_flatness():
     for ch_idx, ch in enumerate(diff_j):
         h_j = np.asarray(ch)
         h_j_db = 20.0 * np.log10(h_j / h_j[0])
-        assert np.all(np.abs(h_j_db[passband_mask]) < 0.10), f"Jazz channel {ch_idx} identity differential not flat!"
+        assert np.all(np.abs(h_j_db[passband_mask]) < 0.10), (
+            f"Jazz channel {ch_idx} identity differential not flat!"
+        )
 
     # 3. Pot unloading: Source Standard P (250k V/T) vs Target Modern Ceramic P (500k V/T + 22nF)
     m_tgt_mod = load_circuit("04_modern_p_ceramic")
@@ -52,11 +54,15 @@ def test_active_source_differential_deconvolution_and_identity():
     """Verify that commercial active sources (StingRay, Dingwall) have valid source circuits,
     yield exact 0.0 dB on identity, and properly deconvolve active preamps on cross-voicings."""
     # 1. Source netlist existence & parsing
-    m_src_ray = load_circuit(INSTRUMENTS["34in_active_stingray"]["pickups"]["mm_parallel"]["circuit"])
+    m_src_ray = load_circuit(
+        INSTRUMENTS["34in_active_stingray"]["pickups"]["mm_parallel"]["circuit"]
+    )
     assert m_src_ray.has_active_buffer is True
     assert m_src_ray.preamp_type == "stingray_2band"
 
-    m_src_ding = load_circuit(INSTRUMENTS["37in_multiscale_dingwall"]["pickups"]["bridge"]["circuit"])
+    m_src_ding = load_circuit(
+        INSTRUMENTS["37in_multiscale_dingwall"]["pickups"]["bridge"]["circuit"]
+    )
     assert m_src_ding.has_active_buffer is True
     assert m_src_ding.preamp_type == "none"
     assert m_src_ding.L == 2.3
@@ -88,7 +94,9 @@ def test_active_source_differential_deconvolution_and_identity():
     # When converting to a darker vintage P-bass, high frequencies must be rolled off (< -10 dB @ 8 kHz)
     idx_8k = np.argmin(np.abs(f_arr - 8000.0))
     cross_db_8k = 20.0 * np.log10(h_cross[idx_8k])
-    assert cross_db_8k < -10.0, f"Expected active treble shelf deconvolution (< -10 dB), got {cross_db_8k:.2f} dB"
+    assert cross_db_8k < -10.0, (
+        f"Expected active treble shelf deconvolution (< -10 dB), got {cross_db_8k:.2f} dB"
+    )
 
 
 def test_wiener_clamping_prevents_noise_explosion():
@@ -97,7 +105,9 @@ def test_wiener_clamping_prevents_noise_explosion():
     m_src = load_circuit(INSTRUMENTS["34in_standard_p"]["pickups"]["split_p"]["circuit"])
     m_tgt = load_circuit("03_jazz_bridge_60s")
 
-    diff_curves = compute_differential_circuit_transfer_functions(m_tgt, m_src, freqs=FREQS, max_boost_db=6.0)
+    diff_curves = compute_differential_circuit_transfer_functions(
+        m_tgt, m_src, freqs=FREQS, max_boost_db=6.0
+    )
     h_diff = np.asarray(diff_curves[0])
 
     f_arr = np.asarray(FREQS)
@@ -123,12 +133,14 @@ def test_differential_circuit_hf_limiter_smoothness():
     h_db = 20.0 * np.log10(h_c / h_c[0])
 
     f_arr = np.asarray(FREQS, dtype=np.float64)
-    hf_mask = (f_arr >= 8000.0)
+    hf_mask = f_arr >= 8000.0
     # Check that the derivative d(h_db)/df does not have sudden jump steps across 0 dB
     dh = np.gradient(h_db[hf_mask], f_arr[hf_mask])
     # The rate of change of derivative should be well-behaved
     d2h = np.gradient(dh, f_arr[hf_mask])
-    assert np.max(np.abs(d2h)) < 1e-4, "Derivative of differential curve should be smooth without piecewise kinks"
+    assert np.max(np.abs(d2h)) < 1e-4, (
+        "Derivative of differential curve should be smooth without piecewise kinks"
+    )
 
 
 def test_cable_dielectric_loss():
@@ -153,7 +165,9 @@ def test_cable_dielectric_loss():
     # 2. Resonant peak softening (between 1800 and 2400 Hz)
     pk_idx = np.argmax(c_lossless)
     diff_peak_db = 20.0 * np.log10(c_lossless[pk_idx] / c_lossy[pk_idx])
-    assert 0.05 <= diff_peak_db <= 0.50, f"Peak attenuation {diff_peak_db:.2f} dB outside expected range"
+    assert 0.05 <= diff_peak_db <= 0.50, (
+        f"Peak attenuation {diff_peak_db:.2f} dB outside expected range"
+    )
 
     # 3. High-frequency rolloff remains smooth
     assert c_lossy[-1] < 0.20
@@ -209,7 +223,9 @@ def test_fractional_order_dielectric_absorption():
     # Dielectric absorption should create subtle, smooth loss differences (within 0.05 to 1.5 dB across passband)
     diff_db = 20.0 * np.log10(np.maximum(mag_dielectric, 1e-6) / np.maximum(mag_ideal, 1e-6))
     assert np.all(np.abs(diff_db) < 2.0), "Dielectric absorption should be a subtle analog nuance"
-    assert np.max(np.abs(diff_db)) > 0.05, "Dielectric absorption must produce non-trivial difference"
+    assert np.max(np.abs(diff_db)) > 0.05, (
+        "Dielectric absorption must produce non-trivial difference"
+    )
     # At low frequencies (200 Hz), dielectric absorption provides subtle low-mid loss/bloom
     idx_200 = min(range(len(FREQS)), key=lambda i: abs(FREQS[i] - 200.0))
     assert diff_db[idx_200] < 0.0, "Dielectric relaxation should introduce low-mid dissipation"
@@ -225,7 +241,9 @@ def test_complex_magnetic_permeability_dispersion():
     Z_dispersive = compute_core_impedance(s, L=5.0, R_core=25000.0, chi_mu=0.04)
 
     # Real part (resistive loss) must be enhanced by Jordan relaxation
-    assert np.all(np.real(Z_dispersive) > np.real(Z_ideal)), "Complex permeability must add core relaxation losses"
+    assert np.all(np.real(Z_dispersive) > np.real(Z_ideal)), (
+        "Complex permeability must add core relaxation losses"
+    )
     assert not np.any(np.isnan(Z_dispersive))
 
     # 2. Differential transfer function of matching model must be exact identity (0.00 dB)
@@ -235,7 +253,9 @@ def test_complex_magnetic_permeability_dispersion():
     m2.chi_mu = 0.04
     diff_curves = compute_differential_circuit_transfer_functions(m1, m2, freqs=FREQS)
     for curve in diff_curves:
-        assert np.allclose(curve, 1.0, atol=1e-4), "Matching complex permeability models must yield exact 0.00 dB identity"
+        assert np.allclose(curve, 1.0, atol=1e-4), (
+            "Matching complex permeability models must yield exact 0.00 dB identity"
+        )
 
 
 def test_source_direct_simulation():

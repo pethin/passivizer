@@ -7,13 +7,18 @@ Jordan after-effect permeability dispersion, and Wiener-regularized deconvolutio
 
 import math
 from collections.abc import Sequence
-from typing import Any, Literal, overload
+from typing import Literal, overload
 
 import numpy as np
 
-from allomorph.base import AllomorphBaseModel
 from allomorph.circuit.parser import MAGNET_PROPERTIES, CircuitModel, eval_pot_taper
-from allomorph.config.schema import PreampBandConfig
+from allomorph.config.schema import (
+    PickupConfig,
+    PreampBandConfig,
+    PreampConfig,
+    VoiceConfig,
+    VoicePickupConfig,
+)
 from allomorph.dsp import FREQS
 
 
@@ -60,7 +65,7 @@ def compute_core_impedance(
 
 def apply_magnet_properties_to_model(
     model: CircuitModel,
-    vcfg: dict[str, Any] | AllomorphBaseModel,
+    vcfg: VoiceConfig | PickupConfig,
     eddy_diffusion: bool = True,
 ) -> None:
     """
@@ -83,12 +88,13 @@ def apply_magnet_properties_to_model(
         model.k_skin_b = 0.0
         return
 
-    pickups = vcfg.get("pickups", [])
-    mag_type_global = vcfg.get("magnet_type", "alnico_v")
+    mag_type_global = vcfg.magnet_type or "alnico_v"
+
+    pickups: list[VoicePickupConfig] = vcfg.pickups or [] if isinstance(vcfg, VoiceConfig) else []
 
     if model.topology in ["parallel", "series"] and len(pickups) >= 2:
-        mag_n = pickups[0].get("magnet_type", mag_type_global)
-        mag_b = pickups[1].get("magnet_type", mag_type_global)
+        mag_n = pickups[0].magnet_type or mag_type_global
+        mag_b = pickups[1].magnet_type or mag_type_global
     else:
         mag_n = mag_type_global
         mag_b = mag_type_global
@@ -104,42 +110,39 @@ def apply_magnet_properties_to_model(
     props_n = MAGNET_PROPERTIES[mag_n]
     props_b = MAGNET_PROPERTIES[mag_b]
 
-    if model.L_core <= 0.0 and props_n.get("k_core", 0.0) > 0.0:
-        model.L_core = props_n["k_core"] * model.L
-        f_c = props_n["f_core"]
+    if model.L_core <= 0.0 and props_n.k_core > 0.0:
+        model.L_core = props_n.k_core * model.L
+        f_c = props_n.f_core
         model.R_core = 2.0 * math.pi * f_c * model.L_core if f_c > 0.0 else 0.0
 
-    if getattr(model, "chi_mu", 0.0) <= 0.0 and props_n.get("chi_mu", 0.0) > 0.0:
-        model.chi_mu = props_n["chi_mu"]
-    if getattr(model, "k_dist", 0.0) <= 0.0 and props_n.get("k_dist", 0.0) > 0.0:
-        model.k_dist = props_n["k_dist"]
-    if getattr(model, "k_skin", 0.0) <= 0.0 and props_n.get("k_skin", 0.0) > 0.0:
-        model.k_skin = props_n["k_skin"]
-        model.f_skin = props_n.get("f_skin", 3200.0)
+    if model.chi_mu <= 0.0 and props_n.chi_mu > 0.0:
+        model.chi_mu = props_n.chi_mu
+    if model.k_dist <= 0.0 and props_n.k_dist > 0.0:
+        model.k_dist = props_n.k_dist
+    if model.k_skin <= 0.0 and props_n.k_skin > 0.0:
+        model.k_skin = props_n.k_skin
+        model.f_skin = props_n.f_skin
 
     if model.topology in ["parallel", "series"]:
-        if model.L_core_b <= 0.0 and props_b.get("k_core", 0.0) > 0.0:
-            model.L_core_b = props_b["k_core"] * model.L_b
-            f_cb = props_b["f_core"]
+        if model.L_core_b <= 0.0 and props_b.k_core > 0.0:
+            model.L_core_b = props_b.k_core * model.L_b
+            f_cb = props_b.f_core
             model.R_core_b = 2.0 * math.pi * f_cb * model.L_core_b if f_cb > 0.0 else 0.0
 
-        if getattr(model, "chi_mu_b", 0.0) <= 0.0 and props_b.get("chi_mu", 0.0) > 0.0:
-            model.chi_mu_b = props_b["chi_mu"]
-        if getattr(model, "k_dist_b", 0.0) <= 0.0 and props_b.get("k_dist", 0.0) > 0.0:
-            model.k_dist_b = props_b["k_dist"]
-        if getattr(model, "k_skin_b", 0.0) <= 0.0 and props_b.get("k_skin", 0.0) > 0.0:
-            model.k_skin_b = props_b["k_skin"]
-            model.f_skin_b = props_b.get("f_skin", 3200.0)
+        if model.chi_mu_b <= 0.0 and props_b.chi_mu > 0.0:
+            model.chi_mu_b = props_b.chi_mu
+        if model.k_dist_b <= 0.0 and props_b.k_dist > 0.0:
+            model.k_dist_b = props_b.k_dist
+        if model.k_skin_b <= 0.0 and props_b.k_skin > 0.0:
+            model.k_skin_b = props_b.k_skin
+            model.f_skin_b = props_b.f_skin
 
 
-def evaluate_analog_band(
-    band: PreampBandConfig | dict[str, Any] | AllomorphBaseModel, s: complex | np.ndarray
-) -> complex | np.ndarray:
+def evaluate_analog_band(band: PreampBandConfig, s: complex | np.ndarray) -> complex | np.ndarray:
     """Evaluates continuous s-domain analog transfer function for a single EQ band."""
-    cfg = band if isinstance(band, PreampBandConfig) else PreampBandConfig.model_validate(band)
-    b_type = cfg.type
-    f0 = cfg.freq_hz
-    g_db = cfg.gain_db
+    b_type = band.type
+    f0 = band.freq_hz
+    g_db = band.gain_db
     w0 = 2.0 * math.pi * f0
     g = 10.0 ** (g_db / 20.0)
 
@@ -148,7 +151,7 @@ def evaluate_analog_band(
     elif b_type == "high_shelf":
         return (g * s + w0) / (s + w0)
     elif b_type == "bell":
-        q = float(cfg.q) if cfg.q is not None else 1.0
+        q = float(band.q) if band.q is not None else 1.0
         num = s**2 + (w0 / q) * g * s + w0**2
         den = s**2 + (w0 / q) * s + w0**2
         return num / den
@@ -160,7 +163,7 @@ def evaluate_analog_band(
 
 
 def compute_active_preamp_transfer(
-    bands: Sequence[PreampBandConfig | dict[str, Any] | AllomorphBaseModel] | None, s: complex | np.ndarray, gain_db: float = 0.0
+    bands: Sequence[PreampBandConfig] | None, s: complex | np.ndarray, gain_db: float = 0.0
 ) -> np.ndarray:
     """Evaluates the composite analog active preamp contour across frequencies with finite DC transmission."""
     h_total = np.ones_like(s, dtype=np.complex128) * (10.0 ** (gain_db / 20.0))
@@ -172,26 +175,26 @@ def compute_active_preamp_transfer(
 
 
 def compute_active_preamp_eq(
-    preamp_spec: str | dict[str, Any] | AllomorphBaseModel | Sequence[PreampBandConfig | dict[str, Any] | AllomorphBaseModel], s: complex | np.ndarray
+    preamp_spec: str | PreampConfig | Sequence[PreampBandConfig], s: complex | np.ndarray
 ) -> np.ndarray:
     """
     Evaluates analog active preamp contour transfer function.
     Accepts:
       - str (preset name): looks up in PREAMPS catalog (e.g. 'sadowsky_2band', 'stingray_2band')
-      - list: evaluates list of band dicts
-      - dict/AllomorphBaseModel: evaluates preamp dict containing 'bands' and optional 'gain_db'
+      - PreampConfig: evaluates preamp model
+      - Sequence[PreampBandConfig]: evaluates sequence of band configs
     """
     if isinstance(preamp_spec, str):
         from allomorph.config.preamps import get_preamp
 
         preset = get_preamp(preamp_spec)
         return compute_active_preamp_transfer(preset.bands, s, gain_db=float(preset.gain_db))
+    elif isinstance(preamp_spec, PreampConfig):
+        return compute_active_preamp_transfer(
+            preamp_spec.bands, s, gain_db=float(preamp_spec.gain_db)
+        )
     elif isinstance(preamp_spec, (list, tuple)):
         return compute_active_preamp_transfer(preamp_spec, s)
-    elif isinstance(preamp_spec, (dict, AllomorphBaseModel)):
-        bands_val = list(preamp_spec.get("bands", []))
-        gain_val = float(preamp_spec.get("gain_db", 0.0))
-        return compute_active_preamp_transfer(bands_val, s, gain_db=gain_val)
     return np.ones_like(s, dtype=np.complex128)
 
 
@@ -231,21 +234,22 @@ def compute_circuit_transfer_functions(
       - Dual-pickup (parallel or series): [mag_neck, mag_bridge] (length 2)
     Supports both passive high-Z harnesses and active buffered preamps.
     """
+
     def _ret(res_list: list[np.ndarray]) -> list[list[float]] | list[np.ndarray]:
         if return_numpy:
             return res_list
         return [np.asarray(x, dtype=np.float64).tolist() for x in res_list]
 
     f = np.asarray(freqs, dtype=np.float64)
-    if getattr(model, "no_eq", False):
+    if model.no_eq:
         return _ret([np.ones_like(f)])
 
     w = np.where(f == 0.0, 2.0 * np.pi * 1e-3, 2.0 * np.pi * f)
     s = 1j * w
 
     # Dielectric absorption parameters (Cole-Davidson fractional-order relaxation)
-    alpha_cable = getattr(model, "alpha_dielectric_cable", 0.994)
-    alpha_tone = getattr(model, "alpha_dielectric_tone", 0.988)
+    alpha_cable = model.alpha_dielectric_cable
+    alpha_tone = model.alpha_dielectric_tone
     w0 = 2.0 * np.pi * 1000.0  # 1 kHz calibration reference frequency
     s_norm = np.maximum(w / w0, 1e-6)
 
@@ -259,23 +263,23 @@ def compute_circuit_transfer_functions(
     else:
         Y_tone = 0.0
 
-    k_m = getattr(model, "k_mutual", 0.0)
-    c_m = getattr(model, "C_mutual", 0.0)
+    k_m = model.k_mutual
+    c_m = model.C_mutual
 
-    chi_mu = getattr(model, "chi_mu", 0.0)
-    chi_mu_b = getattr(model, "chi_mu_b", 0.0)
-    omega_mu = getattr(model, "omega_mu", 2.0 * math.pi * 1200.0)
+    chi_mu = model.chi_mu
+    chi_mu_b = model.chi_mu_b
+    omega_mu = model.omega_mu
 
-    k_dist = getattr(model, "k_dist", 0.0)
-    k_dist_b = getattr(model, "k_dist_b", 0.0)
-    omega_dist = getattr(model, "omega_dist", 2.0 * math.pi * 10000.0)
+    k_dist = model.k_dist
+    k_dist_b = model.k_dist_b
+    omega_dist = model.omega_dist
 
-    k_skin = getattr(model, "k_skin", 0.0)
-    f_skin = getattr(model, "f_skin", 3200.0)
+    k_skin = model.k_skin
+    f_skin = model.f_skin
     omega_skin = 2.0 * math.pi * f_skin if f_skin > 0.0 else 1.0
 
-    k_skin_b = getattr(model, "k_skin_b", 0.0)
-    f_skin_b = getattr(model, "f_skin_b", 3200.0)
+    k_skin_b = model.k_skin_b
+    f_skin_b = model.f_skin_b
     omega_skin_b = 2.0 * math.pi * f_skin_b if f_skin_b > 0.0 else 1.0
 
     if k_dist > 0.0:
@@ -292,7 +296,7 @@ def compute_circuit_transfer_functions(
     else:
         dist_factor_b = 1.0
 
-    tan_d_coil = getattr(model, "tan_delta_coil", 0.025)
+    tan_d_coil = model.tan_delta_coil
     G_coil = w * model.Ccoil * tan_d_coil if tan_d_coil > 0.0 else 0.0
     G_coil_b = w * model.Ccoil_b * tan_d_coil if tan_d_coil > 0.0 else 0.0
     Y_c_n = (s * model.Ccoil + G_coil) * dist_factor
@@ -305,12 +309,15 @@ def compute_circuit_transfer_functions(
         H_buf_to_out = Z_cable_load / (model.R_out + Z_cable_load)
 
         # Preamp active contour & voltage gain scaling
-        preamp_gain = getattr(model, "preamp_gain", 1.0)
-        preamp_bands = getattr(model, "preamp_bands", None)
+        preamp_gain = model.preamp_gain
+        preamp_bands = model.preamp_bands
         if preamp_bands is not None:
-            H_eq = compute_active_preamp_transfer(preamp_bands, s, gain_db=getattr(model, "preamp_gain_db", 0.0)) * preamp_gain
+            H_eq = (
+                compute_active_preamp_transfer(preamp_bands, s, gain_db=model.preamp_gain_db)
+                * preamp_gain
+            )
         else:
-            H_eq = compute_active_preamp_eq(getattr(model, "preamp_type", "none"), s) * preamp_gain
+            H_eq = compute_active_preamp_eq(model.preamp_type, s) * preamp_gain
 
         # Coils terminated into high-Z preamp input (R_preamp_in || C_preamp_in)
         Y_preamp_in = 1.0 / model.R_preamp_in + s * model.C_preamp_in
@@ -361,8 +368,8 @@ def compute_circuit_transfer_functions(
             Y_br_n = 1.0 / (model.Rdc + Z_L) + 1.0 / model.Reddy
             Y_br_b = 1.0 / (model.Rdc_b + Z_L_b) + 1.0 / model.Reddy_b
 
-            r_pot_n = getattr(model, "Rpot_n", 0.0)
-            r_pot_b = getattr(model, "Rpot_b", 0.0)
+            r_pot_n = model.Rpot_n
+            r_pot_b = model.Rpot_b
             if r_pot_n > 0.0:
                 Y_br_n = 1.0 / (1.0 / Y_br_n + r_pot_n)
             if r_pot_b > 0.0:
@@ -376,7 +383,7 @@ def compute_circuit_transfer_functions(
                 Y_m = s * c_m
                 Z_n = 1.0 / Y_br_n
                 Z_b = 1.0 / Y_br_b
-                delta_Z = Z_n * Z_b - (Z_m ** 2)
+                delta_Z = Z_n * Z_b - (Z_m**2)
                 denom_total = delta_Z * (Y_shunt2 + Y_m) + Z_n + Z_b - 2.0 * Z_m
                 H_n_to_2 = (Z_b - Z_m) / denom_total
                 H_b_to_2 = (Z_n - Z_m) / denom_total
@@ -388,9 +395,9 @@ def compute_circuit_transfer_functions(
             H_n = H_n_to_2 * H_eq * H_buf_to_out
             H_b = H_b_to_2 * H_eq * H_buf_to_out
 
-            blend_pos = getattr(model, "blend_pos", 0.5)
+            blend_pos = model.blend_pos
             if abs(blend_pos - 0.5) >= 1e-4:
-                taper = getattr(model, "pot_taper", "audio")
+                taper = model.pot_taper
 
                 if blend_pos < 0.5:
                     gain_n = 1.0
@@ -436,7 +443,7 @@ def compute_circuit_transfer_functions(
 
             Y_m = Y_br_n + Y_cn + Y_2b
             Y_2 = Y_2b + Y_eff2
-            delta = Y_m * Y_2 - Y_2b ** 2
+            delta = Y_m * Y_2 - Y_2b**2
 
             T2_n = (Y_2b * Y_br_n) / delta
             T2_b = ((Y_br_n + Y_cn) * Y_br_b) / delta
@@ -444,9 +451,9 @@ def compute_circuit_transfer_functions(
             H_n = T2_n * H_eq * H_buf_to_out
             H_b = T2_b * H_eq * H_buf_to_out
 
-            blend_pos = getattr(model, "blend_pos", 0.5)
+            blend_pos = model.blend_pos
             if abs(blend_pos - 0.5) >= 1e-4:
-                taper = getattr(model, "pot_taper", "audio")
+                taper = model.pot_taper
 
                 if blend_pos < 0.5:
                     gain_n = 1.0
@@ -463,7 +470,7 @@ def compute_circuit_transfer_functions(
 
     # Passive RLC Guitar Harness: Coils directly loaded by pots, cable capacitance, and Anagram load
     Rload = (model.Rbot * model.Ranagram) / (model.Rbot + model.Ranagram)
-    tan_d = getattr(model, "tan_delta", 0.025)
+    tan_d = model.tan_delta
     G_diel = w * model.Ccable * tan_d if tan_d > 0.0 else 0.0
     Zload = 1.0 / (1.0 / Rload + Y_cable_diel + s * model.Canagram + G_diel)
 
@@ -524,8 +531,8 @@ def compute_circuit_transfer_functions(
         Y_br_n = 1.0 / (model.Rdc + Z_L) + 1.0 / model.Reddy
         Y_br_b = 1.0 / (model.Rdc_b + Z_L_b) + 1.0 / model.Reddy_b
 
-        r_pot_n = getattr(model, "Rpot_n", 0.0)
-        r_pot_b = getattr(model, "Rpot_b", 0.0)
+        r_pot_n = model.Rpot_n
+        r_pot_b = model.Rpot_b
         if r_pot_n > 0.0:
             Y_br_n = 1.0 / (1.0 / Y_br_n + r_pot_n)
         if r_pot_b > 0.0:
@@ -543,7 +550,7 @@ def compute_circuit_transfer_functions(
             Y_m = s * c_m
             Z_n = 1.0 / Y_br_n
             Z_b = 1.0 / Y_br_b
-            delta_Z = Z_n * Z_b - (Z_m ** 2)
+            delta_Z = Z_n * Z_b - (Z_m**2)
             denom_total = delta_Z * (Y_eff2 + Y_m) + Z_n + Z_b - 2.0 * Z_m
             H_n_to_2 = (Z_b - Z_m) / denom_total
             H_b_to_2 = (Z_n - Z_m) / denom_total
@@ -556,9 +563,9 @@ def compute_circuit_transfer_functions(
         H_n = H_n_to_2 * H_2_to_3
         H_b = H_b_to_2 * H_2_to_3
 
-        blend_pos = getattr(model, "blend_pos", 0.5)
+        blend_pos = model.blend_pos
         if abs(blend_pos - 0.5) >= 1e-4:
-            taper = getattr(model, "pot_taper", "audio")
+            taper = model.pot_taper
 
             if blend_pos < 0.5:
                 gain_n = 1.0
@@ -607,7 +614,7 @@ def compute_circuit_transfer_functions(
 
         Y_m = Y_br_n + Y_cn + Y_2b
         Y_2 = Y_2b + Y_out_load + Y_tone
-        delta = Y_m * Y_2 - Y_2b ** 2
+        delta = Y_m * Y_2 - Y_2b**2
 
         T2_n = (Y_2b * Y_br_n) / delta
         T2_b = ((Y_br_n + Y_cn) * Y_br_b) / delta
@@ -616,9 +623,9 @@ def compute_circuit_transfer_functions(
         H_n = T2_n * T_2_to_3
         H_b = T2_b * T_2_to_3
 
-        blend_pos = getattr(model, "blend_pos", 0.5)
+        blend_pos = model.blend_pos
         if abs(blend_pos - 0.5) >= 1e-4:
-            taper = getattr(model, "pot_taper", "audio")
+            taper = model.pot_taper
 
             if blend_pos < 0.5:
                 gain_n = 1.0
@@ -671,7 +678,7 @@ def compute_differential_circuit_transfer_functions(
             continue
 
         # Wiener regularized quotient
-        h_diff = (tgt_arr * src_arr) / (src_arr ** 2 + eps ** 2)
+        h_diff = (tgt_arr * src_arr) / (src_arr**2 + eps**2)
 
         # Convert to absolute dB (linear ratio between target and source circuits)
         h_db = 20.0 * np.log10(np.maximum(h_diff, 1e-6))

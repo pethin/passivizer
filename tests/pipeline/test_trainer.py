@@ -51,6 +51,7 @@ def test_default_goal_esr():
     import inspect
 
     from train_nam import DEFAULT_GOAL_ESR, train_voice
+
     assert DEFAULT_GOAL_ESR == 0.0005
     sig = inspect.signature(train_voice)
     assert "goal_esr" in sig.parameters
@@ -69,20 +70,36 @@ def test_train_nam_cli_goal_esr_parsing():
 
     # Default case
     args = parser.parse_args([])
-    effective = None if args.no_goal_esr or (args.goal_esr is not None and args.goal_esr <= 0) else args.goal_esr
+    effective = (
+        None
+        if args.no_goal_esr or (args.goal_esr is not None and args.goal_esr <= 0)
+        else args.goal_esr
+    )
     assert effective == 0.0005
 
     # Custom goal ESR
     args = parser.parse_args(["--goal-esr", "0.0001"])
-    effective = None if args.no_goal_esr or (args.goal_esr is not None and args.goal_esr <= 0) else args.goal_esr
+    effective = (
+        None
+        if args.no_goal_esr or (args.goal_esr is not None and args.goal_esr <= 0)
+        else args.goal_esr
+    )
     assert effective == 0.0001
 
     # Disabling via --no-goal-esr
     args = parser.parse_args(["--no-goal-esr"])
-    effective = None if args.no_goal_esr or (args.goal_esr is not None and args.goal_esr <= 0) else args.goal_esr
+    effective = (
+        None
+        if args.no_goal_esr or (args.goal_esr is not None and args.goal_esr <= 0)
+        else args.goal_esr
+    )
     assert effective is None
 
     # Disabling via --goal-esr 0
     args = parser.parse_args(["--goal-esr", "0"])
-    effective = None if args.no_goal_esr or (args.goal_esr is not None and args.goal_esr <= 0) else args.goal_esr
+    effective = (
+        None
+        if args.no_goal_esr or (args.goal_esr is not None and args.goal_esr <= 0)
+        else args.goal_esr
+    )
     assert effective is None

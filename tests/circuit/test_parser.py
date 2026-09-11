@@ -31,8 +31,8 @@ def test_parse_spice_val():
 
 def test_load_all_voice_circuits():
     for vid, cfg in VOICES.items():
-        assert "circuit" in cfg, f"Voice {vid} missing [circuit] configuration"
-        model = load_circuit(cfg["circuit"])
+        assert cfg.circuit is not None, f"Voice {vid} missing [circuit] configuration"
+        model = load_circuit(cfg.circuit)
 
         assert model.L > 0
         assert model.Rdc > 0
@@ -133,12 +133,24 @@ def test_sweep_audio_auto_detection():
     with tempfile.TemporaryDirectory() as tmpdir:
         out_wav = Path(tmpdir) / "auto_sweep_out.wav"
         # Test with input_wav=None
-        res = simulate_voice("04_modern_p_ceramic", input_wav=None, output_wav=out_wav, instrument="30in", max_samples=4800)
+        res = simulate_voice(
+            "04_modern_p_ceramic",
+            input_wav=None,
+            output_wav=out_wav,
+            instrument="30in",
+            max_samples=4800,
+        )
         assert res is True
         assert out_wav.exists() and out_wav.stat().st_size > 1000
 
         # Test with input_wav pointing to missing file (fallback behavior to T3K-sweep-v3.wav)
         out_wav_fallback = Path(tmpdir) / "fallback_sweep_out.wav"
-        res_fallback = simulate_voice("04_modern_p_ceramic", input_wav="missing_sweep.wav", output_wav=out_wav_fallback, instrument="30in", max_samples=4800)
+        res_fallback = simulate_voice(
+            "04_modern_p_ceramic",
+            input_wav="missing_sweep.wav",
+            output_wav=out_wav_fallback,
+            instrument="30in",
+            max_samples=4800,
+        )
         assert res_fallback is True
         assert out_wav_fallback.exists() and out_wav_fallback.stat().st_size > 1000

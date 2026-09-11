@@ -60,10 +60,12 @@ INSTRUMENT_ALIASES = {
 }
 
 
-from allomorph.config.schema import AllomorphBaseModel, InstrumentConfig, PickupConfig
+from allomorph.config.schema import InstrumentConfig, PickupConfig
 
 
-def load_instrument(identifier_or_path: str | Path | dict[str, Any] | AllomorphBaseModel) -> InstrumentConfig:
+def load_instrument(
+    identifier_or_path: str | Path | dict[str, Any] | InstrumentConfig,
+) -> InstrumentConfig:
     """
     Loads and validates an instrument configuration from a file path, known ID, shorthand alias, or dict.
     Aliases: '30in' -> '30in_emg_mmtw', '32in' -> '32in_custom_pmm', '34in' -> '34in_standard_p'.
@@ -86,7 +88,9 @@ def load_instrument(identifier_or_path: str | Path | dict[str, Any] | AllomorphB
         elif (CONFIG_DIR / f"{key}.toml").exists():
             path = CONFIG_DIR / f"{key}.toml"
         else:
-            raise FileNotFoundError(f"Instrument configuration not found: '{identifier_or_path}' (searched in {INSTRUMENTS_DIR})")
+            raise FileNotFoundError(
+                f"Instrument configuration not found: '{identifier_or_path}' (searched in {INSTRUMENTS_DIR})"
+            )
 
     with open(path, "rb") as f:
         data = tomllib.load(f)
@@ -109,48 +113,38 @@ def load_all_instruments(instruments_dir: str | Path | None = None) -> dict[str,
 INSTRUMENTS: dict[str, InstrumentConfig] = load_all_instruments()
 
 
-def get_source_pickup(instrument: dict[str, Any] | AllomorphBaseModel, voice_id: str) -> PickupConfig:
+def get_source_pickup(instrument: InstrumentConfig, voice_id: str) -> PickupConfig:
     """
     Determines which pickup on the source instrument should be used for the target voice.
     Checks explicit pickup_mapping, falls back to default_pickup, or raises diagnostic error.
     """
-    pickups = instrument.get("pickups", {}) if hasattr(instrument, "get") else getattr(instrument, "pickups", {})
+    inst = instrument
+    pickups = inst.pickups
     if not pickups:
-        inst_id = instrument.get("id", "unknown") if hasattr(instrument, "get") else getattr(instrument, "id", "unknown")
-        raise ValueError(f"Instrument '{inst_id}' has no pickups defined.")
+        raise ValueError(f"Instrument '{inst.id}' has no pickups defined.")
 
     # 1. Explicit voice mapping
-    mapping = instrument.get("pickup_mapping", {}) if hasattr(instrument, "get") else getattr(instrument, "pickup_mapping", {})
+    mapping = inst.pickup_mapping
     if voice_id in mapping and mapping[voice_id] in pickups:
         p_raw = pickups[mapping[voice_id]]
-        if isinstance(p_raw, PickupConfig):
-            p = p_raw.model_copy(deep=True)
-            p.id = mapping[voice_id]
-            return p
-        p = PickupConfig.model_validate(p_raw)
+        p = p_raw.model_copy(deep=True)
         p.id = mapping[voice_id]
         return p
 
     # 2. Default pickup declared on instrument
-    default_key = instrument.get("default_pickup") if hasattr(instrument, "get") else getattr(instrument, "default_pickup", None)
+    default_key = inst.default_pickup
     if default_key:
         if default_key in pickups:
             p_raw = pickups[default_key]
-            if isinstance(p_raw, PickupConfig):
-                p = p_raw.model_copy(deep=True)
-                p.id = default_key
-                return p
-            p = PickupConfig.model_validate(p_raw)
+            p = p_raw.model_copy(deep=True)
             p.id = default_key
             return p
-        inst_id = instrument.get("id", "unknown") if hasattr(instrument, "get") else getattr(instrument, "id", "unknown")
         raise KeyError(
-            f"Instrument '{inst_id}' default_pickup '{default_key}' "
+            f"Instrument '{inst.id}' default_pickup '{default_key}' "
             f"not found in pickups: {list(pickups.keys())}"
         )
 
-    inst_id = instrument.get("id", "unknown") if hasattr(instrument, "get") else getattr(instrument, "id", "unknown")
     raise ValueError(
-        f"Instrument '{inst_id}' defines no 'default_pickup' "
+        f"Instrument '{inst.id}' defines no 'default_pickup' "
         f"and has no pickup_mapping for voice '{voice_id}'."
     )

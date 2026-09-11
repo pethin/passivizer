@@ -71,7 +71,9 @@ def test_source_direct_properties():
     assert np.all(np.array(curves[0]) == 1.0)
 
     # 3. Output mode dataframe must be bit-exact 0.00 dB (flat studio DI target)
-    df_out = build_voice_dataframe("15_source_direct", cfg, instrument="canonical_intermediate", mode="output")
+    df_out = build_voice_dataframe(
+        "15_source_direct", cfg, instrument="canonical_intermediate", mode="output"
+    )
     mags_out = df_out["magnitude_db"].to_numpy()
     assert np.all(mags_out == 0.0)
 

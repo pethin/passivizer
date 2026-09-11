@@ -43,4 +43,3 @@ def test_visualizer_cli_config_validation():
     # Extra arguments rejection
     with pytest.raises(ValidationError):
         VisualizerCliConfig.model_validate({"instrument": "30in", "unexpected_option": True})
-

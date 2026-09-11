@@ -10,7 +10,11 @@ from typing import Annotated, Any
 
 from pydantic import BaseModel, BeforeValidator, ConfigDict
 
-warnings.filterwarnings("ignore", message=r".*Field name \"register\".*shadows an attribute in parent.*", category=UserWarning)
+warnings.filterwarnings(
+    "ignore",
+    message=r".*Field name \"register\".*shadows an attribute in parent.*",
+    category=UserWarning,
+)
 
 __all__ = [
     "AllomorphBaseModel",
@@ -75,7 +79,9 @@ class AllomorphBaseModel(BaseModel):
     def __contains__(self, item: object) -> bool:
         if not isinstance(item, str):
             return False
-        return (item in type(self).model_fields or hasattr(self, item)) and getattr(self, item, None) is not None
+        return (item in type(self).model_fields or hasattr(self, item)) and getattr(
+            self, item, None
+        ) is not None
 
     def get(self, key: str, default: Any = None) -> Any:
         val = getattr(self, key, None)
