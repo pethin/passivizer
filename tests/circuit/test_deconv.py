@@ -24,7 +24,9 @@ def test_passive_identity_differential_flatness():
     passband_mask = (f_arr >= 40.0) & (f_arr <= 4500.0)
 
     # 1. Precision Bass true identity: Standard P source against Voice 05 Vintage '62 P (< 0.10 dB)
-    m_src_p = load_circuit(INSTRUMENTS["34in_standard_p"]["pickups"]["split_p"]["circuit"])
+    p_circ = INSTRUMENTS["34in_standard_p"].pickups["split_p"].circuit
+    assert p_circ is not None
+    m_src_p = load_circuit(p_circ)
     m_tgt_p = load_circuit("05_vintage_62_p_alnico")
     diff_p = compute_differential_circuit_transfer_functions(m_tgt_p, m_src_p, freqs=FREQS)
     h_p = np.asarray(diff_p[0])
@@ -32,7 +34,9 @@ def test_passive_identity_differential_flatness():
     assert np.all(np.abs(h_p_db[passband_mask]) < 0.10), "P-Bass identity differential not flat!"
 
     # 2. Jazz Bass true identity: Standard Jazz source against Voice 02 Jazz Bass Pair (< 0.10 dB)
-    m_src_j = load_circuit(INSTRUMENTS["34in_standard_jazz"]["pickups"]["pair_parallel"]["circuit"])
+    j_circ = INSTRUMENTS["34in_standard_jazz"].pickups["pair_parallel"].circuit
+    assert j_circ is not None
+    m_src_j = load_circuit(j_circ)
     m_tgt_j = load_circuit("02_jazz_bass_pair")
     diff_j = compute_differential_circuit_transfer_functions(m_tgt_j, m_src_j, freqs=FREQS)
     for ch_idx, ch in enumerate(diff_j):
@@ -54,21 +58,23 @@ def test_active_source_differential_deconvolution_and_identity():
     """Verify that commercial active sources (StingRay, Dingwall) have valid source circuits,
     yield exact 0.0 dB on identity, and properly deconvolve active preamps on cross-voicings."""
     # 1. Source netlist existence & parsing
-    m_src_ray = load_circuit(
-        INSTRUMENTS["34in_active_stingray"]["pickups"]["mm_parallel"]["circuit"]
-    )
+    ray_circ = INSTRUMENTS["34in_active_stingray"].pickups["mm_parallel"].circuit
+    assert ray_circ is not None
+    m_src_ray = load_circuit(ray_circ)
     assert m_src_ray.has_active_buffer is True
     assert m_src_ray.preamp_type == "stingray_2band"
 
-    m_src_ding = load_circuit(
-        INSTRUMENTS["37in_multiscale_dingwall"]["pickups"]["bridge"]["circuit"]
-    )
+    ding_circ = INSTRUMENTS["37in_multiscale_dingwall"].pickups["bridge"].circuit
+    assert ding_circ is not None
+    m_src_ding = load_circuit(ding_circ)
     assert m_src_ding.has_active_buffer is True
     assert m_src_ding.preamp_type == "none"
     assert m_src_ding.L == 2.3
 
     # SP1 Passive Dingwall bridge source verification
-    m_src_sp1 = load_circuit(INSTRUMENTS["34in_dingwall_sp1"]["pickups"]["bridge"]["circuit"])
+    sp1_circ = INSTRUMENTS["34in_dingwall_sp1"].pickups["bridge"].circuit
+    assert sp1_circ is not None
+    m_src_sp1 = load_circuit(sp1_circ)
     assert m_src_sp1.has_active_buffer is False
     assert m_src_sp1.L == 2.3
     assert m_src_sp1.Rtop == 10
@@ -102,7 +108,9 @@ def test_active_source_differential_deconvolution_and_identity():
 def test_wiener_clamping_prevents_noise_explosion():
     """Verify that differential top-end boost is strictly clamped <= +6.0 dB above 4.5 kHz."""
     # Convert high-inductance P (3.8H) to brighter Jazz Bridge (3.6H)
-    m_src = load_circuit(INSTRUMENTS["34in_standard_p"]["pickups"]["split_p"]["circuit"])
+    p_circ = INSTRUMENTS["34in_standard_p"].pickups["split_p"].circuit
+    assert p_circ is not None
+    m_src = load_circuit(p_circ)
     m_tgt = load_circuit("03_jazz_bridge_60s")
 
     diff_curves = compute_differential_circuit_transfer_functions(
@@ -125,7 +133,9 @@ def test_differential_circuit_hf_limiter_smoothness():
     transition smoothly with strictly continuous first derivative and zero slope kinks.
     """
     tgt_model = load_circuit("03_jazz_bridge_60s")
-    src_model = load_circuit(INSTRUMENTS["34in_standard_p"]["pickups"]["split_p"]["circuit"])
+    src_circ = INSTRUMENTS["34in_standard_p"].pickups["split_p"].circuit
+    assert src_circ is not None
+    src_model = load_circuit(src_circ)
 
     curves = compute_differential_circuit_transfer_functions(tgt_model, src_model, freqs=FREQS)
     assert len(curves) > 0
@@ -261,12 +271,12 @@ def test_complex_magnetic_permeability_dispersion():
 def test_source_direct_simulation():
     """Verify 15_source_direct deconvolutes Canonical Intermediate aperture and preserves tier dynamics."""
     vcfg = VOICES["15_source_direct"]
-    assert vcfg["sensor_type"] == "direct"
-    assert vcfg["alpha"] == 0.26
-    assert vcfg["vsat"] == 0.50
+    assert vcfg.sensor_type == "direct"
+    assert vcfg.alpha == 0.26
+    assert vcfg.vsat == 0.50
 
     # Netlist must be a no_eq flat studio buffer
-    model = load_circuit(vcfg["circuit"])
+    model = load_circuit(vcfg.circuit)
     assert getattr(model, "no_eq", False) is True
 
     # Evaluated on canonical intermediate, prefilter FIR must invert the 93.5mm aperture sinc
@@ -285,7 +295,9 @@ def test_source_direct_simulation():
 def test_active_character_differential_cable_isolation():
     """Verify 16_active_character deconvolves passive cable loading when evaluating from a passive bass."""
     tgt_model = load_circuit("16_active_character")
-    src_model = load_circuit(INSTRUMENTS["34in_standard_p"]["pickups"]["split_p"]["circuit"])
+    p_circ = INSTRUMENTS["34in_standard_p"].pickups["split_p"].circuit
+    assert p_circ is not None
+    src_model = load_circuit(p_circ)
 
     diff_curves = compute_differential_circuit_transfer_functions(tgt_model, src_model, freqs=FREQS)
     assert len(diff_curves) == 1

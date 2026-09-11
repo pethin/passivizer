@@ -7,18 +7,22 @@ and Neural Amp Modeler (.nam) Architecture 2 export container metadata.
 
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Literal
+from typing import Literal
 
-from pydantic import Field
+from pydantic import ConfigDict, Field
 
 from allomorph.base import AllomorphBaseModel
+from allomorph.circuit.schema import CircuitConfig
+from allomorph.config.schema import VoiceCoilConfig, VoicePickupConfig
 
 __all__ = [
     "ArtworkPackConfig",
     "NamExportMetadata",
     "NamSourceInstrumentMeta",
+    "NamSourcePickupMeta",
     "NamTargetVoiceMeta",
     "NamTrainingConfig",
+    "NamTrainingMetadata",
     "PipelineCliConfig",
     "Tone3000PackListing",
 ]
@@ -55,6 +59,33 @@ class Tone3000PackListing(AllomorphBaseModel):
     voicings: list[str] = Field(..., min_length=22, max_length=22)
 
 
+class NamSourcePickupMeta(AllomorphBaseModel):
+    """Source pickup geometry and physical configuration metadata."""
+
+    id: str = ""
+    name: str
+    position_from_bridge_m: float = 0.0
+    position_from_bridge_mm: float = 0.0
+    aperture_width_in: float = 0.75
+    coil_spacing_in: float = 0.0
+    type: str = "single_coil"
+
+
+class NamTrainingMetadata(AllomorphBaseModel):
+    """Training metrics and hyperparameters for Neural Amp Modeler (.nam) models."""
+
+    model_config = ConfigDict(extra="allow", validate_assignment=True)
+
+    esr: float | None = None
+    validation_esr: float | None = None
+    epochs: int | None = None
+    batch_size: int | None = None
+    lr: float | None = None
+    model_type: str | None = None
+    architecture: str | None = None
+    weights: str | None = None
+
+
 class NamSourceInstrumentMeta(AllomorphBaseModel):
     """Metadata describing the physical source instrument embedded in Architecture 2 models."""
 
@@ -63,7 +94,7 @@ class NamSourceInstrumentMeta(AllomorphBaseModel):
     scale_length_in: float
     scale_length_m: float | None = None
     string_wave_speeds: list[float] = Field(default_factory=list)
-    pickup: dict[str, Any]
+    pickup: NamSourcePickupMeta
 
 
 class NamTargetVoiceMeta(AllomorphBaseModel):
@@ -76,15 +107,15 @@ class NamTargetVoiceMeta(AllomorphBaseModel):
     q_factor: float = 0.0
     target_position_34_m: float = 0.0
     effective_position_m: float = 0.0
-    pickups: list[Any] = Field(default_factory=list)
-    coils: list[Any] = Field(default_factory=list)
-    circuit: Any = ""
+    pickups: list[VoicePickupConfig] = Field(default_factory=list)
+    coils: list[VoiceCoilConfig] = Field(default_factory=list)
+    circuit: CircuitConfig | None = None
 
 
 class NamExportMetadata(AllomorphBaseModel):
     """Container metadata exported with Neural Amp Modeler (.nam) models."""
 
-    training: dict[str, Any]
+    training: NamTrainingMetadata
     license: str
     copyright: str
     author: str

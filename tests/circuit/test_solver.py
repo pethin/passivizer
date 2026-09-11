@@ -172,7 +172,9 @@ def test_tone_pot_series_admittance():
     assert 180.0 <= peak_rolled <= 500.0
 
     # 2. Source Standard P: Rtone = 250k, Ctone = 47nF -> loaded peak stays in 2000-2400 Hz range
-    m_open = load_circuit(INSTRUMENTS["34in_standard_p"]["pickups"]["split_p"]["circuit"])
+    p_circ = INSTRUMENTS["34in_standard_p"].pickups["split_p"].circuit
+    assert p_circ is not None
+    m_open = load_circuit(p_circ)
     assert m_open.Rtone == pytest.approx(250000.0)
     assert m_open.Ctone == pytest.approx(47e-9)
     curves_open = compute_circuit_transfer_functions(m_open, freqs=FREQS)
@@ -223,7 +225,9 @@ def test_tonestyler_p_bass_progression_transfer_functions():
     assert c05d[idx_500] < c05c[idx_500] < c05b[idx_500]
 
     # Differential transfer function verification against standard P source:
-    src_p = load_circuit(INSTRUMENTS["34in_standard_p"]["pickups"]["split_p"]["circuit"])
+    p_circ = INSTRUMENTS["34in_standard_p"].pickups["split_p"].circuit
+    assert p_circ is not None
+    src_p = load_circuit(p_circ)
     diff_05b = compute_differential_circuit_transfer_functions(m05b, src_p, freqs=FREQS)[0]
     diff_05d = compute_differential_circuit_transfer_functions(m05d, src_p, freqs=FREQS)[0]
 

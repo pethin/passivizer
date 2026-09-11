@@ -46,12 +46,10 @@ class VoiceRegistry(dict[str, VoiceConfig]):
         )
 
 
-def load_voice_config(identifier_or_path: str | Path | dict[str, Any] | VoiceConfig) -> VoiceConfig:
+def load_voice_config(identifier_or_path: str | Path | VoiceConfig) -> VoiceConfig:
     """Loads and validates a single target voice configuration into a VoiceConfig model."""
     if isinstance(identifier_or_path, VoiceConfig):
         return identifier_or_path
-    if isinstance(identifier_or_path, dict):
-        return VoiceConfig.model_validate(identifier_or_path)
 
     raw = str(identifier_or_path).strip()
     key = VoiceRegistry.ALIASES.get(raw, raw)

@@ -4,14 +4,13 @@ Reusable onboard active preamps and buffer catalog loader.
 
 import tomllib
 from pathlib import Path
-from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 CONFIG_DIR = REPO_ROOT / "config"
 PREAMPS_FILE = CONFIG_DIR / "preamps.toml"
 
 
-from allomorph.config.schema import PreampConfig, PreampsCatalog
+from allomorph.config.schema import PreampConfig, PreampOverrideConfig, PreampsCatalog
 
 
 def load_preamps_config(config_path: str | Path | None = None) -> dict[str, PreampConfig]:
@@ -29,14 +28,16 @@ def load_preamps_config(config_path: str | Path | None = None) -> dict[str, Prea
 PREAMPS: dict[str, PreampConfig] = load_preamps_config()
 
 
-def get_preamp(preamp_spec: str | dict[str, Any] | PreampConfig | None) -> PreampConfig:
+def get_preamp(
+    preamp_spec: str | PreampConfig | PreampOverrideConfig | None = None,
+) -> PreampConfig:
     """
     Resolves an active preamp configuration into a PreampConfig model.
     Accepts:
       - None, "", or "none": returns default flat active buffer with 0 EQ bands.
       - str (preset ID): looks up preset from PREAMPS catalog.
       - PreampConfig: returns a deep copy.
-      - dict: if 'preset' in dict, inherits preset and overlays overrides; otherwise validates dict.
+      - PreampOverrideConfig: inherits preset and overlays typed overrides.
     """
     if not preamp_spec or preamp_spec in ("none", "flat"):
         if "flat_buffer" in PREAMPS:
@@ -60,17 +61,21 @@ def get_preamp(preamp_spec: str | dict[str, Any] | PreampConfig | None) -> Pream
             f"Unknown preamp preset '{preamp_spec}'. Available presets: {list(PREAMPS.keys())}"
         )
 
-    if isinstance(preamp_spec, dict):
-        preset_name = preamp_spec.get("preset")
-        if preset_name:
-            if preset_name in PREAMPS:
-                base_dict = PREAMPS[preset_name].model_dump()
-                overlay = {k: v for k, v in preamp_spec.items() if k != "preset"}
-                base_dict.update(overlay)
-                return PreampConfig.model_validate(base_dict)
-            raise KeyError(
-                f"Unknown preamp preset '{preset_name}'. Available presets: {list(PREAMPS.keys())}"
-            )
-        return PreampConfig.model_validate(preamp_spec)
+    if isinstance(preamp_spec, PreampOverrideConfig):
+        preset_name = preamp_spec.preset
+        if preset_name in PREAMPS:
+            base = PREAMPS[preset_name].model_copy(deep=True)
+            if preamp_spec.gain_db is not None:
+                base.gain_db = preamp_spec.gain_db
+            if preamp_spec.input_impedance_meg is not None:
+                base.input_impedance_meg = preamp_spec.input_impedance_meg
+            if preamp_spec.output_impedance_ohm is not None:
+                base.output_impedance_ohm = preamp_spec.output_impedance_ohm
+            if preamp_spec.bands:
+                base.bands = [b.model_copy(deep=True) for b in preamp_spec.bands]
+            return base
+        raise KeyError(
+            f"Unknown preamp preset '{preset_name}'. Available presets: {list(PREAMPS.keys())}"
+        )
 
     raise TypeError(f"Invalid preamp specification type: {type(preamp_spec)}")

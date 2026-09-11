@@ -27,6 +27,8 @@ class CircuitBranchConfig(AllomorphBaseModel):
     """RLC parameters for a single pickup coil branch in dual-branch circuits."""
 
     L: SpiceFloat = Field(..., gt=0.0)
+    L_core: SpiceFloat | None = None
+    R_core: SpiceFloat | None = None
     Rdc: SpiceFloat = Field(..., gt=0.0)
     Reddy: SpiceFloat = Field(..., gt=0.0)
     Ccoil: SpiceFloat = Field(..., ge=0.0)
@@ -41,27 +43,70 @@ class CircuitConfig(AllomorphBaseModel):
 
     topology: str = "single"
     L: SpiceFloat | None = None
+    L_core: SpiceFloat | None = None
+    R_core: SpiceFloat | None = None
     Rdc: SpiceFloat | None = None
     Reddy: SpiceFloat | None = None
     Ccoil: SpiceFloat | None = None
     vsat: float | None = None
+    vsat_n: float | None = None
+    vsat_b: float | None = None
+    L_b: SpiceFloat | None = None
+    L_core_b: SpiceFloat | None = None
+    R_core_b: SpiceFloat | None = None
+    Rdc_b: SpiceFloat | None = None
+    Reddy_b: SpiceFloat | None = None
+    Ccoil_b: SpiceFloat | None = None
     Rtop: SpiceFloat | None = None
     Rbot: SpiceFloat | None = None
     Rvol: SpiceFloat | None = None
     Rtone: SpiceFloat | None = None
     Ctone: SpiceFloat | None = None
     Crick: SpiceFloat | None = None
+    series_hpf_cap: SpiceFloat | None = None
+    series_hpf_cap_nf: SpiceFloat | None = None
     Ctb: SpiceFloat | None = None
     Rtb_par: SpiceFloat | None = None
     Rtb_ser: SpiceFloat | None = None
     Rpot_n: SpiceFloat | None = None
     Rpot_b: SpiceFloat | None = None
     active: bool | None = None
+    has_active_buffer: bool | None = None
     preamp: str | None = None
+    preamp_type: str | None = None
+    preamp_preset: str | None = None
     preamp_gain: float | None = None
+    R_preamp_in: SpiceFloat | None = None
+    C_preamp_in: SpiceFloat | None = None
+    Rin: SpiceFloat | None = None
+    Cin: SpiceFloat | None = None
     R_out: SpiceFloat | None = None
+    Rout: SpiceFloat | None = None
     no_eq: bool | None = None
+    preamp_bands: list[Any] | None = None
     Ccable: SpiceFloat | None = None
+    tan_delta: float | None = None
+    tan_delta_coil: float | None = None
+    Ranagram: SpiceFloat | None = None
+    Canagram: SpiceFloat | None = None
+    k_mutual: float | None = None
+    C_mutual: SpiceFloat | None = None
+    alpha_dielectric_tone: float | None = None
+    alpha_tone: float | None = None
+    alpha_dielectric_cable: float | None = None
+    alpha_cable: float | None = None
+    chi_mu: float | None = None
+    chi_mu_b: float | None = None
+    omega_mu: float | None = None
+    k_dist: float | None = None
+    k_dist_b: float | None = None
+    omega_dist: float | None = None
+    k_skin: float | None = None
+    f_skin: float | None = None
+    k_skin_b: float | None = None
+    f_skin_b: float | None = None
+    Rblend: SpiceFloat | None = None
+    Rblend_total: SpiceFloat | None = None
     vol_pos: float | None = None
     tone_pos: float | None = None
     blend_pos: float | None = None

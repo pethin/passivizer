@@ -82,7 +82,7 @@ def test_circuit_model_apply_pot_positions_tapers():
 def test_mn_blend_potentiometer_behavior():
     """Verify MN blend pot: 0 dB insertion loss at center detent, attenuation away from center."""
     vcfg = VOICES["02_jazz_bass_pair"]
-    model = load_circuit(vcfg["circuit"])
+    model = load_circuit(vcfg.circuit)
     assert model.topology == "parallel"
 
     # Center detent (0.5): 0 dB loss, both pickups 100% active

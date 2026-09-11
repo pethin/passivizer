@@ -9,8 +9,10 @@ from allomorph.pipeline.schema import (
     ArtworkPackConfig,
     NamExportMetadata,
     NamSourceInstrumentMeta,
+    NamSourcePickupMeta,
     NamTargetVoiceMeta,
     NamTrainingConfig,
+    NamTrainingMetadata,
     PipelineCliConfig,
     Tone3000PackListing,
 )
@@ -27,15 +29,14 @@ def test_pipeline_cli_config_validation():
         PipelineCliConfig(stage="unsupported_stage")  # type: ignore[arg-type]
 
 
-def test_tone3000_pack_listing_validation():
-    """Verify Tone3000PackListing constraints on character counts and voicings."""
-    valid_desc = "x" * 7500
-    valid_voicings = [f"Voice {i}" for i in range(1, 23)]
-
+def test_tone3000_listing_validation():
+    """Verify Tone3000PackListing minimum and maximum length bounds."""
+    valid_desc = "A" * 7500
+    valid_voicings = [f"voicing_{i:02d}" for i in range(22)]
     listing = Tone3000PackListing(
         edition="standard_precision_bass",
         description=valid_desc,
-        pickup_tags=["[Split-P]"],
+        pickup_tags=["split_coil", "alnico_v"],
         voicings=valid_voicings,
     )
     assert listing.edition == "standard_precision_bass"
@@ -60,7 +61,7 @@ def test_tone3000_pack_listing_validation():
 def test_nam_export_metadata_validation():
     """Verify NamExportMetadata and nested instrument/voice metadata validation."""
     meta = NamExportMetadata(
-        training={"esr": 0.0004, "epochs": 100},
+        training=NamTrainingMetadata(esr=0.0004, epochs=100),
         license="PolyForm Noncommercial License 1.0.0",
         copyright="Copyright 2026 Peter Nguyen",
         author="Peter Nguyen",
@@ -70,7 +71,7 @@ def test_nam_export_metadata_validation():
             scale_length_in=30.0,
             scale_length_m=0.762,
             string_wave_speeds=[58.0, 75.0, 99.0, 130.0],
-            pickup={"name": "EMG MMTW", "position_from_bridge_m": 0.0775},
+            pickup=NamSourcePickupMeta(name="EMG MMTW", position_from_bridge_m=0.0775),
         ),
         target_voice=NamTargetVoiceMeta(
             id="05_vintage_62_p_alnico",
@@ -82,6 +83,8 @@ def test_nam_export_metadata_validation():
     )
     assert meta.source_instrument.id == "30in"
     assert meta.target_voice.id == "05_vintage_62_p_alnico"
+    assert meta.training.esr == 0.0004
+    assert meta.source_instrument.pickup.name == "EMG MMTW"
 
     # Rejection of missing required fields
     with pytest.raises(ValidationError):

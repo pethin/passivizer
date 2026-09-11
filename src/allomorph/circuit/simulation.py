@@ -1122,6 +1122,6 @@ def simulate_voice(
     return True
 
 
-def _simulate_voice_task(task_args: tuple[str, dict[str, Any]]) -> bool:
-    v, kwargs = task_args
-    return simulate_voice(v, **kwargs)
+def _simulate_voice_task(task_args: tuple[str, SimulationConfig]) -> bool:
+    v, sim_cfg = task_args
+    return simulate_voice(v, config=sim_cfg)

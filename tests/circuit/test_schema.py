@@ -239,11 +239,36 @@ def test_circuit_model_validation():
     assert custom.Ccoil == pytest.approx(60e-12)
     assert custom.Rbot_default == 250000.0
     assert custom.Ctone == pytest.approx(47e-9)
-    assert custom.vol_pos == 0.7
     assert custom.preamp_bands is not None
     assert len(custom.preamp_bands) == 2
     assert isinstance(custom.preamp_bands[0], PreampBandConfig)
     assert custom.preamp_bands[0].gain_db == 12.0
+
+    # Test strongly-typed CircuitConfig instantiation via from_circuit_config
+    c_config = CircuitConfig(
+        topology="single",
+        L=3.4,
+        Rdc=10500.0,
+        Reddy=180000.0,
+        Ccoil=60e-12,
+        Rvol=250000.0,
+        Ctone=47e-9,
+        vol_pos=0.7,
+        preamp_bands=[
+            PreampBandConfig(type="low_shelf", freq_hz=40.0, gain_db=12.0, q=0.707),
+            PreampBandConfig(type="high_shelf", freq_hz=4000.0, gain_db=-6.0, q=0.707),
+        ],
+    )
+    from_cfg = CircuitModel.from_circuit_config(c_config)
+    assert from_cfg.L == 3.4
+    assert from_cfg.Rdc == 10500.0
+    assert from_cfg.Reddy == 180000.0
+    assert from_cfg.Ccoil == pytest.approx(60e-12)
+    assert from_cfg.Rbot_default == 250000.0
+    assert from_cfg.Ctone == pytest.approx(47e-9)
+    assert from_cfg.vol_pos == 0.7
+    assert from_cfg.preamp_bands is not None
+    assert len(from_cfg.preamp_bands) == 2
 
     # Pot position bounds validation
     with pytest.raises(ValidationError):

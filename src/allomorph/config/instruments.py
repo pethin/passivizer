@@ -4,7 +4,6 @@ Source instrument configuration loading, alias resolution, and pickup lookup.
 
 import tomllib
 from pathlib import Path
-from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 CONFIG_DIR = REPO_ROOT / "config"
@@ -64,17 +63,14 @@ from allomorph.config.schema import InstrumentConfig, PickupConfig
 
 
 def load_instrument(
-    identifier_or_path: str | Path | dict[str, Any] | InstrumentConfig,
+    identifier_or_path: str | Path | InstrumentConfig,
 ) -> InstrumentConfig:
     """
-    Loads and validates an instrument configuration from a file path, known ID, shorthand alias, or dict.
+    Loads and validates an instrument configuration from a file path, known ID, shorthand alias, or InstrumentConfig.
     Aliases: '30in' -> '30in_emg_mmtw', '32in' -> '32in_custom_pmm', '34in' -> '34in_standard_p'.
     """
     if isinstance(identifier_or_path, InstrumentConfig):
         return identifier_or_path
-
-    if isinstance(identifier_or_path, dict):
-        return InstrumentConfig.model_validate(identifier_or_path)
 
     raw = str(identifier_or_path).strip()
     key = INSTRUMENT_ALIASES.get(raw, raw)

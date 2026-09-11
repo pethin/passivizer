@@ -21,9 +21,7 @@ def test_electrical_resonance_and_deconvolution():
 
     # Test Biquad Anti-Resonance filter
     inst_30 = load_instrument("30in_emg_mmtw")
-    res_inv = resolve_pickup_electrical_deconvolution(
-        freqs, inst_30["pickups"]["mmtw_dual"], inst_30
-    )
+    res_inv = resolve_pickup_electrical_deconvolution(freqs, inst_30.pickups["mmtw_dual"], inst_30)
     assert math.isclose(res_inv[0], 1.0, abs_tol=1e-4)  # DC = 1.0 (0 dB)
     assert res_inv[2] < 1.0  # Dips at resonance
     assert math.isclose(res_dual[2] * res_inv[2], 1.0, abs_tol=1e-3)  # Flattens peak to exactly 1.0

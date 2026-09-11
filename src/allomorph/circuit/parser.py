@@ -9,11 +9,11 @@ from pathlib import Path
 from typing import Any, Literal, cast
 
 import numpy as np
-from pydantic import BaseModel, Field, field_validator
+from pydantic import Field, field_validator
 
 from allomorph.base import AllomorphBaseModel, SpiceFloat, parse_spice_unit
-from allomorph.circuit.schema import MagnetPropertiesConfig
-from allomorph.config.schema import PreampBandConfig
+from allomorph.circuit.schema import CircuitConfig, MagnetPropertiesConfig
+from allomorph.config.schema import PickupConfig, PreampBandConfig, VoiceConfig
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 
@@ -407,197 +407,246 @@ class CircuitModel(AllomorphBaseModel):
                 self.Rpot_n = self.Rpot_n_default + r_blend * eff_atten
 
     @classmethod
-    def from_dict(cls, cfg: dict[str, Any]) -> CircuitModel:
-        """Creates a CircuitModel from a declarative configuration dictionary."""
-
-        def _val(v: Any, default: float = 0.0) -> float:
-            if v is None or isinstance(v, bool):
-                return default
-            if isinstance(v, (int, float)):
-                return float(v)
-            if isinstance(v, str):
-                return parse_spice_val(v)
-            return default
-
+    def from_circuit_config(cls, cfg: CircuitConfig) -> CircuitModel:
+        """Creates a CircuitModel directly from a validated CircuitConfig model."""
         model = cls()
         model.topology = cast(
-            Literal["single", "parallel", "series"], str(cfg.get("topology", "single")).lower()
+            Literal["single", "parallel", "series"], str(cfg.topology or "single").lower()
         )
 
         # Dynamic saturation limit
-        model.vsat = _val(cfg.get("vsat"), 0.50)
-        model.vsat_n = _val(cfg.get("vsat_n"), 0.50)
-        model.vsat_b = _val(cfg.get("vsat_b"), 0.50)
+        model.vsat = cfg.vsat if cfg.vsat is not None else 0.50
+        model.vsat_n = (
+            cfg.neck.vsat
+            if (cfg.neck is not None and cfg.neck.vsat is not None)
+            else (cfg.vsat_n if cfg.vsat_n is not None else model.vsat)
+        )
+        model.vsat_b = (
+            cfg.bridge.vsat
+            if (cfg.bridge is not None and cfg.bridge.vsat is not None)
+            else (cfg.vsat_b if cfg.vsat_b is not None else model.vsat)
+        )
 
         # Neck / single pickup branch
-        if "neck" in cfg and isinstance(cfg["neck"], dict):
-            neck = cfg["neck"]
-            model.L = _val(neck.get("L"), model.L)
-            model.L_core = _val(neck.get("L_core"), model.L_core)
-            model.R_core = _val(neck.get("R_core"), model.R_core)
-            model.Rdc = _val(neck.get("Rdc"), model.Rdc)
-            model.Reddy = _val(neck.get("Reddy"), model.Reddy)
-            model.Ccoil = _val(neck.get("Ccoil"), model.Ccoil)
-            if "vsat" in neck:
-                model.vsat_n = _val(neck.get("vsat"), model.vsat_n)
+        if cfg.neck is not None:
+            model.L = cfg.neck.L
+            if cfg.neck.L_core is not None:
+                model.L_core = cfg.neck.L_core
+            if cfg.neck.R_core is not None:
+                model.R_core = cfg.neck.R_core
+            model.Rdc = cfg.neck.Rdc
+            model.Reddy = cfg.neck.Reddy
+            model.Ccoil = cfg.neck.Ccoil
         else:
-            model.L = _val(cfg.get("L"), model.L)
-            model.L_core = _val(cfg.get("L_core"), model.L_core)
-            model.R_core = _val(cfg.get("R_core"), model.R_core)
-            model.Rdc = _val(cfg.get("Rdc"), model.Rdc)
-            model.Reddy = _val(cfg.get("Reddy"), model.Reddy)
-            model.Ccoil = _val(cfg.get("Ccoil"), model.Ccoil)
+            if cfg.L is not None:
+                model.L = cfg.L
+            if cfg.L_core is not None:
+                model.L_core = cfg.L_core
+            if cfg.R_core is not None:
+                model.R_core = cfg.R_core
+            if cfg.Rdc is not None:
+                model.Rdc = cfg.Rdc
+            if cfg.Reddy is not None:
+                model.Reddy = cfg.Reddy
+            if cfg.Ccoil is not None:
+                model.Ccoil = cfg.Ccoil
 
         # Bridge pickup branch
-        if "bridge" in cfg and isinstance(cfg["bridge"], dict):
-            bridge = cfg["bridge"]
-            model.L_b = _val(bridge.get("L"), model.L_b)
-            model.L_core_b = _val(bridge.get("L_core"), model.L_core_b)
-            model.R_core_b = _val(bridge.get("R_core"), model.R_core_b)
-            model.Rdc_b = _val(bridge.get("Rdc"), model.Rdc_b)
-            model.Reddy_b = _val(bridge.get("Reddy"), model.Reddy_b)
-            model.Ccoil_b = _val(bridge.get("Ccoil"), model.Ccoil_b)
-            if "vsat" in bridge:
-                model.vsat_b = _val(bridge.get("vsat"), model.vsat_b)
+        if cfg.bridge is not None:
+            model.L_b = cfg.bridge.L
+            if cfg.bridge.L_core is not None:
+                model.L_core_b = cfg.bridge.L_core
+            if cfg.bridge.R_core is not None:
+                model.R_core_b = cfg.bridge.R_core
+            model.Rdc_b = cfg.bridge.Rdc
+            model.Reddy_b = cfg.bridge.Reddy
+            model.Ccoil_b = cfg.bridge.Ccoil
         else:
-            model.L_b = _val(cfg.get("L_b"), model.L_b)
-            model.L_core_b = _val(cfg.get("L_core_b"), model.L_core_b)
-            model.R_core_b = _val(cfg.get("R_core_b"), model.R_core_b)
-            model.Rdc_b = _val(cfg.get("Rdc_b"), model.Rdc_b)
-            model.Reddy_b = _val(cfg.get("Reddy_b"), model.Reddy_b)
-            model.Ccoil_b = _val(cfg.get("Ccoil_b"), model.Ccoil_b)
+            if cfg.L_b is not None:
+                model.L_b = cfg.L_b
+            if cfg.L_core_b is not None:
+                model.L_core_b = cfg.L_core_b
+            if cfg.R_core_b is not None:
+                model.R_core_b = cfg.R_core_b
+            if cfg.Rdc_b is not None:
+                model.Rdc_b = cfg.Rdc_b
+            if cfg.Reddy_b is not None:
+                model.Reddy_b = cfg.Reddy_b
+            if cfg.Ccoil_b is not None:
+                model.Ccoil_b = cfg.Ccoil_b
 
         # Volume Pot
-        if "Rtop" in cfg or "Rbot" in cfg:
-            model.Rtop = _val(cfg.get("Rtop"), 10.0)
-            model.Rbot = _val(cfg.get("Rbot"), 500000.0)
-        elif "Rvol" in cfg:
+        if cfg.Rtop is not None or cfg.Rbot is not None:
+            model.Rtop = cfg.Rtop if cfg.Rtop is not None else 10.0
+            model.Rbot = cfg.Rbot if cfg.Rbot is not None else 500000.0
+        elif cfg.Rvol is not None:
             model.Rtop = 10.0
-            model.Rbot = _val(cfg["Rvol"], 500000.0)
+            model.Rbot = cfg.Rvol
         else:
             model.Rtop = 10.0
             model.Rbot = 500000.0
 
         # Tone Pot
-        model.Rtone = _val(cfg.get("Rtone"), 0.0)
-        model.Ctone = _val(cfg.get("Ctone"), 0.0)
+        if cfg.Rtone is not None:
+            model.Rtone = cfg.Rtone
+        if cfg.Ctone is not None:
+            model.Ctone = cfg.Ctone
 
         # HPF
-        model.Crick = _val(cfg.get("Crick", cfg.get("series_hpf_cap", 0.0)), 0.0)
-        if "series_hpf_cap_nf" in cfg:
-            model.Crick = _val(cfg["series_hpf_cap_nf"]) * 1e-9
+        if cfg.Crick is not None:
+            model.Crick = cfg.Crick
+        elif cfg.series_hpf_cap is not None:
+            model.Crick = cfg.series_hpf_cap
+        elif cfg.series_hpf_cap_nf is not None:
+            model.Crick = cfg.series_hpf_cap_nf * 1e-9
 
         # Treble bleed
-        model.Ctb = _val(cfg.get("Ctb"), 0.0)
-        model.Rtb_par = _val(cfg.get("Rtb_par"), 0.0)
-        model.Rtb_ser = _val(cfg.get("Rtb_ser"), 0.0)
+        if cfg.Ctb is not None:
+            model.Ctb = cfg.Ctb
+        if cfg.Rtb_par is not None:
+            model.Rtb_par = cfg.Rtb_par
+        if cfg.Rtb_ser is not None:
+            model.Rtb_ser = cfg.Rtb_ser
 
         # Individual pickup volume pot decoupling
-        model.Rpot_n = _val(cfg.get("Rpot_n"), 0.0)
-        model.Rpot_b = _val(cfg.get("Rpot_b"), 0.0)
+        if cfg.Rpot_n is not None:
+            model.Rpot_n = cfg.Rpot_n
+        if cfg.Rpot_b is not None:
+            model.Rpot_b = cfg.Rpot_b
 
         # Active preamp & buffer
-        active = bool(cfg.get("active", False) or cfg.get("has_active_buffer", False))
-        preamp_val = cfg.get("preamp") or cfg.get("preamp_type") or "none"
+        active = bool(cfg.active or cfg.has_active_buffer)
+        preamp_val = cfg.preamp or cfg.preamp_type or "none"
         if preamp_val != "none" or active:
             model.has_active_buffer = True
             model.preamp_type = preamp_val
 
-        model.preamp_gain = _val(cfg.get("preamp_gain"), 1.0)
-        model.R_preamp_in = _val(cfg.get("R_preamp_in", cfg.get("Rin")), 1.0e6)
-        model.C_preamp_in = _val(cfg.get("C_preamp_in", cfg.get("Cin")), 25e-12)
-        model.R_out = _val(cfg.get("R_out", cfg.get("Rout")), 100.0)
-        model.no_eq = bool(cfg.get("no_eq", False))
-        if cfg.get("preamp_bands"):
-            raw_bands = cfg["preamp_bands"]
+        if cfg.preamp_gain is not None:
+            model.preamp_gain = cfg.preamp_gain
+        r_pre = cfg.R_preamp_in if cfg.R_preamp_in is not None else cfg.Rin
+        if r_pre is not None:
+            model.R_preamp_in = r_pre
+        c_pre = cfg.C_preamp_in if cfg.C_preamp_in is not None else cfg.Cin
+        if c_pre is not None:
+            model.C_preamp_in = c_pre
+        r_out = cfg.R_out if cfg.R_out is not None else cfg.Rout
+        if r_out is not None:
+            model.R_out = r_out
+        if cfg.no_eq is not None:
+            model.no_eq = bool(cfg.no_eq)
+        if cfg.preamp_bands:
             model.preamp_bands = [
                 b if isinstance(b, PreampBandConfig) else PreampBandConfig.model_validate(b)
-                for b in raw_bands
+                for b in cfg.preamp_bands
             ]
 
         # Cable & load
-        model.Ccable = _val(cfg.get("Ccable"), 750e-12)
-        model.tan_delta = _val(cfg.get("tan_delta"), 0.025)
-        model.tan_delta_coil = _val(cfg.get("tan_delta_coil"), 0.025)
-        model.Ranagram = _val(cfg.get("Ranagram"), 1.0e6)
-        model.Canagram = _val(cfg.get("Canagram"), 30e-12)
+        if cfg.Ccable is not None:
+            model.Ccable = cfg.Ccable
+        if cfg.tan_delta is not None:
+            model.tan_delta = cfg.tan_delta
+        if cfg.tan_delta_coil is not None:
+            model.tan_delta_coil = cfg.tan_delta_coil
+        if cfg.Ranagram is not None:
+            model.Ranagram = cfg.Ranagram
+        if cfg.Canagram is not None:
+            model.Canagram = cfg.Canagram
 
         # Coupling & Dielectrics
         if model.topology in ("parallel", "series"):
-            model.k_mutual = _val(cfg.get("k_mutual"), 0.05)
-            model.C_mutual = _val(cfg.get("C_mutual"), 20e-12)
+            model.k_mutual = cfg.k_mutual if cfg.k_mutual is not None else 0.05
+            model.C_mutual = cfg.C_mutual if cfg.C_mutual is not None else 20e-12
         else:
-            model.k_mutual = _val(cfg.get("k_mutual"), 0.0)
-            model.C_mutual = _val(cfg.get("C_mutual"), 0.0)
+            model.k_mutual = cfg.k_mutual if cfg.k_mutual is not None else 0.0
+            model.C_mutual = cfg.C_mutual if cfg.C_mutual is not None else 0.0
 
-        model.alpha_dielectric_tone = _val(
-            cfg.get("alpha_dielectric_tone", cfg.get("alpha_tone")), 0.988
+        a_tone = (
+            cfg.alpha_dielectric_tone if cfg.alpha_dielectric_tone is not None else cfg.alpha_tone
         )
-        model.alpha_dielectric_cable = _val(
-            cfg.get("alpha_dielectric_cable", cfg.get("alpha_cable")), 0.994
+        if a_tone is not None:
+            model.alpha_dielectric_tone = a_tone
+
+        a_cable = (
+            cfg.alpha_dielectric_cable
+            if cfg.alpha_dielectric_cable is not None
+            else cfg.alpha_cable
         )
+        if a_cable is not None:
+            model.alpha_dielectric_cable = a_cable
 
         # Jordan / skin-effect dispersion
-        model.chi_mu = _val(cfg.get("chi_mu"), 0.0)
-        model.chi_mu_b = _val(cfg.get("chi_mu_b"), 0.0)
-        model.omega_mu = _val(cfg.get("omega_mu"), 2.0 * math.pi * 1200.0)
-        model.k_dist = _val(cfg.get("k_dist"), 0.0)
-        model.k_dist_b = _val(cfg.get("k_dist_b"), 0.0)
-        model.omega_dist = _val(cfg.get("omega_dist"), 2.0 * math.pi * 10000.0)
-        model.k_skin = _val(cfg.get("k_skin"), 0.0)
-        model.f_skin = _val(cfg.get("f_skin"), 3200.0)
-        model.k_skin_b = _val(cfg.get("k_skin_b"), 0.0)
-        model.f_skin_b = _val(cfg.get("f_skin_b"), 3200.0)
+        if cfg.chi_mu is not None:
+            model.chi_mu = cfg.chi_mu
+        if cfg.chi_mu_b is not None:
+            model.chi_mu_b = cfg.chi_mu_b
+        if cfg.omega_mu is not None:
+            model.omega_mu = cfg.omega_mu
+        if cfg.k_dist is not None:
+            model.k_dist = cfg.k_dist
+        if cfg.k_dist_b is not None:
+            model.k_dist_b = cfg.k_dist_b
+        if cfg.omega_dist is not None:
+            model.omega_dist = cfg.omega_dist
+        if cfg.k_skin is not None:
+            model.k_skin = cfg.k_skin
+        if cfg.f_skin is not None:
+            model.f_skin = cfg.f_skin
+        if cfg.k_skin_b is not None:
+            model.k_skin_b = cfg.k_skin_b
+        if cfg.f_skin_b is not None:
+            model.f_skin_b = cfg.f_skin_b
 
         # Pot defaults
         model.Rvol_total = model.Rtop + model.Rbot
         model.Rtone_total = model.Rtone if model.Rtone > 0.0 else 250000.0
-        model.Rblend_total = _val(cfg.get("Rblend", cfg.get("Rblend_total")), 250000.0)
-        taper_cfg = cfg.get("pot_taper")
+        r_blend = cfg.Rblend if cfg.Rblend is not None else cfg.Rblend_total
+        model.Rblend_total = r_blend if r_blend is not None else 250000.0
+        taper_cfg = cfg.pot_taper
         model.pot_taper = (
             str(taper_cfg).lower().strip()
             if taper_cfg is not None and str(taper_cfg).lower().strip() not in ("", "none")
             else "audio"
         )
-        model.blend_pos = _val(cfg.get("blend_pos"), 0.5)
+        model.blend_pos = cfg.blend_pos if cfg.blend_pos is not None else 0.5
         model.Rtop_default = model.Rtop
         model.Rbot_default = model.Rbot
         model.Rtone_default = model.Rtone
         model.Rpot_n_default = model.Rpot_n
         model.Rpot_b_default = model.Rpot_b
 
-        has_vol = cfg.get("vol_pos") is not None
-        has_tone = cfg.get("tone_pos") is not None
-        has_blend = cfg.get("blend_pos") is not None
+        has_vol = cfg.vol_pos is not None
+        has_tone = cfg.tone_pos is not None
+        has_blend = cfg.blend_pos is not None
         if has_vol or has_tone or has_blend:
             model.apply_pot_positions(
-                cfg.get("vol_pos"),
-                cfg.get("tone_pos"),
-                cfg.get("blend_pos"),
+                cfg.vol_pos,
+                cfg.tone_pos,
+                cfg.blend_pos,
                 model.pot_taper,
             )
 
         return model
 
+    @classmethod
+    def from_dict(cls, cfg: dict[str, Any]) -> CircuitModel:
+        """Creates a CircuitModel from a declarative configuration dictionary."""
+        return cls.from_circuit_config(CircuitConfig.model_validate(cfg))
 
-def load_circuit(source: CircuitModel | dict[str, Any] | BaseModel | str | Path) -> CircuitModel:
-    """Loads a CircuitModel from a dict, Pydantic model, file path (.toml), voice ID, or instrument ID."""
+
+def load_circuit(
+    source: CircuitModel | CircuitConfig | VoiceConfig | PickupConfig | str | Path,
+) -> CircuitModel:
+    """Loads a CircuitModel from a CircuitModel, CircuitConfig, VoiceConfig, PickupConfig, or file path (.toml), voice ID, or instrument ID."""
     if isinstance(source, CircuitModel):
         return source.model_copy()
-    if isinstance(source, BaseModel):
-        dumped = source.model_dump()
-        if "circuit" in dumped and isinstance(dumped["circuit"], dict):
-            return CircuitModel.from_dict(dumped["circuit"])
-        return CircuitModel.from_dict(dumped)
-    if isinstance(source, dict):
-        if "circuit" in source and isinstance(source["circuit"], (dict, BaseModel)):
-            c_val = source["circuit"]
-            return CircuitModel.from_dict(
-                c_val.model_dump() if isinstance(c_val, BaseModel) else c_val
-            )
-        if "circuit" in source and isinstance(source["circuit"], (str, Path)):
-            return load_circuit(source["circuit"])
-        return CircuitModel.from_dict(source)
+    if isinstance(source, CircuitConfig):
+        return CircuitModel.from_circuit_config(source)
+    if isinstance(source, VoiceConfig):
+        return CircuitModel.from_circuit_config(source.circuit)
+    if isinstance(source, PickupConfig):
+        if source.circuit is None:
+            raise ValueError(f"Pickup '{source.name}' has no embedded circuit configuration")
+        return CircuitModel.from_circuit_config(source.circuit)
 
     if isinstance(source, (str, Path)):
         p = Path(source)
@@ -613,7 +662,8 @@ def load_circuit(source: CircuitModel | dict[str, Any] | BaseModel | str | Path)
 
             with open(p, "rb") as f:
                 data = tomllib.load(f)
-            return load_circuit(data)
+            circuit_data = data.get("circuit", data)
+            return CircuitModel.from_circuit_config(CircuitConfig.model_validate(circuit_data))
 
         # Try relative to REPO_ROOT
         repo_rel = REPO_ROOT / source
@@ -655,6 +705,8 @@ def load_circuit(source: CircuitModel | dict[str, Any] | BaseModel | str | Path)
     raise ValueError(f"Could not load circuit from: {source}")
 
 
-def parse_netlist(source: CircuitModel | dict[str, Any] | BaseModel | str | Path) -> CircuitModel:
+def parse_netlist(
+    source: CircuitModel | CircuitConfig | VoiceConfig | PickupConfig | str | Path,
+) -> CircuitModel:
     """Parses a netlist or declarative circuit configuration into a CircuitModel."""
     return load_circuit(source)

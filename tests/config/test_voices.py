@@ -50,8 +50,8 @@ def test_voice_netlist_existence():
 def test_voices_have_no_hardcoded_source_datums():
     # Target voices should be purely decoupled from source instrument geometries
     for vid, cfg in VOICES.items():
-        assert "src_32" not in cfg, f"{vid} contains deprecated hardcoded 'src_32' datum"
-        assert "src_30" not in cfg, f"{vid} contains deprecated hardcoded 'src_30' datum"
+        assert not hasattr(cfg, "src_32"), f"{vid} contains deprecated hardcoded 'src_32' datum"
+        assert not hasattr(cfg, "src_30"), f"{vid} contains deprecated hardcoded 'src_30' datum"
 
 
 def test_source_direct_properties():
@@ -64,7 +64,7 @@ def test_source_direct_properties():
 
     # 2. Circuit transfer function must be identically 1.0 across all frequencies (no_eq buffer)
     cfg = VOICES["15_source_direct"]
-    model = load_circuit(cfg["circuit"])
+    model = load_circuit(cfg.circuit)
     assert getattr(model, "no_eq", False) is True
     curves = compute_circuit_transfer_functions(model, freqs=FREQS)
     assert len(curves) == 1
@@ -89,7 +89,7 @@ def test_active_character_buffer_properties():
 
     # 2. Netlist models active buffer with flat contour
     cfg = VOICES["16_active_character"]
-    model = load_circuit(cfg["circuit"])
+    model = load_circuit(cfg.circuit)
     assert model.has_active_buffer is True
     assert model.preamp_type == "none"
     assert model.R_out == 100.0

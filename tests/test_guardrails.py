@@ -105,8 +105,10 @@ def test_guardrail_identity_model_flatness():
     """Guardrail 5.3.1: Pairing an instrument with its matching target voice must evaluate
     to exact 0.00 dB identity across all frequency bins."""
     inst_ray = load_instrument("34in_active_stingray")
-    m_src_ray = load_circuit(inst_ray["pickups"]["mm_parallel"]["circuit"])
-    m_tgt_ray = load_circuit(VOICES["09_stingray_mm_parallel"]["circuit"])
+    ray_circ = inst_ray.pickups["mm_parallel"].circuit
+    assert ray_circ is not None
+    m_src_ray = load_circuit(ray_circ)
+    m_tgt_ray = load_circuit(VOICES["09_stingray_mm_parallel"].circuit)
 
     diff_ray = compute_differential_circuit_transfer_functions(m_tgt_ray, m_src_ray, freqs=FREQS)
     h_diff = np.asarray(diff_ray[0])

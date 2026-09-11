@@ -8,7 +8,7 @@ and string presets.
 
 import warnings
 from pathlib import Path
-from typing import Any, Literal, Self
+from typing import Literal, Self
 
 from pydantic import Field, model_validator
 
@@ -30,6 +30,7 @@ __all__ = [
     "PickupConfig",
     "PreampBandConfig",
     "PreampConfig",
+    "PreampOverrideConfig",
     "PreampsCatalog",
     "ResolvedStringConfig",
     "ScaleConfig",
@@ -169,6 +170,16 @@ class PreampsCatalog(AllomorphBaseModel):
     preamps: dict[str, PreampConfig] = Field(default_factory=dict)
 
 
+class PreampOverrideConfig(AllomorphBaseModel):
+    """Configuration model for inline or preset-based preamp overrides."""
+
+    preset: str
+    gain_db: float | None = None
+    input_impedance_meg: float | None = None
+    output_impedance_ohm: float | None = None
+    bands: list[PreampBandConfig] = Field(default_factory=list)
+
+
 # ==============================================================================
 # 5. COIL & PICKUP SCHEMAS
 # ==============================================================================
@@ -256,7 +267,7 @@ class InstrumentConfig(AllomorphBaseModel):
         return self
 
     @classmethod
-    def load(cls, identifier_or_path: str | Path | dict[str, Any]) -> InstrumentConfig:
+    def load(cls, identifier_or_path: str | Path) -> InstrumentConfig:
         """Loads and validates an instrument configuration."""
         from allomorph.config.instruments import load_instrument
 
@@ -332,7 +343,7 @@ class VoiceConfig(AllomorphBaseModel):
     circuit: CircuitConfig
 
     @classmethod
-    def load(cls, identifier_or_path: str | Path | dict[str, Any]) -> VoiceConfig:
+    def load(cls, identifier_or_path: str | Path) -> VoiceConfig:
         """Loads and validates a target voice configuration."""
         from allomorph.config.voices import VOICES, load_voice_config
 

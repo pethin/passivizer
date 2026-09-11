@@ -10,7 +10,6 @@ import math
 import os
 import wave
 from pathlib import Path
-from typing import Any
 
 import numpy as np
 
@@ -600,26 +599,30 @@ def main(argv: list[str] | None = None) -> None:
         dc_block=dc_block,
         max_samples=args.max_samples,
     )
-    sim_kwargs: dict[str, Any] = sim_cfg.to_sim_kwargs()
-
     max_workers = args.jobs if args.jobs is not None else min(4, os.cpu_count() or 4)
     for inst in instruments:
-        cur_kwargs: dict[str, Any] = sim_kwargs.copy()
-        cur_kwargs["instrument"] = inst
+        out_target = out_path
         if out_path and len(instruments) > 1 and not out_path.is_dir():
             stem = out_path.stem
             suffix = out_path.suffix
-            cur_kwargs["output_wav"] = out_path.parent / f"{stem}_{inst}{suffix}"
+            out_target = out_path.parent / f"{stem}_{inst}{suffix}"
+
+        cur_sim_cfg = sim_cfg.model_copy(
+            update={
+                "instrument": inst,
+                "output_wav": out_target,
+            }
+        )
 
         if len(voices) > 1 and max_workers > 1:
             from concurrent.futures import ProcessPoolExecutor
 
-            tasks = [(v, cur_kwargs) for v in voices]
+            tasks = [(v, cur_sim_cfg) for v in voices]
             with ProcessPoolExecutor(max_workers=max_workers) as executor:
                 list(executor.map(_simulate_voice_task, tasks))
         else:
             for v in voices:
-                simulate_voice(v, **cur_kwargs)
+                simulate_voice(v, config=cur_sim_cfg)
 
 
 if __name__ == "__main__":

@@ -37,8 +37,10 @@ from allomorph.naming import (
 from allomorph.pipeline.schema import (
     NamExportMetadata,
     NamSourceInstrumentMeta,
+    NamSourcePickupMeta,
     NamTargetVoiceMeta,
     NamTrainingConfig,
+    NamTrainingMetadata,
 )
 
 
@@ -254,7 +256,7 @@ def train_voice(
 
     print("\nExporting Architecture 2 (.nam) model container with full instrument metadata...")
     nam_meta = NamExportMetadata(
-        training=train_output.metadata.model_dump(),
+        training=NamTrainingMetadata.model_validate(train_output.metadata.model_dump()),
         license="PolyForm Noncommercial License 1.0.0 (https://polyformproject.org/licenses/noncommercial/1.0.0)",
         copyright="Copyright 2026 Peter Nguyen <peter@phn.dev>. All commercial rights reserved.",
         author="Peter Nguyen <peter@phn.dev>",
@@ -264,15 +266,15 @@ def train_voice(
             scale_length_in=scale_length_in,
             scale_length_m=inst_cfg.scale_length_m,
             string_wave_speeds=inst_cfg.string_wave_speeds,
-            pickup={
-                "id": src_pickup.id or "",
-                "name": src_pickup_name,
-                "position_from_bridge_m": src_pickup.position_from_bridge_m or 0.0,
-                "position_from_bridge_mm": src_pos_mm,
-                "aperture_width_in": src_pickup.aperture_width_in,
-                "coil_spacing_in": src_pickup.coil_spacing_in,
-                "type": src_pickup.type,
-            },
+            pickup=NamSourcePickupMeta(
+                id=src_pickup.id or "",
+                name=src_pickup_name,
+                position_from_bridge_m=src_pickup.position_from_bridge_m or 0.0,
+                position_from_bridge_mm=src_pos_mm,
+                aperture_width_in=src_pickup.aperture_width_in,
+                coil_spacing_in=src_pickup.coil_spacing_in,
+                type=src_pickup.type,
+            ),
         ),
         target_voice=NamTargetVoiceMeta(
             id=voice,
@@ -282,9 +284,9 @@ def train_voice(
             q_factor=float(vcfg.Q),
             target_position_34_m=compute_effective_position(resolve_voice_coils(vcfg)),
             effective_position_m=compute_effective_position(resolve_voice_coils(vcfg)),
-            pickups=[p.model_dump() for p in resolve_voice_pickups(vcfg)],
-            coils=[c.model_dump() for c in resolve_voice_coils(vcfg)],
-            circuit=vcfg.circuit.model_dump(),
+            pickups=resolve_voice_pickups(vcfg),
+            coils=resolve_voice_coils(vcfg),
+            circuit=vcfg.circuit,
         ),
     )
     meta_dump = nam_meta.model_dump()
