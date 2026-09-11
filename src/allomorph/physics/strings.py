@@ -11,7 +11,6 @@ import numpy as np
 from allomorph.config import (
     SCALES,
     STRINGS,
-    load_instrument,
     resolve_scale_range,
 )
 
@@ -134,7 +133,10 @@ def get_inharmonicity_for_f0(f0: float) -> float:
 # resolve_scale_range is imported from allomorph.config to maintain a single source of truth
 
 
-def generate_wave_speed_continuum(scale_length_m=0.8636, num_points: int = 24) -> List[dict]:
+def generate_wave_speed_continuum(
+    scale_length_m: Union[float, Tuple[float, float], List[float], dict, str, None] = 0.8636,
+    num_points: int = 24,
+) -> List[dict]:
     """
     Generates a dense, continuous log-spaced continuum of wave speeds spanning
     the full operating register of an electric bass for a given scale length or multi-scale range:
@@ -182,7 +184,10 @@ def generate_wave_speed_continuum(scale_length_m=0.8636, num_points: int = 24) -
     return continuum
 
 
-def resolve_scale_length(string_speeds, scale_length_m: float = None) -> float:
+def resolve_scale_length(
+    string_speeds,
+    scale_length_m: Union[float, Tuple[float, float], List[float], None] = None,
+) -> float:
     """Resolves the effective vibrating scale length in meters."""
     if scale_length_m is not None:
         if isinstance(scale_length_m, (tuple, list)) and len(scale_length_m) == 2:

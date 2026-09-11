@@ -240,6 +240,7 @@ def make_soapbar_pickup(
     - Dual internal sensing blades with sleek solid active cover
     """
     rx = 13.5
+    _ = x_strings
     x = cx - w / 2
     y = cy - h / 2
 
@@ -299,19 +300,19 @@ def generate_pack_svg(model_key: str) -> str:
             "scale": "34&quot; SCALE",
             "badge2": "ALNICO V SPLIT-P",
             "badge3": "11.2 kΩ DUAL-COIL",
-            "content": lambda acc: f"""
+            "content": lambda accent: f"""
                 <!-- Background Flux Lines -->
-                <g fill="none" stroke="{acc}" stroke-opacity="0.14" stroke-width="1.2">
+                <g fill="none" stroke="{accent}" stroke-opacity="0.14" stroke-width="1.2">
                   <ellipse cx="520" cy="480" rx="145" ry="80"/>
                   <ellipse cx="520" cy="480" rx="205" ry="115" stroke-dasharray="8 6"/>
                   <ellipse cx="680" cy="594" rx="145" ry="80"/>
                   <ellipse cx="680" cy="594" rx="205" ry="115" stroke-dasharray="8 6"/>
                 </g>
                 <!-- RLC Inductance Curve -->
-                <path d="M 160 760 Q 340 755 520 725 T 640 605 T 760 725 T 1040 805" fill="none" stroke="{acc}" stroke-opacity="0.22" stroke-width="2.5" stroke-dasharray="6 6"/>
+                <path d="M 160 760 Q 340 755 520 725 T 640 605 T 760 725 T 1040 805" fill="none" stroke="{accent}" stroke-opacity="0.22" stroke-width="2.5" stroke-dasharray="6 6"/>
                 <!-- P-Bass Split Coils (EA at 520, DG at 680: Exactly 0.0px vertical gap, flush alignment) -->
-                {make_pbass_half(520, 480, (strings[0], strings[1]), acc, "BASS E/A")}
-                {make_pbass_half(680, 594, (strings[2], strings[3]), acc, "TREBLE D/G")}
+                {make_pbass_half(520, 480, (strings[0], strings[1]), accent, "BASS E/A")}
+                {make_pbass_half(680, 594, (strings[2], strings[3]), accent, "TREBLE D/G")}
                 <!-- Datum labels (Word-wrapped and safely placed within margins >= 130px) -->
                 <g font-family="system-ui, -apple-system, sans-serif" fill="#cbd5e1" font-weight="800" letter-spacing="1">
                   <!-- Left Datum -->
@@ -334,19 +335,19 @@ def generate_pack_svg(model_key: str) -> str:
             "scale": "34&quot; SCALE",
             "badge2": "ALNICO V DUAL-J",
             "badge3": "60s PICKUP SPACING",
-            "content": lambda acc: f"""
+            "content": lambda accent: f"""
                 <!-- Background Flux Lines -->
-                <g fill="none" stroke="{acc}" stroke-opacity="0.14" stroke-width="1.2">
+                <g fill="none" stroke="{accent}" stroke-opacity="0.14" stroke-width="1.2">
                   <ellipse cx="600" cy="430" rx="230" ry="70"/>
                   <ellipse cx="600" cy="430" rx="300" ry="100" stroke-dasharray="8 6"/>
                   <ellipse cx="600" cy="665" rx="230" ry="70"/>
                   <ellipse cx="600" cy="665" rx="300" ry="100" stroke-dasharray="8 6"/>
                 </g>
                 <!-- RLC Inductance Curve -->
-                <path d="M 160 760 Q 360 755 500 710 T 660 585 T 780 715 T 1040 805" fill="none" stroke="{acc}" stroke-opacity="0.22" stroke-width="2.5" stroke-dasharray="6 6"/>
+                <path d="M 160 760 Q 360 755 500 710 T 660 585 T 780 715 T 1040 805" fill="none" stroke="{accent}" stroke-opacity="0.22" stroke-width="2.5" stroke-dasharray="6 6"/>
                 <!-- Neck and Bridge J Pickups (Vertical clearance = 159px) -->
-                {make_jbass_pickup(600, 430, strings, acc, w=385, h=78, label="NECK PICKUP")}
-                {make_jbass_pickup(600, 665, strings, acc, w=396, h=78, label="BRIDGE PICKUP")}
+                {make_jbass_pickup(600, 430, strings, accent, w=385, h=78, label="NECK PICKUP")}
+                {make_jbass_pickup(600, 665, strings, accent, w=396, h=78, label="BRIDGE PICKUP")}
                 <!-- Datum labels (Word-wrapped and safely placed within margins >= 130px) -->
                 <g font-family="system-ui, -apple-system, sans-serif" fill="#cbd5e1" font-weight="800" letter-spacing="1">
                   <!-- Left Datums -->
@@ -373,21 +374,21 @@ def generate_pack_svg(model_key: str) -> str:
             "scale": "34&quot; SCALE",
             "badge2": "P/J HYBRID COILS",
             "badge3": "ACTIVE/PASSIVE HARNESS",
-            "content": lambda acc: f"""
+            "content": lambda accent: f"""
                 <!-- Background Flux Lines -->
-                <g fill="none" stroke="{acc}" stroke-opacity="0.14" stroke-width="1.2">
+                <g fill="none" stroke="{accent}" stroke-opacity="0.14" stroke-width="1.2">
                   <ellipse cx="520" cy="410" rx="135" ry="70"/>
                   <ellipse cx="680" cy="524" rx="135" ry="70"/>
                   <ellipse cx="600" cy="690" rx="230" ry="65"/>
                   <ellipse cx="600" cy="690" rx="300" ry="95" stroke-dasharray="8 6"/>
                 </g>
                 <!-- RLC Inductance Curve -->
-                <path d="M 160 760 Q 340 755 500 720 T 640 590 T 760 715 T 1040 805" fill="none" stroke="{acc}" stroke-opacity="0.22" stroke-width="2.5" stroke-dasharray="6 6"/>
+                <path d="M 160 760 Q 340 755 500 720 T 640 590 T 760 715 T 1040 805" fill="none" stroke="{accent}" stroke-opacity="0.22" stroke-width="2.5" stroke-dasharray="6 6"/>
                 <!-- Split-P at Neck (EA at 520, DG at 680: Exactly 0.0px vertical gap, flush alignment) -->
-                {make_pbass_half(520, 410, (strings[0], strings[1]), acc, "P-BASS EA")}
-                {make_pbass_half(680, 524, (strings[2], strings[3]), acc, "P-BASS DG")}
+                {make_pbass_half(520, 410, (strings[0], strings[1]), accent, "P-BASS EA")}
+                {make_pbass_half(680, 524, (strings[2], strings[3]), accent, "P-BASS DG")}
                 <!-- Jazz Pickup at Bridge (y=690: 72px vertical clearance below DG) -->
-                {make_jbass_pickup(600, 690, strings, acc, w=396, h=78, label="J-BRIDGE")}
+                {make_jbass_pickup(600, 690, strings, accent, w=396, h=78, label="J-BRIDGE")}
                 <!-- Datum labels (Word-wrapped and safely placed within margins >= 130px) -->
                 <g font-family="system-ui, -apple-system, sans-serif" fill="#cbd5e1" font-weight="800" letter-spacing="1">
                   <!-- Left Datums -->
@@ -414,26 +415,26 @@ def generate_pack_svg(model_key: str) -> str:
             "scale": "30&quot; SHORT SCALE",
             "badge2": "MUSTANG P/J HYBRID",
             "badge3": "FAST TRANSIENT DYNAMICS",
-            "content": lambda acc: f"""
+            "content": lambda accent: f"""
                 <!-- Racing Stripes Aesthetic (Mustang Heritage) -->
                 <g opacity="0.12">
-                  <line x1="880" y1="60" x2="880" y2="1140" stroke="{acc}" stroke-width="28"/>
-                  <line x1="915" y1="60" x2="915" y2="1140" stroke="{acc}" stroke-width="12"/>
+                  <line x1="880" y1="60" x2="880" y2="1140" stroke="{accent}" stroke-width="28"/>
+                  <line x1="915" y1="60" x2="915" y2="1140" stroke="{accent}" stroke-width="12"/>
                 </g>
                 <!-- Background Flux Lines -->
-                <g fill="none" stroke="{acc}" stroke-opacity="0.14" stroke-width="1.2">
+                <g fill="none" stroke="{accent}" stroke-opacity="0.14" stroke-width="1.2">
                   <ellipse cx="520" cy="410" rx="135" ry="70"/>
                   <ellipse cx="680" cy="524" rx="135" ry="70"/>
                   <ellipse cx="600" cy="690" rx="230" ry="65"/>
                   <ellipse cx="600" cy="690" rx="300" ry="95" stroke-dasharray="8 6"/>
                 </g>
                 <!-- RLC Inductance Curve -->
-                <path d="M 160 760 Q 320 755 480 710 T 620 575 T 740 705 T 1040 805" fill="none" stroke="{acc}" stroke-opacity="0.22" stroke-width="2.5" stroke-dasharray="6 6"/>
+                <path d="M 160 760 Q 320 755 480 710 T 620 575 T 740 705 T 1040 805" fill="none" stroke="{accent}" stroke-opacity="0.22" stroke-width="2.5" stroke-dasharray="6 6"/>
                 <!-- Split-P at Neck (EA at 520, DG at 680: Exactly 0.0px vertical gap, flush alignment) -->
-                {make_pbass_half(520, 410, (strings[0], strings[1]), acc, "MUSTANG P-EA")}
-                {make_pbass_half(680, 524, (strings[2], strings[3]), acc, "MUSTANG P-DG")}
+                {make_pbass_half(520, 410, (strings[0], strings[1]), accent, "MUSTANG P-EA")}
+                {make_pbass_half(680, 524, (strings[2], strings[3]), accent, "MUSTANG P-DG")}
                 <!-- Jazz Pickup at Bridge (y=690: 72px vertical clearance below DG) -->
-                {make_jbass_pickup(600, 690, strings, acc, w=396, h=78, label="MUSTANG J-BRIDGE")}
+                {make_jbass_pickup(600, 690, strings, accent, w=396, h=78, label="MUSTANG J-BRIDGE")}
                 <!-- Datum labels (Word-wrapped and safely placed within margins >= 130px) -->
                 <g font-family="system-ui, -apple-system, sans-serif" fill="#cbd5e1" font-weight="800" letter-spacing="1">
                   <!-- Left Datums -->
@@ -460,19 +461,19 @@ def generate_pack_svg(model_key: str) -> str:
             "scale": "34&quot; SCALE",
             "badge2": "DUAL SOAPBARS",
             "badge3": "ACTIVE 3-BAND PREAMP",
-            "content": lambda acc: f"""
+            "content": lambda accent: f"""
                 <!-- Background Flux Lines -->
-                <g fill="none" stroke="{acc}" stroke-opacity="0.14" stroke-width="1.2">
+                <g fill="none" stroke="{accent}" stroke-opacity="0.14" stroke-width="1.2">
                   <ellipse cx="600" cy="430" rx="220" ry="90"/>
                   <ellipse cx="600" cy="430" rx="290" ry="120" stroke-dasharray="8 6"/>
                   <ellipse cx="600" cy="670" rx="220" ry="90"/>
                   <ellipse cx="600" cy="670" rx="290" ry="120" stroke-dasharray="8 6"/>
                 </g>
                 <!-- RLC Inductance Curve -->
-                <path d="M 160 770 Q 360 765 500 700 T 640 550 T 780 700 T 1040 810" fill="none" stroke="{acc}" stroke-opacity="0.22" stroke-width="2.5" stroke-dasharray="6 6"/>
+                <path d="M 160 770 Q 360 765 500 700 T 640 550 T 780 700 T 1040 810" fill="none" stroke="{accent}" stroke-opacity="0.22" stroke-width="2.5" stroke-dasharray="6 6"/>
                 <!-- Neck and Bridge Active Soapbars (Neck cy=430, Bridge cy=670: 80px gap) -->
-                {make_soapbar_pickup(600, 430, strings, acc, label="NECK SOAPBAR")}
-                {make_soapbar_pickup(600, 670, strings, acc, label="BRIDGE SOAPBAR")}
+                {make_soapbar_pickup(600, 430, strings, accent, label="NECK SOAPBAR")}
+                {make_soapbar_pickup(600, 670, strings, accent, label="BRIDGE SOAPBAR")}
                 <!-- Datum labels (Word-wrapped and safely placed within margins >= 130px) -->
                 <g font-family="system-ui, -apple-system, sans-serif" fill="#cbd5e1" font-weight="800" letter-spacing="1">
                   <!-- Left Datums -->
@@ -499,17 +500,17 @@ def generate_pack_svg(model_key: str) -> str:
             "scale": "34&quot; SCALE",
             "badge2": "SWEET-SPOT HUMBUCKER",
             "badge3": "ACTIVE 2-BAND PREAMP",
-            "content": lambda acc: f"""
+            "content": lambda accent: f"""
                 <!-- Background Magnetic Flux Field -->
-                <g fill="none" stroke="{acc}" stroke-opacity="0.14" stroke-width="1.2">
+                <g fill="none" stroke="{accent}" stroke-opacity="0.14" stroke-width="1.2">
                   <ellipse cx="600" cy="550" rx="240" ry="130"/>
                   <ellipse cx="600" cy="550" rx="320" ry="170" stroke-dasharray="8 6"/>
                   <ellipse cx="600" cy="550" rx="400" ry="210" stroke-dasharray="4 8" stroke-opacity="0.08"/>
                 </g>
                 <!-- RLC Inductance Curve with StingRay 2.5 kHz Notch and 4.2 kHz Peak -->
-                <path d="M 160 760 Q 340 755 480 720 T 560 745 T 660 565 T 780 710 T 1040 805" fill="none" stroke="{acc}" stroke-opacity="0.24" stroke-width="2.5" stroke-dasharray="6 6"/>
+                <path d="M 160 760 Q 340 755 480 720 T 560 745 T 660 565 T 780 710 T 1040 805" fill="none" stroke="{accent}" stroke-opacity="0.24" stroke-width="2.5" stroke-dasharray="6 6"/>
                 <!-- Music Man Sweet-Spot Humbucker centered at cy=550 -->
-                {make_stingray_pickup(600, 550, strings, acc, label="SWEET-SPOT HUMBUCKER")}
+                {make_stingray_pickup(600, 550, strings, accent, label="SWEET-SPOT HUMBUCKER")}
                 <!-- Datum labels (Word-wrapped and safely placed within margins >= 130px) -->
                 <g font-family="system-ui, -apple-system, sans-serif" fill="#cbd5e1" font-weight="800" letter-spacing="1">
                   <!-- Left Datum -->

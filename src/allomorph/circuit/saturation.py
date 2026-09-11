@@ -11,6 +11,7 @@ try:
     from numba import njit
     _HAS_NUMBA = True
 except ImportError:
+    njit = None
     _HAS_NUMBA = False
 
 if _HAS_NUMBA:
@@ -63,6 +64,7 @@ if _HAS_NUMBA:
         x_low_prev = 0.0
         x_high_prev = 0.0
         for i in range(n):
+            excess = 0.0
             val = x_arr[i]
             x_low_prev += alpha_c * (val - x_low_prev)
             x_high = val - x_low_prev
@@ -175,6 +177,7 @@ else:
         x_low_prev = 0.0
         x_high_prev = 0.0
         for i in range(n):
+            excess = 0.0
             val = x_arr[i]
             x_low_prev += alpha_c * (val - x_low_prev)
             x_high = val - x_low_prev

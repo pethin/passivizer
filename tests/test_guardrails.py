@@ -191,7 +191,7 @@ def test_guardrail_transducer_taxonomy_and_zero_conditional_deconvolution():
     for node in ast.walk(tree):
         if isinstance(node, ast.FunctionDef) and node.name == "compute_voice_prefilter_firs":
             for sub_node in ast.walk(node):
-                if isinstance(sub_node, ast.Constant) and sub_node.value in prohibited_constants:
+                if isinstance(sub_node, ast.Constant) and isinstance(sub_node.value, str) and sub_node.value in prohibited_constants:
                     raise AssertionError(
                         f"Found prohibited hardcoded voice ID '{sub_node.value}' inside compute_voice_prefilter_firs. "
                         "All acoustic filtering must be governed by first-class physical parameters (e.g. sensor_type)."

@@ -213,7 +213,6 @@ def test_baked_short_distinct_names_and_instrument_directories():
 def test_pipeline_cli_streamlined_stages():
     """Asserts that the CLI parser accepts all 7 pure Architecture C stages and rejects deprecated stages."""
     import argparse
-    from allomorph.pipeline.cli import main
 
     # We inspect the parser directly by testing valid arguments
     valid_stages = ["all", "viz", "canonical", "frontends", "targets", "train", "bake"]

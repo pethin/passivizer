@@ -2,9 +2,6 @@
 Tests for reusable onboard active preamps and buffer catalog configuration.
 """
 
-import math
-import numpy as np
-
 from allomorph.config import PREAMPS, get_preamp
 
 

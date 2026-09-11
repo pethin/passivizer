@@ -95,6 +95,6 @@ def main(argv=None):
         generate_all_charts(output_dir=args.out)
     else:
         inst = load_instrument(args.instrument)
-        target_file = generate_interactive_chart(instrument=inst, out_html=args.out, mode=args.mode)
+        generate_interactive_chart(instrument=inst, out_html=args.out, mode=args.mode)
         if args.out is None or (Path(args.out).resolve() == RESPONSES_DIR.resolve()):
             generate_portal_pages(output_dir=RESPONSES_DIR, default_id=inst.get("id"))

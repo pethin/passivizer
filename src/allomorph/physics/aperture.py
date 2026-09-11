@@ -6,6 +6,7 @@ spatial responses across the continuous wave-speed continuum.
 """
 
 import math
+from typing import Union, Tuple, List, Sequence, Optional
 import numpy as np
 
 from allomorph.config import (
@@ -95,6 +96,7 @@ def compute_saddle_boundary_coupling(freqs, pos_m: float, scale_m: float = 0.863
     Smoothly transitions to 1.000 (0.00 dB) as distance increases to >= 75 mm.
     """
     f = np.asarray(freqs, dtype=np.float64)
+    _ = scale_m
     if pos_m >= 0.075 or pos_m <= 0.0:
         return np.ones_like(f)
     ratio = np.clip(pos_m / 0.075, 0.0, 1.0)
@@ -173,7 +175,11 @@ def get_coil_register(coil: dict) -> str:
 
 
 def numpy_pickup_acoustic_response(
-    freqs, coils: list, scale_length_m: float = None, string_speeds=None, string_names=None
+    freqs,
+    coils: list,
+    scale_length_m: Union[float, Tuple[float, float], List[float], Sequence[float], None] = None,
+    string_speeds: Optional[Sequence[float]] = None,
+    string_names: Optional[Sequence[Union[str, int]]] = None,
 ) -> np.ndarray:
     """
     Computes compound spatial aperture and multi-coil response for an arbitrary

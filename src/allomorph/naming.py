@@ -92,7 +92,9 @@ def resolve_instruments(instrument_arg):
       - Single instrument ID or alias: '30in', 'fretless', 'jazz'
       - Partial / alias matching
     """
-    all_playable = [iid for iid in sorted(INSTRUMENTS.keys()) if iid != "canonical_intermediate"]
+    all_playable: list[str] = [
+        str(iid) for iid in sorted(INSTRUMENTS.keys()) if str(iid) != "canonical_intermediate"
+    ]
     if not instrument_arg or str(instrument_arg).strip().lower() == "all":
         return all_playable
 

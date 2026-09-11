@@ -228,6 +228,72 @@ def eval_pot_taper(pos: float, taper: str = "audio") -> float:
 class CircuitModel:
     """Represents a parsed RLC guitar circuit digital twin."""
 
+    topology: str
+    vsat: float
+    vsat_n: float
+    vsat_b: float
+    L: float
+    L_core: float
+    R_core: float
+    Rdc: float
+    Reddy: float
+    Ccoil: float
+    L_b: float
+    L_core_b: float
+    R_core_b: float
+    Rdc_b: float
+    Reddy_b: float
+    Ccoil_b: float
+    Ctone: float
+    Rtone: float
+    Crick: float
+    Rtop: float
+    Rbot: float
+    Ctb: float
+    Rtb_par: float
+    Rtb_ser: float
+    has_active_buffer: bool
+    preamp_type: str
+    preamp_bands: Optional[list]
+    preamp_gain: float
+    R_preamp_in: float
+    C_preamp_in: float
+    R_out: float
+    no_eq: bool
+    Ccable: float
+    tan_delta: float
+    tan_delta_coil: float
+    Ranagram: float
+    Canagram: float
+    Rpot_n: float
+    Rpot_b: float
+    alpha_dielectric_tone: float
+    alpha_dielectric_cable: float
+    k_mutual: float
+    C_mutual: float
+    chi_mu: float
+    chi_mu_b: float
+    omega_mu: float
+    k_dist: float
+    k_dist_b: float
+    omega_dist: float
+    k_skin: float
+    f_skin: float
+    k_skin_b: float
+    f_skin_b: float
+    vol_pos: float
+    tone_pos: float
+    blend_pos: float
+    pot_taper: str
+    Rvol_total: float
+    Rtone_total: float
+    Rblend_total: float
+    Rtop_default: float
+    Rbot_default: float
+    Rtone_default: float
+    Rpot_n_default: float
+    Rpot_b_default: float
+
     def __init__(self):
         self.topology = "single"  # "single", "parallel", "series"
         self.vsat = 0.50
@@ -591,7 +657,7 @@ def load_circuit(source: Union[CircuitModel, dict, str, Path]) -> CircuitModel:
             if str(source) in VOICES:
                 return load_circuit(VOICES[str(source)])
         except ImportError:
-            pass
+            VOICES = {}
 
         try:
             from allomorph.config.instruments import INSTRUMENTS
@@ -607,7 +673,7 @@ def load_circuit(source: Union[CircuitModel, dict, str, Path]) -> CircuitModel:
                     if "circuit" in p:
                         return load_circuit(p["circuit"])
         except ImportError:
-            pass
+            INSTRUMENTS = {}
 
     raise ValueError(f"Could not load circuit from: {source}")
 

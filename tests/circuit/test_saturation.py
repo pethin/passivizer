@@ -21,7 +21,6 @@ from allomorph.circuit import (
     compute_core_impedance,
     MAGNET_PROPERTIES,
     CircuitModel,
-    REPO_ROOT,
     _dahl_core,
     _lenz_velocity_drag_core,
     _lenz_envelope_core,
@@ -32,7 +31,6 @@ from allomorph.dsp import write_wav_24bit
 
 def test_passive_saturation_bypassed():
     """Verify that forward tanh saturation is bypassed when is_passive is True."""
-    sr = 48000
     n_samples = 4800
     # High amplitude input (0.80) exceeding vsat (0.45)
     in_heavy = np.full((1, n_samples), 0.80, dtype=np.float32)
@@ -805,7 +803,7 @@ def test_dynamic_reluctance_inductance_modulation():
     forte_sig = (0.70 * np.sin(2.0 * np.pi * 100.0 * t) + 0.30 * np.sin(2.0 * np.pi * 2500.0 * t)).astype(np.float32)
     out_nolin = apply_oversampled_saturation(forte_sig, vsat=0.5, lambda_L=0.0)
     out_mod = apply_oversampled_saturation(forte_sig, vsat=0.5, lambda_L=0.05)
-    diff = np.max(np.abs(out_mod - out_nolin))
+    diff = float(np.max(np.abs(out_mod - out_nolin)))
     assert diff > 1e-4, "Reluctance inductance modulation must engage on forte excursions"
 
 
@@ -825,7 +823,7 @@ def test_electromechanical_back_emf_braking():
     forte_spike = (0.75 * np.sin(2.0 * np.pi * 80.0 * t) + 0.35 * np.sin(2.0 * np.pi * 3000.0 * t)).astype(np.float32)
     out_no_emf = apply_oversampled_saturation(forte_spike, vsat=0.5, k_emf=0.0)
     out_emf = apply_oversampled_saturation(forte_spike, vsat=0.5, k_emf=0.04)
-    diff = np.max(np.abs(out_emf - out_no_emf))
+    diff = float(np.max(np.abs(out_emf - out_no_emf)))
     assert diff > 1e-4, "Back-EMF braking must dynamically engage on forte excursions"
     rms_no_emf = np.sqrt(np.mean(out_no_emf ** 2))
     rms_emf = np.sqrt(np.mean(out_emf ** 2))

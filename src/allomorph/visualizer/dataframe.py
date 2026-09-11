@@ -4,14 +4,12 @@ Calculates magnitude frequency responses for target voicings, frontend deconvolu
 and composite signal flow stages using Polars and NumPy.
 """
 
-from pathlib import Path
 from typing import Optional, Union, Dict, Any
 
 import numpy as np
 import polars as pl
 
 from allomorph.config import (
-    REPO_ROOT,
     VOICES,
     SCALES,
     load_instrument,
@@ -67,8 +65,7 @@ def build_voice_dataframe(
     inst = load_instrument(inst_selector) if not isinstance(inst_selector, dict) else inst_selector
 
     tgt_scale = cfg.get("scale", "34in")
-    tgt = SCALES[tgt_scale]
-    tgt_speeds = tgt["speeds"]
+    _ = SCALES[tgt_scale]
 
     freqs = np.asarray(log_freqs, dtype=np.float64)
     pickups = resolve_voice_pickups(cfg)
@@ -139,7 +136,7 @@ def build_voice_dataframe(
             c_curve = circuit_curves[0] if circuit_curves else [1.0] * len(FREQS)
             h_tgt_total = np.interp(freqs, FREQS, np.asarray(c_curve, dtype=np.float64))
         else:
-            tgt_scale_range = resolve_scale_range(tgt if tgt_scale in SCALES else tgt_scale)
+            tgt_scale_range = resolve_scale_range(tgt_scale)
             tgt_scale_m = (tgt_scale_range[0] + tgt_scale_range[1]) / 2.0
             positions = [compute_effective_position(p["coils"]) for p in pickups]
             pos_max = max(positions) if positions else 0.0

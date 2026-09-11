@@ -5,7 +5,6 @@ dielectric absorption, and Jordan permeability relaxation.
 
 import math
 import numpy as np
-import pytest
 
 from allomorph.circuit import (
     load_circuit,
@@ -169,14 +168,14 @@ def test_coil_dielectric_loss():
     # Compute with zero dielectric loss
     model.tan_delta_coil = 0.0
     curves_lossless = compute_circuit_transfer_functions(model, freqs=FREQS)
-    peak_lossless = max(curves_lossless[0])
+    peak_lossless = float(max(curves_lossless[0]))
     peak_idx_lossless = curves_lossless[0].index(peak_lossless)
     peak_freq_lossless = FREQS[peak_idx_lossless]
 
     # Compute with physical dielectric loss (tan delta = 0.025)
     model.tan_delta_coil = 0.025
     curves_lossy = compute_circuit_transfer_functions(model, freqs=FREQS)
-    peak_lossy = max(curves_lossy[0])
+    peak_lossy = float(max(curves_lossy[0]))
     peak_idx_lossy = curves_lossy[0].index(peak_lossy)
     peak_freq_lossy = FREQS[peak_idx_lossy]
 

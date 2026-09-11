@@ -282,7 +282,6 @@ def compute_parametric_sweep(
     Returns:
         ParametricSweepResult containing curves in dB, metadata, and Polars export.
     """
-    voice_id = None
     if isinstance(circuit_or_voice, CircuitModel):
         model = circuit_or_voice
         voice_id = getattr(model, "voice_id", None)
@@ -295,7 +294,7 @@ def compute_parametric_sweep(
             cfg = VOICES.get(str(circuit_or_voice)) or VOICES.get(voice_id)
             if cfg:
                 apply_magnet_properties_to_model(model, cfg)
-        except Exception:
+        except (KeyError, ImportError, AttributeError, ValueError):
             pass
     elif isinstance(circuit_or_voice, dict):
         voice_id = circuit_or_voice.get("id") or circuit_or_voice.get("name")
@@ -418,7 +417,8 @@ def compute_parametric_sweep(
             if orig_bands is not None:
                 base_bands = copy.deepcopy(orig_bands)
             elif model.preamp_type != "none" and model.preamp_type in PREAMPS:
-                base_bands = copy.deepcopy(PREAMPS[model.preamp_type].get("bands", []))
+                bands_cfg = PREAMPS[model.preamp_type].get("bands", [])
+                base_bands = copy.deepcopy(bands_cfg) if bands_cfg else []
 
             shelf_idx = None
             for i, b in enumerate(base_bands):
@@ -454,7 +454,8 @@ def compute_parametric_sweep(
             if orig_bands is not None:
                 base_bands = copy.deepcopy(orig_bands)
             elif model.preamp_type != "none" and model.preamp_type in PREAMPS:
-                base_bands = copy.deepcopy(PREAMPS[model.preamp_type].get("bands", []))
+                bands_cfg = PREAMPS[model.preamp_type].get("bands", [])
+                base_bands = copy.deepcopy(bands_cfg) if bands_cfg else []
 
             shelf_idx = None
             for i, b in enumerate(base_bands):

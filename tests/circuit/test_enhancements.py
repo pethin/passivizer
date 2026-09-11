@@ -18,11 +18,9 @@ from allomorph.circuit import (
     load_circuit,
     compute_circuit_transfer_functions,
     compute_parametric_sweep,
-    ParametricSweepResult,
 )
 from allomorph.circuit.simulation import simulate_circuit_audio
-from allomorph.config import VOICES, load_instrument
-from allomorph.physics import compute_voice_prefilter_firs
+from allomorph.config import VOICES
 
 
 def test_eval_pot_taper_boundaries_and_monotonicity():

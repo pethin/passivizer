@@ -7,11 +7,8 @@ active EQ sweeps, Polars DataFrame generation, and performance benchmark (< 50 m
 import time
 import numpy as np
 import polars as pl
-import pytest
 
 from allomorph.circuit import (
-    CircuitModel,
-    ParametricSweepResult,
     compute_parametric_sweep,
     load_circuit,
 )
@@ -112,12 +109,14 @@ def test_sweep_performance_benchmark():
     compute_parametric_sweep(model, param="tone", values=[0.0, 1.0])
 
     runs = []
+    res = None
     for _ in range(3):
         t0 = time.perf_counter()
         res = compute_parametric_sweep(model, param="tone", values=values)
         runs.append((time.perf_counter() - t0) * 1000.0)
 
-    best_ms = min(runs)
+    best_ms = float(min(runs))
+    assert res is not None
     assert len(res.curves) == 100
     assert best_ms < 50.0, f"Expected < 50 ms for 100 steps, best was {best_ms:.2f} ms (runs: {runs})"
 

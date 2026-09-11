@@ -5,7 +5,7 @@ core eddy diffusion, and differential RLC transfer functions to 24-bit audio buf
 """
 
 import math
-import os
+from typing import Optional, Union, Dict, Any, Sequence, List
 import wave
 from pathlib import Path
 import numpy as np
@@ -56,55 +56,55 @@ INTERMEDIATE_TARGET_RMS_DBFS = -16.5
 
 def simulate_circuit_audio(
     input_audio,
-    output_wav_path: Path,
+    output_wav_path: Union[str, Path],
     model: CircuitModel,
-    prefilter_firs=None,
-    circuit_curves=None,
+    prefilter_firs: Optional[Sequence[Any]] = None,
+    circuit_curves: Optional[Sequence[Any]] = None,
     is_passive: bool = False,
-    bypass_saturation: bool = None,
+    bypass_saturation: Optional[bool] = None,
     normalize: str = "auto",
-    target_dbfs: float = None,
+    target_dbfs: Optional[float] = None,
     oversample: int = 2,
     displacement_weighting: bool = True,
     magnet_drag: bool = True,
     alpha: float = 0.20,
-    alphas=None,
+    alphas: Optional[Sequence[float]] = None,
     alpha3: float = 0.08,
-    alpha3s=None,
+    alpha3s: Optional[Sequence[float]] = None,
     eta_hyst: float = 0.06,
-    eta_hysts=None,
+    eta_hysts: Optional[Sequence[float]] = None,
     k_sag: float = 0.08,
-    k_sags=None,
+    k_sags: Optional[Sequence[float]] = None,
     k_eddy: float = 0.0,
-    k_eddys=None,
+    k_eddys: Optional[Sequence[float]] = None,
     kappa_orbit: float = 0.0,
-    kappa_orbits=None,
+    kappa_orbits: Optional[Sequence[float]] = None,
     beta_curv: float = 0.0,
-    beta_curvs=None,
+    beta_curvs: Optional[Sequence[float]] = None,
     k_pull: float = 0.0,
-    k_pulls=None,
+    k_pulls: Optional[Sequence[float]] = None,
     tau_touch: float = 0.0,
-    tau_touches=None,
+    tau_touches: Optional[Sequence[float]] = None,
     kappa_geom: float = 0.0,
-    kappa_geoms=None,
+    kappa_geoms: Optional[Sequence[float]] = None,
     k_stein: float = 0.0,
-    k_steins=None,
+    k_steins: Optional[Sequence[float]] = None,
     k_emf: float = 0.0,
-    k_emfs=None,
+    k_emfs: Optional[Sequence[float]] = None,
     lambda_L: float = 0.0,
-    lambda_Ls=None,
-    vol_pos: float = None,
-    tone_pos: float = None,
-    blend_pos: float = None,
-    pot_taper: str = None,
+    lambda_Ls: Optional[Sequence[float]] = None,
+    vol_pos: Optional[float] = None,
+    tone_pos: Optional[float] = None,
+    blend_pos: Optional[float] = None,
+    pot_taper: Optional[str] = None,
     slew_limit: bool = True,
     f_slew: float = 16000.0,
     is_identity: bool = False,
     noise_dither: bool = True,
-    vsat: float = None,
-    vsats=None,
+    vsat: Optional[float] = None,
+    vsats: Optional[Sequence[float]] = None,
     dc_block: bool = True,
-    max_samples: int = None,
+    max_samples: Optional[int] = None,
 ):
     """
     Executes native Virtual Analog circuit simulation on audio.
@@ -147,10 +147,9 @@ def simulate_circuit_audio(
     in_mono = audio[0] if audio.ndim > 1 else audio
     in_peak = float(np.max(np.abs(in_mono)))
     in_rms = float(np.sqrt(np.mean(in_mono ** 2)))
-    in_peak_db = 20.0 * math.log10(max(in_peak, 1e-9))
     in_rms_db = 20.0 * math.log10(max(in_rms, 1e-9))
 
-    can_fuse_stages = bypass_saturation and prefilter_firs is not None
+    can_fuse_stages = bool(bypass_saturation and prefilter_firs is not None)
 
     if can_fuse_stages:
         pass
@@ -172,10 +171,8 @@ def simulate_circuit_audio(
         mag_curves = circuit_curves
     else:
         mag_curves = compute_circuit_transfer_functions(model, freqs=FREQS)
-    n_ch = len(mag_curves)
 
     channel_outputs = []
-    n_samples = audio.shape[1] if audio.ndim > 1 else len(audio)
 
     for ch_idx, mag_curve in enumerate(mag_curves):
         if audio.ndim > 1:
@@ -186,7 +183,7 @@ def simulate_circuit_audio(
             else:
                 in_ch = audio
 
-        if can_fuse_stages:
+        if can_fuse_stages and prefilter_firs is not None:
             p_fir = (
                 prefilter_firs[ch_idx]
                 if ch_idx < len(prefilter_firs)
@@ -411,7 +408,6 @@ def simulate_circuit_audio(
 
     raw_peak = float(np.max(np.abs(out_total)))
     raw_rms = float(np.sqrt(np.mean(out_total ** 2)))
-    raw_peak_db = 20.0 * math.log10(max(raw_peak, 1e-9))
     raw_rms_db = 20.0 * math.log10(max(raw_rms, 1e-9))
 
     should_normalize = (
@@ -479,42 +475,42 @@ def simulate_circuit_audio(
 
 def simulate_voice(
     voice_id: str,
-    input_wav: Path = None,
-    output_wav: Path = None,
-    instrument: str = "30in",
-    pickup: str = None,
-    tier: str = None,
+    input_wav: Union[str, Path, None] = None,
+    output_wav: Union[str, Path, None] = None,
+    instrument: Union[str, dict, None] = "30in",
+    pickup: Optional[str] = None,
+    tier: Optional[str] = None,
     prefiltered: bool = False,
-    cir_path: Path = None,
+    cir_path: Union[str, Path, None] = None,
     normalize: str = "auto",
-    target_dbfs: float = None,
+    target_dbfs: Optional[float] = None,
     oversample: int = 2,
     displacement_weighting: bool = True,
     magnet_drag: bool = True,
-    alpha: float = None,
-    alpha3: float = None,
-    eta_hyst: float = None,
-    k_sag: float = None,
-    k_eddy: float = None,
-    kappa_orbit: float = None,
-    beta_curv: float = None,
-    k_pull: float = None,
-    tau_touch: float = None,
-    kappa_geom: float = None,
-    k_stein: float = None,
-    k_emf: float = None,
-    lambda_L: float = None,
-    vol_pos: float = None,
-    tone_pos: float = None,
-    blend_pos: float = None,
-    pot_taper: str = None,
-    cable_pf: float = None,
+    alpha: Optional[float] = None,
+    alpha3: Optional[float] = None,
+    eta_hyst: Optional[float] = None,
+    k_sag: Optional[float] = None,
+    k_eddy: Optional[float] = None,
+    kappa_orbit: Optional[float] = None,
+    beta_curv: Optional[float] = None,
+    k_pull: Optional[float] = None,
+    tau_touch: Optional[float] = None,
+    kappa_geom: Optional[float] = None,
+    k_stein: Optional[float] = None,
+    k_emf: Optional[float] = None,
+    lambda_L: Optional[float] = None,
+    vol_pos: Optional[float] = None,
+    tone_pos: Optional[float] = None,
+    blend_pos: Optional[float] = None,
+    pot_taper: Optional[str] = None,
+    cable_pf: Optional[float] = None,
     slew_limit: bool = True,
     f_slew: float = 16000.0,
     noise_dither: bool = True,
     eddy_diffusion: bool = True,
     dc_block: bool = True,
-    max_samples: int = None,
+    max_samples: Optional[int] = None,
 ):
     """
     Simulates a target voice digital twin using the native Virtual Analog engine.
@@ -828,11 +824,11 @@ def simulate_voice(
         eff_vsats = []
         for i in range(len(voice_alphas)):
             ch_a = max(voice_alphas[i] - src_alpha, 0.0)
-            ch_a3 = max(voice_alpha3s[i] - src_alpha3, 0.0)
-            ch_eta = max(voice_eta_hysts[i] - src_eta, 0.0)
-            ch_sag = max(voice_k_sags[i] - src_sag, 0.0)
-            ch_eddy = max(voice_k_eddys[i] - src_eddy, 0.0)
-            ch_orbit = max(voice_kappa_orbits[i] - src_orbit, 0.0)
+            ch_a3 = max(voice_alpha3s[i] - src_alpha3, 0.0) if voice_alpha3s else diff_alpha3
+            ch_eta = max(voice_eta_hysts[i] - src_eta, 0.0) if voice_eta_hysts else diff_eta
+            ch_sag = max(voice_k_sags[i] - src_sag, 0.0) if voice_k_sags else diff_sag
+            ch_eddy = max(voice_k_eddys[i] - src_eddy, 0.0) if voice_k_eddys else diff_eddy
+            ch_orbit = max(voice_kappa_orbits[i] - src_orbit, 0.0) if voice_kappa_orbits else diff_orbit
             ch_beta = (
                 max(voice_beta_curvs[i] - src_beta, 0.0) if voice_beta_curvs else diff_beta
             )
@@ -988,7 +984,7 @@ def simulate_voice(
     samples_desc = f", Samples: {max_samples}" if max_samples is not None else ""
     cir_label = cir_path.name if cir_path else f"{voice_id}.toml"
     print(
-        f"  -> Simulating Native VA ({stage_desc}{samples_desc}): {cir_label} (Topology: {model.topology}, Source: {inst_id}, Soften: {should_soften}, Alpha: {diff_alpha:.2f}, Alpha3: {diff_alpha3:.2f}, Eta: {diff_eta:.2f}, Sag: {diff_sag:.2f}, Eddy: {diff_eddy:.2f}, Orbit: {diff_orbit:.2f}, Beta: {diff_beta:.3f}, Pull: {diff_pull:.3f}, Touch: {diff_touch:.3f}, Geom: {diff_geom:.2f}, Stein: {diff_stein:.3f}, EMF: {diff_emf:.2f}, Lambda: {diff_lambda:.2f}, Vsat: {eff_vsat:.2f})..."
+        f"  -> Simulating Native VA ({stage_desc}{samples_desc}): {cir_label} (Topology: {model.topology}, Source: {inst_id}, Soften: {'Yes' if should_soften else 'No'}, Alpha: {diff_alpha:.2f}, Alpha3: {diff_alpha3:.2f}, Eta: {diff_eta:.2f}, Sag: {diff_sag:.2f}, Eddy: {diff_eddy:.2f}, Orbit: {diff_orbit:.2f}, Beta: {diff_beta:.3f}, Pull: {diff_pull:.3f}, Touch: {diff_touch:.3f}, Geom: {diff_geom:.2f}, Stein: {diff_stein:.3f}, EMF: {diff_emf:.2f}, Lambda: {diff_lambda:.2f}, Vsat: {eff_vsat:.2f})..."
     )
     simulate_circuit_audio(
         input_wav,

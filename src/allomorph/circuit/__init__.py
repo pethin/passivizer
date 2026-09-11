@@ -28,11 +28,6 @@ from allomorph.circuit.saturation import (
     apply_elliptical_orbit_projection,
     apply_oversampled_saturation,
 )
-from allomorph.dsp import FREQS
-from allomorph.physics import (
-    compute_voice_prefilter_firs,
-    compute_aperture_prefilter_fir,
-)
 from allomorph.circuit.audio import (
     apply_prefilter_to_audio,
     prefilter_audio,

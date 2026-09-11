@@ -128,8 +128,8 @@ def test_circuit_simulation_vs_theory_consistency():
         sim_db = 20.0 * np.log10(H_sim / ref_val) + theory_ref_db
 
         for test_f in [50, 100, 200, 500, 1000, 2000, 3000, 4000, 6000, 8000]:
-            val_sim = np.interp(test_f, freqs_sim, sim_db)
-            val_theory = np.interp(test_f, f_theory, mag_theory_db)
+            val_sim = float(np.interp(test_f, freqs_sim, sim_db))
+            val_theory = float(np.interp(test_f, f_theory, mag_theory_db))
             diff = abs(val_sim - val_theory)
             assert diff < 2.0, f"{voice_id} at {test_f} Hz diff={diff:.2f} dB exceeds 2.0 dB (sim={val_sim:.2f}, theory={val_theory:.2f})"
 
@@ -166,8 +166,8 @@ def test_upright_voicing_simulation_vs_theory_consistency():
 
     # In the critical upright passband (20 Hz - 4.2 kHz), diff must be under 1.5 dB
     for test_f in [20, 30, 50, 70, 100, 200, 500, 1000, 2000, 3000, 4200]:
-        val_sim = np.interp(test_f, freqs_sim, sim_db)
-        val_theory = np.interp(test_f, f_theory, mag_theory_db)
+        val_sim = float(np.interp(test_f, freqs_sim, sim_db))
+        val_theory = float(np.interp(test_f, f_theory, mag_theory_db))
         diff = abs(val_sim - val_theory)
         assert diff < 1.5, f"Upright at {test_f} Hz diff={diff:.2f} dB exceeds 1.5 dB (sim={val_sim:.2f}, theory={val_theory:.2f})"
 
@@ -485,7 +485,6 @@ def test_multi_pickup_excursion_ratio():
     Mono signal through multi-pickup circuit simulation scales bridge drive.
     """
     model = load_circuit("02_jazz_bass_pair")
-    fs = 48000
     n_samples = 4800
     mono_audio = (np.sin(2 * np.pi * 100.0 * np.linspace(0, 0.1, n_samples)) * 0.8).astype(np.float32)
 

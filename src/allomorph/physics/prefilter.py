@@ -4,7 +4,7 @@ Synthesizes causal minimum-phase FIR pre-filters modeling compound spatial acous
 scale-length wave-speed conversions, and transducer deconvolution.
 """
 
-import math
+from pathlib import Path
 import numpy as np
 
 from allomorph.dsp import NUM_TAPS, FREQS, synthesize_minimum_phase_fir

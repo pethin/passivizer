@@ -254,12 +254,12 @@ def simulate_backend_targets(tier: str = "standard", voice_id: str = None):
             if t == "clean":
                 sim_alpha = 0.0
                 sim_vsat = 10.0
-            elif t == "dynamic":
-                sim_alpha = v_alpha
-                sim_vsat = v_vsat
             elif t == "hotrod":
                 sim_alpha = min(1.0, v_alpha * 1.75)
                 sim_vsat = max(0.20, v_vsat / 1.35)
+            else:
+                sim_alpha = v_alpha
+                sim_vsat = v_vsat
 
             simulate_voice(
                 voice_id=vid,
@@ -505,7 +505,6 @@ def main(argv=None):
     args = parser.parse_args(argv)
 
     if args.sweep:
-        import numpy as np
         from allomorph.circuit.sweeps import compute_parametric_sweep
 
         target_voices = resolve_voices(args.voice)

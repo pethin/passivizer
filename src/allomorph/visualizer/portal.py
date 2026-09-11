@@ -33,7 +33,7 @@ def format_instrument_meta(inst):
         pname = pcfg.get("name", pid)
         pos_m = pcfg.get("position_from_bridge_m")
         if pos_m:
-            pos_mm = pos_m * 1000.0
+            pos_mm = float(pos_m) * 1000.0
             parts.append(f"{pname} (@ {pos_mm:.1f}mm)")
         else:
             parts.append(pname)
@@ -62,9 +62,6 @@ def build_portal_html(instruments_meta, default_id, base_url_prefix="./"):
             f'</button>'
         )
     tabs_markup = "\n    ".join(buttons_html)
-
-    default_meta = instruments_meta.get(default_id, next(iter(instruments_meta.values())))
-    default_standalone_url = f"{base_url_prefix}{default_id}.html"
 
     html = f"""<!DOCTYPE html>
 <html lang="en">

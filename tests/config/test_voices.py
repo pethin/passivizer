@@ -2,7 +2,6 @@
 Tests for target voices catalog, electrical parameters, SPICE netlist existence, and transparency.
 """
 
-from pathlib import Path
 import numpy as np
 
 from allomorph.config import VOICES

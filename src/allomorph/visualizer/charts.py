@@ -2,7 +2,6 @@
 Allomorph Visualizer - Interactive Altair Charts Generation
 """
 from pathlib import Path
-from typing import Optional, Union, Dict, Any
 
 import altair as alt
 import polars as pl
@@ -11,7 +10,6 @@ from allomorph.config import VOICES, load_instrument, load_all_instruments
 from allomorph.visualizer.dataframe import (
     build_voice_dataframe,
     build_universal_targets_dataframe,
-    build_frontend_deconvolutions_dataframe,
     build_instrument_frontend_dataframe,
     build_composite_instrument_dataframe,
 )

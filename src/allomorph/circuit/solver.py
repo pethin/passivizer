@@ -6,6 +6,7 @@ Jordan after-effect permeability dispersion, and Wiener-regularized deconvolutio
 """
 
 import math
+from typing import Union
 import numpy as np
 
 from allomorph.dsp import FREQS
@@ -127,7 +128,9 @@ def apply_magnet_properties_to_model(
             model.f_skin_b = props_b.get("f_skin", 3200.0)
 
 
-def evaluate_analog_band(band: dict, s: np.ndarray) -> np.ndarray:
+def evaluate_analog_band(
+    band: dict, s: Union[complex, np.ndarray, float]
+) -> Union[complex, np.ndarray]:
     """Evaluates continuous s-domain analog transfer function for a single EQ band."""
     b_type = band.get("type", "bell")
     f0 = float(band.get("freq_hz", 1000.0))

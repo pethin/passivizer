@@ -64,7 +64,7 @@ def prefilter_audio(input_wav_path: Union[str, Path], output_wav_path: Union[str
 
     with AudioFile(str(input_wav_path)) as f:
         audio = f.read(f.frames)
-        sr = f.samplerate
+        sr = int(f.samplerate)
 
     effected = apply_prefilter_to_audio(audio, sr, fir_samples)
 
