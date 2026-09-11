@@ -1,0 +1,310 @@
+"""
+Allomorph - String Mechanics & Wave Dispersion Modeling
+Computes differential string damping and bloom, longitudinal clank resonance,
+inharmonicity B_s interpolation, scale-length conversions, and dispersive wave speeds.
+"""
+
+import math
+from typing import List, Tuple, Union
+import numpy as np
+
+from allomorph.config import (
+    SCALES,
+    STRINGS,
+    load_instrument,
+)
+
+NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
+
+STRING_FUNDAMENTALS = {
+    "B": 30.868,
+    "E": 41.203,
+    "A": 55.000,
+    "D": 73.416,
+    "G": 97.999,
+    "C": 130.813,
+}
+
+INHARMONICITY_ANCHORS_F0 = np.array(
+    [27.50, 30.87, 41.20, 55.00, 73.42, 98.00, 130.81, 196.00], dtype=np.float64
+)
+INHARMONICITY_ANCHORS_BS = np.array(
+    [0.000028, 0.000025, 0.000020, 0.000012, 0.000006, 0.000003, 0.0000015, 0.0000008],
+    dtype=np.float64,
+)
+MEAN_BASS_F0 = 66.9045  # Mean open-string fundamental frequency (E1=41.203, A1=55.000, D2=73.416, G2=97.999)
+
+
+def get_voice_string(voice_cfg: dict) -> dict:
+    """Resolves target string configuration dictionary for a target voice."""
+    preset = voice_cfg.get("target_string", "roundwound_nickel_standard")
+    return STRINGS.get(preset, STRINGS.get("roundwound_nickel_standard", {})).copy()
+
+
+def compute_differential_string_transfer(freqs, src_string: dict, tgt_string: dict) -> np.ndarray:
+    """
+    Computes differential transfer function between source instrument strings
+    and target voicing goal strings using NumPy:
+      H_string_transfer(f) = H_damp_ratio(f) * H_bloom_diff(f)
+    Prevents double-damping when source bass already uses flatwounds, while
+    providing authentic acoustic upright/fanned-fret damping and bloom.
+    """
+    f = np.asarray(freqs, dtype=np.float64)
+
+    f_damp_src = float(src_string.get("damping_cutoff_hz", 8500.0))
+    n_src = float(src_string.get("damping_order", 1.0))
+
+    f_damp_tgt = float(tgt_string.get("damping_cutoff_hz", 8500.0))
+    n_tgt = float(tgt_string.get("damping_order", 1.0))
+
+    # Calculate magnitude damping curves
+    src_mag = 1.0 / np.sqrt(1.0 + (f / f_damp_src) ** (2.0 * n_src))
+    tgt_mag = 1.0 / np.sqrt(1.0 + (f / f_damp_tgt) ** (2.0 * n_tgt))
+
+    ratio = tgt_mag / np.maximum(src_mag, 1e-6)
+    r_db = 20.0 * np.log10(np.maximum(ratio, 1e-6))
+    g_max_db = 8.0
+    g_min_db = -36.0
+    r_soft_db = np.where(
+        r_db > 0.0,
+        g_max_db * np.tanh(r_db / g_max_db),
+        g_min_db * np.tanh(r_db / g_min_db),
+    )
+    h_damp_ratio = 10.0 ** (r_soft_db / 20.0)
+
+    bloom_src = float(src_string.get("bloom_db", 0.0))
+    bloom_tgt = float(tgt_string.get("bloom_db", 0.0))
+    delta_bloom_db = bloom_tgt - bloom_src
+
+    g_bloom = 10.0 ** (delta_bloom_db / 20.0)
+    h_bloom = np.sqrt((g_bloom ** 2 + (f / 90.0) ** 2) / (1.0 + (f / 90.0) ** 2))
+
+    return h_damp_ratio * h_bloom
+
+
+def compute_differential_longitudinal_transfer(
+    freqs, src_string: dict, tgt_string: dict, scale_length_inches: float = 34.0
+) -> np.ndarray:
+    """
+    Computes differential longitudinal wave transmission and core percussion (H_long(f)).
+    Steel core longitudinal compression waves (cL ≈ 5100 m/s) produce an instantaneous
+    resonant clank peak around f_L = cL / (2 * L) (≈ 2.7 - 3.3 kHz).
+    When target voicing has higher longitudinal clank than source, injects regularized
+    percussive clank resonance. Returns 1.0 when matching source or delta <= 0.
+    """
+    f = np.asarray(freqs, dtype=np.float64)
+    k_long_src = float(src_string.get("k_long", 0.20))
+    k_long_tgt = float(tgt_string.get("k_long", 0.20))
+    delta_k_long = max(k_long_tgt - k_long_src, 0.0)
+    if delta_k_long <= 0.0:
+        return np.ones_like(f)
+
+    L_meters = float(scale_length_inches) * 0.0254
+    c_L = 5100.0
+    f_L = c_L / (2.0 * max(L_meters, 0.50))
+    Q_L = 8.0
+    denom_L = Q_L * np.sqrt((1.0 - (f / f_L) ** 2) ** 2 + (f / (Q_L * f_L)) ** 2)
+    h_long = 1.0 + delta_k_long * (f / f_L) / np.maximum(denom_L, 1e-6) * np.exp(
+        -((f / 6000.0) ** 2)
+    )
+    return h_long
+
+
+def pitch_to_note_name(f0: float) -> str:
+    """Converts fundamental frequency f0 to equal-temperament note name (A4 = 440 Hz)."""
+    if f0 <= 0:
+        return "C"
+    midi_num = 69.0 + 12.0 * math.log2(f0 / 440.0)
+    note_idx = int(round(midi_num)) % 12
+    return NOTE_NAMES[note_idx]
+
+
+def get_inharmonicity_for_f0(f0: float) -> float:
+    """
+    Returns the physical string stiffness / inharmonicity parameter B_s
+    interpolated smoothly in log-frequency space.
+    """
+    log_f0 = np.log2(np.clip(f0, 20.0, 300.0))
+    log_anchors = np.log2(INHARMONICITY_ANCHORS_F0)
+    b_s = float(np.interp(log_f0, log_anchors, INHARMONICITY_ANCHORS_BS))
+    return b_s
+
+
+def resolve_scale_range(inst_or_scale) -> Tuple[float, float]:
+    """
+    Resolves the vibrating scale length range (scale_min_m, scale_max_m) in meters.
+    Returns (L, L) for standard single-scale instruments, or (min_m, max_m) for multi-scale.
+    """
+    if inst_or_scale is None:
+        return (0.8636, 0.8636)
+
+    if isinstance(inst_or_scale, (tuple, list)):
+        if len(inst_or_scale) == 2 and all(float(v) <= 5.0 for v in inst_or_scale):
+            return (float(min(inst_or_scale)), float(max(inst_or_scale)))
+        elif any(float(v) > 10.0 for v in inst_or_scale):
+            return (0.8636, 0.8636)
+
+    if isinstance(inst_or_scale, (int, float)):
+        val = float(inst_or_scale)
+        val_m = val * 0.0254 if val > 5.0 else val
+        return (val_m, val_m)
+
+    if isinstance(inst_or_scale, str):
+        if inst_or_scale in SCALES:
+            s_info = SCALES[inst_or_scale]
+            if s_info.get("is_multiscale"):
+                min_m = s_info.get("scale_min_in", 34.0) * 0.0254
+                max_m = s_info.get("scale_max_in", 37.0) * 0.0254
+                return (min_m, max_m)
+            l_m = s_info.get("scale_m", s_info.get("scale_length_m", 0.8636))
+            return (l_m, l_m)
+        try:
+            inst = load_instrument(inst_or_scale)
+            return resolve_scale_range(inst)
+        except Exception:
+            return (0.8636, 0.8636)
+
+    if isinstance(inst_or_scale, dict):
+        if inst_or_scale.get("is_multiscale"):
+            min_in = inst_or_scale.get("scale_min_in")
+            max_in = inst_or_scale.get("scale_max_in", inst_or_scale.get("scale_length_in", 37.0))
+            if min_in is not None and max_in is not None:
+                return (float(min_in) * 0.0254, float(max_in) * 0.0254)
+        l_in = inst_or_scale.get("scale_length_in")
+        l_m = inst_or_scale.get("scale_length_m", float(l_in) * 0.0254 if l_in else 0.8636)
+        return (l_m, l_m)
+
+    return (0.8636, 0.8636)
+
+
+def generate_wave_speed_continuum(scale_length_m=0.8636, num_points: int = 24) -> List[dict]:
+    """
+    Generates a dense, continuous log-spaced continuum of wave speeds spanning
+    the full operating register of an electric bass for a given scale length or multi-scale range:
+    v(f0) = 2 * L(f0) * f0
+    From f_min = 30.87 Hz (Low B) to f_max = 100.00 Hz (High G).
+    On multi-scale instruments, L(f0) smoothly interpolates from L_max at Low B to L_min at High G.
+    """
+    f_min = 30.87
+    f_max = 100.00
+    log_f = np.linspace(np.log2(f_min), np.log2(f_max), num_points)
+    f0_arr = 2.0 ** log_f
+
+    if isinstance(scale_length_m, (tuple, list)) and len(scale_length_m) == 2:
+        l_min_m = float(min(scale_length_m))
+        l_max_m = float(max(scale_length_m))
+    elif isinstance(scale_length_m, dict) or (
+        isinstance(scale_length_m, str) and scale_length_m in SCALES
+    ):
+        l_min_m, l_max_m = resolve_scale_range(scale_length_m)
+    else:
+        l_min_m = float(scale_length_m)
+        l_max_m = float(scale_length_m)
+
+    if abs(l_max_m - l_min_m) > 1e-4:
+        t = (log_f - np.log2(f_min)) / (np.log2(f_max) - np.log2(f_min))
+        l_arr = l_max_m - t * (l_max_m - l_min_m)
+    else:
+        l_arr = np.full_like(f0_arr, l_max_m)
+
+    v0_arr = 2.0 * l_arr * f0_arr
+
+    continuum = []
+    half = num_points // 2
+    for i, (f0, v0, l_eff) in enumerate(zip(f0_arr, v0_arr, l_arr)):
+        reg = "lower" if i < half else "upper"
+        continuum.append(
+            {
+                "f0": float(f0),
+                "v0": float(v0),
+                "scale_m": float(l_eff),
+                "register": reg,
+                "weight": 1.0 / num_points,
+            }
+        )
+    return continuum
+
+
+def resolve_scale_length(string_speeds, scale_length_m: float = None) -> float:
+    """Resolves the effective vibrating scale length in meters."""
+    if scale_length_m is not None:
+        if isinstance(scale_length_m, (tuple, list)) and len(scale_length_m) == 2:
+            return float(sum(scale_length_m)) / 2.0
+        if isinstance(scale_length_m, (int, float)) and scale_length_m > 0:
+            return float(scale_length_m)
+    for s_info in SCALES.values():
+        speeds = s_info.get("speeds", [])
+        if len(speeds) == len(string_speeds) and np.allclose(speeds, string_speeds, rtol=0.005):
+            return s_info.get("scale_m", s_info.get("scale_length_m", 0.8636))
+    if len(string_speeds) == 5:
+        if np.allclose(string_speeds[:4], SCALES.get("30in", {}).get("speeds", []), rtol=0.005):
+            return 0.762
+        if np.allclose(string_speeds[:4], SCALES.get("32in", {}).get("speeds", []), rtol=0.005):
+            return 0.8128
+    return 0.8636
+
+
+def infer_string_names(string_speeds, scale_length_m: float = None) -> List[str]:
+    """Infers note names for each string in string_speeds based on physical tuning physics."""
+    n = len(string_speeds)
+    if scale_length_m is not None and scale_length_m > 0:
+        l_eff = scale_length_m
+    else:
+        if n == 4:
+            for s_key in ["30in", "32in", "34in", "multiscale", "upright"]:
+                if np.allclose(string_speeds, SCALES.get(s_key, {}).get("speeds", []), rtol=0.005):
+                    return ["E", "A", "D", "G"]
+        elif n == 5:
+            if np.allclose(string_speeds, [53.28, 71.16, 95.0, 126.81, 169.27], rtol=0.005):
+                return ["B", "E", "A", "D", "G"]
+            if np.allclose(string_speeds, [58.02, 75.88, 99.19, 129.60, 169.27], rtol=0.005):
+                return ["B", "E", "A", "D", "G"]
+            if np.allclose(
+                string_speeds, SCALES.get("multiscale_super", {}).get("speeds", []), rtol=0.005
+            ):
+                return ["B", "E", "A", "D", "G"]
+            if np.allclose(string_speeds, [71.16, 95.0, 126.81, 169.27, 225.69], rtol=0.005):
+                return ["E", "A", "D", "G", "C"]
+            if np.allclose(string_speeds, [62.79, 83.82, 111.89, 149.35, 199.36], rtol=0.005):
+                return ["E", "A", "D", "G", "C"]
+        elif n == 6:
+            if np.allclose(
+                string_speeds, [53.28, 71.16, 95.0, 126.81, 169.27, 225.69], rtol=0.005
+            ):
+                return ["B", "E", "A", "D", "G", "C"]
+
+        l_eff = resolve_scale_length(string_speeds, scale_length_m)
+
+    names = []
+    for v in string_speeds:
+        f0 = v / (2.0 * l_eff)
+        names.append(pitch_to_note_name(f0))
+    return names
+
+
+def compute_dispersive_wave_speed(
+    freqs,
+    v0: float,
+    string_name: str = None,
+    f0: float = None,
+    scale_length_m: float = None,
+) -> np.ndarray:
+    """
+    Computes frequency-dependent transverse wave speed v(f) accounting for flexural bending stiffness:
+    v(f) = v0 * sqrt(1 + B_s * (f / f0)^2 / (1 + (f / 3500)^2))
+    """
+    f = np.asarray(freqs, dtype=np.float64)
+    if f0 is None or f0 <= 0:
+        if string_name in STRING_FUNDAMENTALS and scale_length_m is None:
+            f0_std = STRING_FUNDAMENTALS[string_name]
+            l_check = 0.8636
+            if abs((v0 / (2.0 * l_check)) - f0_std) / f0_std < 0.15:
+                f0 = f0_std
+        if f0 is None:
+            l_eff = scale_length_m if (scale_length_m is not None and scale_length_m > 0) else 0.8636
+            f0 = max(v0 / (2.0 * l_eff), 15.0)
+
+    b_s = get_inharmonicity_for_f0(f0)
+    f_disp_max = 3500.0
+    disp_factor = 1.0 + b_s * ((f / f0) ** 2) / (1.0 + (f / f_disp_max) ** 2)
+    return v0 * np.sqrt(disp_factor)

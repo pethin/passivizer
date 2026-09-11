@@ -52,7 +52,8 @@ allomorph/
 ├── LICENSE                   # PolyForm Noncommercial License 1.0.0
 ├── pyproject.toml            # Project metadata (polars, altair, pedalboard)
 ├── README.md                 # Comprehensive architecture, CLI usage, roadmap
-├── main.py                   # Main CLI entrypoint delegation
+├── src/                      # Core reusable library package
+│   └── allomorph/            # Modern package (config/, physics/, circuit/, visualizer/, pipeline/)
 ├── audio/                    # Generated 24-bit audio digital twins (audio/<instrument>/)
 ├── circuits/                 # Standalone SPICE circuit netlists (.cir)
 │   ├── sources/              # Active, passive, and commercial source instrument netlists
@@ -71,13 +72,11 @@ allomorph/
 │   ├── frequency_responses.html # Master interactive portal
 │   └── frequency_responses/     # Per-instrument standalone Altair visualizations
 ├── models/                   # Trained Neural Amp Modeler (.nam) models (models/<instrument>/)
-├── scripts/                  # Core Python pipelines
-│   ├── model_physics.py      # Aperture sinc, scale wave speeds, and FIR engine
-│   ├── analyze_voices.py     # Polars + Altair frequency curve visualizer & portal generator
-│   ├── prep_nam_audio.py     # Standalone/legacy aperture pre-filter exporter
-│   ├── simulate_circuits.py  # Native WAV SPICE simulator (in-memory aperture + circuit sim)
-│   └── run_pipeline.py       # Master end-to-end automated runner
-├── tests/                    # Pytest test suite (test_circuits, test_physics, test_guardrails)
+├── scripts/                  # Workflow utilities & CLI entrypoints
+│   ├── analyze_voices.py     # Polars + Altair frequency curve visualizer
+│   ├── train_nam.py          # Local NAM A2 PyTorch/MPS GPU trainer
+│   └── generate_tone3000_artwork.py # Tone3000 storefront artwork generator
+├── tests/                    # Hierarchical test suite (circuit/, config/, dsp/, physics/, pipeline/, tone3000/, visualizer/, test_guardrails.py)
 └── tone3000/                 # Tone3000 storefront packs, artwork, and documentation
     ├── assets/               # Production-ready vector SVG and 1024x1024 JPG artwork
     └── docs/                 # Standardized storefront product descriptions and catalog

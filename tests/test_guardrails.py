@@ -12,22 +12,19 @@ specified in AGENTS.md and docs/architectural_guardrails.md are strictly upheld:
 """
 
 import ast
-import inspect
 import math
-import numpy as np
-from pathlib import Path
 
-from scripts.simulate_circuits import (
+import numpy as np
+
+from allomorph.circuit import (
     compute_active_preamp_eq,
-    compute_circuit_transfer_functions,
     compute_differential_circuit_transfer_functions,
     parse_netlist,
-    simulate_circuit_audio,
     CIRCUITS_DIR,
     REPO_ROOT,
-    FREQS,
 )
-from scripts.model_physics import load_instrument, VOICES
+from allomorph.config import load_instrument, VOICES
+from allomorph.dsp import FREQS
 from scripts.analyze_voices import build_voice_dataframe
 
 
@@ -112,7 +109,7 @@ def test_guardrail_identity_model_flatness():
 def test_guardrail_small_signal_linearity():
     """Guardrail 5.4.1: Audio signals with peak amplitude <= 0.10 must bypass saturation
     and non-linear drag bit-exact to preserve linear test fidelity."""
-    from scripts.simulate_circuits import apply_oversampled_saturation
+    from allomorph.circuit import apply_oversampled_saturation
 
     sr = 48000
     n_samples = 2400
@@ -138,7 +135,7 @@ def test_guardrail_small_signal_linearity():
 def test_guardrail_quadrature_null_floor_bounded():
     """Guardrail 5.2.3: Multi-coil combining must incorporate the quadrature regularization floor
     so deep comb cancellation nulls never collapse to singular non-differentiable cusps."""
-    from scripts.model_physics import numpy_pickup_macro_aperture
+    from allomorph.physics import numpy_pickup_macro_aperture
 
     inst = load_instrument("30in_emg_mmtw")
     src_pickup = inst["pickups"]["mmtw_dual"]
@@ -155,7 +152,12 @@ def test_guardrail_quadrature_null_floor_bounded():
 def test_guardrail_buffer_loop_acceleration():
     """Guardrail 6.1: Recursive ODE state solvers in scripts/simulate_circuits.py must be decorated
     with @njit to prevent interpreted Python loops over audio buffers."""
-    sim_script = REPO_ROOT / "scripts" / "simulate_circuits.py"
+    if (REPO_ROOT / "src" / "allomorph" / "circuit" / "saturation.py").exists():
+        sim_script = REPO_ROOT / "src" / "allomorph" / "circuit" / "saturation.py"
+    elif (REPO_ROOT / "src" / "allomorph" / "circuit.py").exists():
+        sim_script = REPO_ROOT / "src" / "allomorph" / "circuit.py"
+    else:
+        sim_script = REPO_ROOT / "scripts" / "simulate_circuits.py"
     tree = ast.parse(sim_script.read_text())
 
     recursive_cores = ["_lenz_velocity_drag_core", "_dahl_core", "_slew_limit_core"]
@@ -173,7 +175,7 @@ def test_guardrail_buffer_loop_acceleration():
                 found_cores[node.name] = decorator_names
 
     for core_name in recursive_cores:
-        assert core_name in found_cores, f"Expected {core_name} to exist in simulate_circuits.py"
+        assert core_name in found_cores, f"Expected {core_name} to exist in {sim_script.name}"
         assert "njit" in found_cores[core_name], f"{core_name} is missing @njit fastmath acceleration"
 
 
@@ -186,8 +188,13 @@ def test_guardrail_transducer_taxonomy_and_zero_conditional_deconvolution():
         sensor = cfg.get("sensor_type", "magnetic")
         assert sensor in valid_sensors, f"Voice {vid} has invalid sensor_type: '{sensor}'"
 
-    # 2. AST check: scripts/model_physics.py must contain zero hardcoded voice ID conditionals in FIR synthesis
-    phys_file = REPO_ROOT / "scripts" / "model_physics.py"
+    # 2. AST check: physics module must contain zero hardcoded voice ID conditionals in FIR synthesis
+    if (REPO_ROOT / "src" / "allomorph" / "physics" / "prefilter.py").exists():
+        phys_file = REPO_ROOT / "src" / "allomorph" / "physics" / "prefilter.py"
+    elif (REPO_ROOT / "src" / "allomorph" / "physics.py").exists():
+        phys_file = REPO_ROOT / "src" / "allomorph" / "physics.py"
+    else:
+        phys_file = REPO_ROOT / "scripts" / "model_physics.py"
     tree = ast.parse(phys_file.read_text())
 
     prohibited_constants = {"15_source_direct", "15_passive_character"}
@@ -207,7 +214,7 @@ def test_guardrail_transducer_taxonomy_and_zero_conditional_deconvolution():
     assert np.all(mags_out == 0.0), f"15_source_direct output mode was not bit-exact 0.00 dB (max error: {np.max(np.abs(mags_out))})"
 
     # 4. Universal deconvolution on Canonical Intermediate must smoothly invert aperture sinc without ripples
-    from scripts.model_physics import compute_voice_prefilter_firs
+    from allomorph.physics import compute_voice_prefilter_firs
     firs = compute_voice_prefilter_firs("15_source_direct", instrument="canonical_intermediate")
     assert len(firs) == 1
     fir = np.array(firs[0])

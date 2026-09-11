@@ -174,7 +174,7 @@ uv run python scripts/analyze_voices.py --instrument 30in
 ```
 *Outputs: Master interactive portal at `docs/frequency_responses.html` (and `docs/frequency_responses/index.html`) with embedded tabbed navigation and spec breakdown, and per-instrument standalone visualizations in `docs/frequency_responses/<instrument_id>.html`.*
 
-### 2. Native WAV SPICE Circuit Simulation (`scripts/simulate_circuits.py`)
+### 2. Native WAV SPICE Circuit Simulation (`allomorph-sim`)
 Directly streams raw NAM calibration audio (`T3K-sweep-v3.wav` / `v3_0_0.wav` / `input.wav`) through the entire physical digital twin in a single in-memory pass:
 1. **Acoustic Aperture & Placement:** De-humbucking sinc aperture filtering, spatial standing-wave comb filtering, displacement tilt ($\Delta x$), and string tension filtering.
 2. **Dynamic Non-Linear Compliance:** Soft-knee saturation ($V_{\text{sat}} \cdot \tanh(v / V_{\text{sat}})$), Lenz flux sag, Dahl hysteresis, back-EMF, and dynamic reluctance quack.
@@ -184,19 +184,17 @@ Allomorph features a built-in **WAV SPICE simulator** running natively on Apple 
 
 ```bash
 # Run unified WAV SPICE simulation from raw audio for a specific voice (~0.8s):
-uv run python scripts/simulate_circuits.py --voice 04_modern_p_ceramic --instrument 30in
+uv run allomorph-sim --voice 04_modern_p_ceramic --instrument 30in
 
 # Simulate all 21 voices in parallel across multi-core CPU (-j / --jobs):
-uv run python scripts/simulate_circuits.py --voice all --instrument 30in -j 8
+uv run allomorph-sim --voice all --instrument 30in -j 8
 
 # Rapid prototyping run on first 2 seconds (96,000 samples):
-uv run python scripts/simulate_circuits.py --voice 09_stingray_mm_parallel --max-samples 96000
+uv run allomorph-sim --voice 09_stingray_mm_parallel --max-samples 96000
 
 # Run via master pipeline:
-uv run python main.py --stage sim --voice 04_modern_p_ceramic
+uv run allomorph --stage sim --voice 04_modern_p_ceramic
 ```
-
-*(Note: `scripts/prep_nam_audio.py` is retained for users who wish to inspect or export intermediate standalone aperture audio `audio/<instrument>/aperture_<voice>.wav`).*
 
 ### 3. NAM Neural Model Training (Architecture 2 / A2)
 Trains a high-efficiency **NAM Architecture 2 (A2)** neural model on the input/output audio pair. A2 replaces legacy A1 models (nano/feather/standard) with a "slimmable" neural architecture designed specifically for low-power hardware like the Darkglass Anagram:
@@ -207,35 +205,35 @@ Trains a high-efficiency **NAM Architecture 2 (A2)** neural model on the input/o
 nam train T3K-sweep-v3.wav audio/30in_emg_mmtw/out_04_modern_p_ceramic.wav ./models/30in_emg_mmtw/04_modern_p_ceramic.nam --architecture "A2"
 
 # Run via the automated Allomorph trainer (defaults to studio reference goal ESR <= 0.0005 with 100 max epochs):
-uv run python main.py --stage train --instrument 30in --voice 04_modern_p_ceramic
+uv run allomorph --stage train --instrument 30in --voice 04_modern_p_ceramic
 
 # Customize goal ESR or disable early stopping:
-uv run python main.py --stage train --instrument 30in --voice 04_modern_p_ceramic --goal-esr 0.0002
-uv run python main.py --stage train --instrument 30in --voice 04_modern_p_ceramic --no-goal-esr --epochs 100
+uv run allomorph --stage train --instrument 30in --voice 04_modern_p_ceramic --goal-esr 0.0002
+uv run allomorph --stage train --instrument 30in --voice 04_modern_p_ceramic --no-goal-esr --epochs 100
 ```
 *(In modern versions of `neural-amp-modeler` and the official Google Colab trainer, `--architecture A2` is the default. Allomorph enables goal-driven early stopping by default (`--goal-esr 0.0005`, $\approx -33\text{ dB}$ ESR), halting training as soon as transparent studio reference fidelity is reached).*
 
-### 4. Master Automation Runner (`scripts/run_pipeline.py` & `main.py`)
+### 4. Master Automation Runner (`allomorph`)
 Execute the entire pipeline or specific stages with a single command:
 
 ```bash
 # Run complete pipeline for 30" source instrument (using native VA circuit engine):
-uv run python main.py --instrument 30in
+uv run allomorph --instrument 30in
 
 # Run only visualization:
-uv run python main.py --stage viz
+uv run allomorph --stage viz
 
 # Run audio pre-filtering for a specific voice:
-uv run python main.py --stage prep --voice 07_stingray_mm_parallel
+uv run allomorph --stage prep --voice 07_stingray_mm_parallel
 
 # Run circuit simulation stage (with automatic output level normalization based on input sweep dBFS):
-uv run python main.py --stage sim --voice 07_stingray_mm_parallel
+uv run allomorph --stage sim --voice 07_stingray_mm_parallel
 
 # Or run native circuit simulation directly with automatic sweep level normalization:
-uv run python scripts/simulate_circuits.py --instrument 30in --voice all --normalize auto
+uv run allomorph-sim --instrument 30in --voice all --normalize auto
 
 # On-demand single-block monolithic bake (directly models source instrument to target voice into a single NAM capture):
-uv run python main.py --instrument 30in --bake --voice 04_modern_p_ceramic --train
+uv run allomorph --instrument 30in --bake --voice 04_modern_p_ceramic --train
 # (By default, --bake uses --tier dynamic to model saturation differentially between source and target,
 #  and --pickup auto to automatically resolve the mapped pickup switch position).
 ```
@@ -311,13 +309,44 @@ allomorph/
 │   ├── scales.toml                        # Scale lengths & baseline string wave speeds
 │   ├── strings.toml                       # Physical string core/wrap mechanical presets
 │   └── voices.toml                        # Voice metadata linking to SPICE netlists
-├── scripts/                               # Generation utilities (Python / uv)
-│   ├── model_physics.py                   # Aperture sinc, scale wave speeds, and FIR engine
-│   ├── analyze_voices.py                  # Polars + Altair frequency curve visualizer
-│   ├── prep_nam_audio.py                  # Aperture & scale tension pre-filtering for NAM
-│   ├── simulate_circuits.py               # Native Apple Silicon WAV SPICE circuit engine
-│   └── run_pipeline.py                    # Master end-to-end automated runner
-├── tests/                                 # Pytest test suite (160 tests)
+├── src/                                   # Core reusable library package
+│   └── allomorph/
+│       ├── config/                        # Modular TOML configurations & geometry
+│       │   ├── scales.py                  # Scale length & wave-speed loader
+│       │   ├── strings.py                 # String mechanics presets loader
+│       │   ├── voices.py                  # Voice registry & alias resolver
+│       │   ├── instruments.py             # Source instrument loader & cache
+│       │   └── geometry.py                # Pickup coils & aperture geometry resolution
+│       ├── naming.py                      # UI slugs, tier prefixes, and CLI resolution
+│       ├── dsp.py                         # Minimum-phase FIR synthesis and 24-bit WAV I/O
+│       ├── physics/                       # Physical acoustic & spatial modeling subpackage
+│       │   ├── strings.py                 # String mechanics, dispersion, wave continuum
+│       │   ├── aperture.py                # Sinc & Bessel aperture integrals, saddle stiffness
+│       │   ├── deconvolution.py           # Transducer electrical deconvolution biquads
+│       │   └── prefilter.py               # Minimum-phase FIR prefilter synthesis
+│       ├── circuit/                       # Native WAV SPICE circuit simulation subpackage
+│       │   ├── parser.py                  # SPICE netlist tokenizer & CircuitModel
+│       │   ├── solver.py                  # Analytical nodal RLC matrix solver & AC curves
+│       │   ├── saturation.py              # State-space non-linear saturation & Numba kernels
+│       │   ├── audio.py                   # Vectorized FFT convolution & 24-bit audio buffers
+│       │   ├── simulation.py              # Audio simulation orchestration & batch workers
+│       │   └── staging.py                 # Architecture C two-stage runner & allomorph-sim CLI
+│       ├── visualizer/                    # Polars + Altair frequency visualization library
+│       │   ├── dataframe.py               # Polars data modeling & continuum transfer curves
+│       │   ├── charts.py                  # Interactive Altair visualization builders
+│       │   └── portal.py                  # Responsive dark-mode HTML portal generator
+│       ├── pipeline/                      # Multi-stage automation & batch orchestration
+│       │   ├── stages.py                  # Visualization, prefilter, simulation, training stages
+│       │   ├── batch.py                   # Concurrency pool & ProcessPoolExecutor runner
+│       │   └── cli.py                     # Allomorph CLI argument parsing & workflow dispatcher
+│       └── cli.py                         # Master CLI entrypoint delegation for `allomorph`
+├── scripts/                               # Workflow utilities & CLI entrypoints
+│   ├── analyze_voices.py                  # Thin delegating CLI wrapper for allomorph.visualizer
+│   ├── train_nam.py                       # Local NAM A2 PyTorch/MPS GPU trainer
+│   └── generate_tone3000_artwork.py       # Tone3000 storefront artwork generator
+├── tests/                                 # Hierarchical pytest test suite (180 tests)
+│   ├── circuit/                           # SPICE netlists, nodal RLC solving, ODE saturation, simulation
+│   └── physics/                           # Aperture sinc filters, string mechanics, dispersion, FIR synthesis
 └── models/                                # Exported .nam neural models
 ```
 
@@ -327,11 +356,11 @@ allomorph/
 
 ### Completed Milestones
 - [x] **Electro-Acoustic Physical Modeling:** Magnetic aperture sinc filtering, spatial comb nulls, scale-length wave-speed scaling ($30''/32'' \to 34''/37''$), 2D rod apertures, saddle boundary layer stiffness, longitudinal clank, and differential string tension modeling.
-- [x] **Native WAV SPICE Simulator:** High-performance Apple Silicon engine (`scripts/simulate_circuits.py`) solving analytical nodal RLC equations, Foster 2-stage core eddy diffusion, Dahl magnetic domain-wall pinning hysteresis, asymmetric magnet saturation compliance, sub-audible 8 Hz DC blocking, passive RLC Johnson noise dither, and automatic output level normalization based on input sweep dBFS at >1500x speed.
+- [x] **Native WAV SPICE Simulator:** High-performance Apple Silicon engine (`allomorph-sim`) solving analytical nodal RLC equations, Foster 2-stage core eddy diffusion, Dahl magnetic domain-wall pinning hysteresis, asymmetric magnet saturation compliance, sub-audible 8 Hz DC blocking, passive RLC Johnson noise dither, and automatic output level normalization based on input sweep dBFS at >1500x speed.
 - [x] **21 Voice Profiles & Transducers:** Modern active 2-band Jazz, vintage single-coil, split-coil, series/parallel dual-coils, active Music Man, fanned multi-scale, upright double-bass bridge piezo force transducers, and flat dynamic twins.
 - [x] **Interactive Visualization Portal:** Polars + Altair frequency response portal with spec sheets and per-instrument interactive charts (`docs/frequency_responses.html`).
 - [x] **Automated NAM Training Pipeline:** End-to-end Architecture 2 (A2) neural model training targeting Darkglass Anagram Block 1.
-- [x] **Automated Test Suite:** Comprehensive 160-test pytest verification covering physical filters, nodal transfer functions, FIR DSP, audio simulation, and architectural guardrails.
+- [x] **Automated Test Suite:** Comprehensive 180-test pytest verification covering physical filters, nodal transfer functions, FIR DSP, audio simulation, and architectural guardrails.
 
 ### Upcoming Objectives
 - [ ] **Interactive A/B Audio Auditioning CLI:** Terminal and real-time audio auditioning tool (`scripts/preview_voices.py`) with seamless dry-to-wet switching, looping bass riffs, and instantaneous A/B comparison across pickup voices before neural training or pedalboard export.

@@ -5,7 +5,6 @@ Includes full source instrument, scale length, and pickup routing metadata in th
 """
 
 import argparse
-import os
 import shutil
 import sys
 from pathlib import Path
@@ -19,18 +18,18 @@ SCRIPTS_DIR = REPO_ROOT / "scripts"
 if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
 
-from model_physics import (
+from allomorph.config import (
     VOICES,
     load_instrument,
     get_source_pickup,
-    INSTRUMENTS,
-    resolve_voices,
-    resolve_instruments,
     resolve_voice_coils,
     resolve_voice_pickups,
     compute_effective_position,
+)
+from allomorph.naming import (
+    resolve_voices,
+    resolve_instruments,
     VOICE_CONCISE_SLUGS,
-    get_baked_basename,
 )
 
 def find_sweep_input(candidate_path=None):
