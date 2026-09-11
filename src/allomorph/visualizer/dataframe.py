@@ -47,6 +47,9 @@ F_MAX = 20000.0
 
 log_freqs = [F_MIN * (F_MAX / F_MIN) ** (i / (NUM_POINTS - 1)) for i in range(NUM_POINTS)]
 
+_OUTPUT_VOICE_DF_CACHE: dict[str, pl.DataFrame] = {}
+_DIFF_VOICE_DF_CACHE: dict[tuple[str, str], pl.DataFrame] = {}
+
 
 def build_voice_dataframe(
     voice_id: str,
@@ -61,12 +64,33 @@ def build_voice_dataframe(
     mode="output": Absolute acoustic aperture + loaded SPICE circuit frequency response of the target voice.
     mode="difference": Regularized differential transfer function (H_target / H_source) applied to the source instrument.
     """
+    if mode == "output" and cfg == VOICES.get(voice_id) and voice_id in _OUTPUT_VOICE_DF_CACHE:
+        base_df = _OUTPUT_VOICE_DF_CACHE[voice_id]
+        return (
+            base_df.with_columns(pl.lit("Output Voice").alias("mode"))
+            if include_mode_col
+            else base_df
+        )
+
     inst_selector = src_scale if src_scale is not None else instrument
     inst = (
         inst_selector
         if isinstance(inst_selector, InstrumentConfig)
         else load_instrument(inst_selector)
     )
+
+    cache_key_diff = (inst.id, voice_id)
+    if (
+        mode == "difference"
+        and cfg == VOICES.get(voice_id)
+        and cache_key_diff in _DIFF_VOICE_DF_CACHE
+    ):
+        base_df = _DIFF_VOICE_DF_CACHE[cache_key_diff]
+        return (
+            base_df.with_columns(pl.lit("Input/Output Difference").alias("mode"))
+            if include_mode_col
+            else base_df
+        )
 
     tgt_scale = cfg.scale
     _ = SCALES[tgt_scale]
@@ -89,9 +113,12 @@ def build_voice_dataframe(
             "topology": cfg.topology,
             "description": cfg.description,
         }
+        df = pl.DataFrame(data)
+        if cfg == VOICES.get(voice_id):
+            _OUTPUT_VOICE_DF_CACHE[voice_id] = df
         if include_mode_col:
-            data["mode"] = "Output Voice"
-        return pl.DataFrame(data)
+            return df.with_columns(pl.lit("Output Voice").alias("mode"))
+        return df
 
     if mode == "difference" and voice_id == "16_active_character" and not is_passive:
         data = {
@@ -102,9 +129,12 @@ def build_voice_dataframe(
             "topology": cfg.topology,
             "description": cfg.description,
         }
+        df = pl.DataFrame(data)
+        if cfg == VOICES.get(voice_id):
+            _DIFF_VOICE_DF_CACHE[(inst.id, voice_id)] = df
         if include_mode_col:
-            data["mode"] = "Output Voice" if mode == "output" else "Input/Output Difference"
-        return pl.DataFrame(data)
+            return df.with_columns(pl.lit("Input/Output Difference").alias("mode"))
+        return df
 
     if mode == "output":
         # 1. Output Voice: Target acoustic aperture + loaded SPICE circuit + string + body bloom
@@ -301,10 +331,17 @@ def build_voice_dataframe(
         "topology": cfg.topology,
         "description": cfg.description,
     }
-    if include_mode_col:
-        data["mode"] = "Output Voice" if mode == "output" else "Input/Output Difference"
+    df = pl.DataFrame(data)
+    if mode == "output" and cfg == VOICES.get(voice_id):
+        _OUTPUT_VOICE_DF_CACHE[voice_id] = df
+    elif mode == "difference" and cfg == VOICES.get(voice_id):
+        _DIFF_VOICE_DF_CACHE[(inst.id, voice_id)] = df
 
-    return pl.DataFrame(data)
+    if include_mode_col:
+        return df.with_columns(
+            pl.lit("Output Voice" if mode == "output" else "Input/Output Difference").alias("mode")
+        )
+    return df
 
 
 def compute_canonical_intermediate_response(freqs: np.ndarray) -> np.ndarray:
@@ -322,6 +359,30 @@ def compute_canonical_intermediate_response(freqs: np.ndarray) -> np.ndarray:
     return h_can_ac / max(h_can_ac[0], 1e-9)
 
 
+_TARGET_DFS_CACHE: dict[int, dict[str, tuple[str, np.ndarray | None]]] = {}
+
+
+def get_cached_target_dfs(step: int = 1) -> dict[str, tuple[str, np.ndarray | None]]:
+    """Caches precomputed target voice responses downsampled by step."""
+    if step in _TARGET_DFS_CACHE:
+        return _TARGET_DFS_CACHE[step]
+
+    target_dfs: dict[str, tuple[str, np.ndarray | None]] = {}
+    for vid, cfg in sorted(VOICES.items()):
+        if vid == "00_canonical_intermediate":
+            continue
+        vname = cfg.name
+        if cfg.sensor_type == "direct":
+            target_dfs[vid] = (vname, None)
+        else:
+            vdf = build_voice_dataframe(vid, cfg, mode="output")
+            mag_full = np.asarray(vdf["magnitude_db"], dtype=np.float64)
+            target_dfs[vid] = (vname, mag_full[::step] if step > 1 else mag_full)
+
+    _TARGET_DFS_CACHE[step] = target_dfs
+    return target_dfs
+
+
 def build_universal_targets_dataframe() -> pl.DataFrame:
     """
     Calculates magnitude frequency responses for all 22 Universal Target Voicings relative to
@@ -331,38 +392,52 @@ def build_universal_targets_dataframe() -> pl.DataFrame:
     h_can_norm = compute_canonical_intermediate_response(freqs)
     db_can = 20.0 * np.log10(np.clip(h_can_norm, 1e-5, 20.0))
 
-    rows = []
+    target_dfs = get_cached_target_dfs(step=1)
+
+    freq_col: list[float] = []
+    mag_col: list[float] = []
+    vid_col: list[str] = []
+    vname_col: list[str] = []
+    topo_col: list[str] = []
+    fr_col: list[float] = []
+    q_col: list[float] = []
+    desc_col: list[str] = []
+
     for vid, cfg in sorted(VOICES.items()):
         if vid == "00_canonical_intermediate":
             continue
-        if cfg.sensor_type == "direct" or (cfg.preserve_aperture or False):
-            # Direct studio DI target and aperture-preserving active buffers maintain flat 0.00 dB baseline
+        vname, db_tgt = target_dfs[vid]
+        if db_tgt is None or (cfg.preserve_aperture or False):
             db_backend = np.zeros_like(freqs)
         else:
-            vdf = build_voice_dataframe(vid, cfg, mode="output")
-            db_tgt = np.asarray(vdf["magnitude_db"])
             db_backend = db_tgt - db_can
 
-        vname = cfg.name
         topo = cfg.topology
-        fr = cfg.fr
-        q = cfg.Q
+        fr = float(cfg.fr)
+        q = float(cfg.Q)
         desc = cfg.description
 
-        for f, m in zip(log_freqs, db_backend):
-            rows.append(
-                {
-                    "frequency": float(f),
-                    "magnitude_db": float(m),
-                    "voice_id": vid,
-                    "voice_name": vname,
-                    "topology": topo,
-                    "fr": float(fr),
-                    "Q": float(q),
-                    "description": desc,
-                }
-            )
-    return pl.DataFrame(rows)
+        freq_col.extend(log_freqs)
+        mag_col.extend(db_backend.tolist())
+        vid_col.extend([vid] * NUM_POINTS)
+        vname_col.extend([vname] * NUM_POINTS)
+        topo_col.extend([topo] * NUM_POINTS)
+        fr_col.extend([fr] * NUM_POINTS)
+        q_col.extend([q] * NUM_POINTS)
+        desc_col.extend([desc] * NUM_POINTS)
+
+    return pl.DataFrame(
+        {
+            "frequency": freq_col,
+            "magnitude_db": mag_col,
+            "voice_id": vid_col,
+            "voice_name": vname_col,
+            "topology": topo_col,
+            "fr": fr_col,
+            "Q": q_col,
+            "description": desc_col,
+        }
+    )
 
 
 def build_frontend_deconvolutions_dataframe() -> pl.DataFrame:
@@ -375,30 +450,42 @@ def build_frontend_deconvolutions_dataframe() -> pl.DataFrame:
     freqs = np.asarray(log_freqs, dtype=np.float64)
     h_can_norm = compute_canonical_intermediate_response(freqs)
 
+    can_voice = VOICES.get("00_canonical_intermediate")
+    can_circuit = can_voice.circuit if can_voice is not None else None
+    can_model = load_circuit(can_circuit) if can_circuit else None
+
     all_insts = load_all_instruments()
-    rows = []
+
+    freq_col: list[float] = []
+    mag_col: list[float] = []
+    iid_col: list[str] = []
+    iname_col: list[str] = []
+    pkey_col: list[str] = []
+    pname_col: list[str] = []
+    label_col: list[str] = []
+    scale_col: list[float] = []
+    pos_col: list[float] = []
+
     for inst_id, inst in sorted(all_insts.items()):
         if inst_id == "canonical_intermediate":
             continue
         inst_name = inst.name
         scale_range = resolve_scale_range(inst)
-        scale_in = inst.scale_length_in or 34.0
+        scale_in = float(inst.scale_length_in or 34.0)
         pickups = inst.pickups
 
         for p_key, p_cfg in sorted(pickups.items()):
             p_name = p_cfg.name
             pos_m = p_cfg.position_from_bridge_m or 0.0
+            pos_mm = float(pos_m * 1000.0) if pos_m else 0.0
             coils = resolve_pickup_coils(p_cfg, inst)
             h_src_ac = numpy_pickup_acoustic_response(freqs, coils, scale_length_m=scale_range)
             h_src_norm = h_src_ac / max(h_src_ac[0], 1e-9)
 
             h_aperture_deconv = (h_can_norm * h_src_norm) / (h_src_norm**2 + 0.01)
 
-            can_voice = VOICES.get("00_canonical_intermediate")
-            can_circuit = can_voice.circuit if can_voice is not None else None
             cir_circuit = p_cfg.circuit
-            if cir_circuit and can_circuit:
-                can_model = load_circuit(can_circuit)
+            if cir_circuit and can_model:
                 src_model = load_circuit(cir_circuit)
                 diff_curves = compute_differential_circuit_transfer_functions(
                     can_model, src_model, freqs=FREQS
@@ -414,21 +501,29 @@ def build_frontend_deconvolutions_dataframe() -> pl.DataFrame:
             db_front = 20.0 * np.log10(np.clip(h_front, 1e-4, 10.0))
             label = f"{inst_name} - {p_name}"
 
-            for f, m in zip(log_freqs, db_front):
-                rows.append(
-                    {
-                        "frequency": float(f),
-                        "magnitude_db": float(m),
-                        "instrument_id": inst_id,
-                        "instrument_name": inst_name,
-                        "pickup_key": p_key,
-                        "pickup_name": p_name,
-                        "label": label,
-                        "scale_in": float(scale_in),
-                        "position_mm": float(pos_m * 1000.0),
-                    }
-                )
-    return pl.DataFrame(rows)
+            freq_col.extend(log_freqs)
+            mag_col.extend(db_front.tolist())
+            iid_col.extend([inst_id] * NUM_POINTS)
+            iname_col.extend([inst_name] * NUM_POINTS)
+            pkey_col.extend([p_key] * NUM_POINTS)
+            pname_col.extend([p_name] * NUM_POINTS)
+            label_col.extend([label] * NUM_POINTS)
+            scale_col.extend([scale_in] * NUM_POINTS)
+            pos_col.extend([pos_mm] * NUM_POINTS)
+
+    return pl.DataFrame(
+        {
+            "frequency": freq_col,
+            "magnitude_db": mag_col,
+            "instrument_id": iid_col,
+            "instrument_name": iname_col,
+            "pickup_key": pkey_col,
+            "pickup_name": pname_col,
+            "label": label_col,
+            "scale_in": scale_col,
+            "position_mm": pos_col,
+        }
+    )
 
 
 def build_instrument_frontend_dataframe(inst: InstrumentConfig) -> pl.DataFrame:
@@ -442,24 +537,34 @@ def build_instrument_frontend_dataframe(inst: InstrumentConfig) -> pl.DataFrame:
     inst_id = inst.id
     inst_name = inst.name
     scale_range = resolve_scale_range(inst)
-    scale_in = inst.scale_length_in or 34.0
+    scale_in = float(inst.scale_length_in or 34.0)
     pickups = inst.pickups
 
-    rows = []
+    can_voice = VOICES.get("00_canonical_intermediate")
+    can_circuit = can_voice.circuit if can_voice is not None else None
+    can_model = load_circuit(can_circuit) if can_circuit else None
+
+    freq_col: list[float] = []
+    mag_col: list[float] = []
+    iid_col: list[str] = []
+    iname_col: list[str] = []
+    pkey_col: list[str] = []
+    pname_col: list[str] = []
+    scale_col: list[float] = []
+    pos_col: list[float] = []
+
     for p_key, p_cfg in sorted(pickups.items()):
         p_name = p_cfg.name
         pos_m = p_cfg.position_from_bridge_m or 0.0
+        pos_mm = float(pos_m * 1000.0) if pos_m else 0.0
         coils = resolve_pickup_coils(p_cfg, inst)
         h_src_ac = numpy_pickup_acoustic_response(freqs, coils, scale_length_m=scale_range)
         h_src_norm = h_src_ac / max(h_src_ac[0], 1e-9)
 
         h_aperture_deconv = (h_can_norm * h_src_norm) / (h_src_norm**2 + 0.01)
 
-        can_voice = VOICES.get("00_canonical_intermediate")
-        can_circuit = can_voice.circuit if can_voice is not None else None
         cir_circuit = p_cfg.circuit
-        if cir_circuit and can_circuit:
-            can_model = load_circuit(can_circuit)
+        if cir_circuit and can_model:
             src_model = load_circuit(cir_circuit)
             diff_curves = compute_differential_circuit_transfer_functions(
                 can_model, src_model, freqs=FREQS
@@ -472,23 +577,33 @@ def build_instrument_frontend_dataframe(inst: InstrumentConfig) -> pl.DataFrame:
 
         db_front = 20.0 * np.log10(np.clip(h_front, 1e-4, 10.0))
 
-        for f, m in zip(log_freqs, db_front):
-            rows.append(
-                {
-                    "frequency": float(f),
-                    "magnitude_db": float(m),
-                    "instrument_id": inst_id,
-                    "instrument_name": inst_name,
-                    "pickup_key": p_key,
-                    "pickup_name": p_name,
-                    "scale_in": float(scale_in),
-                    "position_mm": float(pos_m * 1000.0) if pos_m else 0.0,
-                }
-            )
-    return pl.DataFrame(rows)
+        freq_col.extend(log_freqs)
+        mag_col.extend(db_front.tolist())
+        iid_col.extend([inst_id] * NUM_POINTS)
+        iname_col.extend([inst_name] * NUM_POINTS)
+        pkey_col.extend([p_key] * NUM_POINTS)
+        pname_col.extend([p_name] * NUM_POINTS)
+        scale_col.extend([scale_in] * NUM_POINTS)
+        pos_col.extend([pos_mm] * NUM_POINTS)
+
+    return pl.DataFrame(
+        {
+            "frequency": freq_col,
+            "magnitude_db": mag_col,
+            "instrument_id": iid_col,
+            "instrument_name": iname_col,
+            "pickup_key": pkey_col,
+            "pickup_name": pname_col,
+            "scale_in": scale_col,
+            "position_mm": pos_col,
+        }
+    )
 
 
-def build_composite_instrument_dataframe(inst: InstrumentConfig) -> pl.DataFrame:
+def build_composite_instrument_dataframe(
+    inst: InstrumentConfig,
+    step: int = 3,
+) -> pl.DataFrame:
     """
     Calculates the 5-stage physical signal flow progression for a source instrument:
       1. Source Bass Input: Physical response of the source pickup entering Block 1.
@@ -498,31 +613,29 @@ def build_composite_instrument_dataframe(inst: InstrumentConfig) -> pl.DataFrame
       5. Target Voice Output: Authentic acoustic target voice produced after Block 2.
     Illustrates: Bass Input -deconvolution-> Canonical Intermediate Baseline -voicing-> Target Output.
     """
-    freqs = np.asarray(log_freqs, dtype=np.float64)
+    freqs = np.asarray(log_freqs[::step], dtype=np.float64)
+    n_pts = len(freqs)
+    f_pts = np.round(freqs, 1).tolist()
     h_can_norm = compute_canonical_intermediate_response(freqs)
     db_can = 20.0 * np.log10(np.clip(h_can_norm, 1e-5, 20.0))
 
     scale_range = resolve_scale_range(inst)
     pickups = inst.pickups
 
-    # Precompute target voice responses once
-    target_dfs: dict[str, tuple[str, np.ndarray | None]] = {}
-    for vid, cfg in sorted(VOICES.items()):
-        if vid == "00_canonical_intermediate":
-            continue
-        vname = cfg.name
-        if cfg.sensor_type == "direct":
-            target_dfs[vid] = (vname, None)
-        else:
-            vdf = build_voice_dataframe(vid, cfg, mode="output")
-            target_dfs[vid] = (vname, np.asarray(vdf["magnitude_db"], dtype=np.float64))
+    target_dfs = get_cached_target_dfs(step=step)
 
-    rows = []
     can_voice = VOICES.get("00_canonical_intermediate")
     can_circuit = can_voice.circuit if can_voice is not None else None
     can_model = load_circuit(can_circuit) if can_circuit else None
 
-    for p_key, p_cfg in sorted(pickups.items()):
+    freq_col: list[float] = []
+    mag_col: list[float] = []
+    stage_col: list[str] = []
+    vname_col: list[str] = []
+    pname_col: list[str] = []
+
+    # Stages 1, 2, 3: Per-pickup curves (deduplicated across target voices)
+    for _p_key, p_cfg in sorted(pickups.items()):
         p_name = p_cfg.name
         coils = resolve_pickup_coils(p_cfg, inst)
         h_src_ac = numpy_pickup_acoustic_response(freqs, coils, scale_length_m=scale_range)
@@ -541,68 +654,65 @@ def build_composite_instrument_dataframe(inst: InstrumentConfig) -> pl.DataFrame
             h_c_front = resolve_pickup_electrical_deconvolution(freqs, p_cfg, inst, q_target=0.707)
             h_front = h_aperture_deconv * h_c_front
 
-        db_front = 20.0 * np.log10(np.clip(h_front, 1e-4, 10.0))
-        # Bass Input entering Block 1 (which deconvolution inverts to reach 0 dB)
+        db_front = np.round(20.0 * np.log10(np.clip(h_front, 1e-4, 10.0)), 2)
         db_src = -db_front
-        db_ci = np.zeros_like(db_front)
+        db_ci = [0.0] * n_pts
 
-        for vid, (vname, db_tgt) in target_dfs.items():
+        # Stage 1: Source Bass Input
+        freq_col.extend(f_pts)
+        mag_col.extend(db_src.tolist())
+        stage_col.extend(["1. Source Bass Input"] * n_pts)
+        vname_col.extend([""] * n_pts)
+        pname_col.extend([p_name] * n_pts)
+
+        # Stage 2: Block 1 Deconvolution
+        freq_col.extend(f_pts)
+        mag_col.extend(db_front.tolist())
+        stage_col.extend(["2. Block 1 Deconvolution"] * n_pts)
+        vname_col.extend([""] * n_pts)
+        pname_col.extend([p_name] * n_pts)
+
+        # Stage 3: Canonical Intermediate (0 dB)
+        freq_col.extend(f_pts)
+        mag_col.extend(db_ci)
+        stage_col.extend(["3. Canonical Intermediate (0 dB)"] * n_pts)
+        vname_col.extend([""] * n_pts)
+        pname_col.extend([p_name] * n_pts)
+
+    # Stage 4: Block 2 Target Voicing (deduplicated across pickups)
+    for vname, db_tgt in target_dfs.values():
+        if db_tgt is None:  # Source Direct
+            db_back = [0.0] * n_pts
+        else:
+            db_back = np.round(db_tgt - db_can, 2).tolist()
+
+        freq_col.extend(f_pts)
+        mag_col.extend(db_back)
+        stage_col.extend(["4. Block 2 Target Voicing"] * n_pts)
+        vname_col.extend([vname] * n_pts)
+        pname_col.extend([""] * n_pts)
+
+    # Stage 5: Target Voice Output (per pickup and target voice)
+    for _p_key, p_cfg in sorted(pickups.items()):
+        p_name = p_cfg.name
+        for vname, db_tgt in target_dfs.values():
             if db_tgt is None:  # Source Direct
-                db_back = -db_front
-                db_out = np.zeros_like(db_front)
+                db_out = [0.0] * n_pts
             else:
-                db_back = db_tgt - db_can
-                db_out = db_tgt
+                db_out = np.round(db_tgt, 2).tolist()
 
-            for f, m in zip(log_freqs, db_src):
-                rows.append(
-                    {
-                        "frequency": float(f),
-                        "magnitude_db": float(m),
-                        "stage": "1. Source Bass Input",
-                        "voice_name": vname,
-                        "pickup_name": p_name,
-                    }
-                )
-            for f, m in zip(log_freqs, db_front):
-                rows.append(
-                    {
-                        "frequency": float(f),
-                        "magnitude_db": float(m),
-                        "stage": "2. Block 1 Deconvolution",
-                        "voice_name": vname,
-                        "pickup_name": p_name,
-                    }
-                )
-            for f, m in zip(log_freqs, db_ci):
-                rows.append(
-                    {
-                        "frequency": float(f),
-                        "magnitude_db": float(m),
-                        "stage": "3. Canonical Intermediate (0 dB)",
-                        "voice_name": vname,
-                        "pickup_name": p_name,
-                    }
-                )
-            for f, m in zip(log_freqs, db_back):
-                rows.append(
-                    {
-                        "frequency": float(f),
-                        "magnitude_db": float(m),
-                        "stage": "4. Block 2 Target Voicing",
-                        "voice_name": vname,
-                        "pickup_name": p_name,
-                    }
-                )
-            for f, m in zip(log_freqs, db_out):
-                rows.append(
-                    {
-                        "frequency": float(f),
-                        "magnitude_db": float(m),
-                        "stage": "5. Target Voice Output",
-                        "voice_name": vname,
-                        "pickup_name": p_name,
-                    }
-                )
+            freq_col.extend(f_pts)
+            mag_col.extend(db_out)
+            stage_col.extend(["5. Target Voice Output"] * n_pts)
+            vname_col.extend([vname] * n_pts)
+            pname_col.extend([p_name] * n_pts)
 
-    return pl.DataFrame(rows)
+    return pl.DataFrame(
+        {
+            "frequency": freq_col,
+            "magnitude_db": mag_col,
+            "stage": stage_col,
+            "voice_name": vname_col,
+            "pickup_name": pname_col,
+        }
+    )

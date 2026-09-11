@@ -597,10 +597,10 @@ def generate_composite_instrument_chart(
     target_path.parent.mkdir(parents=True, exist_ok=True)
 
     master_df = build_composite_instrument_dataframe(inst)
-    voice_names = master_df["voice_name"].unique().sort().to_list()
+    voice_names = [v for v in master_df["voice_name"].unique().sort().to_list() if v]
     default_voice = voice_names[0] if voice_names else ""
 
-    pickup_names = master_df["pickup_name"].unique().sort().to_list()
+    pickup_names = [p for p in master_df["pickup_name"].unique().sort().to_list() if p]
     default_pickup = pickup_names[0] if pickup_names else ""
 
     voice_select = alt.selection_point(
@@ -678,19 +678,36 @@ def generate_composite_instrument_chart(
         )
     )
 
+    pred_stages_123 = alt.FieldOneOfPredicate(
+        field="stage",
+        oneOf=[
+            "1. Source Bass Input",
+            "2. Block 1 Deconvolution",
+            "3. Canonical Intermediate (0 dB)",
+        ],
+    )
+    pred_stage_4 = alt.FieldEqualPredicate(field="stage", equal="4. Block 2 Target Voicing")
+    pred_stage_5 = alt.FieldEqualPredicate(field="stage", equal="5. Target Voice Output")
+
     if len(pickup_names) > 1:
         pickup_select = alt.selection_point(
             fields=["pickup_name"],
             bind=alt.binding_select(options=pickup_names, name="Source Pickup (Block 1): "),
             value=default_pickup,
         )
-        chart = (
-            base_chart.add_params(voice_select, pickup_select, stage_selection)
-            .transform_filter(voice_select)
-            .transform_filter(pickup_select)
+        filter_comp = (
+            (pickup_select & pred_stages_123)
+            | (voice_select & pred_stage_4)
+            | (pickup_select & voice_select & pred_stage_5)
         )
+        chart = base_chart.add_params(
+            voice_select, pickup_select, stage_selection
+        ).transform_filter(filter_comp)
     else:
-        chart = base_chart.add_params(voice_select, stage_selection).transform_filter(voice_select)
+        filter_comp = (
+            pred_stages_123 | (voice_select & pred_stage_4) | (voice_select & pred_stage_5)
+        )
+        chart = base_chart.add_params(voice_select, stage_selection).transform_filter(filter_comp)
 
     chart = (
         chart.properties(
