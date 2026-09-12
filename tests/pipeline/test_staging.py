@@ -534,15 +534,30 @@ def test_frontend_wet_wav_generation(tmp_path: Path):
     hot_dry = test_dry * 1.8
     hot_dry_path = tmp_path / "hot_dry.wav"
     write_wav_24bit(str(hot_dry_path), hot_dry, dry_sr)
-    hot_dry_read, _ = read_wav(hot_dry_path)
 
     test_pickups = [
         ("30in_emg_mmtw", "mmtw_dual"),
         ("30in_emg_mmtw", "mmtw_single"),
     ]
 
+    # 1. Small-signal linearity verification (<= 0.10 peak)
+    # Bypasses non-linear conditioning to preserve exact mathematical linearity
+    small_dry = test_dry * 0.05
+    small_dry_path = tmp_path / "small_dry.wav"
+    write_wav_24bit(str(small_dry_path), small_dry, dry_sr)
+
     for inst_id, pkey in test_pickups:
-        # 1. Unnormalized mode (default) with true-peak safety ceiling
+        wet_small_path = export_frontend_wet_wav(
+            inst_id, pkey, input_wav=small_dry_path, output_dir=tmp_path / "small"
+        )
+        assert wet_small_path.exists()
+        audio_small, sr = read_wav(wet_small_path)
+        fir = compute_frontend_deconvolution_fir(inst_id, pkey, num_taps=2048, normalize=False)
+        expected_small = fft_convolve(small_dry, np.asarray(fir, dtype=np.float64), mode="causal")
+        max_err = float(np.max(np.abs(audio_small - expected_small.astype(np.float32))))
+        assert max_err < 1e-5, f"Small-signal wet WAV deviated from linear convolution: {max_err}"
+
+        # 2. Full-scale Approach A conditioning: slew limiting, soft rail protection, and dither
         wet_path = export_frontend_wet_wav(
             inst_id, pkey, input_wav=test_dry_path, output_dir=tmp_path / "wet"
         )
@@ -552,41 +567,21 @@ def test_frontend_wet_wav_generation(tmp_path: Path):
         audio_wet, sr = read_wav(wet_path)
         assert sr == 48000
         assert len(audio_wet) == len(test_dry)
-
-        # Numerical verification against manual convolution + safety clamp
-        fir = compute_frontend_deconvolution_fir(inst_id, pkey, num_taps=2048, normalize=False)
-        expected = fft_convolve(test_dry, np.asarray(fir, dtype=np.float64), mode="causal")
-        max_val = float(np.max(np.abs(expected)))
-        if max_val > CALIBRATION_PEAK_CEILING:
-            expected = expected * (CALIBRATION_PEAK_CEILING / max_val)
-        expected_clamped = expected.astype(np.float32)
-
-        max_err = float(np.max(np.abs(audio_wet - expected_clamped)))
-        assert max_err < 1e-5, f"Wet WAV deviated from direct convolution by {max_err}"
         assert float(np.max(np.abs(audio_wet))) <= CALIBRATION_PEAK_CEILING + 1e-6
 
-        # 2. Normalized mode
+        # 3. Normalized mode
         wet_norm_path = export_frontend_wet_wav(
             inst_id, pkey, input_wav=test_dry_path, output_dir=tmp_path / "norm", normalize=True
         )
         audio_norm, _ = read_wav(wet_norm_path)
         assert abs(float(np.max(np.abs(audio_norm))) - CALIBRATION_PEAK_CEILING) < 1e-4
 
-    # 3. Explicit hot input verification: verify proportional safety clamp triggers
+    # 4. Explicit hot input verification: verify soft-knee rail protection and safety clamp
     wet_hot_path = export_frontend_wet_wav(
         "30in_emg_mmtw", "mmtw_dual", input_wav=hot_dry_path, output_dir=tmp_path / "hot"
     )
     audio_hot, _ = read_wav(wet_hot_path)
-    fir_dual = compute_frontend_deconvolution_fir(
-        "30in_emg_mmtw", "mmtw_dual", num_taps=2048, normalize=False
-    )
-    exp_hot = fft_convolve(hot_dry_read, np.asarray(fir_dual, dtype=np.float64), mode="causal")
-    assert np.max(np.abs(exp_hot)) > CALIBRATION_PEAK_CEILING  # Verify raw output exceeds ceiling
-    exp_hot_clamped = (
-        exp_hot * (CALIBRATION_PEAK_CEILING / float(np.max(np.abs(exp_hot))))
-    ).astype(np.float32)
-    assert np.max(np.abs(audio_hot - exp_hot_clamped)) < 1e-5
-    assert abs(float(np.max(np.abs(audio_hot))) - CALIBRATION_PEAK_CEILING) < 1e-5
+    assert float(np.max(np.abs(audio_hot))) <= CALIBRATION_PEAK_CEILING + 1e-6
 
 
 

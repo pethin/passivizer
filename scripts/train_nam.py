@@ -361,7 +361,14 @@ def train_voice(
         inst_models_dir = Path(models_dir) / folder_name
         inst_models_dir.mkdir(parents=True, exist_ok=True)
         target_nam = inst_models_dir / f"{model_basename}.nam"
-        input_path = find_sweep_input(input_wav)
+        if input_wav:
+            input_path = Path(input_wav)
+        else:
+            if not CANONICAL_SWEEP_PATH.exists():
+                from allomorph.circuit.staging import generate_canonical_sweep
+
+                generate_canonical_sweep()
+            input_path = CANONICAL_SWEEP_PATH
         output_path = (
             Path(output_wav)
             if output_wav

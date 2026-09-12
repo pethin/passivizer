@@ -13,15 +13,16 @@ The Darkglass Anagram allows up to 24 simultaneous blocks in series or parallel.
           │  Peak calibrated to -3.0 dBFS on Anagram hardware meter
           ▼
 ┌────────────────────────────────────────────────────────┐
-│ Block 1: Frontend Deconvolution (Minimum-Phase IR)     │  ◄── IR Loader Block (0% CPU, 0 ms latency)
-│   └── "30in_emg_mmtw_dual.wav" (2048 taps)             │      Matches your physical pickup switch position!
+│ Block 1: Frontend Deconvolution (A2-Lite NAM Preamp)   │  ◄── NAM Preamp Block (1 of 9 slots used)
+│   └── "30in_emg_mmtw_dual.nam"                         │      Matches your physical pickup switch position!
 │   • Inverts source RLC, pot/cable load, & aperture sinc│
+│   • Op-amp 16 kHz slew-limiting & soft rail headroom   │
 │   • Normalizes to Canonical Intermediate Baseline      │
 └────────────────────────────────────────────────────────┘
           │ (Canonical Intermediate @ 93.5mm: -1.5 dBFS Peak / -16.5 dBFS RMS)
           ▼
 ┌────────────────────────────────────────────────────────┐
-│ Block 2: Target Voicing (A2-Lite NAM Preamp)           │  ◄── NAM Preamp Block (1 of 9 slots used)
+│ Block 2: Target Voicing (A2-Lite NAM Preamp)           │  ◄── NAM Preamp Block (2 of 9 slots used)
 │   ├── Clean Pack:            "cln_04_modern_p.nam"     │      (0% Saturation / High Headroom)
 │   ├── Standard Dynamic Pack: "std_04_modern_p.nam"     │      (Standard Give & Bloom / Nominal Saturation)
 │   └── Hot Rod Pack:          "hot_04_modern_p.nam"     │      (175% Overwound Drive Pre-Conditioner)
@@ -29,7 +30,7 @@ The Darkglass Anagram allows up to 24 simultaneous blocks in series or parallel.
           │
           ▼
 ┌────────────────────────────────────────────────────────┐
-│ Block 3: Darkglass Drive / Preamp Engine               │  ◄── 8 Neural Slots Free!
+│ Block 3: Darkglass Drive / Preamp Engine               │  ◄── 7 Neural Slots Free!
 │   ├── Microtubes B7K Ultra / Vintage Microtubes        │
 │   └── Alpha·Omega / Microtubes Infinity                │
 └────────────────────────────────────────────────────────┘
@@ -55,8 +56,8 @@ The Darkglass Anagram allows up to 24 simultaneous blocks in series or parallel.
 > For Block 1 to perform an exact mathematical deconvolution ($0.00\text{ dB}$ flat intermediate baseline), keep your physical bass's volume and tone knobs completely wide open ($100\%$). Tone cap roll-offs (e.g. 22nF, 47nF Motown, 100nF Dub) and loading are selected in Block 2.
 
 > [!NOTE]
-> **Why Two Stages?**
-> Deconvolving your instrument's linear circuit and spatial aperture in Block 1 requires 0% neural CPU. This leaves 8 of the Anagram's 9 neural slots completely free for multiple drive engines, amp captures, or polyphonic synths.
+> **Why Pure NAM for Both Stages?**
+> Deconvolving your instrument's linear circuit, spatial aperture, and active buffer slew in Block 1 using a lightweight NAM (A2-Lite or Nano) avoids all hardware IR loader phase smearing, 1024/2048-sample bass truncation, and automatic gain normalization discrepancies. Running Block 1 + Block 2 uses only 2 of the Anagram's 9 neural slots, leaving 7 neural slots free for drive engines, amp captures, and synths.
 
 ---
 
