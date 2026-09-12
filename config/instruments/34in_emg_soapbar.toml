@@ -1,91 +1,100 @@
 # ==============================================================================
 # ALLOMORPH SOURCE INSTRUMENT CONFIGURATION
-# 34" Standard Scale Active Dual-Soapbar Bass (Ibanez SR / Yamaha TRBX / Schecter)
+# 34" Standard Scale 5-String Active EMG Soapbar Bass (Spector / ESP / Schecter)
 # ==============================================================================
 # Physical Datums:
 #   - Scale Length: 34.0" (863.6mm total, 431.8mm 12th fret to bridge saddle)
 #   - Modern Neck Soapbar: Centerline 135.0mm from bridge saddle (296.8mm from 12th fret)
-#       - Dual blade coils: forward coil 143.25mm, rearward coil 126.75mm (spacing d = 0.65" / 16.5mm)
+#       - Dual blade coils: forward coil 143.25mm, rearward coil 126.75mm (spacing d = 0.65" / 16.51mm)
 #       - Aperture width: 1.35" (34.3mm)
 #   - Modern Bridge Soapbar: Centerline 55.0mm from bridge saddle (376.8mm from 12th fret)
-#       - Dual blade coils: forward coil 63.25mm, rearward coil 46.75mm (spacing d = 0.65" / 16.5mm)
+#       - Dual blade coils: forward coil 63.25mm, rearward coil 46.75mm (spacing d = 0.65" / 16.51mm)
 #       - Aperture width: 1.35" (34.3mm)
 # Electronics:
-#   - Active 9V onboard preamp: 3-band active EQ buffer (Ibanez Custom Electronics / Yamaha Active).
-#   - Low output impedance (< 1.0 kOhm) direct to output jack / Anagram Block 1.
-#   - Neck Soapbar loaded resonance: 3.80 kHz, Q = 1.40.
-#   - Bridge Soapbar loaded resonance: 4.10 kHz, Q = 1.40.
-#   - Parallel center blend loaded resonance: 3.95 kHz, Q = 1.35.
+#   - Active EMG 40/35 series soapbars with integrated low-noise internal preamplifier.
+#   - 10 kOhm low output impedance line driver, flat sub-audible DC transmission (H(0) >= 1.0).
+#   - Calibrated under Option C (Universal Active EMG Baseline @ fr = 4.15 kHz):
+#       - Bridges published factory specs of EMG 40CS (3.75 kHz) and EMG 40DC (4.55 kHz).
+#       - Optimal for both 4-string (EMG 35) and 5-string (EMG 40) active soapbar instruments.
+#   - Neck Soapbar active resonance: 4150.0 Hz, Q = 1.40.
+#   - Bridge Soapbar active resonance: 4150.0 Hz, Q = 1.40.
+#   - Parallel center blend active resonance: 4150.0 Hz, Q = 1.35.
 
-id = "34in_active_soapbar"
-name = "34\" Active Soapbar Bass (Dual Humbuckers)"
+id = "34in_emg_soapbar"
+name = "34\" 5-String Active EMG Soapbar Bass (EMG 40)"
 scale_length_in = 34.0
 scale_length_m = 0.8636
 electronics = "active"
 
-# String wave speeds: v = 2 * L * f0 (for E1=41.2Hz, A1=55.0Hz, D2=73.4Hz, G2=98.0Hz)
-string_wave_speeds = [71.16, 95.00, 126.81, 169.27]
+# 5-String wave speeds: v = 2 * L * f0 (for B0=30.87Hz, E1=41.20Hz, A1=55.00Hz, D2=73.42Hz, G2=98.00Hz)
+string_wave_speeds = [53.31, 71.16, 95.00, 126.81, 169.27]
 
 default_pickup = "pair_parallel"
 
 # ------------------------------------------------------------------------------
 # Physical Strings Configuration (Source Instrument Setup)
 # ------------------------------------------------------------------------------
-# Strung with standard nickel roundwounds (D'Addario EXL165 .045-.105).
+# Strung with standard 5-string nickel roundwounds (D'Addario EXL170-5 .045-.130).
 [strings]
-preset = "roundwound_nickel_standard"
+preset = "roundwound_nickel_5string"
 brand = "D'Addario"
-model = "EXL165"
-gauge = "45-105"
+model = "EXL170-5"
+gauge = "45-130"
 core = "hex"
 wrap = "nickel_round"
-tension_lbs = 171.0
+tension_lbs = 195.0
 
 # ------------------------------------------------------------------------------
-# 1. MODERN ACTIVE SOAPBAR (Neck Solo)
+# 1. ACTIVE EMG SOAPBAR (Neck Solo)
 # ------------------------------------------------------------------------------
 [pickups.neck]
-name = "Modern Active Soapbar (Neck)"
+name = "Active EMG Soapbar (Neck)"
 position_name = "Neck"
 position_from_bridge_m = 0.1350  # 135.0mm from bridge
-aperture_width_in = 1.35         # 1.35" dual-blade soapbar housing
-coil_spacing_in = 0.65           # 0.65" (16.5mm) internal dual-blade spacing
+aperture_width_in = 1.35         # 1.35" dual-blade sensing envelope
+coil_spacing_in = 0.65           # 0.65" (16.51mm) internal dual-blade spacing
 type = "dual_coil_parallel"
-resonant_frequency_hz = 3800.0   # Active buffered resonance
+magnet_type = "ceramic"
+pole_type = "blade"
+resonant_frequency_hz = 4150.0   # Active EMG buffered resonance (Option C midpoint)
 q_factor = 1.40
 coils = [
-    { strings = ["all"], position_from_bridge_m = 0.14325, aperture_width_in = 0.65, weight = 0.5 },
-    { strings = ["all"], position_from_bridge_m = 0.12675, aperture_width_in = 0.65, weight = 0.5 }
+    { strings = ["all"], position_from_bridge_m = 0.14325, aperture_width_in = 0.65, weight = 0.5, pole_type = "blade" },
+    { strings = ["all"], position_from_bridge_m = 0.12675, aperture_width_in = 0.65, weight = 0.5, pole_type = "blade" }
 ]
 
 # ------------------------------------------------------------------------------
-# 2. MODERN ACTIVE SOAPBAR (Bridge Solo)
+# 2. ACTIVE EMG SOAPBAR (Bridge Solo)
 # ------------------------------------------------------------------------------
 [pickups.bridge]
-name = "Modern Active Soapbar (Bridge)"
+name = "Active EMG Soapbar (Bridge)"
 position_name = "Bridge"
 position_from_bridge_m = 0.0550  # 55.0mm from bridge
-aperture_width_in = 1.35         # 1.35" dual-blade soapbar housing
-coil_spacing_in = 0.65           # 0.65" (16.5mm) internal dual-blade spacing
+aperture_width_in = 1.35         # 1.35" dual-blade sensing envelope
+coil_spacing_in = 0.65           # 0.65" (16.51mm) internal dual-blade spacing
 type = "dual_coil_parallel"
-resonant_frequency_hz = 4100.0   # Active buffered resonance
+magnet_type = "ceramic"
+pole_type = "blade"
+resonant_frequency_hz = 4150.0   # Active EMG buffered resonance (Option C midpoint)
 q_factor = 1.40
 coils = [
-    { strings = ["all"], position_from_bridge_m = 0.06325, aperture_width_in = 0.65, weight = 0.5 },
-    { strings = ["all"], position_from_bridge_m = 0.04675, aperture_width_in = 0.65, weight = 0.5 }
+    { strings = ["all"], position_from_bridge_m = 0.06325, aperture_width_in = 0.65, weight = 0.5, pole_type = "blade" },
+    { strings = ["all"], position_from_bridge_m = 0.04675, aperture_width_in = 0.65, weight = 0.5, pole_type = "blade" }
 ]
 
 # ------------------------------------------------------------------------------
-# 3. MODERN ACTIVE SOAPBARS PARALLEL (Blend Center Detent / 50-50)
+# 3. ACTIVE EMG SOAPBARS PARALLEL (Center Detent / 50-50 Mix)
 # ------------------------------------------------------------------------------
 [pickups.pair_parallel]
-name = "Modern Active Soapbars Parallel (Center Detent)"
+name = "Active EMG Soapbars Parallel (Center Detent)"
 position_name = "Parallel"
 position_from_bridge_m = 0.0950  # Acoustic centroid (135.0mm + 55.0mm) / 2
 aperture_width_in = 1.35
 coil_spacing_in = 0.0
 type = "composite"
-resonant_frequency_hz = 3950.0   # Blended active resonance
+magnet_type = "ceramic"
+pole_type = "blade"
+resonant_frequency_hz = 4150.0   # Blended active resonance
 q_factor = 1.35
 components = [
     { pickup = "neck", weight = 0.5 },
@@ -95,7 +104,7 @@ components = [
 # ------------------------------------------------------------------------------
 # 4. SMART VOICE MAPPING
 # ------------------------------------------------------------------------------
-# Directs the player to select the closest physical pickup state on the Soapbar Bass:
+# Directs the player to select the closest physical pickup blend on the EMG Bass:
 #   - Neck Solo: Precision bass voicings, Mudbucker, and Upright acoustic depth
 #   - Bridge Solo: 60s Jazz bridge growl, StingRay bite, and Rickenbacker clank
 #   - Both Parallel: Modern active slap, dual-coil clarity, and hybrid authority
@@ -118,7 +127,6 @@ components = [
 "10_rickenbacker_bridge_hpf" = "bridge"
 "11_modern_pmm_active" = "pair_parallel"
 "11b_pmm_hybrid_series" = "pair_parallel"
-"11_pmm_hybrid_series" = "pair_parallel"
 "12_mudbucker_ultra_series" = "neck"
 "13_dingwall_multiscale_bridge" = "bridge"
 "14_upright_bridge_transducer" = "neck"

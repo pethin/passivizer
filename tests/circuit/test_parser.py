@@ -142,11 +142,11 @@ def test_default_output_directories():
 
 
 def test_sweep_audio_auto_detection():
-    """Verify that simulate_voice automatically finds T3K-sweep-v3.wav even if given None or missing input path."""
+    """Verify that simulate_voice automatically finds optimal_bass_dry.wav even if given None or missing input path."""
     sweep = find_default_input_audio()
     assert sweep is not None
     assert sweep.exists()
-    assert sweep.name == "T3K-sweep-v3.wav"
+    assert sweep.name == "optimal_bass_dry.wav"
 
     with tempfile.TemporaryDirectory() as tmpdir:
         out_wav = Path(tmpdir) / "auto_sweep_out.wav"
@@ -161,7 +161,7 @@ def test_sweep_audio_auto_detection():
         assert res is True
         assert out_wav.exists() and out_wav.stat().st_size > 1000
 
-        # Test with input_wav pointing to missing file (fallback behavior to T3K-sweep-v3.wav)
+        # Test with input_wav pointing to missing file (fallback behavior to optimal_bass_dry.wav)
         out_wav_fallback = Path(tmpdir) / "fallback_sweep_out.wav"
         res_fallback = simulate_voice(
             "04_modern_p_ceramic",

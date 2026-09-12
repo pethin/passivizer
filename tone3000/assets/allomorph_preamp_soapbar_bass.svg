@@ -223,13 +223,13 @@
   <line x1="130" y1="860" x2="420" y2="860" stroke="#06b6d4" stroke-width="3.5"/>
 
   <!-- Edition Title -->
-  <text x="130" y="915" fill="#ffffff" font-size="46" font-family="system-ui, -apple-system, sans-serif" font-weight="900" letter-spacing="3">ACTIVE SOAPBAR BASS</text>
+  <text x="130" y="915" fill="#ffffff" font-size="46" font-family="system-ui, -apple-system, sans-serif" font-weight="900" letter-spacing="3">PREAMP SOAPBAR BASS</text>
   
   <!-- Edition Subtitle / Voicing Count -->
   <text x="130" y="955" fill="#06b6d4" font-size="19" font-family="system-ui, -apple-system, sans-serif" font-weight="800" letter-spacing="2.5">22 DIGITAL TWIN VOICINGS  //  HIGH-IMPEDANCE PASSIVE EMULATION</text>
   
   <!-- Word-Wrapped Description (Line 1 & Line 2, safe margins >= 130px) -->
-  <text x="130" y="988" fill="#cbd5e1" font-size="16" font-family="system-ui, -apple-system, sans-serif" font-weight="600" letter-spacing="0.5">Calibrated for 34&quot; Modern Active Dual-Soapbar Bass</text>
+  <text x="130" y="988" fill="#cbd5e1" font-size="16" font-family="system-ui, -apple-system, sans-serif" font-weight="600" letter-spacing="0.5">Calibrated for 34&quot; Modern Preamp Dual-Soapbar Bass</text>
   <text x="130" y="1012" fill="#94a3b8" font-size="15" font-family="system-ui, -apple-system, sans-serif" font-weight="500" letter-spacing="0.5">Dual-Blade Humbuckers • Active 3-Band Preamp Buffer • Low-Z Output</text>
 
   <!-- Bottom Hardware Specification Chips (Comfortable widths, safe within margin) -->

@@ -64,6 +64,10 @@ from allomorph.circuit.sweeps import (
     ParametricSweepResult,
     compute_parametric_sweep,
 )
+from allomorph.dsp import (
+    OPTIMAL_DRY_PATH,
+    ensure_optimal_dry_wav,
+)
 
 __all__ = [
     "AUDIO_DIR",
@@ -75,6 +79,7 @@ __all__ = [
     "MAGNET_PROPERTIES",
     "MODELS_DIR",
     "MODELS_FRONTENDS_DIR",
+    "OPTIMAL_DRY_PATH",
     "REPO_ROOT",
     "TARGETS_DIR",
     "_HAS_NUMBA",
@@ -98,6 +103,7 @@ __all__ = [
     "compute_differential_circuit_transfer_functions",
     "compute_frontend_deconvolution_fir",
     "compute_parametric_sweep",
+    "ensure_optimal_dry_wav",
     "eval_pot_taper",
     "export_all_frontend_irs",
     "export_all_frontend_wet_wavs",

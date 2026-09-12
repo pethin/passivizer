@@ -114,6 +114,8 @@ def get_t3k_basename(
 
     Enforces that the filename (excluding the `.nam` extension) does not exceed
     `max_length` (34 characters max). Raises diagnostic ValueError if exceeded.
+    Sanitizes filesystem path separators ('/' and '\\') with Unicode Division Slash ('\u2215')
+    to maintain a flat directory structure.
     """
     clean_tone = tone_name.strip()
     if position_name and position_name.strip():
@@ -121,6 +123,8 @@ def get_t3k_basename(
         name = f"{clean_tone} [{clean_pos}]"
     else:
         name = clean_tone
+
+    name = name.replace("/", "\u2215").replace("\\", "\u2215")
 
     if len(name) > max_length:
         raise ValueError(

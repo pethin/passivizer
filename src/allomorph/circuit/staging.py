@@ -52,16 +52,18 @@ from allomorph.physics import (
 )
 
 
-def generate_canonical_sweep(input_wav: Path | None = None, output_wav: Path | None = None) -> Path:
+def generate_canonical_sweep(
+    input_wav: Path | str | None = None, output_wav: Path | str | None = None
+) -> Path:
     """
     Generates the calibrated Canonical Intermediate baseline audio sweep.
-    Takes raw T3K sweep audio, applies Canonical Intermediate aperture (single coil at 93.5mm datum)
+    Takes raw dry input audio (optimal_bass_dry.wav), applies Canonical Intermediate aperture (single coil at 93.5mm datum)
     and flat active buffer, and normalizes output to -1.5 dBFS True Peak / -16.5 dBFS RMS nominal.
     """
     if not input_wav:
         input_wav = find_default_input_audio()
     if not input_wav or not Path(input_wav).exists():
-        raise FileNotFoundError("Raw calibration audio (T3K-sweep-v3.wav) not found in repo root.")
+        raise FileNotFoundError("Raw calibration audio (optimal_bass_dry.wav) not found.")
 
     output_wav = Path(output_wav) if output_wav else CANONICAL_SWEEP_PATH
     output_wav.parent.mkdir(parents=True, exist_ok=True)
@@ -310,13 +312,7 @@ def export_frontend_wet_wav(
     """
     dry_path: Path | None = Path(input_wav) if input_wav else find_default_input_audio()
     if not dry_path or not dry_path.exists():
-        for candidate in ["T3K-sweep-v3.wav", "v3_0_0.wav", "input.wav"]:
-            cand_p = REPO_ROOT / candidate
-            if cand_p.exists():
-                dry_path = cand_p
-                break
-    if not dry_path or not dry_path.exists():
-        raise FileNotFoundError(f"Dry calibration sweep not found: {dry_path}")
+        raise FileNotFoundError(f"Dry calibration audio not found: {dry_path}")
 
     audio_dry, sr = _get_cached_sweep(dry_path)
     fir = compute_frontend_deconvolution_fir(
@@ -582,7 +578,7 @@ def main(argv: list[str] | None = None) -> None:
         help="Source instrument configuration (ID, comma-separated list, 'all', 30in, 32in, or path to .toml; default: 'all')",
     )
     parser.add_argument(
-        "--input", help="Input WAV path (defaults to auto-detecting T3K-sweep-v3.wav)"
+        "--input", help="Input WAV path (defaults to auto-generating optimal_bass_dry.wav)"
     )
     parser.add_argument(
         "--out", help="Output WAV path (default: audio/<instrument>/out_<voice>.wav)"
@@ -848,8 +844,10 @@ def main(argv: list[str] | None = None) -> None:
             res.print_metrics()
         return
 
+    input_wav = args.input
+
     if args.stage == "canonical":
-        generate_canonical_sweep(input_wav=args.input, output_wav=args.out)
+        generate_canonical_sweep(input_wav=input_wav, output_wav=args.out)
         return
     if args.stage == "frontends":
         fmt = args.frontend_format
@@ -875,7 +873,7 @@ def main(argv: list[str] | None = None) -> None:
                         export_frontend_wet_wav(
                             inst_id,
                             pkey,
-                            input_wav=args.input,
+                            input_wav=input_wav,
                             output_dir=args.out,
                             normalize=args.normalize_frontend,
                             gain_db=args.gain_db,
@@ -890,7 +888,7 @@ def main(argv: list[str] | None = None) -> None:
             )
         if fmt in ["wet", "both"]:
             export_all_frontend_wet_wavs(
-                input_wav=args.input,
+                input_wav=input_wav,
                 output_dir=args.out,
                 jobs=args.jobs,
                 normalize=args.normalize_frontend,
@@ -909,11 +907,11 @@ def main(argv: list[str] | None = None) -> None:
         )
         return
     if args.stage == "all":
-        generate_canonical_sweep(input_wav=args.input)
+        generate_canonical_sweep(input_wav=input_wav)
         fmt = args.frontend_format
         if fmt in ["wet", "both"]:
             export_all_frontend_wet_wavs(
-                input_wav=args.input,
+                input_wav=input_wav,
                 output_dir=args.out,
                 jobs=args.jobs,
                 normalize=args.normalize_frontend,
@@ -948,7 +946,7 @@ def main(argv: list[str] | None = None) -> None:
 
     instruments = resolve_instruments(args.instrument)
     voices = resolve_voices(args.voice)
-    in_path = Path(args.input) if args.input else None
+    in_path = Path(input_wav) if input_wav else None
     out_path = Path(args.out) if args.out else None
     prefiltered = args.prefiltered or (in_path is not None and in_path.name.startswith("aperture_"))
 

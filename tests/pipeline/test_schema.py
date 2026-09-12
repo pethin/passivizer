@@ -43,20 +43,26 @@ def test_tone3000_listing_validation():
     )
     assert listing.edition == "standard_precision_bass"
 
-    # Too short description (< 7000 chars)
+    # Too long description (> 10000 chars)
     with pytest.raises(ValidationError):
         Tone3000PackListing(
             edition="test",
-            description="Too short description",
+            description="A" * 10001,
             voicings=valid_voicings,
         )
 
-    # Incorrect number of voicings (!= 22)
+    # Incorrect number of voicings (< 18 or > 22)
     with pytest.raises(ValidationError):
         Tone3000PackListing(
             edition="test",
             description=valid_desc,
-            voicings=valid_voicings[:20],
+            voicings=valid_voicings[:15],
+        )
+    with pytest.raises(ValidationError):
+        Tone3000PackListing(
+            edition="test",
+            description=valid_desc,
+            voicings=valid_voicings + ["extra"],
         )
 
 

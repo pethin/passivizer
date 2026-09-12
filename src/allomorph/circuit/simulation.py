@@ -60,7 +60,7 @@ FRONTENDS_DIR = AUDIO_DIR / "frontends"
 TARGETS_DIR = AUDIO_DIR / "targets"
 INTERMEDIATE_TARGET_PEAK_DBFS = -1.5
 INTERMEDIATE_TARGET_RMS_DBFS = -16.5
-CALIBRATION_PEAK_CEILING = 0.9900  # -0.087 dBFS (matching T3K-sweep-v3.wav calibration sweep peak)
+CALIBRATION_PEAK_CEILING = 0.9900  # -0.087 dBFS (matching optimal_bass_dry.wav calibration peak)
 
 
 @functools.lru_cache(maxsize=4)
@@ -121,6 +121,7 @@ def simulate_circuit_audio(
     vsats: Sequence[float] | None = None,
     dc_block: bool = True,
     max_samples: int | None = None,
+    skip_identity: bool = False,
     saturation_config: SaturationConfig | None = None,
     harness_controls: HarnessControls | None = None,
 ):
@@ -485,6 +486,21 @@ def simulate_circuit_audio(
         )
 
     output_wav_path = Path(output_wav_path)
+    if skip_identity and (
+        is_identity
+        or (
+            len(out_total) == len(in_mono)
+            and np.max(np.abs(in_mono)) > 1e-4
+            and np.allclose(out_total, in_mono, atol=1e-6, rtol=1e-4)
+        )
+    ):
+        if output_wav_path.exists():
+            output_wav_path.unlink(missing_ok=True)
+        print(
+            f"     [Identity Bypass] Output is bit-for-bit identical to input. Skipping file: {output_wav_path.name}"
+        )
+        return False
+
     output_wav_path.parent.mkdir(parents=True, exist_ok=True)
 
     # Write 24-bit 48 kHz mono PCM WAV
@@ -538,6 +554,7 @@ def simulate_voice(
     eddy_diffusion: bool = True,
     dc_block: bool = True,
     max_samples: int | None = None,
+    skip_identity: bool = False,
     config: SimulationConfig | None = None,
 ):
     """
@@ -587,6 +604,7 @@ def simulate_voice(
         eddy_diffusion = config.eddy_diffusion
         dc_block = config.dc_block
         max_samples = config.max_samples if max_samples is None else max_samples
+        skip_identity = config.skip_identity
     if cir_path:
         model = load_circuit(cir_path)
         vcfg = VOICES.get(voice_id) or VoiceConfig(
@@ -624,7 +642,7 @@ def simulate_voice(
             prefiltered = True
         else:
             raise FileNotFoundError(
-                f"Input audio '{input_wav}' not found, and no standard calibration audio (T3K-sweep-v3.wav, v3_0_0.wav, input.wav) was detected."
+                f"Input audio '{input_wav}' not found, and no standard calibration audio (optimal_bass_dry.wav) was detected."
             )
     else:
         in_wav_path = Path(input_wav)
@@ -809,6 +827,16 @@ def simulate_voice(
         and np.allclose(diff_curves[0], 1.0, rtol=1e-3)
     )
     is_identity = is_spatial_match and (is_circuit_match if has_source_circuit else True)
+
+    if skip_identity and is_identity:
+        out_p = Path(out_wav)
+        if out_p.exists():
+            out_p.unlink(missing_ok=True)
+        print(
+            f"  [Identity Bypass] Target voice '{voice_id}' is bit-for-bit identical to source instrument '{inst_id}' "
+            f"({src_pickup.name}). Skipping output file: {out_p.name}"
+        )
+        return False
 
     # Differential magnetic softening parameters
     if not is_passive:
@@ -1065,7 +1093,7 @@ def simulate_voice(
     print(
         f"  -> Simulating Native VA ({stage_desc}{samples_desc}): {cir_label} (Topology: {model.topology}, Source: {inst_id}, Soften: {'Yes' if should_soften else 'No'}, Alpha: {diff_alpha:.2f}, Alpha3: {diff_alpha3:.2f}, Eta: {diff_eta:.2f}, Sag: {diff_sag:.2f}, Eddy: {diff_eddy:.2f}, Orbit: {diff_orbit:.2f}, Beta: {diff_beta:.3f}, Pull: {diff_pull:.3f}, Touch: {diff_touch:.3f}, Geom: {diff_geom:.2f}, Stein: {diff_stein:.3f}, EMF: {diff_emf:.2f}, Lambda: {diff_lambda:.2f}, Vsat: {eff_vsat:.2f})..."
     )
-    simulate_circuit_audio(
+    ok = simulate_circuit_audio(
         in_wav_path,
         out_wav,
         model,
@@ -1116,7 +1144,10 @@ def simulate_voice(
         vsats=eff_vsats,
         dc_block=dc_block,
         max_samples=max_samples,
+        skip_identity=skip_identity,
     )
+    if not ok:
+        return False
     print(f"     Exported: {out_wav}")
     return True
 

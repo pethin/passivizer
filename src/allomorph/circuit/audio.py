@@ -90,8 +90,13 @@ def prefilter_audio(
 
 
 def find_default_input_audio() -> Path | None:
-    """Finds raw calibration audio in the repository root."""
-    for candidate in ["T3K-sweep-v3.wav", "v3_0_0.wav", "input.wav"]:
+    """Finds or ensures the default input dry audio (optimal_bass_dry.wav)."""
+    from allomorph.dsp import OPTIMAL_DRY_PATH, ensure_optimal_dry_wav
+
+    ensure_optimal_dry_wav()
+    if OPTIMAL_DRY_PATH.exists():
+        return OPTIMAL_DRY_PATH
+    for candidate in ["input.wav"]:
         p = REPO_ROOT / candidate
         if p.exists():
             return p

@@ -7,6 +7,7 @@ import tempfile
 from pathlib import Path
 from typing import Any, cast
 
+import numpy as np
 import pytest
 
 from allomorph.config import (
@@ -14,6 +15,7 @@ from allomorph.config import (
     VOICES,
     InstrumentConfig,
     PickupConfig,
+    get_instrument_string,
     get_source_pickup,
     load_all_instruments,
     load_instrument,
@@ -34,7 +36,8 @@ def test_load_all_default_instruments():
         "34in_standard_jazz",
         "34in_standard_pj",
         "34in_active_stingray",
-        "34in_active_soapbar",
+        "34in_preamp_soapbar",
+        "34in_emg_soapbar",
         "30in_mustang_pj",
         "37in_multiscale_dingwall",
         "34in_dingwall_sp1",
@@ -204,12 +207,12 @@ def test_small_sample_delay_inter_pickup_coherence_decay():
 
     from allomorph.visualizer import build_voice_dataframe
 
-    # 34" Active Soapbar Bass playing 01 Modern Active Jazz Pair has delta_samples = 5.
+    # 34" Preamp Soapbar Bass playing 01 Modern Active Jazz Pair has delta_samples = 5.
     # Must apply spatial coherence decay without plunging into unphysical -40 dB razor notches.
     df = build_voice_dataframe(
         "01_modern_jazz_active",
         VOICES["01_modern_jazz_active"],
-        instrument="34in_active_soapbar",
+        instrument="34in_preamp_soapbar",
         mode="difference",
     )
     mags = df["magnitude_db"].to_numpy()
@@ -222,24 +225,25 @@ def test_small_sample_delay_inter_pickup_coherence_decay():
 
 def test_resolve_instruments():
     """Verify resolve_instruments handles 'all', defaults, comma lists, aliases, and unknown tokens."""
-    # 1. 'all' returns all 11 playable instruments and excludes canonical_intermediate
+    # 1. 'all' returns all 12 playable instruments and excludes canonical_intermediate
     all_insts = resolve_instruments("all")
-    assert len(all_insts) == 11
+    assert len(all_insts) == 12
     assert "canonical_intermediate" not in all_insts
-    expected_11 = {
+    expected_12 = {
         "30in_emg_mmtw",
         "30in_mustang_pj",
         "32in_custom_pmm",
         "32in_fretless_pmm",
-        "34in_active_soapbar",
         "34in_active_stingray",
         "34in_dingwall_sp1",
+        "34in_emg_soapbar",
+        "34in_preamp_soapbar",
         "34in_standard_jazz",
         "34in_standard_p",
         "34in_standard_pj",
         "37in_multiscale_dingwall",
     }
-    assert set(all_insts) == expected_11
+    assert set(all_insts) == expected_12
 
     # 2. None, empty string, or whitespace defaults to all playable
     assert resolve_instruments(None) == all_insts
@@ -253,10 +257,22 @@ def test_resolve_instruments():
     # 4. Aliases
     assert resolve_instruments("mustang") == ["30in_mustang_pj"]
     assert resolve_instruments("dingwall") == ["37in_multiscale_dingwall"]
-    assert resolve_instruments("soapbar") == ["34in_active_soapbar"]
+    assert resolve_instruments("preamp_soapbar") == ["34in_preamp_soapbar"]
+    assert resolve_instruments("ibanez_sr") == ["34in_preamp_soapbar"]
+    assert resolve_instruments("yamaha_trbx") == ["34in_preamp_soapbar"]
+    assert resolve_instruments("trbx") == ["34in_preamp_soapbar"]
+    assert resolve_instruments("emg_soapbar") == ["34in_emg_soapbar"]
+    assert resolve_instruments("emg40") == ["34in_emg_soapbar"]
+    assert resolve_instruments("spector5") == ["34in_emg_soapbar"]
     assert resolve_instruments("ray") == ["34in_active_stingray"]
 
-    # 5. Unknown tokens raise diagnostic ValueError (Guardrail 5.3.5)
+    # 5. Unknown and removed backward compatibility tokens raise diagnostic ValueError (Guardrail 5.3.5)
+    for removed_token in ["34in_active_soapbar", "active_soapbar"]:
+        with pytest.raises(ValueError, match="Unknown source instrument identifier"):
+            resolve_instruments(removed_token)
+
+    # Generic substring 'soapbar' matches both modern soapbar instruments
+    assert set(resolve_instruments("soapbar")) == {"34in_emg_soapbar", "34in_preamp_soapbar"}
     with pytest.raises(ValueError, match="Unknown source instrument identifier 'nonexistent_bass'"):
         resolve_instruments("nonexistent_bass, 30in")
 
@@ -384,3 +400,126 @@ def test_scale_resolution_strict_errors():
     # 4. Invalid types
     with pytest.raises(TypeError, match="Cannot resolve scale range"):
         resolve_scale_range(cast(Any, object()))
+
+
+def test_34in_emg_soapbar_configuration():
+    """Verify 34in_emg_soapbar physical geometry, 5-string wave speeds, EMG active parameters, and deconvolution."""
+    from allomorph.visualizer import build_voice_dataframe
+
+    inst = load_instrument("34in_emg_soapbar")
+    assert inst.id == "34in_emg_soapbar"
+    assert inst.scale_length_in == 34.0
+    assert inst.scale_length_m == pytest.approx(0.8636)
+    assert inst.electronics == "active"
+    assert inst.string_wave_speeds == [53.31, 71.16, 95.00, 126.81, 169.27]
+
+    # Verify physical strings resolution
+    s_cfg = get_instrument_string(inst)
+    assert s_cfg.preset == "roundwound_nickel_5string"
+    assert s_cfg.tension_lbs == 195.0
+    assert s_cfg.core == "hex"
+
+    # Verify pickups
+    assert "neck" in inst.pickups
+    assert "bridge" in inst.pickups
+    assert "pair_parallel" in inst.pickups
+
+    neck = inst.pickups["neck"]
+    assert neck.resonant_frequency_hz == 4150.0
+    assert neck.q_factor == 1.40
+    assert neck.magnet_type == "ceramic"
+    assert neck.pole_type == "blade"
+    assert neck.position_from_bridge_m == 0.1350
+
+    bridge = inst.pickups["bridge"]
+    assert bridge.resonant_frequency_hz == 4150.0
+    assert bridge.q_factor == 1.40
+    assert bridge.magnet_type == "ceramic"
+    assert bridge.pole_type == "blade"
+    assert bridge.position_from_bridge_m == 0.0550
+
+    pair = inst.pickups["pair_parallel"]
+    assert pair.resonant_frequency_hz == 4150.0
+    assert pair.q_factor == 1.35
+    assert pair.position_from_bridge_m == 0.0950
+
+    # Verify smart voice mapping coverage
+    for vid in VOICES:
+        if vid == "00_canonical_intermediate":
+            continue
+        p = get_source_pickup(inst, vid)
+        assert p.id in ["neck", "bridge", "pair_parallel"]
+
+    # Verify differential deconvolution curve generation
+    for test_vid in ["01_modern_jazz_active", "05_vintage_62_p_alnico", "09_stingray_mm_parallel"]:
+        df = build_voice_dataframe(test_vid, VOICES[test_vid], instrument=inst, mode="difference")
+        assert df is not None and len(df) > 0
+        mags = df["magnitude_db"].to_numpy()
+        assert not np.any(np.isnan(mags))
+        assert np.min(mags) > -30.0
+        assert np.max(mags) < 30.0
+
+
+def test_34in_preamp_soapbar_configuration():
+    """Verify 34in_preamp_soapbar passive pickup RLC circuits, active buffer isolation, and backward compatibility aliases."""
+    from allomorph.circuit import load_circuit
+    from allomorph.visualizer import build_voice_dataframe
+
+    inst = load_instrument("34in_preamp_soapbar")
+    assert inst.id == "34in_preamp_soapbar"
+    assert inst.scale_length_in == 34.0
+    assert inst.scale_length_m == pytest.approx(0.8636)
+    assert inst.electronics == "active"
+    assert len(inst.string_wave_speeds) == 4
+
+    # Verify pickups and embedded passive circuits
+    assert "neck" in inst.pickups
+    assert "bridge" in inst.pickups
+    assert "pair_parallel" in inst.pickups
+
+    neck = inst.pickups["neck"]
+    assert neck.resonant_frequency_hz == 3800.0
+    assert neck.circuit is not None
+    assert neck.circuit.active is True
+    assert neck.circuit.preamp == "none"
+    neck_circ = load_circuit(neck.circuit)
+    assert neck_circ.L == pytest.approx(3.8)
+    assert neck_circ.Rdc == pytest.approx(8600.0)
+    assert neck_circ.Reddy == pytest.approx(95000.0)
+
+    bridge = inst.pickups["bridge"]
+    assert bridge.resonant_frequency_hz == 4100.0
+    assert bridge.circuit is not None
+    assert bridge.circuit.active is True
+    assert bridge.circuit.preamp == "none"
+    bridge_circ = load_circuit(bridge.circuit)
+    assert bridge_circ.L == pytest.approx(4.2)
+    assert bridge_circ.Rdc == pytest.approx(9400.0)
+    assert bridge_circ.Reddy == pytest.approx(90000.0)
+
+    pair = inst.pickups["pair_parallel"]
+    assert pair.circuit is not None
+    assert pair.circuit.active is True
+    assert pair.circuit.preamp == "none"
+    assert pair.circuit.Rvol == pytest.approx(500000.0)
+
+    # Explicit aliases
+    for alias in ["34in_preamp_soapbar", "preamp_soapbar", "ibanez_sr", "yamaha_trbx", "trbx"]:
+        aliased_inst = load_instrument(alias)
+        assert aliased_inst.id == "34in_preamp_soapbar"
+
+    # Deprecated / removed aliases must raise FileNotFoundError (no silent backward compatibility fallback)
+    for deprecated in ["34in_active_soapbar", "active_soapbar", "soapbar"]:
+        with pytest.raises(FileNotFoundError):
+            load_instrument(deprecated)
+
+    # Verify differential deconvolution curves
+    for test_vid in ["01_modern_jazz_active", "05_vintage_62_p_alnico", "09_stingray_mm_parallel"]:
+        df = build_voice_dataframe(test_vid, VOICES[test_vid], instrument=inst, mode="difference")
+        assert df is not None and len(df) > 0
+        mags = df["magnitude_db"].to_numpy()
+        assert not np.any(np.isnan(mags))
+        assert np.min(mags) > -30.0
+        assert np.max(mags) < 30.0
+
+

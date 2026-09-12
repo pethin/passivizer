@@ -262,3 +262,457 @@ def calibrate_nam_v3_latency(y: np.ndarray) -> tuple[int, bool, bool]:
     matches_lookahead = delay == -lookahead
     return recommended, matches_lookahead, False
 
+
+REPO_ROOT = Path(__file__).resolve().parent.parent.parent
+AUDIO_DIR = REPO_ROOT / "audio"
+OPTIMAL_DRY_PATH = AUDIO_DIR / "canonical" / "optimal_bass_dry.wav"
+
+
+def _apply_hann_fades(sig: np.ndarray, fade_len: int) -> np.ndarray:
+    """Applies smooth raised-cosine (Hann) fade-in and fade-out to prevent DC/phase click discontinuities."""
+    if len(sig) < 2 * fade_len or fade_len <= 0:
+        return sig
+    out = sig.copy()
+    w = 0.5 * (1.0 - np.cos(np.pi * np.arange(fade_len, dtype=np.float64) / fade_len))
+    out[:fade_len] *= w
+    out[-fade_len:] *= w[::-1]
+    return out
+
+
+def _synth_log_chirp(
+    dur: float,
+    f_start: float,
+    f_end: float,
+    amp: float,
+    sample_rate: int = FS,
+) -> np.ndarray:
+    """Synthesizes a full-range logarithmic frequency chirp with 5ms micro-fades."""
+    n = int(dur * sample_rate)
+    if n <= 0:
+        return np.empty(0, dtype=np.float64)
+    t = np.linspace(0.0, dur, n, endpoint=False)
+    gamma = np.log(f_end / f_start)
+    phase = 2.0 * np.pi * f_start * (dur / gamma) * ((f_end / f_start) ** (t / dur) - 1.0)
+    sig = amp * np.sin(phase)
+    sig -= np.mean(sig)
+    return _apply_hann_fades(sig, min(n // 4, int(0.005 * sample_rate)))
+
+
+def _synth_pluck(
+    f0: float,
+    amp: float,
+    dur: float,
+    sample_rate: int = FS,
+    b_inharm: float = 0.00025,
+    pitch_sag_hz: float = 2.5,
+    tau_sag: float = 0.08,
+    clank: bool = True,
+    technique: str = "finger",
+) -> np.ndarray:
+    """Synthesizes an authentic physical bass string pluck with:
+
+    - Inharmonic modal frequencies fn = n * f0 * sqrt(1 + B * n^2)
+    - Dynamic attack pitch sag f(t) = f0 + sag * exp(-t / tau_sag)
+    - Dual-polarization orthogonal mode splitting (horizontal vs vertical blooming)
+    - Attack transient clank/snap tailored by playing technique
+    - Velocity profile (Faraday velocity scaling ~ 1 / n^0.82)
+    """
+    n = int(dur * sample_rate)
+    if n <= 0:
+        return np.empty(0, dtype=np.float64)
+    t = np.linspace(0.0, dur, n, endpoint=False)
+    phase_sag = -pitch_sag_hz * tau_sag * (np.exp(-t / max(tau_sag, 1e-4)) - 1.0)
+    decay_mult = 3.5 if technique == "staccato" else (1.3 if technique == "slap" else 1.0)
+
+    sig = np.zeros(n, dtype=np.float64)
+    max_h = min(32, int((sample_rate / 2.0 - 200.0) / f0))
+    split_hz = 0.18
+
+    for h in range(1, max_h):
+        fn = h * f0 * np.sqrt(1.0 + b_inharm * (h**2))
+        if fn >= (sample_rate / 2.0) - 200.0:
+            break
+        h_weight = 1.0 / (h**0.82)
+        decay_v = np.exp(-t * (0.7 + 0.12 * h) * decay_mult)
+        decay_h = np.exp(-t * (0.35 + 0.06 * h) * decay_mult)
+        phi_base = 2.0 * np.pi * (fn * t + h * phase_sag)
+        sig += h_weight * (
+            0.65 * np.sin(phi_base) * decay_v
+            + 0.35 * np.sin(phi_base + 2.0 * np.pi * split_hz * t) * decay_h
+        )
+
+    # Attack transients based on technique
+    if clank or technique in ("pick", "slap"):
+        if technique == "slap":
+            clank_len = min(n, int(0.018 * sample_rate))
+            tc = t[:clank_len]
+            burst = np.sin(2.0 * np.pi * 3200.0 * tc) * np.exp(-tc / 0.003)
+            sig[:clank_len] += 0.85 * burst
+        elif technique == "pick":
+            pick_len = min(n, int(0.008 * sample_rate))
+            tpk = t[:pick_len]
+            burst = np.sin(2.0 * np.pi * 4200.0 * tpk) * ((1.0 - tpk / 0.008) ** 2)
+            sig[:pick_len] += 0.60 * burst
+        else:
+            fret_len = min(n, int(0.012 * sample_rate))
+            tf = t[:fret_len]
+            burst = np.sin(2.0 * np.pi * 2600.0 * tf) * np.exp(-tf / 0.004)
+            sig[:fret_len] += 0.35 * burst
+
+    sig -= np.mean(sig)
+    p_max = float(np.max(np.abs(sig)))
+    if p_max > 0:
+        sig = (sig / p_max) * amp
+    return _apply_hann_fades(sig, min(n // 4, int(0.005 * sample_rate)))
+
+
+def _synth_ghost_note(
+    dur: float,
+    amp: float,
+    sample_rate: int = FS,
+) -> np.ndarray:
+    """Synthesizes an unpitched dead-string percussive thump (< 40ms) with zero pitch sustain."""
+    n = int(dur * sample_rate)
+    if n <= 0:
+        return np.empty(0, dtype=np.float64)
+    t = np.linspace(0.0, dur, n, endpoint=False)
+    body = np.sin(2.0 * np.pi * 85.0 * t) * np.exp(-t / 0.020)
+    click = np.sin(2.0 * np.pi * 2800.0 * t) * np.exp(-t / 0.004)
+    sig = 0.70 * body + 0.50 * click
+    sig -= np.mean(sig)
+    p_max = float(np.max(np.abs(sig)))
+    if p_max > 0:
+        sig = (sig / p_max) * amp
+    return _apply_hann_fades(sig, min(n // 4, int(0.003 * sample_rate)))
+
+
+def _synth_natural_harmonic(
+    f_harmonic: float,
+    amp: float,
+    dur: float,
+    sample_rate: int = FS,
+) -> np.ndarray:
+    """Synthesizes a pure bell-like natural harmonic overtone with zero low-frequency fundamental."""
+    n = int(dur * sample_rate)
+    if n <= 0:
+        return np.empty(0, dtype=np.float64)
+    t = np.linspace(0.0, dur, n, endpoint=False)
+    sig = np.sin(2.0 * np.pi * f_harmonic * t) * np.exp(-t * 0.45)
+    sig += 0.25 * np.sin(2.0 * np.pi * (2.0 * f_harmonic) * t) * np.exp(-t * 0.85)
+    sig -= np.mean(sig)
+    p_max = float(np.max(np.abs(sig)))
+    if p_max > 0:
+        sig = (sig / p_max) * amp
+    return _apply_hann_fades(sig, min(n // 4, int(0.005 * sample_rate)))
+
+
+def _synth_dyad(
+    f1: float,
+    f2: float,
+    amp: float,
+    dur: float,
+    sample_rate: int = FS,
+) -> np.ndarray:
+    """Synthesizes a two-note chord (power 5th or octave) to excite nonlinear intermodulation distortion."""
+    p1 = _synth_pluck(f1, 0.55, dur, sample_rate, clank=True, technique="finger")
+    p2 = _synth_pluck(f2, 0.45, dur, sample_rate, clank=True, technique="finger")
+    sig = p1 + p2
+    sig -= np.mean(sig)
+    p_max = float(np.max(np.abs(sig)))
+    if p_max > 0:
+        sig = (sig / p_max) * amp
+    return _apply_hann_fades(sig, min(len(sig) // 4, int(0.005 * sample_rate)))
+
+
+def _synth_glissando(
+    f_start: float,
+    f_end: float,
+    amp: float,
+    dur: float,
+    sample_rate: int = FS,
+) -> np.ndarray:
+    """Synthesizes a smooth continuous exponential string slide across register comb nulls."""
+    n = int(dur * sample_rate)
+    if n <= 0:
+        return np.empty(0, dtype=np.float64)
+    t = np.linspace(0.0, dur, n, endpoint=False)
+    gamma = np.log(f_end / f_start)
+    phase = 2.0 * np.pi * f_start * (dur / gamma) * ((f_end / f_start) ** (t / dur) - 1.0)
+    sig = np.sin(phase)
+    phase2 = 2.0 * np.pi * (2.0 * f_start) * (dur / gamma) * ((f_end / f_start) ** (t / dur) - 1.0)
+    phase3 = 2.0 * np.pi * (3.0 * f_start) * (dur / gamma) * ((f_end / f_start) ** (t / dur) - 1.0)
+    sig += 0.50 * np.sin(phase2) + 0.25 * np.sin(phase3)
+    sig -= np.mean(sig)
+    p_max = float(np.max(np.abs(sig)))
+    if p_max > 0:
+        sig = (sig / p_max) * amp
+    return _apply_hann_fades(sig, min(n // 4, int(0.005 * sample_rate)))
+
+
+def generate_optimal_bass_dry(
+    duration_sec: float = 180.0,
+    sample_rate: int = FS,
+    peak_dbfs: float = -1.0,
+    seed: int = 42,
+) -> np.ndarray:
+    """Synthesizes a 48 kHz high-fidelity synthetic dry excitation signal tailored for bass modeling.
+
+    Excites the complete physical state space of active, passive, and multi-scale bass systems:
+    1. Latency Calibration Double-Blips: clean impulses at 0.3s (+0.89) and 0.8s (-0.89) for
+       bit-exact cross-correlation stem alignment.
+    2. Multi-Tier Full-Spectrum Log Chirps: 4 discrete full-range sweeps (15 Hz -> 22 kHz) across
+       -24 dBFS (linear small-signal baseline), -12 dBFS (eddy damping), -6 dBFS (Lenz drag onset),
+       and -1 dBFS (full core saturation) + 1 inverted down-sweep (22 kHz -> 15 Hz at -3 dBFS).
+    3. 5-Step Dynamic Velocity Ladder on E1 (pp -> ff: -20, -14, -8, -4, -1 dBFS) followed by
+       modal plucks with dual-polarization bloom, attack pitch sag, and fret clank (Drop A0 27.5 Hz
+       through C3 130.81 Hz).
+    4. Comprehensive Articulations: plectrum down/upstrokes, slap thumb pops, palm-muted staccato,
+       unpitched percussive ghost notes (< 40ms), and natural harmonic bell chimes (123.6 & 164.8 Hz).
+    5. Polyphony & Dyads: Low-A, Low-B, and Low-E power 5ths + slap octaves to train nonlinear
+       intermodulation distortion (IMD) + Schroeder-phase multitone complexes with dynamic swell.
+    6. Continuous Glissandi: smooth exponential frequency glides across registers (A0 -> D1 -> G1 -> C2).
+    7. Wideband Pink Noise Bursts: rhythmic gated pink noise ensuring 100% continuous spectral density.
+
+    Zero Artificial Dither Policy:
+    Silence intervals contain pure, bit-exact digital silence (0.0). No background noise, hum,
+    or thermal dither is injected. All segment boundaries are smoothed with 3-5ms Hann micro-fades.
+    Leading and trailing silence is strictly bounded (<= 0.3s) and inter-event pauses are kept to
+    0.4s-0.5s, eliminating Tone3000 'Too Much Silence' rejections while providing full recovery time
+    for RLC resonance and magnetic relaxation.
+    """
+    total_samples = int(duration_sec * sample_rate)
+    audio = np.zeros(total_samples, dtype=np.float64)
+    scale = min(1.0, duration_sec / 180.0)
+
+    lead_silence = min(int(0.3 * sample_rate), int(0.05 * total_samples))
+    trail_silence = min(int(0.3 * sample_rate), int(0.05 * total_samples))
+    cur = lead_silence
+
+    # 1. Calibration blips
+    if cur + int(0.5 * sample_rate * scale) < total_samples - trail_silence:
+        audio[cur] = 0.89
+        b2 = cur + max(100, int(0.5 * sample_rate * scale))
+        if b2 < total_samples - trail_silence:
+            audio[b2] = -0.89
+            cur = b2 + max(100, int(0.3 * sample_rate * scale))
+        else:
+            cur += max(100, int(0.3 * sample_rate * scale))
+
+    def append_segment(seg: np.ndarray, pause_dur: float) -> None:
+        nonlocal cur
+        if len(seg) == 0:
+            return
+        end_idx = cur + len(seg)
+        limit = total_samples - trail_silence
+        if end_idx >= limit:
+            avail = max(0, limit - cur)
+            if avail > 0:
+                audio[cur : cur + avail] = seg[:avail]
+                cur += avail
+            return
+        audio[cur : end_idx] = seg
+        p_samples = max(50, int(pause_dur * sample_rate * scale))
+        cur = min(end_idx + p_samples, limit)
+
+    # 2. Multi-tier full sweeps (15 Hz -> 22 kHz)
+    c_dur = max(0.8, 7.0 * scale)
+    chirp_tiers = [
+        (15.0, 22000.0, 0.063),
+        (15.0, 22000.0, 0.251),
+        (15.0, 22000.0, 0.501),
+        (15.0, 22000.0, 0.891),
+        (22000.0, 15.0, 0.707),
+    ]
+    for f_s, f_e, amp in chirp_tiers:
+        if cur >= total_samples - trail_silence:
+            break
+        c = _synth_log_chirp(c_dur, f_s, f_e, amp, sample_rate)
+        append_segment(c, 0.4)
+
+    # 3. 5-Step Dynamic Velocity Ladder on open E1 (pp -> ff)
+    v_dur = max(0.4, 1.8 * scale)
+    for v_amp in [0.10, 0.20, 0.40, 0.63, 0.89]:
+        if cur >= total_samples - trail_silence:
+            break
+        p = _synth_pluck(41.20, v_amp, v_dur, sample_rate, technique="finger")
+        append_segment(p, 0.4)
+
+    # Modal plucks with pitch sag and fret clank (Drop A0 27.5 Hz through C3 130.81 Hz)
+    m_dur = max(0.4, 1.5 * scale)
+    notes = [27.50, 30.87, 41.20, 55.00, 73.42, 98.00, 130.81]
+    for n_f in notes:
+        for v_amp in [0.45, 0.85]:
+            if cur >= total_samples - trail_silence:
+                break
+            p = _synth_pluck(n_f, v_amp, m_dur, sample_rate, technique="finger")
+            append_segment(p, 0.4)
+
+    # 4. Articulations & Techniques
+    # Plectrum pick strikes
+    for _ in range(2):
+        if cur >= total_samples - trail_silence:
+            break
+        p = _synth_pluck(41.20, 0.75, max(0.4, 1.4 * scale), sample_rate, technique="pick")
+        append_segment(p, 0.4)
+    # Slap thumb pops
+    for _ in range(2):
+        if cur >= total_samples - trail_silence:
+            break
+        p = _synth_pluck(41.20, 0.85, max(0.4, 1.4 * scale), sample_rate, technique="slap")
+        append_segment(p, 0.4)
+    # Palm-muted staccato
+    for n_f in [41.20, 55.00, 73.42]:
+        if cur >= total_samples - trail_silence:
+            break
+        p = _synth_pluck(n_f, 0.70, max(0.3, 0.8 * scale), sample_rate, technique="staccato")
+        append_segment(p, 0.4)
+    # Percussive ghost notes (< 40ms)
+    for _ in range(3):
+        if cur >= total_samples - trail_silence:
+            break
+        g = _synth_ghost_note(max(0.15, 0.35 * scale), 0.75, sample_rate)
+        append_segment(g, 0.4)
+    # Natural harmonic bell chimes
+    for h_f in [82.41, 123.6, 164.8]:
+        if cur >= total_samples - trail_silence:
+            break
+        h = _synth_natural_harmonic(h_f, 0.70, max(0.4, 1.6 * scale), sample_rate)
+        append_segment(h, 0.4)
+
+    # 5. Polyphony & Dyads (Intermodulation Distortion)
+    d_dur = max(0.5, 2.0 * scale)
+    dyads = [
+        (27.50, 41.25),
+        (30.87, 46.31),
+        (41.20, 61.74),
+        (55.00, 82.50),
+        (41.20, 82.41),
+        (55.00, 110.00),
+    ]
+    for f1, f2 in dyads:
+        if cur >= total_samples - trail_silence:
+            break
+        d = _synth_dyad(f1, f2, 0.80, d_dur, sample_rate)
+        append_segment(d, 0.4)
+
+    # Schroeder-phase multitone complex with dynamic swell
+    m_rem = max(0, total_samples - trail_silence - cur)
+    if m_rem > int(2.0 * sample_rate * scale):
+        dur_m = min(14.0 * scale, m_rem / sample_rate * 0.4)
+        nm = int(dur_m * sample_rate)
+        if nm > 100:
+            tm = np.linspace(0.0, dur_m, nm, endpoint=False)
+            clusters = [
+                27.50,
+                30.87,
+                41.20,
+                55.00,
+                82.41,
+                110.0,
+                220.0,
+                440.0,
+                880.0,
+                1250.0,
+                1800.0,
+                2400.0,
+                3100.0,
+                4200.0,
+                6000.0,
+            ]
+            kc = len(clusters)
+            sig_m = np.zeros(nm, dtype=np.float64)
+            for k, fk in enumerate(clusters):
+                th = (np.pi * (k**2)) / kc
+                sig_m += (1.0 / np.sqrt(1.0 + (fk / 300.0))) * np.sin(2.0 * np.pi * fk * tm + th)
+            sig_m -= np.mean(sig_m)
+            sig_m = (sig_m / np.max(np.abs(sig_m))) * 0.80
+            am_env = 0.575 + 0.325 * np.sin(2.0 * np.pi * 0.25 * tm)
+            append_segment(
+                _apply_hann_fades(sig_m * am_env, min(nm // 4, int(0.01 * sample_rate))),
+                0.4,
+            )
+
+    # 6. Continuous Glissandi across register boundaries
+    g_dur = max(0.5, 3.5 * scale)
+    slides = [
+        (27.50, 41.20),
+        (41.20, 55.00),
+        (55.00, 73.42),
+        (73.42, 98.00),
+        (98.00, 41.20),
+    ]
+    for fs, fe in slides:
+        if cur >= total_samples - trail_silence:
+            break
+        gl = _synth_glissando(fs, fe, 0.80, g_dur, sample_rate)
+        append_segment(gl, 0.4)
+
+    # 7. Shaped Pink Noise Bursts
+    rem_samples = max(0, total_samples - trail_silence - cur)
+    if rem_samples > int(0.5 * sample_rate):
+        rng = np.random.default_rng(seed)
+        white = rng.standard_normal(rem_samples)
+        n_fft = 1 << (rem_samples - 1).bit_length()
+        w_spec = np.fft.rfft(white, n_fft)
+        freqs = np.fft.rfftfreq(n_fft, 1.0 / sample_rate)
+        freqs[0] = 1.0
+        pink = np.fft.irfft(w_spec * (1.0 / np.sqrt(freqs)), n_fft)[:rem_samples]
+        pink -= np.mean(pink)
+        pink_max = np.max(np.abs(pink))
+        if pink_max > 0:
+            pink = (pink / pink_max) * 0.75
+        period = int(0.25 * sample_rate)
+        on_len = int(0.15 * sample_rate)
+        burst_gate = ((np.arange(rem_samples) % period) < on_len).astype(np.float64)
+        hw = np.hanning(max(16, int(0.01 * sample_rate)))
+        hw /= np.sum(hw)
+        burst_gate = np.convolve(burst_gate, hw, mode="same")
+        b_max = np.max(burst_gate)
+        if b_max > 0:
+            burst_gate /= b_max
+        append_segment(
+            _apply_hann_fades(pink * burst_gate, min(rem_samples // 4, int(0.01 * sample_rate))),
+            0.0,
+        )
+
+    # Zero-DC centering on active regions (preserves pure zero digital silence in rests)
+    active_mask = audio != 0.0
+    if np.any(active_mask):
+        active_mean = float(np.mean(audio[active_mask]))
+        audio[active_mask] -= active_mean
+
+    # Peak ceiling bounding to requested peak_dbfs (preserves pure zero digital silence in rests)
+    target_peak = 10.0 ** (peak_dbfs / 20.0)
+    current_peak = float(np.max(np.abs(audio)))
+    if current_peak > 0:
+        audio = audio * (target_peak / current_peak)
+
+    return audio.astype(np.float32)
+
+
+
+def ensure_optimal_dry_wav(
+    output_path: Path | str | None = None,
+    duration_sec: float = 180.0,
+    sample_rate: int = FS,
+    peak_dbfs: float = -1.0,
+    overwrite: bool = False,
+) -> Path:
+    """Ensures that the synthesized optimal bass dry signal exists on disk.
+
+    If the target file does not exist (or overwrite is True), it generates the
+    optimal dry audio and writes it as a 24-bit 48 kHz mono PCM WAV file.
+    """
+    p = Path(output_path) if output_path is not None else OPTIMAL_DRY_PATH
+    if p.exists() and not overwrite:
+        return p
+    p.parent.mkdir(parents=True, exist_ok=True)
+    audio = generate_optimal_bass_dry(
+        duration_sec=duration_sec,
+        sample_rate=sample_rate,
+        peak_dbfs=peak_dbfs,
+    )
+    write_wav_24bit(p, audio, sample_rate)
+    return p
+
+

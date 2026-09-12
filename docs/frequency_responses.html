@@ -341,9 +341,10 @@
     <button class="tab-btn" data-id="30in_mustang_pj" onclick="selectInstrument('30in_mustang_pj')"><span>30" Mustang Bass PJ (Short Scale)</span></button>
     <button class="tab-btn" data-id="32in_custom_pmm" onclick="selectInstrument('32in_custom_pmm')"><span>32" Medium Scale Custom (EMG PX + MMTWX)</span></button>
     <button class="tab-btn" data-id="32in_fretless_pmm" onclick="selectInstrument('32in_fretless_pmm')"><span>32" Fretless Custom (EMG PCSX + MMTWX)</span></button>
-    <button class="tab-btn" data-id="34in_active_soapbar" onclick="selectInstrument('34in_active_soapbar')"><span>34" Active Soapbar Bass (Dual Humbuckers)</span></button>
     <button class="tab-btn" data-id="34in_active_stingray" onclick="selectInstrument('34in_active_stingray')"><span>34" Active StingRay (Music Man MM)</span></button>
     <button class="tab-btn" data-id="34in_dingwall_sp1" onclick="selectInstrument('34in_dingwall_sp1')"><span>Dingwall SP1 5-String (32"-35" Super P)</span></button>
+    <button class="tab-btn" data-id="34in_emg_soapbar" onclick="selectInstrument('34in_emg_soapbar')"><span>34" 5-String Active EMG Soapbar Bass (EMG 40)</span></button>
+    <button class="tab-btn" data-id="34in_preamp_soapbar" onclick="selectInstrument('34in_preamp_soapbar')"><span>34" Preamp Soapbar Bass (Dual Humbuckers)</span></button>
     <button class="tab-btn" data-id="34in_standard_jazz" onclick="selectInstrument('34in_standard_jazz')"><span>34" Standard Jazz Bass</span></button>
     <button class="tab-btn" data-id="34in_standard_p" onclick="selectInstrument('34in_standard_p')"><span>34" Standard P-Bass</span></button>
     <button class="tab-btn" data-id="34in_standard_pj" onclick="selectInstrument('34in_standard_pj')"><span>34" Standard P/J Bass</span></button>
@@ -418,15 +419,6 @@
     "pickups_summary": "Reverse EMG PCSX Split-Coil (Neck) (@ 140.4mm) | EMG MMTWX Single-Coil (Bridge) (@ 50.8mm) | EMG MMTWX Dual-Coil (Centerline) (@ 62.2mm)",
     "default_pickup": "pcsx"
   },
-  "34in_active_soapbar": {
-    "id": "34in_active_soapbar",
-    "name": "34\" Active Soapbar Bass (Dual Humbuckers)",
-    "scale_in": 34.0,
-    "scale_m": 0.8636,
-    "speeds_str": "71.2 m/s, 95.0 m/s, 126.8 m/s, 169.3 m/s",
-    "pickups_summary": "Modern Active Soapbar (Neck) (@ 135.0mm) | Modern Active Soapbar (Bridge) (@ 55.0mm)",
-    "default_pickup": "pair_parallel"
-  },
   "34in_active_stingray": {
     "id": "34in_active_stingray",
     "name": "34\" Active StingRay (Music Man MM)",
@@ -444,6 +436,24 @@
     "speeds_str": "54.9 m/s, 71.7 m/s, 93.6 m/s, 122.1 m/s, 159.3 m/s",
     "pickups_summary": "Dingwall Dual-P Neodymium (Neck) (@ 125.0mm) | Dingwall FD3n Neodymium (Bridge) (@ 58.0mm)",
     "default_pickup": "p"
+  },
+  "34in_emg_soapbar": {
+    "id": "34in_emg_soapbar",
+    "name": "34\" 5-String Active EMG Soapbar Bass (EMG 40)",
+    "scale_in": 34.0,
+    "scale_m": 0.8636,
+    "speeds_str": "53.3 m/s, 71.2 m/s, 95.0 m/s, 126.8 m/s, 169.3 m/s",
+    "pickups_summary": "Active EMG Soapbar (Neck) (@ 135.0mm) | Active EMG Soapbar (Bridge) (@ 55.0mm)",
+    "default_pickup": "pair_parallel"
+  },
+  "34in_preamp_soapbar": {
+    "id": "34in_preamp_soapbar",
+    "name": "34\" Preamp Soapbar Bass (Dual Humbuckers)",
+    "scale_in": 34.0,
+    "scale_m": 0.8636,
+    "speeds_str": "71.2 m/s, 95.0 m/s, 126.8 m/s, 169.3 m/s",
+    "pickups_summary": "Passive Soapbar with Preamp (Neck) (@ 135.0mm) | Passive Soapbar with Preamp (Bridge) (@ 55.0mm)",
+    "default_pickup": "pair_parallel"
   },
   "34in_standard_jazz": {
     "id": "34in_standard_jazz",

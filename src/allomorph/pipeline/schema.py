@@ -65,9 +65,9 @@ class Tone3000PackListing(AllomorphBaseModel):
     """Declarative validation schema for Tone3000 storefront pack descriptions and metadata."""
 
     edition: str
-    description: str = Field(..., min_length=7000, max_length=10000)
+    description: str = Field(..., max_length=10000)
     pickup_tags: list[str] = Field(default_factory=list)
-    voicings: list[str] = Field(..., min_length=22, max_length=22)
+    voicings: list[str] = Field(..., min_length=18, max_length=22)
 
 
 class NamSourcePickupMeta(AllomorphBaseModel):
@@ -177,6 +177,7 @@ class ArtworkPackConfig(AllomorphBaseModel):
     scale: str
     badge2: str
     badge3: str
+    voicing_count: int = 22
     content: Callable[[str], str]
 
 

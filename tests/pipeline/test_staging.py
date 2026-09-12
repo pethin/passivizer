@@ -75,15 +75,15 @@ def test_canonical_sweep_calibration(tmp_path: Path):
 
     peak = float(np.max(np.abs(audio)))
     peak_db = 20.0 * math.log10(peak)
-    assert peak_db == pytest.approx(-0.43, abs=0.20)
+    assert peak_db == pytest.approx(-1.11, abs=0.20)
     assert not np.isnan(audio).any()
     assert not np.isinf(audio).any()
 
 
 def test_frontend_ir_generation(tmp_path: Path):
-    """Validates that all 32 frontend IRs are exported with exact 2048-tap length and positive polarity."""
+    """Validates that all 35 frontend IRs are exported with exact 2048-tap length and positive polarity."""
     exported = export_all_frontend_irs(output_dir=tmp_path)
-    assert len(exported) == 32
+    assert len(exported) == 35
 
     for ir_path in exported:
         assert ir_path.exists(), f"IR missing: {ir_path}"
@@ -159,13 +159,17 @@ def test_t3k_pack_naming_invariants():
                 assert len(basename) <= 34, (
                     f"Basename '{basename}' ({vid} + {iid}/{pid}) exceeds 34 characters: {len(basename)}"
                 )
-                assert basename == f"{tone} [{pos}]"
+                assert "/" not in basename
+                assert "\\" not in basename
+                assert basename == f"{tone} [{pos}]".replace("/", "\u2215").replace("\\", "\u2215")
 
     # 5. Length boundary and error handling in get_t3k_basename
     with pytest.raises(ValueError, match="exceeds 34 characters"):
         get_t3k_basename("This Is An Extremely Long Tone Name", "Parallel")
 
     assert get_t3k_basename("Vintage 62 P", "Split") == "Vintage 62 P [Split]"
+    assert get_t3k_basename("Modern P/MM Active", "P/MM") == "Modern P\u2215MM Active [P\u2215MM]"
+    assert "/" not in get_t3k_basename("Modern P/MM Active", "P/MM")
 
     # 6. Single-pickup instruments omit pickup name suffix
     assert get_t3k_basename("Vintage 62 P", None) == "Vintage 62 P"
@@ -500,7 +504,7 @@ def test_frontend_wet_wav_generation(tmp_path: Path):
     dry_audio, dry_sr = read_wav(dry_path)
 
     # Use a 48,000-sample (1.0s) active sweep slice to accelerate test runtime
-    test_dry = dry_audio[50000:98000]
+    test_dry = dry_audio[1104000:1152000]
     test_dry_path = tmp_path / "test_dry.wav"
     write_wav_24bit(str(test_dry_path), test_dry, dry_sr)
 
@@ -600,7 +604,7 @@ def test_parseval_spectral_integration_rms_accuracy():
 def test_target_sweep_zero_timing_delay_and_no_nam_lookahead_warnings(tmp_path: Path):
     """Validates that causally convolved target sweeps maintain exact zero latency
 
-    alignment with T3K-sweep-v3.wav and trigger zero lookahead or detection warnings in NAM.
+    alignment with optimal_bass_dry.wav and trigger zero lookahead or detection warnings in NAM.
     """
     from allomorph.circuit.staging import CANONICAL_SWEEP_PATH
     from allomorph.config.scales import REPO_ROOT

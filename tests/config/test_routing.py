@@ -216,9 +216,9 @@ def test_34in_active_stingray_routing():
         assert pickup.id == "mm_parallel"
 
 
-def test_34in_active_soapbar_routing():
-    inst = load_instrument("34in_active_soapbar")
-    assert inst.id == "34in_active_soapbar"
+def test_34in_preamp_soapbar_routing():
+    inst = load_instrument("34in_preamp_soapbar")
+    assert inst.id == "34in_preamp_soapbar"
     assert inst.scale_length_in == 34.0
     assert inst.electronics == "active"
     assert "neck" in inst.pickups
@@ -231,8 +231,12 @@ def test_34in_active_soapbar_routing():
     assert neck.position_from_bridge_m is not None
     assert math.isclose(neck.position_from_bridge_m, 0.1350, abs_tol=1e-4)
     assert neck.resonant_frequency_hz == 3800.0
-    assert neck.q_factor == 1.40
+    assert neck.q_factor == 1.45
     assert len(neck.coils) == 2
+    assert neck.circuit is not None
+    assert neck.circuit.L == 3.8
+    assert neck.circuit.Rdc == 8600.0
+    assert neck.circuit.active is True
 
     # Bridge soapbar
     bridge = inst.pickups["bridge"]
@@ -241,6 +245,10 @@ def test_34in_active_soapbar_routing():
     assert bridge.resonant_frequency_hz == 4100.0
     assert bridge.q_factor == 1.40
     assert len(bridge.coils) == 2
+    assert bridge.circuit is not None
+    assert bridge.circuit.L == 4.2
+    assert bridge.circuit.Rdc == 9400.0
+    assert bridge.circuit.active is True
 
     # Composite pair
     pair = inst.pickups["pair_parallel"]
@@ -249,10 +257,22 @@ def test_34in_active_soapbar_routing():
     assert len(pair.components) == 2
     assert pair.components[0].pickup == "neck"
     assert pair.components[1].pickup == "bridge"
+    assert pair.circuit is not None
+    assert pair.circuit.topology == "parallel"
+    assert pair.circuit.active is True
 
     # Shorthand aliases check
-    assert load_instrument("active_soapbar").id == "34in_active_soapbar"
-    assert load_instrument("soapbar").id == "34in_active_soapbar"
+    assert load_instrument("preamp_soapbar").id == "34in_preamp_soapbar"
+    assert load_instrument("ibanez_sr").id == "34in_preamp_soapbar"
+    assert load_instrument("yamaha_trbx").id == "34in_preamp_soapbar"
+    assert load_instrument("trbx").id == "34in_preamp_soapbar"
+
+    # Removed backward compatibility aliases must raise FileNotFoundError
+    import pytest
+    with pytest.raises(FileNotFoundError):
+        load_instrument("active_soapbar")
+    with pytest.raises(FileNotFoundError):
+        load_instrument("soapbar")
 
     # P voices route to neck soapbar
     assert get_source_pickup(inst, "04_modern_p_ceramic").id == "neck"

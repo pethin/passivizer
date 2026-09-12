@@ -263,6 +263,7 @@ class SimulationConfig(AllomorphBaseModel):
     eddy_diffusion: bool = True
     dc_block: bool = True
     max_samples: int | None = None
+    skip_identity: bool = False
     harness_controls: HarnessControls | None = None
     saturation_config: SaturationConfig | None = None
 
@@ -321,6 +322,7 @@ class SimulationConfig(AllomorphBaseModel):
             "eddy_diffusion": self.eddy_diffusion,
             "dc_block": self.dc_block,
             "max_samples": self.max_samples,
+            "skip_identity": self.skip_identity,
             "vsat": s.vsat if s else None,
         }
 

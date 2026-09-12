@@ -282,7 +282,7 @@
   <text x="130" y="915" fill="#ffffff" font-size="46" font-family="system-ui, -apple-system, sans-serif" font-weight="900" letter-spacing="3">STANDARD PRECISION BASS</text>
   
   <!-- Edition Subtitle / Voicing Count -->
-  <text x="130" y="955" fill="#f59e0b" font-size="19" font-family="system-ui, -apple-system, sans-serif" font-weight="800" letter-spacing="2.5">22 DIGITAL TWIN VOICINGS  //  HIGH-IMPEDANCE PASSIVE EMULATION</text>
+  <text x="130" y="955" fill="#f59e0b" font-size="19" font-family="system-ui, -apple-system, sans-serif" font-weight="800" letter-spacing="2.5">21 DIGITAL TWIN VOICINGS  //  HIGH-IMPEDANCE PASSIVE EMULATION</text>
   
   <!-- Word-Wrapped Description (Line 1 & Line 2, safe margins >= 130px) -->
   <text x="130" y="988" fill="#cbd5e1" font-size="16" font-family="system-ui, -apple-system, sans-serif" font-weight="600" letter-spacing="0.5">Calibrated for 34&quot; Standard Fender Precision Bass</text>

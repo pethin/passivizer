@@ -71,7 +71,12 @@ from allomorph.pipeline.schema import (
 def find_sweep_input(candidate_path: str | Path | None = None) -> Path | None:
     if candidate_path and Path(candidate_path).exists():
         return Path(candidate_path)
-    for name in ["T3K-sweep-v3.wav", "v3_0_0.wav", "input.wav"]:
+    from allomorph.dsp import OPTIMAL_DRY_PATH, ensure_optimal_dry_wav
+
+    ensure_optimal_dry_wav()
+    if OPTIMAL_DRY_PATH.exists():
+        return OPTIMAL_DRY_PATH
+    for name in ["input.wav"]:
         p = REPO_ROOT / name
         if p.exists():
             return p
@@ -82,6 +87,7 @@ DEFAULT_GOAL_ESR = 0.0005  # A2-Lite studio reference early-stopping target (~ -
 DEFAULT_MAX_EPOCHS = 500  # A2-Lite studio reference epoch safety ceiling
 DEFAULT_BATCH_SIZE = 32  # Standard batch size for high GPU core utilization
 CANONICAL_SWEEP_PATH = AUDIO_DIR / "canonical" / "canonical_sweep.wav"
+OPTIMAL_DRY_PATH = AUDIO_DIR / "canonical" / "optimal_bass_dry.wav"
 
 
 def configure_a2_architecture(nam_core: Any, a2_full: bool = False) -> None:
@@ -747,7 +753,7 @@ def main():
         help="Optional manual gain trim in dB for frontend wet audio synthesis (default: 0.0 dB)",
     )
     parser.add_argument(
-        "--input", help="Path to dry training sweep WAV (default: auto-detect T3K-sweep-v3.wav)"
+        "--input", help="Path to dry training sweep WAV (default: auto-detect optimal_bass_dry.wav)"
     )
     parser.add_argument(
         "--output", help="Path to simulated SPICE output WAV (default: circuits/out_<voice>.wav)"
@@ -845,6 +851,8 @@ def main():
         else cli_cfg.goal_esr
     )
 
+    input_wav_path = cli_cfg.input_wav
+
     if args.frontend:
         instruments_to_run = resolve_instruments(cli_cfg.instrument)
         all_ok = True
@@ -852,7 +860,7 @@ def main():
             ok = train_frontend(
                 instrument=inst,
                 pickup=args.pickup,
-                input_wav=cli_cfg.input_wav,
+                input_wav=input_wav_path,
                 output_wav=cli_cfg.output_wav,
                 models_dir=cli_cfg.models_dir,
                 epochs=cli_cfg.epochs,
@@ -895,7 +903,7 @@ def main():
             ok = train_voice(
                 instrument=inst,
                 voice=voice,
-                input_wav=cli_cfg.input_wav,
+                input_wav=input_wav_path,
                 output_wav=out_wav,
                 models_dir=cli_cfg.models_dir,
                 tier=cli_cfg.tier,

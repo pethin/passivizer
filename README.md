@@ -176,7 +176,7 @@ uv run python scripts/analyze_voices.py --instrument 30in
 *Outputs: Master interactive portal at `docs/frequency_responses.html` (and `docs/frequency_responses/index.html`) with embedded tabbed navigation and spec breakdown, and per-instrument standalone visualizations in `docs/frequency_responses/<instrument_id>.html`.*
 
 ### 2. Native WAV SPICE Circuit Simulation (`allomorph-sim`)
-Directly streams raw NAM calibration audio (`T3K-sweep-v3.wav` / `v3_0_0.wav` / `input.wav`) through the entire physical digital twin in a single in-memory pass:
+Directly streams raw bass calibration audio (`audio/canonical/optimal_bass_dry.wav`) through the entire physical digital twin in a single in-memory pass:
 1. **Acoustic Aperture & Placement:** De-humbucking sinc aperture filtering, spatial standing-wave comb filtering, displacement tilt ($\Delta x$), and string tension filtering.
 2. **Dynamic Non-Linear Compliance:** Soft-knee saturation ($V_{\text{sat}} \cdot \tanh(v / V_{\text{sat}})$), Lenz flux sag, Dahl hysteresis, back-EMF, and dynamic reluctance quack.
 3. **Passive Pickup Circuit Twin:** Exact closed-form nodal AC transfer functions, eddy-current damping, authentic volume/tone pot dividers, active preamp buffers, hybrid treble bleed, cable capacitance ($750\text{ pF}$), and pedalboard load ($1\text{ M}\Omega \parallel 30\text{ pF}$).
@@ -202,8 +202,8 @@ Trains a high-efficiency **NAM Architecture 2 (A2)** neural model on the input/o
 
 ```bash
 # Train NAM Architecture 2 (A2) model for Darkglass Anagram Block 1:
-# The input is the raw bass calibration sweep (T3K-sweep-v3.wav) and the target is the simulated output:
-nam train T3K-sweep-v3.wav audio/30in_emg_mmtw/out_04_modern_p_ceramic.wav ./models/30in_emg_mmtw/04_modern_p_ceramic.nam --architecture "A2"
+# The input is the raw bass calibration signal (audio/canonical/optimal_bass_dry.wav) and the target is the simulated output:
+nam train audio/canonical/optimal_bass_dry.wav audio/30in_emg_mmtw/out_04_modern_p_ceramic.wav ./models/30in_emg_mmtw/04_modern_p_ceramic.nam --architecture "A2"
 
 # Run via the automated Allomorph trainer (defaults to A2-Lite studio reference goal ESR <= 0.0005 with 500 max epochs):
 uv run allomorph --stage train --instrument 30in --voice 04_modern_p_ceramic

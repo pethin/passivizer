@@ -307,6 +307,7 @@ def generate_pack_svg(model_key: str) -> str:
             "scale": "34&quot; SCALE",
             "badge2": "ALNICO V SPLIT-P",
             "badge3": "11.2 kΩ DUAL-COIL",
+            "voicing_count": 21,
             "content": _svg_content(
                 lambda accent: (
                     f"""
@@ -346,6 +347,7 @@ def generate_pack_svg(model_key: str) -> str:
             "scale": "34&quot; SCALE",
             "badge2": "ALNICO V DUAL-J",
             "badge3": "60s PICKUP SPACING",
+            "voicing_count": 20,
             "content": _svg_content(
                 lambda accent: (
                     f"""
@@ -389,6 +391,7 @@ def generate_pack_svg(model_key: str) -> str:
             "scale": "34&quot; SCALE",
             "badge2": "P/J HYBRID COILS",
             "badge3": "ACTIVE/PASSIVE HARNESS",
+            "voicing_count": 19,
             "content": _svg_content(
                 lambda accent: (
                     f"""
@@ -434,6 +437,7 @@ def generate_pack_svg(model_key: str) -> str:
             "scale": "30&quot; SHORT SCALE",
             "badge2": "MUSTANG P/J HYBRID",
             "badge3": "FAST TRANSIENT DYNAMICS",
+            "voicing_count": 22,
             "content": _svg_content(
                 lambda accent: (
                     f"""
@@ -476,14 +480,15 @@ def generate_pack_svg(model_key: str) -> str:
                 )
             ),
         },
-        "active_soapbar": {
+        "preamp_soapbar": {
             "accent": "#06b6d4",
-            "title": "ACTIVE SOAPBAR BASS",
-            "desc_line1": "Calibrated for 34&quot; Modern Active Dual-Soapbar Bass",
+            "title": "PREAMP SOAPBAR BASS",
+            "desc_line1": "Calibrated for 34&quot; Modern Preamp Dual-Soapbar Bass",
             "desc_line2": "Dual-Blade Humbuckers • Active 3-Band Preamp Buffer • Low-Z Output",
             "scale": "34&quot; SCALE",
             "badge2": "DUAL SOAPBARS",
             "badge3": "ACTIVE 3-BAND PREAMP",
+            "voicing_count": 22,
             "content": _svg_content(
                 lambda accent: (
                     f"""
@@ -527,6 +532,7 @@ def generate_pack_svg(model_key: str) -> str:
             "scale": "34&quot; SCALE",
             "badge2": "SWEET-SPOT HUMBUCKER",
             "badge3": "ACTIVE 2-BAND PREAMP",
+            "voicing_count": 21,
             "content": _svg_content(
                 lambda accent: (
                     f"""
@@ -694,7 +700,7 @@ def generate_pack_svg(model_key: str) -> str:
   <text x="130" y="915" fill="#ffffff" font-size="46" font-family="system-ui, -apple-system, sans-serif" font-weight="900" letter-spacing="3">{cfg.title}</text>
   
   <!-- Edition Subtitle / Voicing Count -->
-  <text x="130" y="955" fill="{acc}" font-size="19" font-family="system-ui, -apple-system, sans-serif" font-weight="800" letter-spacing="2.5">22 DIGITAL TWIN VOICINGS  //  HIGH-IMPEDANCE PASSIVE EMULATION</text>
+  <text x="130" y="955" fill="{acc}" font-size="19" font-family="system-ui, -apple-system, sans-serif" font-weight="800" letter-spacing="2.5">{cfg.voicing_count} DIGITAL TWIN VOICINGS  //  HIGH-IMPEDANCE PASSIVE EMULATION</text>
   
   <!-- Word-Wrapped Description (Line 1 & Line 2, safe margins >= 130px) -->
   <text x="130" y="988" fill="#cbd5e1" font-size="16" font-family="system-ui, -apple-system, sans-serif" font-weight="600" letter-spacing="0.5">{cfg.desc_line1}</text>
@@ -738,13 +744,15 @@ def main():
         "jazz": "allomorph_standard_jazz_bass",
         "pj": "allomorph_standard_pj_bass",
         "mustang": "allomorph_mustang_pj_bass",
-        "active_soapbar": "allomorph_active_soapbar_bass",
+        "preamp_soapbar": "allomorph_preamp_soapbar_bass",
         "active_stingray": "allomorph_active_stingray_bass",
     }
 
-    # Remove obsolete coilshift placeholders if present
-    for old_file in assets_dir.glob("coilshift_*.jpg"):
-        print(f"Removing obsolete placeholder: {old_file}")
+    # Remove obsolete active_soapbar and placeholder assets if present
+    for old_file in list(assets_dir.glob("allomorph_active_soapbar_bass.*")) + list(
+        assets_dir.glob("coilshift_*.jpg")
+    ):
+        print(f"Removing obsolete asset: {old_file}")
         old_file.unlink()
 
     for key, name in editions.items():

@@ -196,7 +196,7 @@ def main(argv: Sequence[str] | None = None):
     parser.add_argument(
         "--input-wav",
         default=None,
-        help="Path to NAM calibration audio file (default: auto-detects T3K-sweep-v3.wav, v3_0_0.wav, or input.wav)",
+        help="Path to dry calibration audio file (default: auto-generates audio/canonical/optimal_bass_dry.wav)",
     )
     parser.add_argument(
         "--epochs",
@@ -302,11 +302,16 @@ def main(argv: Sequence[str] | None = None):
     print("========================================")
 
     input_wav = args.input_wav
-    if not input_wav or not (REPO_ROOT / input_wav).exists():
-        for candidate in ["T3K-sweep-v3.wav", "v3_0_0.wav", "input.wav"]:
-            if (REPO_ROOT / candidate).exists():
-                input_wav = candidate
-                break
+    if not input_wav or not (Path(input_wav).exists() or (REPO_ROOT / input_wav).exists()):
+        from allomorph.dsp import OPTIMAL_DRY_PATH, ensure_optimal_dry_wav
+
+        ensure_optimal_dry_wav()
+        input_wav = str(OPTIMAL_DRY_PATH)
+        print(f"  Dry Source:  Optimal Bass Synthetic ({OPTIMAL_DRY_PATH.name})")
+    else:
+        actual_path = Path(input_wav) if Path(input_wav).exists() else (REPO_ROOT / input_wav)
+        input_wav = str(actual_path)
+        print(f"  Dry Source:  {actual_path.name}")
 
     if args.stage == "bake":
         effective_tier = args.tier if args.tier is not None else "dynamic"
@@ -370,6 +375,7 @@ def main(argv: Sequence[str] | None = None):
                     vol_pos=args.vol_pos,
                     tone_pos=args.tone_pos,
                     cable_pf=args.cable_pf,
+                    skip_identity=True,
                 )
                 tasks.append((voice, sim_cfg, inst, basename, inst_models_dir, baked_wav))
 
@@ -385,20 +391,33 @@ def main(argv: Sequence[str] | None = None):
 
             sim_tasks = [(t[0], t[1]) for t in tasks]
             with ProcessPoolExecutor(max_workers=max_workers) as executor:
-                list(executor.map(_simulate_voice_task, sim_tasks))
-            for _v, _cfg, _inst, _base, _mdir, baked_wav in tasks:
-                print(f"Baked simulation exported: {baked_wav}")
+                results = list(executor.map(_simulate_voice_task, sim_tasks))
+            for (voice, _cfg, inst, _base, _mdir, baked_wav), success in zip(tasks, results):
+                if success and baked_wav.exists():
+                    print(f"Baked simulation exported: {baked_wav}")
+                else:
+                    print(
+                        f"Skipped bit-for-bit identity voice: {inst} -> {voice} ({baked_wav.name} not output)"
+                    )
         else:
             for idx, (voice, sim_cfg, inst, _base, _mdir, baked_wav) in enumerate(tasks, 1):
                 if total_bakes > 1:
                     print(f"\n--- [{idx}/{total_bakes}] Baking {inst} -> {voice} ---")
-                simulate_voice(voice, config=sim_cfg)
-                print(f"Baked simulation exported: {baked_wav}")
+                success = simulate_voice(voice, config=sim_cfg)
+                if success and baked_wav.exists():
+                    print(f"Baked simulation exported: {baked_wav}")
+                else:
+                    print(
+                        f"Skipped bit-for-bit identity voice: {inst} -> {voice} ({baked_wav.name} not output)"
+                    )
 
         if args.train or args.stage == "train":
             for idx, (voice, _cfg, inst, basename, inst_models_dir, baked_wav) in enumerate(
                 tasks, 1
             ):
+                if not baked_wav.exists():
+                    print(f"\nSkipping training for bit-for-bit identity voice: {inst} -> {voice}")
+                    continue
                 if total_bakes > 1:
                     print(f"\n--- [{idx}/{total_bakes}] Training {inst} -> {voice} ---")
                 run_training(
