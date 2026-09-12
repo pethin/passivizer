@@ -4,11 +4,14 @@ Command-line entrypoint coordinating full end-to-end simulation, export, and tra
 """
 
 import argparse
+import os
 from collections.abc import Sequence
+from pathlib import Path
 
 from allomorph.circuit import (
     AUDIO_DIR,
     MODELS_DIR,
+    _simulate_voice_task,
     export_all_frontend_irs,
     export_all_frontend_wet_wavs,
     export_frontend_ir,
@@ -17,6 +20,7 @@ from allomorph.circuit import (
     simulate_backend_targets,
     simulate_voice,
 )
+from allomorph.circuit.schema import SimulationConfig
 from allomorph.config.geometry import (
     compute_effective_position,
     resolve_voice_coils,
@@ -299,7 +303,7 @@ def main(argv: Sequence[str] | None = None):
         print("========================================\n")
 
         total_bakes = len(instruments_to_run) * len(voices_to_run)
-        current_bake = 0
+        tasks: list[tuple[str, SimulationConfig, str, str, Path, Path]] = []
         for inst in instruments_to_run:
             inst_cfg = load_instrument(inst)
             inst_id = inst_cfg.id
@@ -311,10 +315,6 @@ def main(argv: Sequence[str] | None = None):
                 inst_models_dir.mkdir(parents=True, exist_ok=True)
 
             for voice in voices_to_run:
-                current_bake += 1
-                if total_bakes > 1:
-                    print(f"\n--- [{current_bake}/{total_bakes}] Baking {inst_id} -> {voice} ---")
-
                 if pickup_setting == "auto":
                     src_pickup = get_source_pickup(inst_cfg, voice)
                     eff_pickup = src_pickup.id or "default"
@@ -324,34 +324,61 @@ def main(argv: Sequence[str] | None = None):
                 basename = get_baked_basename(voice, tier=effective_tier, pickup=pickup_setting)
                 baked_wav = inst_baked_audio_dir / f"{basename}.wav"
 
-                simulate_voice(
-                    voice,
+                sim_cfg = SimulationConfig(
                     input_wav=input_wav,
                     output_wav=baked_wav,
                     instrument=inst,
                     pickup=eff_pickup,
                     tier=effective_tier,
                     normalize=args.normalize,
+                    target_dbfs=args.target_dbfs,
                     max_samples=args.max_samples,
                     vol_pos=args.vol_pos,
                     tone_pos=args.tone_pos,
                     cable_pf=args.cable_pf,
                 )
+                tasks.append((voice, sim_cfg, inst, basename, inst_models_dir, baked_wav))
+
+        max_workers = args.jobs if args.jobs is not None else min(4, os.cpu_count() or 4)
+        if len(tasks) > 1 and max_workers > 1:
+            os.environ.setdefault("VECLIB_MAXIMUM_THREADS", "1")
+            os.environ.setdefault("OMP_NUM_THREADS", "1")
+            os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
+            print(
+                f"Simulating {len(tasks)} baked voices in parallel ({max_workers} workers)...\n"
+            )
+            from concurrent.futures import ProcessPoolExecutor
+
+            sim_tasks = [(t[0], t[1]) for t in tasks]
+            with ProcessPoolExecutor(max_workers=max_workers) as executor:
+                list(executor.map(_simulate_voice_task, sim_tasks))
+            for _v, _cfg, _inst, _base, _mdir, baked_wav in tasks:
+                print(f"Baked simulation exported: {baked_wav}")
+        else:
+            for idx, (voice, sim_cfg, inst, _base, _mdir, baked_wav) in enumerate(tasks, 1):
+                if total_bakes > 1:
+                    print(f"\n--- [{idx}/{total_bakes}] Baking {inst} -> {voice} ---")
+                simulate_voice(voice, config=sim_cfg)
                 print(f"Baked simulation exported: {baked_wav}")
 
-                if args.train or args.stage == "train":
-                    run_training(
-                        instrument=inst,
-                        voice=voice,
-                        input_wav=input_wav,
-                        output_wav=baked_wav,
-                        models_dir=inst_models_dir,
-                        tier=effective_tier,
-                        epochs=args.epochs,
-                        goal_esr=effective_goal_esr,
-                        fast_dev_run=args.fast_dev_run,
-                        basename=basename,
-                    )
+        if args.train or args.stage == "train":
+            for idx, (voice, _cfg, inst, basename, inst_models_dir, baked_wav) in enumerate(
+                tasks, 1
+            ):
+                if total_bakes > 1:
+                    print(f"\n--- [{idx}/{total_bakes}] Training {inst} -> {voice} ---")
+                run_training(
+                    instrument=inst,
+                    voice=voice,
+                    input_wav=input_wav,
+                    output_wav=baked_wav,
+                    models_dir=inst_models_dir,
+                    tier=effective_tier,
+                    epochs=args.epochs,
+                    goal_esr=effective_goal_esr,
+                    fast_dev_run=args.fast_dev_run,
+                    basename=basename,
+                )
         return
 
     if args.stage == "canonical":

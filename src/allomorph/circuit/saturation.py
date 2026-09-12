@@ -289,18 +289,41 @@ def apply_elliptical_orbit_projection(
         return x
 
     n = len(x)
-    n_fft = 1 << (n - 1).bit_length()
-    X = np.fft.rfft(x, n_fft)
+    block_size = 262144
+    margin = 32768
 
-    H_mult = -1j * np.ones_like(X)
-    H_mult[0] = 0.0
-    if n_fft % 2 == 0 and len(H_mult) > n_fft // 2:
+    if n <= block_size:
+        n_fft = 1 << (n - 1).bit_length()
+        X = np.fft.rfft(x, n_fft)
+        H_mult = -1j * np.ones_like(X)
+        H_mult[0] = 0.0
+        if n_fft % 2 == 0 and len(H_mult) > n_fft // 2:
+            H_mult[-1] = 0.0
+        x_hilbert = np.fft.irfft(X * H_mult, n_fft)[:n].astype(x.dtype, copy=False)
+    else:
+        step = block_size - 2 * margin
+        x_hilbert = np.empty(n, dtype=x.dtype)
+        H_mult = -1j * np.ones(block_size // 2 + 1, dtype=np.complex128)
+        H_mult[0] = 0.0
         H_mult[-1] = 0.0
+        x_padded = np.pad(x, margin, mode="constant")
+        for pos in range(0, n, step):
+            chunk = x_padded[pos : pos + block_size]
+            actual_chunk_len = len(chunk)
+            if actual_chunk_len < block_size:
+                chunk_buf = np.zeros(block_size, dtype=x.dtype)
+                chunk_buf[:actual_chunk_len] = chunk
+                X = np.fft.rfft(chunk_buf)
+            else:
+                X = np.fft.rfft(chunk)
+            x_h = np.fft.irfft(X * H_mult, block_size)
+            take = min(step, n - pos)
+            x_hilbert[pos : pos + take] = x_h[margin : margin + take]
 
-    x_hilbert = np.fft.irfft(X * H_mult, n_fft)[:n]
-    x_quad = x * x_hilbert
-    mod = np.tanh(np.abs(x) / vsat)
-    return x + kappa_orbit * mod * x_quad
+    x_hilbert *= x
+    x_hilbert *= np.tanh(np.abs(x) / vsat)
+    x_hilbert *= kappa_orbit
+    return x + x_hilbert
 
 
 def apply_oversampled_saturation(
@@ -377,7 +400,7 @@ def apply_oversampled_saturation(
 
     # For unipolar test vectors (e.g. DC step tests), bypass differentiation and apply direct saturation
     if float(np.min(audio)) >= 0.0:
-        v_asym = x + alpha * (x**2) + alpha3 * (x**3)
+        v_asym = x + (x * x) * (alpha + alpha3 * x)
         return (vsat * np.tanh(v_asym / vsat)).astype(np.float32)
 
     # 1. Dynamic Lenz-Law Core Flux Sag on forte peak excursions (velocity-proportional high-frequency damping),
@@ -431,7 +454,7 @@ def apply_oversampled_saturation(
                 )
             if kappa_geom > 0.0 and vsat > 0.0:
                 x_disp = x_disp / (1.0 - kappa_geom * np.tanh(x_disp / vsat))
-            v_asym = x_disp + alpha * (x_disp**2) + alpha3 * (x_disp**3)
+            v_asym = x_disp + (x_disp * x_disp) * (alpha + alpha3 * x_disp)
             v_sat = vsat * np.tanh(v_asym / vsat)
             if slew_limit and vsat > 0.0 and f_slew > 0.0:
                 max_delta = 2.0 * math.pi * f_slew * vsat / 48000.0
@@ -444,7 +467,7 @@ def apply_oversampled_saturation(
                 x = apply_elliptical_orbit_projection(x, vsat=vsat, kappa_orbit=kappa_orbit)
             if kappa_geom > 0.0 and vsat > 0.0:
                 x = x / (1.0 - kappa_geom * np.tanh(x / vsat))
-            v_asym = x + alpha * (x**2) + alpha3 * (x**3)
+            v_asym = x + (x * x) * (alpha + alpha3 * x)
             out = vsat * np.tanh(v_asym / vsat)
             if slew_limit and vsat > 0.0 and f_slew > 0.0:
                 max_delta = 2.0 * math.pi * f_slew * vsat / 48000.0
@@ -490,7 +513,7 @@ def apply_oversampled_saturation(
             )
         if kappa_geom > 0.0 and vsat > 0.0:
             x_up_disp = x_up_disp / (1.0 - kappa_geom * np.tanh(x_up_disp / vsat))
-        v_asym = x_up_disp + alpha * (x_up_disp**2) + alpha3 * (x_up_disp**3)
+        v_asym = x_up_disp + (x_up_disp * x_up_disp) * (alpha + alpha3 * x_up_disp)
         v_sat = vsat * np.tanh(v_asym / vsat)
         if slew_limit and vsat > 0.0 and f_slew > 0.0:
             max_delta = 2.0 * math.pi * f_slew * vsat / float(sr_up)
@@ -505,7 +528,7 @@ def apply_oversampled_saturation(
             x_up = apply_elliptical_orbit_projection(x_up, vsat=vsat, kappa_orbit=kappa_orbit)
         if kappa_geom > 0.0 and vsat > 0.0:
             x_up = x_up / (1.0 - kappa_geom * np.tanh(x_up / vsat))
-        v_asym = x_up + alpha * (x_up**2) + alpha3 * (x_up**3)
+        v_asym = x_up + (x_up * x_up) * (alpha + alpha3 * x_up)
         v_sat = vsat * np.tanh(v_asym / vsat)
         if slew_limit and vsat > 0.0 and f_slew > 0.0:
             max_delta = 2.0 * math.pi * f_slew * vsat / float(sr_up)

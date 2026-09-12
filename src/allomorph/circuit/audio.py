@@ -11,6 +11,8 @@ from typing import Any
 
 import numpy as np
 
+from allomorph.dsp import fft_convolve
+
 REPO_ROOT = Path(__file__).resolve().parents[3]
 
 
@@ -31,15 +33,10 @@ def apply_prefilter_to_audio(
     )
     n_sig = len(input_mono)
 
-    # Precompute forward FFT of input mono once across all channels (avoids redundant FFTs)
-    max_ir_len = max(len(np.asarray(ch_fir)) for ch_fir in channels_firs)
-    n_fft = 1 << (n_sig + max_ir_len - 1).bit_length()
-    X_input = np.fft.rfft(input_mono, n_fft)
-
     effected_channels: list[np.ndarray] = []
     for ch_fir in channels_firs:
         fir = np.asarray(ch_fir, dtype=np.float32)
-        eff = np.fft.irfft(X_input * np.fft.rfft(fir, n_fft), n_fft)[:n_sig].astype(np.float32)
+        eff = fft_convolve(input_mono, fir, mode="causal")[:n_sig].astype(np.float32)
         effected_channels.append(eff)
 
     effected = np.array(effected_channels, dtype=np.float32)
