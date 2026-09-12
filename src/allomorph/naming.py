@@ -4,10 +4,11 @@ Provides pedalboard display slugs, dynamic tier prefixes, baked filename generat
 and tolerant CLI argument parsing for instruments and voices.
 """
 
+import difflib
 from collections.abc import Sequence
 
 from allomorph.base import AllomorphBaseModel
-from allomorph.config.instruments import INSTRUMENTS, load_instrument
+from allomorph.config.instruments import INSTRUMENT_ALIASES, INSTRUMENTS, load_instrument
 from allomorph.config.voices import VOICES
 
 
@@ -111,7 +112,7 @@ def resolve_voices(voice_arg: str | Sequence[str] | None) -> list[str]:
       - Single voice ID: '03_modern_p_ceramic'
       - Partial / prefix matching: '01', '03'
     """
-    if not voice_arg or str(voice_arg).strip().lower() == "all":
+    if not voice_arg or not str(voice_arg).strip() or str(voice_arg).strip().lower() == "all":
         return list(VOICES.keys())
 
     tokens = [t.strip() for t in str(voice_arg).split(",") if t.strip()]
@@ -127,8 +128,14 @@ def resolve_voices(voice_arg: str | Sequence[str] | None) -> list[str]:
                     if m not in resolved:
                         resolved.append(m)
             else:
-                print(f"Warning: Unknown voice identifier '{token}'.")
-    return resolved if resolved else list(VOICES.keys())
+                candidates = list(VOICES.keys())
+                close = difflib.get_close_matches(token, candidates, n=3, cutoff=0.4)
+                hint = f" Did you mean: {', '.join(close)}?" if close else ""
+                raise ValueError(
+                    f"Unknown target voice identifier '{token}'.{hint}\n"
+                    f"Available target voices ({len(candidates)}): {', '.join(candidates)}"
+                )
+    return resolved
 
 
 def resolve_instruments(instrument_arg: str | Sequence[str] | None) -> list[str]:
@@ -143,7 +150,11 @@ def resolve_instruments(instrument_arg: str | Sequence[str] | None) -> list[str]
     all_playable: list[str] = [
         str(iid) for iid in sorted(INSTRUMENTS.keys()) if str(iid) != "canonical_intermediate"
     ]
-    if not instrument_arg or str(instrument_arg).strip().lower() == "all":
+    if (
+        not instrument_arg
+        or not str(instrument_arg).strip()
+        or str(instrument_arg).strip().lower() == "all"
+    ):
         return all_playable
 
     tokens = [t.strip() for t in str(instrument_arg).split(",") if t.strip()]
@@ -159,12 +170,18 @@ def resolve_instruments(instrument_arg: str | Sequence[str] | None) -> list[str]
             iid = cfg.id
             if iid != "canonical_intermediate" and iid not in resolved:
                 resolved.append(iid)
-        except FileNotFoundError:
+        except (FileNotFoundError, KeyError):
             matches = [iid for iid in all_playable if iid.startswith(token) or token in iid]
             if matches:
                 for m in matches:
                     if m not in resolved:
                         resolved.append(m)
             else:
-                print(f"Warning: Unknown instrument identifier '{token}'.")
-    return resolved if resolved else all_playable
+                all_choices = sorted(set(all_playable + list(INSTRUMENT_ALIASES.keys())))
+                close = difflib.get_close_matches(token, all_choices, n=3, cutoff=0.4)
+                hint = f" Did you mean: {', '.join(close)}?" if close else ""
+                raise ValueError(
+                    f"Unknown source instrument identifier '{token}'.{hint}\n"
+                    f"Available instruments ({len(all_playable)}): {', '.join(all_playable)}"
+                )
+    return resolved

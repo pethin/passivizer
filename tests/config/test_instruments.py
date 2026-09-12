@@ -7,6 +7,8 @@ import tempfile
 from pathlib import Path
 from typing import Any, cast
 
+import pytest
+
 from allomorph.config import (
     STRINGS,
     VOICES,
@@ -254,13 +256,13 @@ def test_resolve_instruments():
     assert resolve_instruments("soapbar") == ["34in_active_soapbar"]
     assert resolve_instruments("ray") == ["34in_active_stingray"]
 
-    # 5. Unknown tokens emit warning and don't break resolution when valid tokens present
-    res_unknown = resolve_instruments("nonexistent_bass, 30in")
-    assert res_unknown == ["30in_emg_mmtw"]
+    # 5. Unknown tokens raise diagnostic ValueError (Guardrail 5.3.5)
+    with pytest.raises(ValueError, match="Unknown source instrument identifier 'nonexistent_bass'"):
+        resolve_instruments("nonexistent_bass, 30in")
 
-    # 6. Entirely unknown token falls back to all playable instruments
-    res_all_unknown = resolve_instruments("completely_bogus_token")
-    assert res_all_unknown == all_insts
+    # 6. Entirely unknown token raises diagnostic ValueError with close match hints
+    with pytest.raises(ValueError, match="Unknown source instrument identifier 'completely_bogus_token'"):
+        resolve_instruments("completely_bogus_token")
 
 
 def test_instrument_aliases_typing_and_coverage():
@@ -308,6 +310,10 @@ def test_resolve_voices():
     ]
     assert resolve_voices("15b") == ["15b_active_character"]
     assert resolve_voices("15c") == ["15c_passive_character"]
+
+    # Unknown voice raises diagnostic ValueError (Guardrail 5.3.5)
+    with pytest.raises(ValueError, match="Unknown target voice identifier 'nonexistent_voice'"):
+        resolve_voices("nonexistent_voice")
 
 
 def test_get_source_pickup_strict_errors():
