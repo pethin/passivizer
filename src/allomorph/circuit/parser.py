@@ -208,8 +208,34 @@ MAGNET_PROPERTIES: dict[str, MagnetPropertiesConfig] = {
         kappa_geom=0.00,
         k_stein=0.000,
     ),
+    "ideal": MagnetPropertiesConfig(
+        k_core=0.00,
+        f_core=0.0,
+        k_skin=0.00,
+        f_skin=0.0,
+        lambda_L=0.00,
+        k_emf=0.00,
+        eta_hyst=0.00,
+        alpha=0.00,
+        alpha3=0.00,
+        k_sag=0.00,
+        vsat=10.00,
+        k_eddy=0.00,
+        kappa_orbit=0.00,
+        k_body=0.00,
+        beta_curv=0.000,
+        k_pull=0.000,
+        tau_touch=0.000,
+        chi_mu=0.000,
+        k_dist=0.00,
+        kappa_geom=0.00,
+        k_stein=0.000,
+    ),
 }
 MAGNET_PROPERTIES["hybrid"] = MAGNET_PROPERTIES["ceramic_alnico_hybrid"]
+MAGNET_PROPERTIES["ideal_passive"] = MAGNET_PROPERTIES["ideal"]
+MAGNET_PROPERTIES["canonical_ideal"] = MAGNET_PROPERTIES["ideal"]
+MAGNET_PROPERTIES["linear"] = MAGNET_PROPERTIES["ideal"]
 
 
 def eval_pot_taper(pos: float, taper: str = "audio") -> float:

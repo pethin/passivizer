@@ -33,6 +33,7 @@ def test_strings_catalog_loading():
     """Verify that all core physical string presets exist and have valid physical bounds."""
     expected_presets = [
         "roundwound_nickel_standard",
+        "roundwound_nickel_6string",
         "roundwound_stainless_clank",
         "flatwound_low_tension",
         "flatwound_vintage_heavy",
@@ -44,6 +45,13 @@ def test_strings_catalog_loading():
         assert s.tension_lbs > 100.0
         assert s.damping_cutoff_hz >= 1500.0
         assert s.damping_order >= 1.0
+
+    # 6-string nickel roundwound tension and material parity
+    s6 = STRINGS["roundwound_nickel_6string"]
+    assert math.isclose(s6.tension_lbs, 230.0, abs_tol=1e-3)
+    assert s6.wrap == "nickel"
+    assert s6.core == "hex"
+    assert math.isclose(s6.damping_cutoff_hz, 8500.0, abs_tol=1e-3)
 
 
 def test_instrument_string_resolution():

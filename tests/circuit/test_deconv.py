@@ -321,7 +321,9 @@ def test_passive_character_circuit_properties():
     assert model.L == 4.2
     assert model.Rdc == 8500.0
 
-    firs = compute_voice_prefilter_firs("15c_passive_character", instrument="canonical_intermediate")
+    firs = compute_voice_prefilter_firs(
+        "15c_passive_character", instrument="canonical_intermediate"
+    )
     assert len(firs) == 1
     fir = np.array(firs[0])
     assert fir[0] == 1.0

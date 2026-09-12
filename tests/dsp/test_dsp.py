@@ -101,5 +101,6 @@ def test_fft_convolve_modes_and_accuracy():
     # Check slice against direct convolve
     slice_len = 1000
     direct_slice = np.convolve(x_long[:slice_len], y_ir, mode="same")
-    assert np.allclose(actual_overlap[m_ir : slice_len - m_ir], direct_slice[m_ir : slice_len - m_ir], atol=1e-4)
-
+    assert np.allclose(
+        actual_overlap[m_ir : slice_len - m_ir], direct_slice[m_ir : slice_len - m_ir], atol=1e-4
+    )

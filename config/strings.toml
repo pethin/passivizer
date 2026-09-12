@@ -24,6 +24,25 @@ pluck_excursion_factor = 1.0
 k_long = 0.20
 
 # ------------------------------------------------------------------------------
+# 1b. Electric Standard Nickel Roundwounds 6-String (Extended Register Baseline)
+# ------------------------------------------------------------------------------
+# Universal 6-string industry baseline (.032-.130: D'Addario EXL170-6, Ernie Ball
+# Slinky 6-String 2838). Spans Low B0 to High C3 with identical alloy and wrap
+# acoustics as standard 4-string nickel roundwounds (8.5 kHz damping cutoff,
+# 0.0 dB bloom, k_long = 0.20) at balanced 230 lbs total tension.
+[strings.roundwound_nickel_6string]
+name = "Standard Nickel Roundwound 6-String (.032-.130)"
+type = "roundwound"
+wrap = "nickel"
+core = "hex"
+tension_lbs = 230.0
+damping_cutoff_hz = 8500.0
+damping_order = 1.0
+bloom_db = 0.0
+pluck_excursion_factor = 1.0
+k_long = 0.20
+
+# ------------------------------------------------------------------------------
 # 2. Electric Stainless Steel Roundwounds (Dingwall / Modern Clank)
 # ------------------------------------------------------------------------------
 # High-tension stainless steel strings (Dingwall Custom .045-.130) with extended

@@ -75,7 +75,7 @@ Each entry defines a **physically selectable state** on the instrument (e.g., so
 | `coil_spacing_in` | `float` | Inches | `0.0` | Center-to-center distance ($d$) between dual coils. `0.0` for single-coils. |
 | `type` | `string` | — | Required | Pickup architecture: `"single_coil"`, `"dual_coil_parallel"`, `"split_coil"`, or `"composite"`. |
 | `pole_type` | `string` | — | `"rod"` | Spatial pole geometry: `"rod"` (2D cylindrical pole disc) or `"blade"` (1D bar slit). |
-| `magnet_type` | `string` | — | `"alnico_v"` | Core magnet alloy: `"alnico_v"`, `"alnico_ii"`, `"ceramic"`, `"hybrid"`, `"neodymium"`, `"piezo"`, or `"active"`. |
+| `magnet_type` | `string` | — | `"alnico_v"` | Core magnet alloy: `"alnico_v"`, `"alnico_ii"`, `"alnico_iii"`, `"ceramic"`, `"hybrid"`, `"neodymium"`, `"piezo"`, `"active"`, or `"ideal"` (pure linear reference). |
 | `circuit` | `table` | — | Optional | Embedded declarative SPICE netlist table (`[pickups.<id>.circuit]`) defining RLC parameters. |
 | `resonant_frequency_hz` | `float` | Hz | Optional | Internal electrical resonant peak frequency ($f_r$) of the active preamp. |
 | `q_factor` | `float` | — | `1.35` | Quality factor ($Q$) of the internal active resonant bump. |
@@ -229,7 +229,7 @@ $$v_s = 2 \cdot L \cdot f_{0,s}$$
 | `Q` | `float` | — | Target electrical quality factor under pot and cable load (composite/single pickup). |
 | `gain_db` | `float` | dB | Output gain trim for volume normalization. |
 | `scale` | `string` | Key | Target scale key in `scales.toml` (`"34in"`, `"multiscale"`, or `"upright"`). |
-| `magnet_type` | `string` | Key | Core magnet metallurgy: `"alnico_v"`, `"alnico_ii"`, `"ceramic"`, `"hybrid"`, `"neodymium"`, `"piezo"`. |
+| `magnet_type` | `string` | Key | Core magnet metallurgy: `"alnico_v"`, `"alnico_ii"`, `"alnico_iii"`, `"ceramic"`, `"hybrid"`, `"neodymium"`, `"piezo"`, `"active"`, or `"ideal"`. |
 | `alpha` | `float` | — | *(Optional)* Quadratic asymmetry coefficient override for 2nd-harmonic bloom. |
 | `alpha3` | `float` | — | *(Optional)* Cubic dipole proximity factor override for 3rd-harmonic punch. |
 | `k_sag` | `float` | — | *(Optional)* Dynamic Lenz-law core flux sag damping factor. |
@@ -399,16 +399,19 @@ coils = [
 1. **`roundwound_nickel_standard` (Global Default Baseline):**
    * Standard D'Addario EXL / Ernie Ball Slinky $.045\text{--}.105$.
    * $155.0\text{ lbs}$ tension, $f_d = 8500\text{ Hz}, n = 1.0, \text{bloom} = 0.0\text{ dB}, k_{\text{long}} = 0.20$.
-2. **`roundwound_stainless_clank` (Multi-Scale / Dingwall):**
+2. **`roundwound_nickel_6string` (Extended 6-String Baseline):**
+   * Universal 6-string D'Addario EXL170-6 / Ernie Ball Slinky $.032\text{--}.130$.
+   * $230.0\text{ lbs}$ tension, $f_d = 8500\text{ Hz}, n = 1.0, \text{bloom} = 0.0\text{ dB}, k_{\text{long}} = 0.20$.
+3. **`roundwound_stainless_clank` (Multi-Scale / Dingwall):**
    * Dingwall Custom $.045\text{--}.130$ high-tension stainless steel.
    * $180.0\text{ lbs}$ tension, $f_d = 12000\text{ Hz}, n = 1.0, \text{bloom} = -1.0\text{ dB}, k_{\text{long}} = 0.35$ (massive metallic clank).
-3. **`flatwound_low_tension` (Smooth Fretless Thump):**
+4. **`flatwound_low_tension` (Smooth Fretless Thump):**
    * La Bella Low Tension Flats LTF-4A $.043\text{--}.100$ round core.
    * $132.0\text{ lbs}$ low tension, $f_d = 2800\text{ Hz}, n = 1.8, \text{bloom} = +1.8\text{ dB}$, excursion factor $1.25\times$.
-4. **`flatwound_vintage_heavy` (Motown / Jamerson 1954 Spec):**
+5. **`flatwound_vintage_heavy` (Motown / Jamerson 1954 Spec):**
    * La Bella 760M $.052\text{--}.110$ heavy hex core.
    * $195.0\text{ lbs}$ heavy tension, $f_d = 1800\text{ Hz}, n = 2.0, \text{bloom} = +2.4\text{ dB}, k_{\text{long}} = 0.05$.
-5. **`double_bass_spirocore` (3/4 Upright Orchestral/Pizz):**
+6. **`double_bass_spirocore` (3/4 Upright Orchestral/Pizz):**
    * Thomastik-Infeld Spirocore / D'Addario Helicore Pizzicato $41.5''$ spiral rope core.
    * $265.0\text{ lbs}$ massive tension, $f_d = 3800\text{ Hz}, n = 2.0, \text{bloom} = +2.8\text{ dB}$, bridge rocking compliance $0.42\text{V}$.
 

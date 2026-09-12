@@ -16,6 +16,7 @@ from allomorph.circuit import (
     INTERMEDIATE_TARGET_PEAK_DBFS,
     export_all_frontend_irs,
     generate_canonical_sweep,
+    simulate_backend_targets,
     simulate_voice,
 )
 from allomorph.config import (
@@ -50,8 +51,16 @@ def test_canonical_intermediate_config():
 
     # Wideband passive reference circuit
     assert inst.electronics == "passive"
+    assert p.magnet_type == "ideal"
+    assert p.pole_type == "rod"
     assert p.resonant_frequency_hz == pytest.approx(4800.0)
     assert p.q_factor == pytest.approx(0.75)
+
+    # 6-string reference wave speeds (B0 to C3) and standard string preset
+    assert len(inst.string_wave_speeds) == 6
+    assert inst.string_wave_speeds[0] == pytest.approx(53.28, abs=0.01)
+    assert inst.string_wave_speeds[-1] == pytest.approx(225.69, abs=0.01)
+    assert inst.strings.preset == "roundwound_nickel_6string"
 
 
 def test_canonical_sweep_calibration(tmp_path: Path):
@@ -275,3 +284,29 @@ def test_export_frontend_ir_passive_missing_circuit_raises_error(
         ValueError, match="does not define a '\\[pickups.p.circuit\\]' configuration"
     ):
         staging_mod.export_frontend_ir("mock_passive_p", "p")
+
+
+def test_simulate_backend_targets(tmp_path: Path):
+    """Validates that simulate_backend_targets runs successfully across clean and standard tiers."""
+    out_dir = tmp_path / "targets"
+    simulate_backend_targets(
+        tier="clean",
+        voice_id="01_modern_jazz_active",
+        max_samples=2048,
+        output_dir=out_dir,
+    )
+    clean_folder = get_tier_spec("clean").folder_name
+    clean_wav = out_dir / clean_folder / "out_01_modern_jazz_active.wav"
+    assert clean_wav.exists()
+    assert clean_wav.stat().st_size > 0
+
+    std_folder = get_tier_spec("standard").folder_name
+    simulate_backend_targets(
+        tier="standard",
+        voice_id="05_vintage_62_p_alnico",
+        max_samples=2048,
+        output_dir=out_dir,
+    )
+    std_wav = out_dir / std_folder / "out_05_vintage_62_p_alnico.wav"
+    assert std_wav.exists()
+    assert std_wav.stat().st_size > 0

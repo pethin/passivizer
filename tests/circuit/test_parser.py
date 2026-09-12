@@ -186,6 +186,10 @@ def test_magnet_properties_configuration():
         "neodymium",
         "piezo",
         "active",
+        "ideal",
+        "ideal_passive",
+        "canonical_ideal",
+        "linear",
     ]
     for mag in required_types:
         assert mag in MAGNET_PROPERTIES
@@ -205,3 +209,11 @@ def test_magnet_properties_configuration():
 
     act = MAGNET_PROPERTIES["active"]
     assert act.k_body == 0.0
+
+    ideal = MAGNET_PROPERTIES["ideal"]
+    assert ideal.alpha == 0.0
+    assert ideal.alpha3 == 0.0
+    assert ideal.k_sag == 0.0
+    assert ideal.k_eddy == 0.0
+    assert ideal.k_core == 0.0
+    assert ideal.vsat == 10.0

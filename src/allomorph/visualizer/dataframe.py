@@ -128,7 +128,6 @@ def build_voice_dataframe(
             return df.with_columns(pl.lit("Output Voice").alias("mode"))
         return df
 
-
     if mode == "output":
         # 1. Output Voice: Target acoustic aperture + loaded SPICE circuit + string + body bloom
         model = load_circuit(tgt_circuit)

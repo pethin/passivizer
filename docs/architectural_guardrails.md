@@ -117,7 +117,7 @@ $$h_{\text{db}} = 20 \log_{10}\left(\max(h_{\text{diff}}, 10^{-6})\right)$$
    - Scale Length: Standard $34.0''$ ($863.6\text{ mm}$).
    - Spatial Sensing Envelope: Single narrow magnetic aperture slit ($w = 0.75''$, $d = 0$, zero comb nulls) centered at the **$93.5\text{ mm}$ ($3.68''$) acoustic median** from the bridge saddle.
    - Electrical Circuit: Wideband passive reference pickup ($L = 3.2\text{ H}, R_{\text{dc}} = 6.5\text{ k}\Omega, R_{\text{eddy}} = 150\text{ k}\Omega, C_{\text{coil}} = 90\text{ pF}, f_r \approx 4.8\text{ kHz}, Q \approx 0.75$) with $500\text{k}\Omega$ volume pot, $500\text{k}\Omega$ tone pot ($47\text{ nF}$ cap), and $330\text{ pF}$ instrument cable loading. Eliminates unphysical $+40\text{ dB}$ ultrasonic deconvolution spikes and high-frequency double roll-offs when modeling passive instruments.
-   - Dynamic Feel: Pure linear baseline ($\alpha = 0.0, V_{\text{sat}} = 10.0\text{V}$).
+   - Dynamic Feel & Magnet Metallurgy: Custom ideal reference magnet (`magnet_type = "ideal"`, $\alpha = 0.0, \alpha_3 = 0.0, k_{\text{sag}} = 0.0, k_{\text{eddy}} = 0.0, k_{\text{core}} = 0.0, V_{\text{sat}} = 10.0\text{V}$) providing zero magnetic non-linearity, zero Lenz core sag, zero dynamic eddy de-Qing, zero Foster network core perturbation, and maximum linear headroom.
 3. **Canonical Intermediate Headroom & Dynamic Range Theorems:**
    - The Canonical Intermediate sweep is strictly calibrated to **$-1.50\text{ dBFS}$ True Peak** and **$-16.50\text{ dBFS}$ Nominal RMS**.
    - Preserves $>106.5\text{ dB}$ signal-to-noise ratio while guaranteeing a $1.5\text{ dB}$ anti-clipping margin preventing digital inter-sample overs through downstream high-Q resonant filters.

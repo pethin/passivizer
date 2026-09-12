@@ -115,4 +115,3 @@ def test_passive_character_properties():
     assert model.L == 4.2
     assert model.Rdc == 8500.0
     assert model.Rbot == 250000.0
-

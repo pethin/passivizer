@@ -206,4 +206,3 @@ def fft_convolve(
         return out[start : start + n]
     else:
         raise ValueError(f"Unsupported mode '{mode}'. Choose 'full' or 'same'.")
-

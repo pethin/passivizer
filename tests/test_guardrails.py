@@ -265,7 +265,8 @@ def test_guardrail_transducer_taxonomy_and_zero_conditional_deconvolution():
         sign_flips = sum(
             1
             for i in range(len(diffs) - 1)
-            if (diffs[i] > 1e-5 and diffs[i + 1] < -1e-5) or (diffs[i] < -1e-5 and diffs[i + 1] > 1e-5)
+            if (diffs[i] > 1e-5 and diffs[i + 1] < -1e-5)
+            or (diffs[i] < -1e-5 and diffs[i + 1] > 1e-5)
         )
         assert sign_flips == 0, (
             f"Deconvolution curve had {sign_flips} sign flips in 20-5000 Hz band (must be smoothly monotonic)"

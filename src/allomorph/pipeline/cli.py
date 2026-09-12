@@ -316,7 +316,11 @@ def main(argv: Sequence[str] | None = None):
         return
 
     if args.stage == "targets":
-        simulate_backend_targets(tier=args.tier or "standard", voice_id=args.voice)
+        simulate_backend_targets(
+            tier=args.tier or "standard",
+            voice_id=args.voice,
+            max_samples=args.max_samples,
+        )
         return
 
     if args.stage == "viz":
@@ -353,7 +357,11 @@ def main(argv: Sequence[str] | None = None):
         print("\n--- Step 2: Export All 32 Frontend Deconvolution IRs ---")
         export_all_frontend_irs()
         print("\n--- Step 3: Simulate Backend Targets ---")
-        simulate_backend_targets(tier=args.tier or "standard", voice_id=args.voice)
+        simulate_backend_targets(
+            tier=args.tier or "standard",
+            voice_id=args.voice,
+            max_samples=args.max_samples,
+        )
         print("\n--- Step 4: Interactive Altair Frequency Visualization ---")
         if len(instruments_to_run) == 1 and args.instrument != "all":
             run_visualization(instrument=instruments_to_run[0])

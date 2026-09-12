@@ -220,7 +220,12 @@ def export_all_frontend_irs(output_dir: Path | None = None):
     return exported
 
 
-def simulate_backend_targets(tier: str = "standard", voice_id: str | None = None):
+def simulate_backend_targets(
+    tier: str = "standard",
+    voice_id: str | None = None,
+    max_samples: int | None = None,
+    output_dir: Path | str | None = None,
+):
     """
     Simulates target voice audio sweeps using the Canonical Intermediate baseline as input.
     Tiers:
@@ -250,7 +255,8 @@ def simulate_backend_targets(tier: str = "standard", voice_id: str | None = None
 
     for t in tiers_to_run:
         folder_name = get_tier_spec(t).folder_name
-        target_out_dir = TARGETS_DIR / folder_name
+        base_dir = Path(output_dir) if output_dir else TARGETS_DIR
+        target_out_dir = base_dir / folder_name
         target_out_dir.mkdir(parents=True, exist_ok=True)
 
         for vid in voices_to_run:
@@ -274,6 +280,7 @@ def simulate_backend_targets(tier: str = "standard", voice_id: str | None = None
                 instrument="canonical_intermediate",
                 alpha=sim_alpha,
                 normalize="none",  # T3K sweep integrity
+                max_samples=max_samples,
             )
 
 
@@ -549,12 +556,16 @@ def main(argv: list[str] | None = None) -> None:
         export_all_frontend_irs(output_dir=args.out)
         return
     if args.stage == "targets":
-        simulate_backend_targets(tier=args.tier, voice_id=args.voice)
+        simulate_backend_targets(
+            tier=args.tier, voice_id=args.voice, max_samples=args.samples, output_dir=args.out
+        )
         return
     if args.stage == "all":
         generate_canonical_sweep(input_wav=args.input)
         export_all_frontend_irs(output_dir=args.out)
-        simulate_backend_targets(tier=args.tier, voice_id=args.voice)
+        simulate_backend_targets(
+            tier=args.tier, voice_id=args.voice, max_samples=args.samples, output_dir=args.out
+        )
         return
 
     displacement_weighting = not args.no_displacement_weighting

@@ -11,6 +11,8 @@ name = "00. Canonical Intermediate Baseline"
 topology = "Universal Passive Reference Baseline"
 description = "Canonical 34-inch 93.5mm acoustic aperture with wideband passive reference circuit (4.8 kHz, Q=0.75)"
 scale = "34in"
+magnet_type = "ideal"
+target_string = "roundwound_nickel_6string"
 fr = 4800.0
 Q = 0.75
 gain_db = 0.0
@@ -18,7 +20,7 @@ alpha = 0.0
 vsat = 10.0
 
 coils = [
-    { strings = ["all"], position_from_bridge_m = 0.0935, aperture_width_in = 0.75, weight = 1.0 }
+    { strings = ["all"], position_from_bridge_m = 0.0935, aperture_width_in = 0.75, weight = 1.0, pole_type = "rod" }
 ]
 
 [circuit]
