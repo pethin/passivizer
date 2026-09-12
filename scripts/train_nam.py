@@ -232,7 +232,7 @@ def train_voice(
                 if isinstance(instrument, InstrumentConfig)
                 else load_instrument(instrument)
             )
-            if len(inst_cfg_tmp.pickups) <= 1:
+            if len(inst_cfg_tmp.pickups) <= 1 or vcfg.preserve_aperture:
                 pos_name = None
             else:
                 pcfg = get_source_pickup(inst_cfg_tmp, voice)
@@ -242,7 +242,9 @@ def train_voice(
         tone_name = vcfg.tone_name or vcfg.name
         from allomorph.naming import get_t3k_basename
 
-        basename = get_t3k_basename(tone_name, pos_name)
+        basename = get_t3k_basename(
+            tone_name, pos_name, preserve_aperture=vcfg.preserve_aperture
+        )
 
     if basename:
         model_basename = basename

@@ -129,10 +129,10 @@ Ceramic split-neck and single-bridge with active 2-band buffer (+4 dB @ 40 Hz, +
 
 Studio Buffers & Dynamics
 
-21. Active Character [Parallel]
+21. Active Character
 Studio 1M ohm active buffer twin. Deconvolves 750 pF cable capacitance and onboard pot damping from your stock soapbars, shifting resonance to 7.5–9.0 kHz for pristine pick attack and hi-fi air.
 
-22. Passive Character [Parallel]
+22. Passive Character
 Authentic high-impedance passive RLC network simulation (4.2H inductance, 2.8 kHz resonance, Q = 1.4) loaded with a vintage CTS 250k harness and 750 pF cable capacitance. Replaces sterile active onboard buffering with organic vintage passive dynamics, woody low-mid body, and rolled-off highs.
 
 

@@ -155,13 +155,16 @@ def test_t3k_pack_naming_invariants():
             for pid, pcfg in inst.pickups.items():
                 tone = vcfg.tone_name or vcfg.name
                 pos = pcfg.position_name or pcfg.name
-                basename = get_t3k_basename(tone, pos)
+                basename = get_t3k_basename(tone, pos, preserve_aperture=vcfg.preserve_aperture)
                 assert len(basename) <= 34, (
                     f"Basename '{basename}' ({vid} + {iid}/{pid}) exceeds 34 characters: {len(basename)}"
                 )
                 assert "/" not in basename
                 assert "\\" not in basename
-                assert basename == f"{tone} [{pos}]".replace("/", "\u2215").replace("\\", "\u2215")
+                if vcfg.preserve_aperture:
+                    assert basename == tone.replace("/", "\u2215").replace("\\", "\u2215")
+                else:
+                    assert basename == f"{tone} [{pos}]".replace("/", "\u2215").replace("\\", "\u2215")
 
     # 5. Length boundary and error handling in get_t3k_basename
     with pytest.raises(ValueError, match="exceeds 34 characters"):
@@ -193,6 +196,13 @@ def test_t3k_pack_naming_invariants():
         else single_ray_inst.pickups["mm_parallel"].position_name
     )
     assert get_t3k_basename("StingRay Parallel", pos_ray) == "StingRay Parallel"
+
+    # 7. Preserve aperture Character tones omit pickup name suffix
+    assert get_t3k_basename("Active Character", "Parallel") == "Active Character"
+    assert get_t3k_basename("Neutral Character", "Neck") == "Neutral Character"
+    assert get_t3k_basename("Passive Character", "Bridge") == "Passive Character"
+    assert get_t3k_basename("Custom Tone", "Parallel", preserve_aperture=True) == "Custom Tone"
+
 
 
 def test_backend_3_tier_dynamics():
@@ -289,11 +299,22 @@ def test_baked_short_distinct_names_and_instrument_directories():
             basenames.add(basename)
         assert len(basenames) == len(all_voices)
 
-    # 2. Non-auto explicit pickup appends pickup key
+    # 2. Non-auto explicit pickup appends pickup key for aperture-shifting voices
     override_basename = get_baked_basename("04_modern_p_ceramic", tier="dynamic", pickup="bridge")
     assert override_basename == "dyn_04_modern_p_bridge"
 
-    # 3. Directory structure verification: each instrument has its own subfolder
+    # 3. Preserve aperture / character tones strictly omit pickup suffix even with explicit pickup override
+    assert get_baked_basename("15_neutral_character", tier="dynamic", pickup="neck") == "dyn_15_neutral"
+    assert get_baked_basename("15b_active_character", tier="dynamic", pickup="bridge") == "dyn_15b_active"
+    assert get_baked_basename("15c_passive_character", tier="dynamic", pickup="parallel") == "dyn_15c_passive"
+    assert (
+        get_baked_basename(
+            "04_modern_p_ceramic", tier="dynamic", pickup="bridge", preserve_aperture=True
+        )
+        == "dyn_04_modern_p"
+    )
+
+    # 4. Directory structure verification: each instrument has its own subfolder
     for inst_id in playable_insts:
         inst_baked_dir = Path("audio/baked") / inst_id
         assert inst_baked_dir.parent == Path("audio/baked")

@@ -116,10 +116,10 @@ Compound 3-coil array: ceramic split-neck and single-bridge with active 2-band b
 
 Studio Buffers & Dynamics
 
-18. Active Character [Parallel]
-Studio-grade ultra-high-impedance active buffer twin (1M in, 100 ohm out). Deconvolves 750 pF cable capacitance and dual 250k pot damping from your stock P/J pickups without changing coil positions. Shifts resonance into the air band (7.5–9.0 kHz) for pristine pick attack, fast transients, and hi-fi air.
+18. Active Character
+Studio-grade ultra-high-impedance active buffer twin (1M in, 100 ohm out). Deconvolves 750 pF cable capacitance and dual 250k pot damping from your stock PJ pickups, shifting resonance to 7.5–9.0 kHz for pristine pick attack, fast transients, and hi-fi air.
 
-19. Passive Character [Parallel]
+19. Passive Character
 Authentic high-impedance passive RLC network simulation (4.2H inductance, 2.8 kHz resonance, Q = 1.4) loaded with a vintage CTS 250k harness and 750 pF cable capacitance. Stacks organic vintage warmth, tactile touch sensitivity, and harmonic bloom onto your signal chain.
 
 

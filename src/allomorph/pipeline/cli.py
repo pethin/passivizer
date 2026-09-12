@@ -355,12 +355,20 @@ def main(argv: Sequence[str] | None = None):
                     tone_name = vcfg.tone_name or vcfg.name
                     pos_name = (
                         None
-                        if len(inst_cfg.pickups) <= 1
+                        if (len(inst_cfg.pickups) <= 1 or vcfg.preserve_aperture)
                         else (src_pickup.position_name or src_pickup.name)
                     )
-                    basename = get_t3k_basename(tone_name, pos_name)
+                    basename = get_t3k_basename(
+                        tone_name, pos_name, preserve_aperture=vcfg.preserve_aperture
+                    )
                 else:
-                    basename = get_baked_basename(voice, tier=effective_tier, pickup=pickup_setting)
+                    vcfg = VOICES[voice]
+                    basename = get_baked_basename(
+                        voice,
+                        tier=effective_tier,
+                        pickup=pickup_setting,
+                        preserve_aperture=vcfg.preserve_aperture,
+                    )
                 baked_wav = inst_baked_audio_dir / f"{basename}.wav"
 
                 sim_cfg = SimulationConfig(

@@ -87,30 +87,45 @@ VOICE_CONCISE_SLUGS: dict[str, str] = {
 }
 
 
-def get_baked_basename(voice_id: str, tier: str = "dynamic", pickup: str = "auto") -> str:
-    """
-    Generates a concise, distinct model/wav basename for baked voice transformations.
+def get_baked_basename(
+    voice_id: str,
+    tier: str = "dynamic",
+    pickup: str = "auto",
+    preserve_aperture: bool = False,
+) -> str:
+    """Generates a concise, distinct model/wav basename for baked voice transformations.
+
     Format:
-      - Default auto-routed pickup: '{tier_prefix}{voice_slug}' (e.g. 'dyn_04_modern_p')
+      - Default auto-routed pickup or preserve_aperture tones: '{tier_prefix}{voice_slug}' (e.g. 'dyn_04_modern_p', 'dyn_15b_active')
       - Explicit non-auto pickup override: '{tier_prefix}{voice_slug}_{pickup}' (e.g. 'dyn_04_modern_p_bridge')
     """
     tier_spec = get_tier_spec(tier)
     prefix = tier_spec.prefix
     slug = VOICE_CONCISE_SLUGS.get(voice_id, voice_id)
 
-    if pickup and pickup != "auto":
+    vcfg = VOICES.get(voice_id)
+    is_character_tone = (
+        preserve_aperture
+        or (vcfg is not None and vcfg.preserve_aperture)
+        or voice_id in ("15_neutral_character", "15b_active_character", "15c_passive_character")
+    )
+
+    if pickup and pickup != "auto" and not is_character_tone:
         return f"{prefix}{slug}_{pickup}"
     return f"{prefix}{slug}"
 
 
 def get_t3k_basename(
-    tone_name: str, position_name: str | None = None, max_length: int = 34
+    tone_name: str,
+    position_name: str | None = None,
+    max_length: int = 34,
+    preserve_aperture: bool = False,
 ) -> str:
-    """
-    Generates a Tone3000 pack model basename.
+    """Generates a Tone3000 pack model basename.
+
     Format:
       - Multi-pickup instruments: `Tone Name [Pickup Position]`
-      - Single-pickup instruments: `Tone Name` (no suffix)
+      - Single-pickup instruments or preserve_aperture tones: `Tone Name` (no suffix)
 
     Enforces that the filename (excluding the `.nam` extension) does not exceed
     `max_length` (34 characters max). Raises diagnostic ValueError if exceeded.
@@ -118,7 +133,12 @@ def get_t3k_basename(
     to maintain a flat directory structure.
     """
     clean_tone = tone_name.strip()
-    if position_name and position_name.strip():
+    is_character_tone = preserve_aperture or clean_tone in (
+        "Active Character",
+        "Neutral Character",
+        "Passive Character",
+    )
+    if position_name and position_name.strip() and not is_character_tone:
         clean_pos = position_name.strip()
         name = f"{clean_tone} [{clean_pos}]"
     else:
