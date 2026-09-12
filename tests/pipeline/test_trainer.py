@@ -5,6 +5,7 @@ Tests for Allomorph NAM Architecture 2 local trainer.
 import json
 import sys
 from pathlib import Path
+from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SCRIPTS_DIR = REPO_ROOT / "scripts"
@@ -167,6 +168,35 @@ def test_configure_a2_architecture():
     names = [s["name"] for s in submodels_full]
     assert "channels_3" in names
     assert "channels_8" in names
+
+
+def test_esr_progress_callback_hook():
+    import nam.train.core as nam_core
+    from train_nam import configure_a2_architecture
+
+    configure_a2_architecture(nam_core, a2_full=False)
+    callbacks = nam_core.get_callbacks(threshold_esr=0.0005)
+
+    cb: Any = next(
+        (c for c in callbacks if "EsrProgressCallback" in type(c).__name__), None
+    )
+    assert cb is not None
+    assert cb.target_esr == 0.0005
+
+    # Simulate validation epoch end
+    class DummyTrainer:
+        def __init__(self) -> None:
+            self.sanity_checking = False
+            self.callback_metrics = {"ESR": 0.00045}
+            self.progress_bar_metrics: dict[str, str] = {}
+            self.current_epoch = 12
+            self.max_epochs = 500
+
+    trainer: Any = DummyTrainer()
+    cb.on_validation_epoch_end(trainer, None)
+    assert trainer.progress_bar_metrics["val_ESR"] == "0.00045"
+    assert trainer.progress_bar_metrics["best_ESR"] == "0.00045"
+    assert cb.best_esr == 0.00045
 
 
 def test_t3k_pack_trainer_options():

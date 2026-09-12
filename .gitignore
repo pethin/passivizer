@@ -5,6 +5,8 @@ build/
 dist/
 wheels/
 *.egg-info
+.cache/
+.miopen_cache/
 
 # Virtual environments
 .venv/

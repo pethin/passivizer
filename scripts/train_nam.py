@@ -5,16 +5,12 @@ Includes full source instrument, scale length, and pickup routing metadata in th
 """
 
 import argparse
+import math
 import os
 import shutil
 import sys
 from pathlib import Path
-from typing import Any
-
-# ROCm / MIOpen optimizations for AMD GPUs (e.g. RDNA 3/4, gfx1201)
-# Bypasses multi-minute solver benchmarking on unchunked validation tensors and silences workspace warnings
-os.environ.setdefault("MIOPEN_FIND_MODE", "FAST")
-os.environ.setdefault("MIOPEN_LOG_LEVEL", "2")
+from typing import Any, override
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 CIRCUITS_DIR = REPO_ROOT / "circuits"
@@ -25,6 +21,26 @@ SCRIPTS_DIR = REPO_ROOT / "scripts"
 
 if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
+
+# ROCm / MIOpen optimizations for AMD GPUs (e.g. RDNA 3/4, gfx1201)
+# Bypasses multi-minute solver benchmarking on unchunked validation tensors and silences workspace warnings
+os.environ.setdefault("MIOPEN_FIND_MODE", "FAST")
+os.environ.setdefault("MIOPEN_LOG_LEVEL", "2")
+os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
+
+# Parallelize MIOpen kernel compilation across all CPU cores
+if "MIOPEN_COMPILE_PARALLEL_LEVEL" not in os.environ:
+    cpu_count = os.cpu_count() or 4
+    os.environ["MIOPEN_COMPILE_PARALLEL_LEVEL"] = str(min(cpu_count, 16))
+
+# Guarantee MIOpen kernel cache directory exists in project .cache so compiled kernels persist across epochs
+_miopen_cache_dir = REPO_ROOT / ".cache" / "miopen"
+try:
+    _miopen_cache_dir.mkdir(parents=True, exist_ok=True)
+    os.environ.setdefault("MIOPEN_CACHE_DIR", str(_miopen_cache_dir))
+    os.environ.setdefault("MIOPEN_USER_DB_PATH", str(_miopen_cache_dir))
+except OSError:
+    pass
 
 from allomorph.config import (
     VOICES,
@@ -69,29 +85,98 @@ CANONICAL_SWEEP_PATH = AUDIO_DIR / "canonical" / "canonical_sweep.wav"
 
 
 def configure_a2_architecture(nam_core: Any, a2_full: bool = False) -> None:
-    """Configure NAM Architecture 2 packed model submodels.
+    """Configure NAM Architecture 2 packed model submodels and ESR progress logging.
 
     By default, isolates channels_8 (A2-Lite), providing 2x faster iteration
     and preventing the 3-channel submodel from inflating reported ESR and blocking early stopping.
     If a2_full is True, retains all submodels (channels_3 + channels_8).
+    Also hooks EsrProgressCallback into nam_core.get_callbacks to provide real-time
+    validation ESR progress logging and progress bar tracking.
     """
-    if a2_full:
-        if hasattr(nam_core, "_orig_get_packed_model_config"):
-            nam_core._get_packed_model_config = nam_core._orig_get_packed_model_config
-        return
+    try:
+        import torch
+
+        if hasattr(torch, "set_float32_matmul_precision"):
+            torch.set_float32_matmul_precision("high")
+
+        if hasattr(torch, "backends") and hasattr(torch.backends, "cudnn"):
+            torch.backends.cudnn.benchmark = False
+    except ImportError:
+        pass
+
     orig_get_packed_model_config = getattr(
         nam_core, "_orig_get_packed_model_config", nam_core._get_packed_model_config
     )
     nam_core._orig_get_packed_model_config = orig_get_packed_model_config
 
-    def get_lite_only_packed_model_config() -> dict[str, Any]:
-        cfg: dict[str, Any] = orig_get_packed_model_config()
-        cfg["net"]["config"]["submodels"] = [
-            s for s in cfg["net"]["config"]["submodels"] if s["name"] == "channels_8"
-        ]
-        return cfg
+    if a2_full:
+        nam_core._get_packed_model_config = orig_get_packed_model_config
+    else:
 
-    nam_core._get_packed_model_config = get_lite_only_packed_model_config
+        def get_lite_only_packed_model_config() -> dict[str, Any]:
+            cfg: dict[str, Any] = orig_get_packed_model_config()
+            cfg["net"]["config"]["submodels"] = [
+                s for s in cfg["net"]["config"]["submodels"] if s["name"] == "channels_8"
+            ]
+            return cfg
+
+        nam_core._get_packed_model_config = get_lite_only_packed_model_config
+
+    from pytorch_lightning.callbacks import Callback
+
+    class EsrProgressCallback(Callback):
+        """Logs validation ESR progress and updates progress bar metrics each epoch."""
+
+        def __init__(self, target_esr: float | None = None) -> None:
+            super().__init__()
+            self.target_esr: float | None = target_esr
+            self.best_esr: float = float("inf")
+
+        @override
+        def on_validation_epoch_end(self, trainer: Any, pl_module: Any) -> None:
+            if getattr(trainer, "sanity_checking", False):
+                return
+            metrics: dict[str, Any] = getattr(trainer, "callback_metrics", {})
+            raw_esr: Any = metrics.get("ESR")
+            if raw_esr is None:
+                raw_esr = metrics.get("val_loss")
+            if raw_esr is None:
+                return
+            esr_val: float = float(raw_esr.item() if hasattr(raw_esr, "item") else raw_esr)
+            self.best_esr = min(self.best_esr, esr_val)
+
+            if hasattr(trainer, "progress_bar_metrics") and isinstance(
+                trainer.progress_bar_metrics, dict
+            ):
+                trainer.progress_bar_metrics["val_ESR"] = f"{esr_val:.5f}"
+                trainer.progress_bar_metrics["best_ESR"] = f"{self.best_esr:.5f}"
+
+            epoch: int = getattr(trainer, "current_epoch", 0)
+            max_epochs: Any = getattr(trainer, "max_epochs", "?")
+            esr_db: float = 10.0 * math.log10(max(esr_val, 1e-12))
+            best_db: float = 10.0 * math.log10(max(self.best_esr, 1e-12))
+            target_str: str = ""
+            if self.target_esr is not None:
+                target_db: float = 10.0 * math.log10(max(self.target_esr, 1e-12))
+                target_str = f" | Target: {self.target_esr:.6f} ({target_db:+.2f} dB)"
+            print(
+                f"\n[Epoch {epoch:03d}/{max_epochs}] Val ESR: {esr_val:.6f} ({esr_db:+.2f} dB) | Best: {self.best_esr:.6f} ({best_db:+.2f} dB){target_str}",
+                flush=True,
+            )
+
+    orig_get_callbacks = getattr(nam_core, "_orig_get_callbacks", nam_core.get_callbacks)
+    nam_core._orig_get_callbacks = orig_get_callbacks
+
+    def get_callbacks_with_logging(
+        threshold_esr: float | None = None,
+        *args: Any,
+        **kwargs: Any,
+    ) -> list[Any]:
+        callbacks: list[Any] = orig_get_callbacks(threshold_esr, *args, **kwargs)
+        callbacks.append(EsrProgressCallback(target_esr=threshold_esr))
+        return callbacks
+
+    nam_core.get_callbacks = get_callbacks_with_logging
 
 
 def train_voice(
@@ -117,6 +202,8 @@ def train_voice(
         import torch
         from nam.models.metadata import UserMetadata
 
+        if hasattr(torch, "set_float32_matmul_precision"):
+            torch.set_float32_matmul_precision("high")
         if hasattr(torch, "backends") and hasattr(torch.backends, "cudnn"):
             torch.backends.cudnn.benchmark = False
 
