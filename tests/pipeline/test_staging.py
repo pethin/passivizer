@@ -607,27 +607,25 @@ def test_target_sweep_zero_timing_delay_and_no_nam_lookahead_warnings(tmp_path: 
     alignment with optimal_bass_dry.wav and trigger zero lookahead or detection warnings in NAM.
     """
     from allomorph.circuit.staging import CANONICAL_SWEEP_PATH
-    from allomorph.config.scales import REPO_ROOT
     from allomorph.dsp import calibrate_nam_v3_latency
 
-    if not CANONICAL_SWEEP_PATH.exists():
-        generate_canonical_sweep()
-
-    # Reuse pre-existing target audio if available, or simulate blip calibration window (max_samples=580000)
-    repo_target = REPO_ROOT / "audio/targets/01_studio_clean/out_04_modern_p_ceramic.wav"
-    if repo_target.exists():
-        out_file = repo_target
+    # Use existing canonical sweep if present, or generate into tmp_path without touching repo audio/
+    if CANONICAL_SWEEP_PATH.exists():
+        sweep_in = CANONICAL_SWEEP_PATH
     else:
-        out_file = tmp_path / "out_04_modern_p_ceramic.wav"
-        simulate_voice(
-            voice_id="04_modern_p_ceramic",
-            input_wav=CANONICAL_SWEEP_PATH,
-            output_wav=out_file,
-            instrument="canonical_intermediate",
-            tier="clean",
-            normalize="none",
-            max_samples=580000,
-        )
+        sweep_in = tmp_path / "canonical_sweep.wav"
+        generate_canonical_sweep(output_wav=sweep_in)
+
+    out_file = tmp_path / "out_04_modern_p_ceramic.wav"
+    simulate_voice(
+        voice_id="04_modern_p_ceramic",
+        input_wav=sweep_in,
+        output_wav=out_file,
+        instrument="canonical_intermediate",
+        tier="clean",
+        normalize="none",
+        max_samples=580000,
+    )
 
     assert out_file.exists()
     audio, sr = read_wav(out_file)
@@ -643,7 +641,6 @@ def test_target_sweep_zero_timing_delay_and_no_nam_lookahead_warnings(tmp_path: 
     )
 
 
-
 def test_clean_tier_saturation_bypass_and_performance(tmp_path: Path):
     """Validates that tier='clean' enables saturation bypass and linear stage fusion,
 
@@ -653,14 +650,17 @@ def test_clean_tier_saturation_bypass_and_performance(tmp_path: Path):
 
     from allomorph.circuit.staging import CANONICAL_SWEEP_PATH
 
-    if not CANONICAL_SWEEP_PATH.exists():
-        generate_canonical_sweep()
+    if CANONICAL_SWEEP_PATH.exists():
+        sweep_in = CANONICAL_SWEEP_PATH
+    else:
+        sweep_in = tmp_path / "canonical_sweep.wav"
+        generate_canonical_sweep(output_wav=sweep_in)
 
     out_file = tmp_path / "out_clean_test.wav"
     t0 = time.perf_counter()
     simulate_voice(
         voice_id="04_modern_p_ceramic",
-        input_wav=CANONICAL_SWEEP_PATH,
+        input_wav=sweep_in,
         output_wav=out_file,
         instrument="canonical_intermediate",
         tier="clean",

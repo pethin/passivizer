@@ -6,6 +6,8 @@ baked exports when skip_identity=True, while transformative voices are produced.
 
 from pathlib import Path
 
+import pytest
+
 from allomorph.circuit.schema import SimulationConfig
 from allomorph.circuit.simulation import simulate_voice
 
@@ -53,20 +55,16 @@ def test_simulate_voice_produces_file_for_transformative_voice(tmp_path: Path):
     assert out_wav.stat().st_size > 0
 
 
-def test_pipeline_cli_bake_skips_identity():
+def test_pipeline_cli_bake_skips_identity(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     """Verify that running CLI with --stage bake on an identity voice does not output a WAV file."""
+    import allomorph.pipeline.cli
     from allomorph.naming import get_baked_basename
-    from allomorph.pipeline.cli import REPO_ROOT, main
+    from allomorph.pipeline.cli import main
 
-    inst_dir = REPO_ROOT / "audio" / "baked" / "34in_active_stingray"
-    had_dir = inst_dir.exists()
-
-    baked_wav = (
-        inst_dir
-        / f"{get_baked_basename('09_stingray_mm_parallel', 'dynamic')}.wav"
-    )
-    if baked_wav.exists():
-        baked_wav.unlink()
+    test_audio_dir = tmp_path / "audio"
+    test_models_dir = tmp_path / "models"
+    monkeypatch.setattr(allomorph.pipeline.cli, "AUDIO_DIR", test_audio_dir)
+    monkeypatch.setattr(allomorph.pipeline.cli, "MODELS_DIR", test_models_dir)
 
     test_argv = [
         "--stage",
@@ -78,16 +76,17 @@ def test_pipeline_cli_bake_skips_identity():
         "--max-samples",
         "2400",
     ]
-    try:
-        main(test_argv)
-        assert not baked_wav.exists(), f"Identity voice should not be output: {baked_wav}"
-    finally:
-        if baked_wav.exists():
-            baked_wav.unlink()
-        if not had_dir and inst_dir.exists():
-            try:
-                inst_dir.rmdir()
-            except OSError:
-                pass
+    main(test_argv)
+
+    baked_wav = (
+        test_audio_dir
+        / "baked"
+        / "34in_active_stingray"
+        / f"{get_baked_basename('09_stingray_mm_parallel', 'dynamic')}.wav"
+    )
+    assert not baked_wav.exists(), f"Identity voice should not be output: {baked_wav}"
+    # Verify the test output directory was properly created in tmp_path without touching repo audio
+    assert (test_audio_dir / "baked" / "34in_active_stingray").exists()
+
 
 
