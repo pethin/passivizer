@@ -5,10 +5,16 @@ Includes full source instrument, scale length, and pickup routing metadata in th
 """
 
 import argparse
+import os
 import shutil
 import sys
 from pathlib import Path
 from typing import Any
+
+# ROCm / MIOpen optimizations for AMD GPUs (e.g. RDNA 3/4, gfx1201)
+# Bypasses multi-minute solver benchmarking on unchunked validation tensors and silences workspace warnings
+os.environ.setdefault("MIOPEN_FIND_MODE", "FAST")
+os.environ.setdefault("MIOPEN_LOG_LEVEL", "2")
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 CIRCUITS_DIR = REPO_ROOT / "circuits"
@@ -108,7 +114,11 @@ def train_voice(
     try:
         import nam.train.core as nam_core
         import nam.train.metadata as train_meta
+        import torch
         from nam.models.metadata import UserMetadata
+
+        if hasattr(torch, "backends") and hasattr(torch.backends, "cudnn"):
+            torch.backends.cudnn.benchmark = False
 
         configure_a2_architecture(nam_core, a2_full=a2_full)
     except ImportError:
