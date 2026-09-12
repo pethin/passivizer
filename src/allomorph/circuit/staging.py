@@ -106,6 +106,21 @@ def generate_canonical_sweep(input_wav: Path | None = None, output_wav: Path | N
     return output_wav
 
 
+@functools.lru_cache(maxsize=8)
+def _get_cached_sweep_impl(
+    filepath_resolved: str, mtime_ns: int, size_bytes: int
+) -> tuple[np.ndarray, int]:
+    """Caches decoded audio and sample rate for calibration sweeps keyed by file identity and timestamp."""
+    return read_wav(filepath_resolved)
+
+
+def _get_cached_sweep(filepath: str | Path) -> tuple[np.ndarray, int]:
+    """Retrieves cached sweep audio and sample rate with automatic mtime/size cache invalidation."""
+    p = Path(filepath).resolve()
+    stat = p.stat()
+    return _get_cached_sweep_impl(str(p), stat.st_mtime_ns, stat.st_size)
+
+
 @functools.lru_cache(maxsize=1)
 def _get_reference_rms_sweeps() -> tuple[np.ndarray, float, np.ndarray, int] | None:
     """Loads default calibration sweep and canonical intermediate target RMS with cached forward FFT."""
@@ -114,8 +129,8 @@ def _get_reference_rms_sweeps() -> tuple[np.ndarray, float, np.ndarray, int] | N
         return None
     if not CANONICAL_SWEEP_PATH.exists():
         generate_canonical_sweep()
-    dry_audio, _ = read_wav(dry_path)
-    can_audio, _ = read_wav(CANONICAL_SWEEP_PATH)
+    dry_audio, _ = _get_cached_sweep(dry_path)
+    can_audio, _ = _get_cached_sweep(CANONICAL_SWEEP_PATH)
     can_rms = float(np.sqrt(np.mean(can_audio**2)))
     n = len(dry_audio)
     n_fft = 1 << (n + 2048 - 1).bit_length()
@@ -303,7 +318,7 @@ def export_frontend_wet_wav(
     if not dry_path or not dry_path.exists():
         raise FileNotFoundError(f"Dry calibration sweep not found: {dry_path}")
 
-    audio_dry, sr = read_wav(dry_path)
+    audio_dry, sr = _get_cached_sweep(dry_path)
     fir = compute_frontend_deconvolution_fir(
         inst_id=inst_id,
         pickup_key=pickup_key,
@@ -384,7 +399,7 @@ def export_all_frontend_irs(
     # Pre-cache canonical sweep in main process
     _get_reference_power_spectrum()
 
-    max_workers = jobs if jobs is not None else 1
+    max_workers = jobs if jobs is not None else min(4, os.cpu_count() or 4)
     exported: list[Path] = []
     if len(tasks) > 1 and max_workers > 1:
         from concurrent.futures import ProcessPoolExecutor
@@ -440,7 +455,12 @@ def export_all_frontend_wet_wavs(
         for p_key in sorted(pickups.keys()):
             tasks.append((inst_id, p_key, in_path, out_dir, num_taps, normalize, gain_db))
 
-    max_workers = jobs if jobs is not None else 1
+    # Pre-cache calibration sweep in main process
+    target_in = in_path or find_default_input_audio()
+    if target_in and Path(target_in).exists():
+        _get_cached_sweep(target_in)
+
+    max_workers = jobs if jobs is not None else min(4, os.cpu_count() or 4)
     exported: list[Path] = []
     if len(tasks) > 1 and max_workers > 1:
         from concurrent.futures import ProcessPoolExecutor
