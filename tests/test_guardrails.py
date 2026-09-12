@@ -44,7 +44,7 @@ def test_guardrail_active_preamp_dc_transmission():
 def test_guardrail_zero_gibbs_ripples_in_differential_curves():
     """Guardrail 5.3.3: Differential frequency response curves between 20 Hz and 300 Hz
     must be smooth and monotonic without periodic Gibbs truncation ripple oscillations."""
-    active_sources = ["34in_active_stingray", "34in_preamp_soapbar", "34in_emg_soapbar"]
+    active_sources = ["34in_active_stingray", "34in_preamp_soapbar", "34in_active_emg"]
     test_voices = ["02_jazz_bass_pair", "05_vintage_62_p_alnico"]
 
     for inst_id in active_sources:
@@ -79,7 +79,7 @@ def test_guardrail_zero_high_frequency_gibbs_ripples():
         "34in_active_stingray",
         "30in_emg_mmtw",
         "34in_preamp_soapbar",
-        "34in_emg_soapbar",
+        "34in_active_emg",
     ]
     test_voices = ["01_modern_jazz_active", "07_modern_pj_active", "02_jazz_bass_pair"]
 

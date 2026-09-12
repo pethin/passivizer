@@ -33,7 +33,6 @@ Why Block 1? Drive and preamp circuits react directly to pickup resonant peaks. 
 
 QUICK INSTRUMENT SETUP
 
-• Physical Volume Knob: 100% (Wide Open)
 • Onboard Active EQ (Bass, Treble, Mid): Set to Center Detents (Flat / 0 dB)
 
 Plug straight in. Because the StingRay features a single bridge sweet-spot humbucker, all target models map directly to your physical humbucker. All impedance matching, aperture repositioning, pot loading, and active preamp EQs are handled automatically by the NAM models.

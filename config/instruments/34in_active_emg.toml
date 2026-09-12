@@ -1,6 +1,6 @@
 # ==============================================================================
 # ALLOMORPH SOURCE INSTRUMENT CONFIGURATION
-# 34" Standard Scale 5-String Active EMG Soapbar Bass (Spector / ESP / Schecter)
+# 34" Standard Scale Active EMG Soapbar Bass (Spector / ESP / Schecter)
 # ==============================================================================
 # Physical Datums:
 #   - Scale Length: 34.0" (863.6mm total, 431.8mm 12th fret to bridge saddle)
@@ -15,18 +15,18 @@
 #   - 10 kOhm low output impedance line driver, flat sub-audible DC transmission (H(0) >= 1.0).
 #   - Calibrated under Option C (Universal Active EMG Baseline @ fr = 4.15 kHz):
 #       - Bridges published factory specs of EMG 40CS (3.75 kHz) and EMG 40DC (4.55 kHz).
-#       - Optimal for both 4-string (EMG 35) and 5-string (EMG 40) active soapbar instruments.
+#       - Optimal for 4-string (EMG 35), 5-string (EMG 40), and 6-string (EMG 45) active soapbar instruments.
 #   - Neck Soapbar active resonance: 4150.0 Hz, Q = 1.40.
 #   - Bridge Soapbar active resonance: 4150.0 Hz, Q = 1.40.
 #   - Parallel center blend active resonance: 4150.0 Hz, Q = 1.35.
 
-id = "34in_emg_soapbar"
-name = "34\" 5-String Active EMG Soapbar Bass (EMG 40)"
+id = "34in_active_emg"
+name = "34\" Active EMG Bass (Option C Baseline)"
 scale_length_in = 34.0
 scale_length_m = 0.8636
 electronics = "active"
 
-# 5-String wave speeds: v = 2 * L * f0 (for B0=30.87Hz, E1=41.20Hz, A1=55.00Hz, D2=73.42Hz, G2=98.00Hz)
+# Extended wave speeds: v = 2 * L * f0 (spans B0=30.87Hz to G2=98.00Hz for 4, 5, and 6-string universal compatibility)
 string_wave_speeds = [53.31, 71.16, 95.00, 126.81, 169.27]
 
 default_pickup = "pair_parallel"

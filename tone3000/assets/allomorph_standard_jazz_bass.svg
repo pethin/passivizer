@@ -350,7 +350,7 @@
                 </g>
             
 
-  <!-- Physical Bass Strings (Vertical Over Pickups) -->
+    <!-- Physical Bass Strings (Vertical Over Pickups) -->
   <g>
     <!-- E String (Heavy Gauge ~4.8px) -->
     <line x1="480.0" y1="295" x2="480.0" y2="820" stroke="url(#stringGrad)" stroke-width="4.8"/>

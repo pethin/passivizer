@@ -233,40 +233,48 @@ def make_soapbar_pickup(
     cy: float,
     x_strings: list[float],
     accent: str,
-    w: float = 375.0,
+    w: float | None = None,
     h: float = 160.0,
-    label: str = "ACTIVE SOAPBAR",
+    label: str = "PASSIVE SOAPBAR",
 ) -> str:
-    """Generate an authentic active soapbar pickup based on EMG 35 / EMG-X CAD spec.
+    """Generate an authentic passive soapbar pickup based on Nordstrand Big Break / Yamaha YGD H5 CAD spec.
 
     Physical reference:
-    - Dimensions: 3.500" x 1.500" (88.9mm x 38.1mm) => 375px x 160px
+    - 4-string: 3.500" x 1.500" (88.9mm x 38.1mm) => 375px x 160px, 8 poles (2 rows of 4)
+    - 5-string: 4.000" x 1.500" (101.6mm x 38.1mm) => 428px x 160px, 10 poles (2 rows of 5)
     - Corner radius: R .125" (3.18mm) => 13.5px
-    - Mounting holes: 3.250" (82.55mm) center-to-center => 348px (174px from center)
+    - Mounting holes: 3.250" (4-str: 348px, 174px from center) or 3.750" (5-str: 401px, 200.5px from center)
     - Inset semi-circular mounting screw cutouts on left and right ends (.125 DIA)
-    - Dual internal sensing blades with sleek solid active cover
+    - Exposed cylindrical Alnico V pole pieces (2 rows straddling string axes)
     """
+    is_5string = len(x_strings) == 5
+    if w is None:
+        w = 428.0 if is_5string else 375.0
     rx = 13.5
-    _ = x_strings
     x = cx - w / 2
     y = cy - h / 2
 
-    screw_dx = 174.0
+    screw_dx = 200.5 if is_5string else 174.0
     left_screw_x = cx - screw_dx
     right_screw_x = cx + screw_dx
 
-    # Dual internal blade centerline offsets
-    blade_offset = 32.0
+    pole_r = 10.5
+    row_offset = 28.0
+
+    upper_poles = "".join(make_pole(s, cy - row_offset, r=pole_r) for s in x_strings)
+    lower_poles = "".join(make_pole(s, cy + row_offset, r=pole_r) for s in x_strings)
+
+    corner_text = "ALNICO DUAL-COIL"
 
     return f"""
-    <!-- Active Soapbar Pickup at {cx:.1f}, {cy:.1f} ({label}) -->
+    <!-- Passive Soapbar Pickup at {cx:.1f}, {cy:.1f} ({label}) -->
     <g filter="url(#dropShadow)">
       <!-- Main Soapbar Casing -->
       <rect x="{x:.1f}" y="{y:.1f}" width="{w:.1f}" height="{h:.1f}" rx="{rx:.1f}" fill="url(#coverGrad)" stroke="#334155" stroke-width="1.8"/>
       <rect x="{x + 3:.1f}" y="{y + 3:.1f}" width="{w - 6:.1f}" height="{h - 6:.1f}" rx="{rx - 2:.1f}" fill="none" stroke="#64748b" stroke-width="0.75" opacity="0.4"/>
       <rect x="{x + 6:.1f}" y="{y + 6:.1f}" width="{w - 12:.1f}" height="{h - 12:.1f}" rx="{rx - 4:.1f}" fill="#0d1117" stroke="#1c2330" stroke-width="1.2"/>
 
-      <!-- Inset Mounting Tabs & Screw Recesses (EMG-X style) -->
+      <!-- Inset Mounting Tabs & Screw Recesses (Bartolini / Nordstrand style) -->
       <!-- Left Inset Recess -->
       <path d="M {x + 6:.1f} {cy - 20:.1f} A 20 20 0 0 1 {x + 6:.1f} {cy + 20:.1f} Z" fill="#080a0f" stroke="#1e293b" stroke-width="1.2"/>
       <circle cx="{left_screw_x:.1f}" cy="{cy:.1f}" r="4.2" fill="#080a0f" stroke="#475569" stroke-width="1"/>
@@ -277,26 +285,92 @@ def make_soapbar_pickup(
       <circle cx="{right_screw_x:.1f}" cy="{cy:.1f}" r="4.2" fill="#080a0f" stroke="#475569" stroke-width="1"/>
       <circle cx="{right_screw_x:.1f}" cy="{cy:.1f}" r="1.8" fill="#1e293b"/>
 
-      <!-- Internal Dual Sensing Blade Rails -->
+      <!-- Internal Dual Coil Bobbin Outlines -->
+      <rect x="{x + 16:.1f}" y="{y + 12:.1f}" width="{w - 32:.1f}" height="{h / 2 - 16:.1f}" rx="6" fill="none" stroke="{accent}" stroke-width="0.75" stroke-opacity="0.3" stroke-dasharray="6 6"/>
+      <rect x="{x + 16:.1f}" y="{cy + 4:.1f}" width="{w - 32:.1f}" height="{h / 2 - 16:.1f}" rx="6" fill="none" stroke="{accent}" stroke-width="0.75" stroke-opacity="0.3" stroke-dasharray="6 6"/>
+
+      <!-- Exposed Cylindrical Alnico V Pole Pieces -->
+      {upper_poles}
+      {lower_poles}
+
+      <!-- Corner Technical Markings -->
+      <text x="{x + w - 24:.1f}" y="{y + h - 14:.1f}" fill="#64748b" font-size="10" font-family="system-ui, -apple-system, sans-serif" font-weight="800" letter-spacing="1" text-anchor="end">{corner_text}</text>
+    </g>
+    """
+
+
+def make_emg40_pickup(
+    cx: float,
+    cy: float,
+    x_strings: list[float],
+    accent: str,
+    w: float = 428.0,
+    h: float = 160.0,
+    label: str = "ACTIVE EMG 40",
+) -> str:
+    """Generate an authentic active 5-string EMG 40 soapbar pickup based on EMG CAD spec.
+
+    Physical reference:
+    - Dimensions: 4.000" x 1.500" (101.6mm x 38.1mm) => 428px x 160px
+    - Corner radius: R .125" (3.18mm) => 13.5px
+    - Mounting holes: 3.750" (95.25mm) center-to-center => 401px (200.5px from center)
+    - Inset semi-circular mounting screw cutouts on left and right ends (.125 DIA)
+    - Dual internal sensing blades (360px wide) covering 5 string axes (440 to 760)
+    """
+    rx = 13.5
+    _ = x_strings
+    x = cx - w / 2
+    y = cy - h / 2
+
+    screw_dx = 200.5
+    left_screw_x = cx - screw_dx
+    right_screw_x = cx + screw_dx
+
+    blade_offset = 32.0
+    blade_w = 360.0
+    blade_x = cx - blade_w / 2
+
+    return f"""
+    <!-- Active EMG 40 Soapbar Pickup at {cx:.1f}, {cy:.1f} ({label}) -->
+    <g filter="url(#dropShadow)">
+      <!-- Main Soapbar Casing -->
+      <rect x="{x:.1f}" y="{y:.1f}" width="{w:.1f}" height="{h:.1f}" rx="{rx:.1f}" fill="url(#coverGrad)" stroke="#334155" stroke-width="1.8"/>
+      <rect x="{x + 3:.1f}" y="{y + 3:.1f}" width="{w - 6:.1f}" height="{h - 6:.1f}" rx="{rx - 2:.1f}" fill="none" stroke="#64748b" stroke-width="0.75" opacity="0.4"/>
+      <rect x="{x + 6:.1f}" y="{y + 6:.1f}" width="{w - 12:.1f}" height="{h - 12:.1f}" rx="{rx - 4:.1f}" fill="#0d1117" stroke="#1c2330" stroke-width="1.2"/>
+
+      <!-- Inset Mounting Tabs & Screw Recesses (EMG style) -->
+      <!-- Left Inset Recess -->
+      <path d="M {x + 6:.1f} {cy - 20:.1f} A 20 20 0 0 1 {x + 6:.1f} {cy + 20:.1f} Z" fill="#080a0f" stroke="#1e293b" stroke-width="1.2"/>
+      <circle cx="{left_screw_x:.1f}" cy="{cy:.1f}" r="4.2" fill="#080a0f" stroke="#475569" stroke-width="1"/>
+      <circle cx="{left_screw_x:.1f}" cy="{cy:.1f}" r="1.8" fill="#1e293b"/>
+
+      <!-- Right Inset Recess -->
+      <path d="M {x + w - 6:.1f} {cy - 20:.1f} A 20 20 0 0 0 {x + w - 6:.1f} {cy + 20:.1f} Z" fill="#080a0f" stroke="#1e293b" stroke-width="1.2"/>
+      <circle cx="{right_screw_x:.1f}" cy="{cy:.1f}" r="4.2" fill="#080a0f" stroke="#475569" stroke-width="1"/>
+      <circle cx="{right_screw_x:.1f}" cy="{cy:.1f}" r="1.8" fill="#1e293b"/>
+
+      <!-- Internal Dual Sensing Blade Rails (360px wide covering 5 strings) -->
       <!-- Upper Blade Rail -->
-      <rect x="{cx - 145:.1f}" y="{cy - blade_offset - 3:.1f}" width="290" height="6" rx="3" fill="#1e293b" stroke="#334155" stroke-width="0.8"/>
-      <rect x="{cx - 142:.1f}" y="{cy - blade_offset - 1:.1f}" width="284" height="2" rx="1" fill="{accent}" fill-opacity="0.6"/>
+      <rect x="{blade_x:.1f}" y="{cy - blade_offset - 3:.1f}" width="{blade_w:.1f}" height="6" rx="3" fill="#1e293b" stroke="#334155" stroke-width="0.8"/>
+      <rect x="{blade_x + 3:.1f}" y="{cy - blade_offset - 1:.1f}" width="{blade_w - 6:.1f}" height="2" rx="1" fill="{accent}" fill-opacity="0.6"/>
       <!-- Lower Blade Rail -->
-      <rect x="{cx - 145:.1f}" y="{cy + blade_offset - 3:.1f}" width="290" height="6" rx="3" fill="#1e293b" stroke="#334155" stroke-width="0.8"/>
-      <rect x="{cx - 142:.1f}" y="{cy + blade_offset - 1:.1f}" width="284" height="2" rx="1" fill="{accent}" fill-opacity="0.6"/>
+      <rect x="{blade_x:.1f}" y="{cy + blade_offset - 3:.1f}" width="{blade_w:.1f}" height="6" rx="3" fill="#1e293b" stroke="#334155" stroke-width="0.8"/>
+      <rect x="{blade_x + 3:.1f}" y="{cy + blade_offset - 1:.1f}" width="{blade_w - 6:.1f}" height="2" rx="1" fill="{accent}" fill-opacity="0.6"/>
 
       <!-- Internal Coil Boundary Indication -->
       <rect x="{x + 24:.1f}" y="{y + 16:.1f}" width="{w - 48:.1f}" height="{h - 32:.1f}" rx="8" fill="none" stroke="{accent}" stroke-width="0.75" stroke-opacity="0.25" stroke-dasharray="6 6"/>
 
       <!-- Corner Technical Markings (EMG Style) -->
-      <text x="{x + w - 24:.1f}" y="{y + h - 14:.1f}" fill="#64748b" font-size="10" font-family="system-ui, -apple-system, sans-serif" font-weight="800" letter-spacing="1" text-anchor="end">ACTIVE DUAL-BLADE</text>
+      <text x="{x + w - 24:.1f}" y="{y + h - 14:.1f}" fill="#64748b" font-size="10" font-family="system-ui, -apple-system, sans-serif" font-weight="800" letter-spacing="1" text-anchor="end">EMG DUAL-BLADE</text>
     </g>
     """
 
 
 def generate_pack_svg(model_key: str) -> str:
     """Generate pristine standalone SVG for a Tone3000 Tone Pack edition."""
-    strings = [480.0, 560.0, 640.0, 720.0]  # E, A, D, G string axes (80px / 19mm scale)
+    strings_4 = [480.0, 560.0, 640.0, 720.0]  # E, A, D, G string axes (80px / 19mm scale)
+    strings_5 = [440.0, 520.0, 600.0, 680.0, 760.0]  # B, E, A, D, G string axes (5-string)
+    strings = strings_4
 
     configs = {
         "precision": {
@@ -483,25 +557,26 @@ def generate_pack_svg(model_key: str) -> str:
         "preamp_soapbar": {
             "accent": "#06b6d4",
             "title": "PREAMP SOAPBAR BASS",
-            "desc_line1": "Calibrated for 34&quot; Modern Preamp Dual-Soapbar Bass",
-            "desc_line2": "Dual-Blade Humbuckers • Active 3-Band Preamp Buffer • Low-Z Output",
+            "desc_line1": "Calibrated for 34&quot; Preamp Dual-Soapbar Bass",
+            "desc_line2": "Passive Alnico Dual-Coils • Exposed Round Poles • Active 3-Band Preamp",
             "scale": "34&quot; SCALE",
-            "badge2": "DUAL SOAPBARS",
+            "badge2": "ALNICO DUAL-COIL",
             "badge3": "ACTIVE 3-BAND PREAMP",
             "voicing_count": 22,
+            "num_strings": 5,
             "content": _svg_content(
                 lambda accent: (
                     f"""
                 <!-- Background Flux Lines -->
                 <g fill="none" stroke="{accent}" stroke-opacity="0.14" stroke-width="1.2">
-                  <ellipse cx="600" cy="430" rx="220" ry="90"/>
-                  <ellipse cx="600" cy="430" rx="290" ry="120" stroke-dasharray="8 6"/>
-                  <ellipse cx="600" cy="670" rx="220" ry="90"/>
-                  <ellipse cx="600" cy="670" rx="290" ry="120" stroke-dasharray="8 6"/>
+                  <ellipse cx="600" cy="430" rx="230" ry="90"/>
+                  <ellipse cx="600" cy="430" rx="300" ry="120" stroke-dasharray="8 6"/>
+                  <ellipse cx="600" cy="670" rx="230" ry="90"/>
+                  <ellipse cx="600" cy="670" rx="300" ry="120" stroke-dasharray="8 6"/>
                 </g>
                 <!-- RLC Inductance Curve -->
                 <path d="M 160 770 Q 360 765 500 700 T 640 550 T 780 700 T 1040 810" fill="none" stroke="{accent}" stroke-opacity="0.22" stroke-width="2.5" stroke-dasharray="6 6"/>
-                <!-- Neck and Bridge Active Soapbars (Neck cy=430, Bridge cy=670: 80px gap) -->
+                <!-- Neck and Bridge Passive Soapbars (Neck cy=430, Bridge cy=670: 80px gap) -->
                 {make_soapbar_pickup(600, 430, strings, accent, label="NECK SOAPBAR")}
                 {make_soapbar_pickup(600, 670, strings, accent, label="BRIDGE SOAPBAR")}
                 <!-- Datum labels (Word-wrapped and safely placed within margins >= 130px) -->
@@ -509,16 +584,16 @@ def generate_pack_svg(model_key: str) -> str:
                   <!-- Left Datums -->
                   <text x="130" y="422" font-size="14">NECK SOAPBAR</text>
                   <text x="130" y="442" font-size="12" fill="#94a3b8" font-weight="600">135.0mm DATUM</text>
-                  <line x1="130" y1="452" x2="385" y2="452" stroke="#334155" stroke-dasharray="3 3" stroke-width="1"/>
+                  <line x1="130" y1="452" x2="355" y2="452" stroke="#334155" stroke-dasharray="3 3" stroke-width="1"/>
 
                   <text x="130" y="662" font-size="14">BRIDGE SOAPBAR</text>
                   <text x="130" y="682" font-size="12" fill="#94a3b8" font-weight="600">55.0mm DATUM</text>
-                  <line x1="130" y1="692" x2="385" y2="692" stroke="#334155" stroke-dasharray="3 3" stroke-width="1"/>
+                  <line x1="130" y1="692" x2="355" y2="692" stroke="#334155" stroke-dasharray="3 3" stroke-width="1"/>
 
                   <!-- Right Datum -->
-                  <text x="1070" y="540" text-anchor="end" font-size="14">ACTIVE BUFFER</text>
-                  <text x="1070" y="560" text-anchor="end" font-size="12" fill="#94a3b8" font-weight="600">LOW-Z DUAL BLADES</text>
-                  <line x1="815" y1="570" x2="1070" y2="570" stroke="#334155" stroke-dasharray="3 3" stroke-width="1"/>
+                  <text x="1070" y="540" text-anchor="end" font-size="14">10 ALNICO POLES</text>
+                  <text x="1070" y="560" text-anchor="end" font-size="12" fill="#94a3b8" font-weight="600">DUAL-COIL SOAPBARS</text>
+                  <line x1="845" y1="570" x2="1070" y2="570" stroke="#334155" stroke-dasharray="3 3" stroke-width="1"/>
                 </g>
             """
                 )
@@ -562,10 +637,108 @@ def generate_pack_svg(model_key: str) -> str:
                 )
             ),
         },
+        "active_emg": {
+            "accent": "#10b981",
+            "title": "ACTIVE EMG BASS",
+            "desc_line1": "Calibrated for 34&quot; Active EMG Soapbar Bass",
+            "desc_line2": "Dual EMG Ceramic Blades • Internal Low-Noise Buffer • Option C Baseline",
+            "scale": "34&quot; SCALE",
+            "badge2": "ACTIVE EMG SOAPBAR",
+            "badge3": "DUAL BLADE RAILS",
+            "voicing_count": 22,
+            "num_strings": 5,
+            "content": _svg_content(
+                lambda accent: (
+                    f"""
+                <!-- Background Flux Lines -->
+                <g fill="none" stroke="{accent}" stroke-opacity="0.14" stroke-width="1.2">
+                  <ellipse cx="600" cy="430" rx="230" ry="90"/>
+                  <ellipse cx="600" cy="430" rx="300" ry="120" stroke-dasharray="8 6"/>
+                  <ellipse cx="600" cy="670" rx="230" ry="90"/>
+                  <ellipse cx="600" cy="670" rx="300" ry="120" stroke-dasharray="8 6"/>
+                </g>
+                <!-- RLC Inductance Curve -->
+                <path d="M 160 770 Q 360 765 500 700 T 640 550 T 780 700 T 1040 810" fill="none" stroke="{accent}" stroke-opacity="0.22" stroke-width="2.5" stroke-dasharray="6 6"/>
+                <!-- Neck and Bridge Active EMG Soapbars (Neck cy=430, Bridge cy=670: 80px gap) -->
+                {make_emg40_pickup(600, 430, strings_5, accent, label="NECK EMG SOAPBAR")}
+                {make_emg40_pickup(600, 670, strings_5, accent, label="BRIDGE EMG SOAPBAR")}
+                <!-- Datum labels (Word-wrapped and safely placed within margins >= 130px) -->
+                <g font-family="system-ui, -apple-system, sans-serif" fill="#cbd5e1" font-weight="800" letter-spacing="1">
+                  <!-- Left Datums -->
+                  <text x="130" y="422" font-size="14">NECK SOAPBAR</text>
+                  <text x="130" y="442" font-size="12" fill="#94a3b8" font-weight="600">135.0mm DATUM</text>
+                  <line x1="130" y1="452" x2="355" y2="452" stroke="#334155" stroke-dasharray="3 3" stroke-width="1"/>
+
+                  <text x="130" y="662" font-size="14">BRIDGE SOAPBAR</text>
+                  <text x="130" y="682" font-size="12" fill="#94a3b8" font-weight="600">55.0mm DATUM</text>
+                  <line x1="130" y1="692" x2="355" y2="692" stroke="#334155" stroke-dasharray="3 3" stroke-width="1"/>
+
+                  <!-- Right Datum -->
+                  <text x="1070" y="540" text-anchor="end" font-size="14">ACTIVE BUFFER</text>
+                  <text x="1070" y="560" text-anchor="end" font-size="12" fill="#94a3b8" font-weight="600">LOW-Z DUAL BLADES</text>
+                  <line x1="845" y1="570" x2="1070" y2="570" stroke="#334155" stroke-dasharray="3 3" stroke-width="1"/>
+                </g>
+            """
+                )
+            ),
+        },
     }
 
     cfg = ArtworkPackConfig.model_validate(configs[model_key])
     acc = cfg.accent
+    strings = strings_5 if cfg.num_strings == 5 else strings_4
+
+    if cfg.num_strings == 5:
+        strings_svg = f"""  <!-- Physical Bass Strings (Vertical Over Pickups - 5 Strings) -->
+  <g>
+    <!-- B String (Heavy Gauge ~5.4px) -->
+    <line x1="{strings[0]:.1f}" y1="295" x2="{strings[0]:.1f}" y2="820" stroke="url(#stringGrad)" stroke-width="5.4"/>
+    <line x1="{strings[0]:.1f}" y1="295" x2="{strings[0]:.1f}" y2="820" stroke="#ffffff" stroke-width="0.8" opacity="0.6"/>
+    <text x="{strings[0]:.1f}" y="282" fill="#94a3b8" font-size="16" font-family="system-ui, -apple-system, sans-serif" font-weight="800" text-anchor="middle">B (130)</text>
+
+    <!-- E String (Gauge ~4.4px) -->
+    <line x1="{strings[1]:.1f}" y1="295" x2="{strings[1]:.1f}" y2="820" stroke="url(#stringGrad)" stroke-width="4.4"/>
+    <line x1="{strings[1]:.1f}" y1="295" x2="{strings[1]:.1f}" y2="820" stroke="#ffffff" stroke-width="0.7" opacity="0.6"/>
+    <text x="{strings[1]:.1f}" y="282" fill="#94a3b8" font-size="16" font-family="system-ui, -apple-system, sans-serif" font-weight="800" text-anchor="middle">E (100)</text>
+
+    <!-- A String (Gauge ~3.4px) -->
+    <line x1="{strings[2]:.1f}" y1="295" x2="{strings[2]:.1f}" y2="820" stroke="url(#stringGrad)" stroke-width="3.4"/>
+    <line x1="{strings[2]:.1f}" y1="295" x2="{strings[2]:.1f}" y2="820" stroke="#ffffff" stroke-width="0.7" opacity="0.6"/>
+    <text x="{strings[2]:.1f}" y="282" fill="#94a3b8" font-size="16" font-family="system-ui, -apple-system, sans-serif" font-weight="800" text-anchor="middle">A (80)</text>
+
+    <!-- D String (Gauge ~2.6px) -->
+    <line x1="{strings[3]:.1f}" y1="295" x2="{strings[3]:.1f}" y2="820" stroke="url(#stringGrad)" stroke-width="2.6"/>
+    <line x1="{strings[3]:.1f}" y1="295" x2="{strings[3]:.1f}" y2="820" stroke="#ffffff" stroke-width="0.6" opacity="0.6"/>
+    <text x="{strings[3]:.1f}" y="282" fill="#94a3b8" font-size="16" font-family="system-ui, -apple-system, sans-serif" font-weight="800" text-anchor="middle">D (65)</text>
+
+    <!-- G String (Gauge ~2.0px) -->
+    <line x1="{strings[4]:.1f}" y1="295" x2="{strings[4]:.1f}" y2="820" stroke="url(#stringGrad)" stroke-width="2.0"/>
+    <line x1="{strings[4]:.1f}" y1="295" x2="{strings[4]:.1f}" y2="820" stroke="#ffffff" stroke-width="0.5" opacity="0.6"/>
+    <text x="{strings[4]:.1f}" y="282" fill="#94a3b8" font-size="16" font-family="system-ui, -apple-system, sans-serif" font-weight="800" text-anchor="middle">G (45)</text>
+  </g>"""
+    else:
+        strings_svg = f"""  <!-- Physical Bass Strings (Vertical Over Pickups) -->
+  <g>
+    <!-- E String (Heavy Gauge ~4.8px) -->
+    <line x1="{strings[0]:.1f}" y1="295" x2="{strings[0]:.1f}" y2="820" stroke="url(#stringGrad)" stroke-width="4.8"/>
+    <line x1="{strings[0]:.1f}" y1="295" x2="{strings[0]:.1f}" y2="820" stroke="#ffffff" stroke-width="0.8" opacity="0.6"/>
+    <text x="{strings[0]:.1f}" y="282" fill="#94a3b8" font-size="16" font-family="system-ui, -apple-system, sans-serif" font-weight="800" text-anchor="middle">E (105)</text>
+
+    <!-- A String (Gauge ~3.8px) -->
+    <line x1="{strings[1]:.1f}" y1="295" x2="{strings[1]:.1f}" y2="820" stroke="url(#stringGrad)" stroke-width="3.8"/>
+    <line x1="{strings[1]:.1f}" y1="295" x2="{strings[1]:.1f}" y2="820" stroke="#ffffff" stroke-width="0.7" opacity="0.6"/>
+    <text x="{strings[1]:.1f}" y="282" fill="#94a3b8" font-size="16" font-family="system-ui, -apple-system, sans-serif" font-weight="800" text-anchor="middle">A (85)</text>
+
+    <!-- D String (Gauge ~3.0px) -->
+    <line x1="{strings[2]:.1f}" y1="295" x2="{strings[2]:.1f}" y2="820" stroke="url(#stringGrad)" stroke-width="3.0"/>
+    <line x1="{strings[2]:.1f}" y1="295" x2="{strings[2]:.1f}" y2="820" stroke="#ffffff" stroke-width="0.6" opacity="0.6"/>
+    <text x="{strings[2]:.1f}" y="282" fill="#94a3b8" font-size="16" font-family="system-ui, -apple-system, sans-serif" font-weight="800" text-anchor="middle">D (65)</text>
+
+    <!-- G String (Gauge ~2.2px) -->
+    <line x1="{strings[3]:.1f}" y1="295" x2="{strings[3]:.1f}" y2="820" stroke="url(#stringGrad)" stroke-width="2.2"/>
+    <line x1="{strings[3]:.1f}" y1="295" x2="{strings[3]:.1f}" y2="820" stroke="#ffffff" stroke-width="0.5" opacity="0.6"/>
+    <text x="{strings[3]:.1f}" y="282" fill="#94a3b8" font-size="16" font-family="system-ui, -apple-system, sans-serif" font-weight="800" text-anchor="middle">G (45)</text>
+  </g>"""
 
     svg = f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 1200" width="1200" height="1200">
   <defs>
@@ -668,28 +841,7 @@ def generate_pack_svg(model_key: str) -> str:
   <!-- Center Hardware Visual &amp; Specs -->
   {cfg.content(acc)}
 
-  <!-- Physical Bass Strings (Vertical Over Pickups) -->
-  <g>
-    <!-- E String (Heavy Gauge ~4.8px) -->
-    <line x1="{strings[0]:.1f}" y1="295" x2="{strings[0]:.1f}" y2="820" stroke="url(#stringGrad)" stroke-width="4.8"/>
-    <line x1="{strings[0]:.1f}" y1="295" x2="{strings[0]:.1f}" y2="820" stroke="#ffffff" stroke-width="0.8" opacity="0.6"/>
-    <text x="{strings[0]:.1f}" y="282" fill="#94a3b8" font-size="16" font-family="system-ui, -apple-system, sans-serif" font-weight="800" text-anchor="middle">E (105)</text>
-
-    <!-- A String (Gauge ~3.8px) -->
-    <line x1="{strings[1]:.1f}" y1="295" x2="{strings[1]:.1f}" y2="820" stroke="url(#stringGrad)" stroke-width="3.8"/>
-    <line x1="{strings[1]:.1f}" y1="295" x2="{strings[1]:.1f}" y2="820" stroke="#ffffff" stroke-width="0.7" opacity="0.6"/>
-    <text x="{strings[1]:.1f}" y="282" fill="#94a3b8" font-size="16" font-family="system-ui, -apple-system, sans-serif" font-weight="800" text-anchor="middle">A (85)</text>
-
-    <!-- D String (Gauge ~3.0px) -->
-    <line x1="{strings[2]:.1f}" y1="295" x2="{strings[2]:.1f}" y2="820" stroke="url(#stringGrad)" stroke-width="3.0"/>
-    <line x1="{strings[2]:.1f}" y1="295" x2="{strings[2]:.1f}" y2="820" stroke="#ffffff" stroke-width="0.6" opacity="0.6"/>
-    <text x="{strings[2]:.1f}" y="282" fill="#94a3b8" font-size="16" font-family="system-ui, -apple-system, sans-serif" font-weight="800" text-anchor="middle">D (65)</text>
-
-    <!-- G String (Gauge ~2.2px) -->
-    <line x1="{strings[3]:.1f}" y1="295" x2="{strings[3]:.1f}" y2="820" stroke="url(#stringGrad)" stroke-width="2.2"/>
-    <line x1="{strings[3]:.1f}" y1="295" x2="{strings[3]:.1f}" y2="820" stroke="#ffffff" stroke-width="0.5" opacity="0.6"/>
-    <text x="{strings[3]:.1f}" y="282" fill="#94a3b8" font-size="16" font-family="system-ui, -apple-system, sans-serif" font-weight="800" text-anchor="middle">G (45)</text>
-  </g>
+  {strings_svg}
 
   <!-- Bottom Hero Section -->
   <!-- Accent Line -->
@@ -746,11 +898,15 @@ def main():
         "mustang": "allomorph_mustang_pj_bass",
         "preamp_soapbar": "allomorph_preamp_soapbar_bass",
         "active_stingray": "allomorph_active_stingray_bass",
+        "active_emg": "allomorph_active_emg_bass",
     }
 
     # Remove obsolete active_soapbar and placeholder assets if present
-    for old_file in list(assets_dir.glob("allomorph_active_soapbar_bass.*")) + list(
-        assets_dir.glob("coilshift_*.jpg")
+    for old_file in (
+        list(assets_dir.glob("allomorph_active_soapbar_bass.*"))
+        + list(assets_dir.glob("allomorph_emg_soapbar_bass.*"))
+        + list(assets_dir.glob("allomorph_34in_emg_soapbar_bass.*"))
+        + list(assets_dir.glob("coilshift_*.jpg"))
     ):
         print(f"Removing obsolete asset: {old_file}")
         old_file.unlink()

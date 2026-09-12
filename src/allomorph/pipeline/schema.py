@@ -178,6 +178,7 @@ class ArtworkPackConfig(AllomorphBaseModel):
     badge2: str
     badge3: str
     voicing_count: int = 22
+    num_strings: int = 4
     content: Callable[[str], str]
 
 

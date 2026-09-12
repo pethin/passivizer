@@ -108,8 +108,8 @@ The final positions in every pack are reserved for studio impedance and loading 
 ---
 
 ### 2.5 Preamp Soapbar Bass Edition (22 Voicings)
-*Source Instrument:* Modern 34" preamp bass with dual passive blade soapbars ($135.0\text{ mm}$ neck, $55.0\text{ mm}$ bridge) and 3-band active EQ buffer.  
-*Native Exclusions:* None (all target models deconvolve blade soapbar aperture and active buffering).
+*Source Instrument:* Modern 34" preamp bass with dual passive Alnico dual-coil soapbars ($135.0\text{ mm}$ neck, $55.0\text{ mm}$ bridge, exposed round pole pieces) and 3-band active EQ buffer. Universally calibrated for 4, 5, and 6-string instruments.  
+*Native Exclusions:* None (all target models deconvolve cylindrical pole soapbar aperture and active buffering).
 
 | Rank Range | Sonic Family | Rationale / Musical Character |
 | :--- | :--- | :--- |
@@ -138,6 +138,23 @@ The final positions in every pack are reserved for studio impedance and loading 
 | **18** | **Acoustic Transducers** | Bridge piezo force sensor on $41.5''$ upright scale with velocity-to-force leaky integration. |
 | **19** | **Music Man StingRay Family** | Active 2-Band Series bark (+2.5 dB gain, forward 2.1 kHz mids). |
 | **20–21** | **Studio Buffers & Dynamics** | Studio $1\text{M}\Omega$ active buffer and Passive Character ($4.2\text{ H}$ RLC passive network restoring vintage passive dynamics). |
+
+---
+
+### 2.7 Active EMG Bass Edition (22 Voicings)
+*Source Instrument:* 34" active EMG soapbar bass (Spector / ESP LTD / Schecter) with dual EMG ceramic dual-blade soapbars ($135.0\text{ mm}$ neck, $55.0\text{ mm}$ bridge) and internal low-noise buffers calibrated under Option C ($f_r = 4.15\text{ kHz}, Q = 1.40$). Universally calibrated for 4, 5, and 6-string instruments.  
+*Native Exclusions:* None (all target models deconvolve active EMG dual-blade aperture and active buffer resonance).
+
+| Rank Range | Sonic Family | Rationale / Musical Character |
+| :--- | :--- | :--- |
+| **01–05** | **Precision Bass & Tone Shaper Family** | #1 most requested transformation for active EMG players: warm, organic Alnico V split-coil body and ToneStyler flatwound thump. |
+| **06–10** | **Jazz Bass Family** | Vintage 1960s dual single-coils ($1\text{ kHz}$ phase-cancellation scoop and Jaco decoupled bridge growl). |
+| **11–12** | **Music Man StingRay Family** | Sweet-spot humbucker clank, $2.5\text{ kHz}$ hollow mid-scoop, and series bark. |
+| **13–14** | **P/MM Modern Hybrids** | Sandberg California / Lakland 44-02 style Split-P + Music Man parallel and series authority. |
+| **15–17** | **Progressive & Classic Rock Legends** | Rickenbacker 4003 ($4.7\text{nF}$ HPF), Dingwall multi-scale ($7.3\text{ kHz}$ sparkle), and Gibson Mudbucker ($14.4\text{ H}$). |
+| **18** | **Acoustic Transducers** | Bridge piezo force sensor on $41.5''$ upright scale with velocity-to-force leaky integration. |
+| **19–20** | **P/J Bass Family** | Modern active and vintage '80s passive P/J configurations. |
+| **21–22** | **Studio Buffers & Dynamics** | Studio $1\text{M}\Omega$ active buffer and Passive Character ($4.2\text{ H}$ RLC passive network replacing active EMG highs). |
 
 ---
 

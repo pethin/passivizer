@@ -1,6 +1,6 @@
-ALLOMORPH: PREAMP SOAPBAR BASS EDITION
+ALLOMORPH: ACTIVE EMG BASS EDITION
 
-Transform your 34" preamp dual-soapbar bass into 22 legendary vintage passive, modern active, progressive rock, and acoustic pickup configurations.
+Transform your 34" active EMG soapbar bass into 22 legendary vintage passive, modern active, progressive rock, and acoustic pickup configurations.
 
 
 OVERVIEW
@@ -9,19 +9,20 @@ Allomorph delivers precision digital twins of iconic pickup topologies and contr
 
 Rather than modeling an amplifier or speaker cabinet, these models capture:
 • True differential circuit deconvolution (H_diff = H_tgt / H_src)
-• Dual soapbar cylindrical pole aperture geometry (Bessel J1/x) and comb-filtering
+• Active EMG dual-blade aperture geometry and spatial string comb-filtering
+• Universal active EMG baseline calibration (Option C @ fr = 4.15 kHz, Q = 1.40)
 • Era-accurate potentiometer loading (250k, 500k, 330k) and tone capacitor values
 • High-impedance passive coil eddy currents and complex skin-effect damping
 • Cable capacitance loading (750 pF) and active buffer deconvolution
 • Pure capacitive ToneStyler rotary shunts with undamped vocal resonance
 • Non-linear magnetic core saturation, string pull, and dynamic compliance
 
-Calibrated for a 34" Standard Scale Preamp Dual-Soapbar Bass (Ibanez SR with Nordstrand/PowerSpan, Yamaha TRBX with YGD H5, Sire Marcus Miller F10/M7, Sterling Ray34HH/Ray35HH, Cort Artisan) equipped with dual passive Alnico dual-coil soapbars (exposed round pole pieces) and onboard active 3-band preamp. Full wave-speed continuum modeling down to 30.87 Hz ensures seamless calibration across 4, 5, or 6-string instruments. Exact differential deconvolution neutralizes your onboard preamp's buffered resonance and cylindrical pole aperture, reconstructing each target twin in real time with zero latency.
+Calibrated for a 34" Standard Scale Active EMG Bass (Spector Euro, ESP LTD, Schecter Hellraiser, Schecter Riot, Dean Edge, Jackson Pro) equipped with dual active EMG soapbars (EMG 35/40/45 series) and onboard internal low-noise buffers. Full wave-speed continuum modeling down to 30.87 Hz ensures seamless calibration across 4, 5, or 6-string instruments. Exact differential deconvolution neutralizes your active pickups' buffered resonance and soapbar aperture, reconstructing each target twin in real time with zero latency.
 
 
 RECOMMENDED SIGNAL CHAIN
 
-[Preamp Soapbar Bass]
+[Active EMG Bass]
   -> [Block 1: Allomorph NAM Preamp]  (Input / Pickup Front-End)
   -> [Block 2: Amp / Drive / Preamp]  (Darkglass B7K, SVT, B-15, etc.)
   -> [Block 3: Speaker Cabinet IR]    (8x10, 4x10, 1x15, etc.)
@@ -35,8 +36,8 @@ QUICK INSTRUMENT SETUP
 For each voicing, set your bass's physical pickup blend knob to the recommended bracketed setting [Parallel], [Neck], or [Bridge]:
 
 • [Parallel]: Pickup Blend at Center Detent (50% Neck / 50% Bridge Parallel)
-• [Neck]: Pickup Blend 100% Neck (Solo Neck Soapbar Humbucker)
-• [Bridge]: Pickup Blend 100% Bridge (Solo Bridge Soapbar Humbucker)
+• [Neck]: Pickup Blend 100% Neck (Solo Neck Active EMG Soapbar)
+• [Bridge]: Pickup Blend 100% Bridge (Solo Bridge Active EMG Soapbar)
 • Onboard Active EQ (Bass, Mid, Treble): Set to Center Detents (Flat / 0 dB)
 
 Plug straight in. All impedance matching, aperture repositioning, pot loading, and active preamp EQs are handled automatically by the NAM models.
@@ -48,7 +49,7 @@ THE 22 DIGITAL TWIN VOICINGS
 Precision Bass & Tone Shaper Family
 
 01. Vintage 62 P [Neck]
-Transforms your neck soapbar into an iconic 1962 CTS 250k split-coil with 47nF paper-in-oil cap wide open. Lower eddy damping yields organic touch sensitivity, woody bloom, and open harmonic extension (2.1 kHz peak).
+Transforms your neck EMG soapbar into an iconic 1962 CTS 250k split-coil with 47nF paper-in-oil cap wide open. Lower eddy damping yields organic touch sensitivity, woody bloom, and open harmonic extension (2.1 kHz peak).
 
 02. Modern P Ceramic [Neck]
 High-inductance ceramic split-coil (Bartolini 8CBP style, 4.8H) loaded by boutique 500k pots, 22nF cap, and treble bleed. Delivers aggressive pick attack, tight low-mids, and bright transient snap.
@@ -75,7 +76,7 @@ Dual single-coil response with a 22nF ToneStyler pure capacitive shunt. Eliminat
 Sadowsky-style active 2-band buffer with cable isolation (1M in, 100 ohm out). Wideband sparkle, punchy low end (+4 dB @ 40 Hz), crystalline treble (+4 dB @ 4 kHz), and scooped slap definition.
 
 09. Jaco Bridge Growl [Bridge]
-Reconstructs decoupled dual volumes with 55k neck wiper resistance from your bridge pickup. Shifts comb notch into vocal 550–800 Hz zone for signature Jaco bridge growl while retaining low-end body.
+Reconstructs decoupled dual volumes with 55k neck wiper resistance from your bridge EMG pickup. Shifts comb notch into vocal 550–800 Hz zone for signature Jaco bridge growl while retaining low-end body.
 
 10. 60s Jazz Bridge [Bridge]
 Authentic 60s bridge datum (63.5mm from saddle) with 250k harness. Focused midrange bite (800 Hz–1.6 kHz) with articulate, percussive staccato finger attack.
@@ -129,10 +130,10 @@ Ceramic split-neck and single-bridge with active 2-band buffer (+4 dB @ 40 Hz, +
 Studio Buffers & Dynamics
 
 21. Active Character
-Studio 1M ohm active buffer twin. Deconvolves 750 pF cable capacitance and onboard pot damping from your stock soapbars, shifting resonance to 7.5–9.0 kHz for pristine pick attack and hi-fi air.
+Studio 1M ohm active buffer twin. Deconvolves active EMG internal resonance and cable capacitance from your stock soapbars, shifting resonance to 7.5–9.0 kHz for pristine pick attack and hi-fi air.
 
 22. Passive Character
-Authentic high-impedance passive RLC network simulation (4.2H inductance, 2.8 kHz resonance, Q = 1.4) loaded with a vintage CTS 250k harness and 750 pF cable capacitance. Replaces sterile active onboard buffering with organic vintage passive dynamics, woody low-mid body, and rolled-off highs.
+Authentic high-impedance passive RLC network simulation (4.2H inductance, 2.8 kHz resonance, Q = 1.4) loaded with a vintage CTS 250k harness and 750 pF cable capacitance. Replaces sterile active EMG buffering with organic vintage passive dynamics, woody low-mid body, and rolled-off highs.
 
 
 LICENSE & DISCLAIMER
@@ -141,4 +142,4 @@ License:
 Licensed for personal and commercial musical performances, recording, and production. Redistribution, sublicensing, or resale of raw model files or derived profiles without permission is strictly prohibited.
 
 Trademark Disclaimer:
-All product names, trademarks, and registered trademarks (such as Fender, Precision Bass, P-Bass, Jazz Bass, J-Bass, Music Man, StingRay, Sterling, Rickenbacker, Gibson, Dingwall, Bartolini, Nordstrand, Sire, Marcus Miller, Sadowsky, Spector, ToneStyler, EMG, Ibanez, Yamaha, Schecter, and Darkglass) are the property of their respective owners. Used solely to identify historical instruments and analog circuits analyzed in this project. Allomorph is an independent project and is not affiliated with or endorsed by any of these manufacturers.
+All product names, trademarks, and registered trademarks (such as Fender, Precision Bass, P-Bass, Jazz Bass, J-Bass, Music Man, StingRay, Sterling, Rickenbacker, Gibson, Dingwall, Bartolini, Sadowsky, Spector, ToneStyler, EMG, ESP, Schecter, and Darkglass) are the property of their respective owners. Used solely to identify historical instruments and analog circuits analyzed in this project. Allomorph is an independent project and is not affiliated with or endorsed by any of these manufacturers.

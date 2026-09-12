@@ -24,6 +24,7 @@ PACK_EDITIONS: list[str] = [
     "mustang_pj_bass",
     "preamp_soapbar_bass",
     "active_stingray_bass",
+    "active_emg_bass",
 ]
 
 PACK_VOICING_COUNTS: dict[str, int] = {
@@ -33,6 +34,7 @@ PACK_VOICING_COUNTS: dict[str, int] = {
     "mustang_pj_bass": 22,
     "preamp_soapbar_bass": 22,
     "active_stingray_bass": 21,
+    "active_emg_bass": 22,
 }
 
 MULTI_PICKUP_PACKS: dict[str, list[str]] = {
@@ -40,9 +42,14 @@ MULTI_PICKUP_PACKS: dict[str, list[str]] = {
     "standard_pj_bass": ["[Parallel]", "[Neck]", "[Bridge]"],
     "mustang_pj_bass": ["[Parallel]", "[Neck]", "[Bridge]"],
     "preamp_soapbar_bass": ["[Parallel]", "[Neck]", "[Bridge]"],
+    "active_emg_bass": ["[Parallel]", "[Neck]", "[Bridge]"],
 }
 
-ACTIVE_PACKS: list[str] = ["preamp_soapbar_bass", "active_stingray_bass"]
+ACTIVE_PACKS: list[str] = [
+    "preamp_soapbar_bass",
+    "active_stingray_bass",
+    "active_emg_bass",
+]
 
 
 def test_tone3000_storefront_text_character_limits():
@@ -187,6 +194,7 @@ PACK_INSTRUMENT_MAP: dict[str, str] = {
     "mustang_pj_bass": "30in_mustang_pj",
     "preamp_soapbar_bass": "34in_preamp_soapbar",
     "active_stingray_bass": "34in_active_stingray",
+    "active_emg_bass": "34in_active_emg",
 }
 
 

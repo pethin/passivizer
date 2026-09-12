@@ -1,18 +1,22 @@
 # ==============================================================================
 # ALLOMORPH SOURCE INSTRUMENT CONFIGURATION
-# 34" Standard Scale Preamp Soapbar Bass (Ibanez SR / Yamaha TRBX / Schecter)
+# 34" Standard Scale Preamp Soapbar Bass (Ibanez SR / Yamaha TRBX / Sire F10 / Cort)
 # ==============================================================================
 # Physical Datums:
 #   - Scale Length: 34.0" (863.6mm total, 431.8mm 12th fret to bridge saddle)
 #   - Modern Neck Soapbar: Centerline 135.0mm from bridge saddle (296.8mm from 12th fret)
-#       - Dual blade coils: forward coil 143.25mm, rearward coil 126.75mm (spacing d = 0.65" / 16.51mm)
-#       - Aperture width: 1.35" (34.3mm)
+#       - Dual round pole coils: forward coil 143.25mm, rearward coil 126.75mm (spacing d = 0.65" / 16.51mm)
+#       - Cylindrical rod aperture width: 0.65" (16.51mm) per coil
 #   - Modern Bridge Soapbar: Centerline 55.0mm from bridge saddle (376.8mm from 12th fret)
-#       - Dual blade coils: forward coil 63.25mm, rearward coil 46.75mm (spacing d = 0.65" / 16.51mm)
-#       - Aperture width: 1.35" (34.3mm)
+#       - Dual round pole coils: forward coil 63.25mm, rearward coil 46.75mm (spacing d = 0.65" / 16.51mm)
+#       - Cylindrical rod aperture width: 0.65" (16.51mm) per coil
 # Electronics:
-#   - Dual passive ceramic dual-blade soapbar humbuckers (Bartolini MK-1 / Ibanez PowerSpan / Yamaha YGD spec).
-#   - Onboard active 9V 3-band preamp buffer (Ibanez Custom Electronics / Yamaha Active / Cort Markbass).
+#   - Dual passive Alnico V dual-coil soapbars with exposed cylindrical round pole pieces
+#     (Nordstrand Big Break/Single, Yamaha YGD H5, Sire Marcus Miller Pure-H, Ibanez PowerSpan).
+#   - 10 exposed cylindrical Alnico V round pole pieces (dual rows of 5 straddling B, E, A, D, G strings).
+#   - Also optimal for dual-humbucker active basses (Sterling Ray34HH/Ray35HH / Music Man StingRay HH).
+#   - 2D cylindrical pole Bessel aperture integration (J1(k*rp) / (k*rp)).
+#   - Onboard active 9V/18V 3-band preamp buffer (Ibanez Custom / Yamaha / Sire Heritage-3 / Cort).
 #   - Active buffer provides high input impedance (1.0 MΩ), completely isolating passive coils from cable capacitance.
 #   - Set to center detents (flat 0 dB EQ response, finite DC transmission H(0) >= 1.0).
 #   - Low output impedance (< 100 Ω) direct to output jack / Anagram Block 1.
@@ -27,23 +31,23 @@ scale_length_in = 34.0
 scale_length_m = 0.8636
 electronics = "active"
 
-# String wave speeds: v = 2 * L * f0 (for E1=41.2Hz, A1=55.0Hz, D2=73.4Hz, G2=98.0Hz)
-string_wave_speeds = [71.16, 95.00, 126.81, 169.27]
+# Extended wave speeds: v = 2 * L * f0 (spans B0=30.87Hz to G2=98.00Hz for 4, 5, and 6-string universal compatibility)
+string_wave_speeds = [53.31, 71.16, 95.00, 126.81, 169.27]
 
 default_pickup = "pair_parallel"
 
 # ------------------------------------------------------------------------------
 # Physical Strings Configuration (Source Instrument Setup)
 # ------------------------------------------------------------------------------
-# Strung with standard nickel roundwounds (D'Addario EXL165 .045-.105).
+# Strung with standard 5-string nickel roundwounds (D'Addario EXL170-5 .045-.130).
 [strings]
-preset = "roundwound_nickel_standard"
+preset = "roundwound_nickel_5string"
 brand = "D'Addario"
-model = "EXL165"
-gauge = "45-105"
+model = "EXL170-5"
+gauge = "45-130"
 core = "hex"
 wrap = "nickel_round"
-tension_lbs = 171.0
+tension_lbs = 195.0
 
 # ------------------------------------------------------------------------------
 # 1. PASSIVE SOAPBAR + ACTIVE PREAMP (Neck Solo)
@@ -52,16 +56,16 @@ tension_lbs = 171.0
 name = "Passive Soapbar with Preamp (Neck)"
 position_name = "Neck"
 position_from_bridge_m = 0.1350  # 135.0mm from bridge
-aperture_width_in = 1.35         # 1.35" dual-blade soapbar housing
-coil_spacing_in = 0.65           # 0.65" (16.51mm) internal dual-blade spacing
+aperture_width_in = 1.35         # 1.35" dual-coil soapbar housing
+coil_spacing_in = 0.65           # 0.65" (16.51mm) internal dual-coil spacing
 type = "dual_coil_parallel"
-magnet_type = "ceramic"
-pole_type = "blade"
+magnet_type = "alnico_v"
+pole_type = "rod"
 resonant_frequency_hz = 3800.0   # Active buffered loaded resonance
 q_factor = 1.45
 coils = [
-    { strings = ["all"], position_from_bridge_m = 0.14325, aperture_width_in = 0.65, weight = 0.5, pole_type = "blade" },
-    { strings = ["all"], position_from_bridge_m = 0.12675, aperture_width_in = 0.65, weight = 0.5, pole_type = "blade" }
+    { strings = ["all"], position_from_bridge_m = 0.14325, aperture_width_in = 0.65, weight = 0.5, pole_type = "rod" },
+    { strings = ["all"], position_from_bridge_m = 0.12675, aperture_width_in = 0.65, weight = 0.5, pole_type = "rod" }
 ]
 
 [pickups.neck.circuit]
@@ -81,16 +85,16 @@ Rvol = 500000.0
 name = "Passive Soapbar with Preamp (Bridge)"
 position_name = "Bridge"
 position_from_bridge_m = 0.0550  # 55.0mm from bridge
-aperture_width_in = 1.35         # 1.35" dual-blade soapbar housing
-coil_spacing_in = 0.65           # 0.65" (16.51mm) internal dual-blade spacing
+aperture_width_in = 1.35         # 1.35" dual-coil soapbar housing
+coil_spacing_in = 0.65           # 0.65" (16.51mm) internal dual-coil spacing
 type = "dual_coil_parallel"
-magnet_type = "ceramic"
-pole_type = "blade"
+magnet_type = "alnico_v"
+pole_type = "rod"
 resonant_frequency_hz = 4100.0   # Active buffered loaded resonance
 q_factor = 1.40
 coils = [
-    { strings = ["all"], position_from_bridge_m = 0.06325, aperture_width_in = 0.65, weight = 0.5, pole_type = "blade" },
-    { strings = ["all"], position_from_bridge_m = 0.04675, aperture_width_in = 0.65, weight = 0.5, pole_type = "blade" }
+    { strings = ["all"], position_from_bridge_m = 0.06325, aperture_width_in = 0.65, weight = 0.5, pole_type = "rod" },
+    { strings = ["all"], position_from_bridge_m = 0.04675, aperture_width_in = 0.65, weight = 0.5, pole_type = "rod" }
 ]
 
 [pickups.bridge.circuit]
@@ -113,8 +117,8 @@ position_from_bridge_m = 0.0950  # Acoustic centroid (135.0mm + 55.0mm) / 2
 aperture_width_in = 1.35
 coil_spacing_in = 0.0
 type = "composite"
-magnet_type = "ceramic"
-pole_type = "blade"
+magnet_type = "alnico_v"
+pole_type = "rod"
 resonant_frequency_hz = 3950.0   # Blended active resonance
 q_factor = 1.35
 components = [

@@ -37,7 +37,7 @@ def test_load_all_default_instruments():
         "34in_standard_pj",
         "34in_active_stingray",
         "34in_preamp_soapbar",
-        "34in_emg_soapbar",
+        "34in_active_emg",
         "30in_mustang_pj",
         "37in_multiscale_dingwall",
         "34in_dingwall_sp1",
@@ -236,7 +236,7 @@ def test_resolve_instruments():
         "32in_fretless_pmm",
         "34in_active_stingray",
         "34in_dingwall_sp1",
-        "34in_emg_soapbar",
+        "34in_active_emg",
         "34in_preamp_soapbar",
         "34in_standard_jazz",
         "34in_standard_p",
@@ -261,18 +261,23 @@ def test_resolve_instruments():
     assert resolve_instruments("ibanez_sr") == ["34in_preamp_soapbar"]
     assert resolve_instruments("yamaha_trbx") == ["34in_preamp_soapbar"]
     assert resolve_instruments("trbx") == ["34in_preamp_soapbar"]
-    assert resolve_instruments("emg_soapbar") == ["34in_emg_soapbar"]
-    assert resolve_instruments("emg40") == ["34in_emg_soapbar"]
-    assert resolve_instruments("spector5") == ["34in_emg_soapbar"]
+    assert resolve_instruments("active_emg") == ["34in_active_emg"]
+    assert resolve_instruments("emg40") == ["34in_active_emg"]
+    assert resolve_instruments("spector5") == ["34in_active_emg"]
     assert resolve_instruments("ray") == ["34in_active_stingray"]
 
     # 5. Unknown and removed backward compatibility tokens raise diagnostic ValueError (Guardrail 5.3.5)
-    for removed_token in ["34in_active_soapbar", "active_soapbar"]:
+    for removed_token in [
+        "34in_active_soapbar",
+        "active_soapbar",
+        "34in_emg_soapbar",
+        "emg_soapbar",
+    ]:
         with pytest.raises(ValueError, match="Unknown source instrument identifier"):
             resolve_instruments(removed_token)
 
-    # Generic substring 'soapbar' matches both modern soapbar instruments
-    assert set(resolve_instruments("soapbar")) == {"34in_emg_soapbar", "34in_preamp_soapbar"}
+    # Generic substring 'soapbar' matches only preamp soapbar now
+    assert resolve_instruments("soapbar") == ["34in_preamp_soapbar"]
     with pytest.raises(ValueError, match="Unknown source instrument identifier 'nonexistent_bass'"):
         resolve_instruments("nonexistent_bass, 30in")
 
@@ -402,16 +407,26 @@ def test_scale_resolution_strict_errors():
         resolve_scale_range(cast(Any, object()))
 
 
-def test_34in_emg_soapbar_configuration():
-    """Verify 34in_emg_soapbar physical geometry, 5-string wave speeds, EMG active parameters, and deconvolution."""
+def test_34in_active_emg_configuration():
+    """Verify 34in_active_emg physical geometry, 5-string wave speeds, EMG active parameters, and deconvolution."""
     from allomorph.visualizer import build_voice_dataframe
 
-    inst = load_instrument("34in_emg_soapbar")
-    assert inst.id == "34in_emg_soapbar"
+    inst = load_instrument("34in_active_emg")
+    assert inst.id == "34in_active_emg"
     assert inst.scale_length_in == 34.0
     assert inst.scale_length_m == pytest.approx(0.8636)
     assert inst.electronics == "active"
     assert inst.string_wave_speeds == [53.31, 71.16, 95.00, 126.81, 169.27]
+
+    # Explicit alias resolution
+    assert load_instrument("active_emg").id == "34in_active_emg"
+    assert load_instrument("34in_emg").id == "34in_active_emg"
+    assert load_instrument("emg40").id == "34in_active_emg"
+
+    # Deprecated / removed aliases must raise FileNotFoundError
+    for removed in ["34in_emg_soapbar", "emg_soapbar"]:
+        with pytest.raises(FileNotFoundError):
+            load_instrument(removed)
 
     # Verify physical strings resolution
     s_cfg = get_instrument_string(inst)
@@ -470,7 +485,9 @@ def test_34in_preamp_soapbar_configuration():
     assert inst.scale_length_in == 34.0
     assert inst.scale_length_m == pytest.approx(0.8636)
     assert inst.electronics == "active"
-    assert len(inst.string_wave_speeds) == 4
+    assert len(inst.string_wave_speeds) == 5
+    assert inst.string_wave_speeds[0] == pytest.approx(53.31)
+    assert inst.strings.preset == "roundwound_nickel_5string"
 
     # Verify pickups and embedded passive circuits
     assert "neck" in inst.pickups
@@ -478,6 +495,8 @@ def test_34in_preamp_soapbar_configuration():
     assert "pair_parallel" in inst.pickups
 
     neck = inst.pickups["neck"]
+    assert neck.pole_type == "rod"
+    assert neck.magnet_type == "alnico_v"
     assert neck.resonant_frequency_hz == 3800.0
     assert neck.circuit is not None
     assert neck.circuit.active is True
@@ -488,6 +507,8 @@ def test_34in_preamp_soapbar_configuration():
     assert neck_circ.Reddy == pytest.approx(95000.0)
 
     bridge = inst.pickups["bridge"]
+    assert bridge.pole_type == "rod"
+    assert bridge.magnet_type == "alnico_v"
     assert bridge.resonant_frequency_hz == 4100.0
     assert bridge.circuit is not None
     assert bridge.circuit.active is True
@@ -498,13 +519,37 @@ def test_34in_preamp_soapbar_configuration():
     assert bridge_circ.Reddy == pytest.approx(90000.0)
 
     pair = inst.pickups["pair_parallel"]
+    assert pair.pole_type == "rod"
+    assert pair.magnet_type == "alnico_v"
     assert pair.circuit is not None
     assert pair.circuit.active is True
     assert pair.circuit.preamp == "none"
     assert pair.circuit.Rvol == pytest.approx(500000.0)
 
     # Explicit aliases
-    for alias in ["34in_preamp_soapbar", "preamp_soapbar", "ibanez_sr", "yamaha_trbx", "trbx"]:
+    for alias in [
+        "34in_preamp_soapbar",
+        "preamp_soapbar",
+        "preamp_soapbar_5string",
+        "ibanez_sr",
+        "ibanez_sr505",
+        "sr505",
+        "sr505e",
+        "yamaha_trbx",
+        "yamaha_trbx505",
+        "trbx",
+        "trbx505",
+        "sire_f10",
+        "sire_f10_5",
+        "sire_m7",
+        "sire_m7_5",
+        "sire",
+        "marcus_miller_f10",
+        "stingray_hh",
+        "stingray5_hh",
+        "ray34hh",
+        "ray35hh",
+    ]:
         aliased_inst = load_instrument(alias)
         assert aliased_inst.id == "34in_preamp_soapbar"
 
