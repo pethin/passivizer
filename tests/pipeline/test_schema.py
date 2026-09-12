@@ -98,9 +98,10 @@ def test_nam_training_config_validation():
     cfg = NamTrainingConfig()
     assert cfg.instrument == "all"
     assert cfg.voice == "all"
-    assert cfg.epochs == 100
-    assert cfg.batch_size == 16
+    assert cfg.epochs == 500
+    assert cfg.batch_size == 32
     assert cfg.goal_esr == 0.0005
+    assert cfg.a2_full is False
 
     # Valid custom configuration
     custom = NamTrainingConfig(
@@ -108,12 +109,14 @@ def test_nam_training_config_validation():
         voice="05_vintage_62_p_alnico",
         tier="hotrod",
         epochs=50,
-        batch_size=32,
+        batch_size=64,
         fast_dev_run=True,
+        a2_full=True,
     )
     assert custom.tier == "hotrod"
     assert custom.epochs == 50
-    assert custom.batch_size == 32
+    assert custom.batch_size == 64
+    assert custom.a2_full is True
 
     # Negative epochs rejection
     with pytest.raises(ValidationError):

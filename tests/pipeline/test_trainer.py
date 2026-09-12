@@ -119,4 +119,52 @@ def test_train_frontend_signature_and_cli_options():
     assert "fast_dev_run" in sig.parameters
     assert "normalize" in sig.parameters
     assert "gain_db" in sig.parameters
+    assert "a2_full" in sig.parameters
+    assert sig.parameters["a2_full"].default is False
+
+
+def test_train_voice_a2_full_parameter():
+    import inspect
+
+    from train_nam import train_voice
+
+    sig = inspect.signature(train_voice)
+    assert "a2_full" in sig.parameters
+    assert sig.parameters["a2_full"].default is False
+
+
+def test_train_nam_a2_full_cli_parsing():
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--a2-full", action="store_true")
+
+    # Default case
+    args = parser.parse_args([])
+    assert args.a2_full is False
+
+    # Explicit full
+    args = parser.parse_args(["--a2-full"])
+    assert args.a2_full is True
+
+
+def test_configure_a2_architecture():
+    import nam.train.core as nam_core
+    from train_nam import configure_a2_architecture
+
+    # Test default lite-only configuration
+    configure_a2_architecture(nam_core, a2_full=False)
+    cfg = nam_core._get_packed_model_config()
+    submodels = cfg["net"]["config"]["submodels"]
+    assert len(submodels) == 1
+    assert submodels[0]["name"] == "channels_8"
+
+    # Test full configuration
+    configure_a2_architecture(nam_core, a2_full=True)
+    cfg_full = nam_core._get_packed_model_config()
+    submodels_full = cfg_full["net"]["config"]["submodels"]
+    assert len(submodels_full) == 2
+    names = [s["name"] for s in submodels_full]
+    assert "channels_3" in names
+    assert "channels_8" in names
 

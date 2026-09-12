@@ -200,19 +200,30 @@ def main(argv: Sequence[str] | None = None):
     parser.add_argument(
         "--epochs",
         type=int,
-        default=100,
-        help="Maximum number of training epochs for NAM model (default: 100)",
+        default=500,
+        help="Maximum number of training epochs for NAM model (default: 500 for A2-Lite studio reference)",
     )
     parser.add_argument(
         "--goal-esr",
         type=float,
         default=0.0005,
-        help="Goal validation ESR for early stopping (default: 0.0005 for studio quality; set to 0 to disable)",
+        help="Goal validation ESR for early stopping (default: 0.0005 for A2-Lite studio reference; set to 0 to disable)",
     )
     parser.add_argument(
         "--no-goal-esr",
         action="store_true",
         help="Disable goal ESR early stopping and train for the exact number of epochs specified",
+    )
+    parser.add_argument(
+        "--batch-size",
+        type=int,
+        default=32,
+        help="Batch size for model training (default: 32)",
+    )
+    parser.add_argument(
+        "--a2-full",
+        action="store_true",
+        help="Train full slimmable Architecture 2 container with both channels_3 and channels_8 (default: False, trains A2-Lite channels_8 only for 2x faster throughput and unskewed ESR)",
     )
     parser.add_argument(
         "--fast-dev-run",
@@ -378,6 +389,8 @@ def main(argv: Sequence[str] | None = None):
                     goal_esr=effective_goal_esr,
                     fast_dev_run=args.fast_dev_run,
                     basename=basename,
+                    batch_size=args.batch_size,
+                    a2_full=args.a2_full,
                 )
         return
 
@@ -398,6 +411,8 @@ def main(argv: Sequence[str] | None = None):
                     fast_dev_run=args.fast_dev_run,
                     normalize=args.normalize_frontend,
                     gain_db=args.gain_db,
+                    batch_size=args.batch_size,
+                    a2_full=args.a2_full,
                 )
             return
 
@@ -482,6 +497,8 @@ def main(argv: Sequence[str] | None = None):
                         epochs=args.epochs,
                         goal_esr=effective_goal_esr,
                         fast_dev_run=args.fast_dev_run,
+                        batch_size=args.batch_size,
+                        a2_full=args.a2_full,
                     )
         return
 

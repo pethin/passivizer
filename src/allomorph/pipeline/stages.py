@@ -69,14 +69,16 @@ def run_training(
     output_wav: str | Path | None = None,
     models_dir: str | Path | None = None,
     tier: str | None = None,
-    epochs: int = 100,
+    epochs: int = 500,
     goal_esr: float | None = 0.0005,
     fast_dev_run: bool = False,
     basename: str | None = None,
+    batch_size: int = 32,
+    a2_full: bool = False,
 ):
-    """Trains a Neural Amp Modeler (NAM) Architecture 2 model locally with MPS GPU acceleration."""
+    """Trains a Neural Amp Modeler (NAM) A2-Lite model locally under the studio reference standard."""
     print(
-        f"\n[Training] Training Neural Amp Modeler A2 model for {voice} (Instrument: {instrument})..."
+        f"\n[Training] Training Neural Amp Modeler A2-Lite model for {voice} (Instrument: {instrument})..."
     )
     script = SCRIPTS_DIR / "train_nam.py"
     cmd = [
@@ -88,7 +90,11 @@ def run_training(
         voice,
         "--epochs",
         str(epochs),
+        "--batch-size",
+        str(batch_size),
     ]
+    if a2_full:
+        cmd.append("--a2-full")
     if tier:
         cmd.extend(["--tier", tier])
     if output_wav:
@@ -116,16 +122,18 @@ def run_frontend_training(
     input_wav: str | Path | None = None,
     output_wav: str | Path | None = None,
     models_dir: str | Path | None = None,
-    epochs: int = 100,
+    epochs: int = 500,
     goal_esr: float | None = 0.0005,
     fast_dev_run: bool = False,
     basename: str | None = None,
     normalize: bool = False,
     gain_db: float = 0.0,
+    batch_size: int = 32,
+    a2_full: bool = False,
 ):
-    """Trains a Neural Amp Modeler (NAM) model locally on Block 1 frontend wet WAVs."""
+    """Trains a Neural Amp Modeler (NAM) A2-Lite model locally for Block 1 frontend under studio reference standard."""
     print(
-        f"\n[Frontend Training] Training Neural Amp Modeler model for Block 1 frontend (Instrument: {instrument}, Pickup: {pickup or 'all'})..."
+        f"\n[Frontend Training] Training Neural Amp Modeler A2-Lite model for Block 1 frontend (Instrument: {instrument}, Pickup: {pickup or 'all'})..."
     )
     script = SCRIPTS_DIR / "train_nam.py"
     cmd = [
@@ -136,7 +144,11 @@ def run_frontend_training(
         instrument,
         "--epochs",
         str(epochs),
+        "--batch-size",
+        str(batch_size),
     ]
+    if a2_full:
+        cmd.append("--a2-full")
     if pickup:
         cmd.extend(["--pickup", pickup])
     if output_wav:

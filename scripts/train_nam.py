@@ -56,8 +56,36 @@ def find_sweep_input(candidate_path: str | Path | None = None) -> Path | None:
     return None
 
 
-DEFAULT_GOAL_ESR = 0.0005  # Studio reference early-stopping target (~ -33 dB ESR)
+DEFAULT_GOAL_ESR = 0.0005  # A2-Lite studio reference early-stopping target (~ -33 dB ESR)
+DEFAULT_MAX_EPOCHS = 500  # A2-Lite studio reference epoch safety ceiling
+DEFAULT_BATCH_SIZE = 32  # Standard batch size for high GPU core utilization
 CANONICAL_SWEEP_PATH = AUDIO_DIR / "canonical" / "canonical_sweep.wav"
+
+
+def configure_a2_architecture(nam_core: Any, a2_full: bool = False) -> None:
+    """Configure NAM Architecture 2 packed model submodels.
+
+    By default, isolates channels_8 (A2-Lite), providing 2x faster iteration
+    and preventing the 3-channel submodel from inflating reported ESR and blocking early stopping.
+    If a2_full is True, retains all submodels (channels_3 + channels_8).
+    """
+    if a2_full:
+        if hasattr(nam_core, "_orig_get_packed_model_config"):
+            nam_core._get_packed_model_config = nam_core._orig_get_packed_model_config
+        return
+    orig_get_packed_model_config = getattr(
+        nam_core, "_orig_get_packed_model_config", nam_core._get_packed_model_config
+    )
+    nam_core._orig_get_packed_model_config = orig_get_packed_model_config
+
+    def get_lite_only_packed_model_config() -> dict[str, Any]:
+        cfg: dict[str, Any] = orig_get_packed_model_config()
+        cfg["net"]["config"]["submodels"] = [
+            s for s in cfg["net"]["config"]["submodels"] if s["name"] == "channels_8"
+        ]
+        return cfg
+
+    nam_core._get_packed_model_config = get_lite_only_packed_model_config
 
 
 def train_voice(
@@ -67,18 +95,21 @@ def train_voice(
     output_wav: str | Path | None = None,
     models_dir: str | Path = MODELS_DIR,
     tier: str | None = None,
-    epochs: int = 100,
+    epochs: int = DEFAULT_MAX_EPOCHS,
     goal_esr: float | None = DEFAULT_GOAL_ESR,
-    batch_size: int = 16,
+    batch_size: int = DEFAULT_BATCH_SIZE,
     silent: bool = True,
     save_plot: bool = False,
     fast_dev_run: bool = False,
     basename: str | None = None,
+    a2_full: bool = False,
 ) -> bool:
     try:
         import nam.train.core as nam_core
         import nam.train.metadata as train_meta
         from nam.models.metadata import UserMetadata
+
+        configure_a2_architecture(nam_core, a2_full=a2_full)
     except ImportError:
         print("Error: 'neural-amp-modeler' is not installed in the current environment.")
         print("Please run `uv sync` or install project dependencies:")
@@ -213,11 +244,18 @@ def train_voice(
     print(f'  Source Bass: {inst_name} ({inst_id}, {scale_length_in}")')
     print(f"  Source PU:   {src_pickup_name} (pos={src_pos_mm:.1f}mm)")
     print(f"  Target Voice:{voice} ({voice_name})")
+    arch_display = (
+        "Architecture 2 Full (channels_3 + channels_8, slimmable)"
+        if a2_full
+        else "Architecture 2 Lite (channels_8 only, fast)"
+    )
+    print(f"  Model Tier:  {arch_display}")
+    print(f"  Batch Size:  {batch_size}")
     print(f"  Input Audio: {input_path.name}")
     print(f"  Output Audio:{output_path.name}")
     print(f"  Max Epochs:  {epochs}")
     esr_display = (
-        f"{threshold_esr:.6f} (Studio Quality Early Stopping)"
+        f"{threshold_esr:.6f} (A2-Lite Studio Reference Early Stopping)"
         if threshold_esr is not None
         else "Disabled (Fixed Epochs)"
     )
@@ -341,20 +379,23 @@ def train_frontend(
     input_wav: str | Path | None = None,
     output_wav: str | Path | None = None,
     models_dir: str | Path = MODELS_FRONTENDS_DIR,
-    epochs: int = 100,
+    epochs: int = DEFAULT_MAX_EPOCHS,
     goal_esr: float | None = DEFAULT_GOAL_ESR,
-    batch_size: int = 16,
+    batch_size: int = DEFAULT_BATCH_SIZE,
     silent: bool = True,
     save_plot: bool = False,
     fast_dev_run: bool = False,
     basename: str | None = None,
     normalize: bool = False,
     gain_db: float = 0.0,
+    a2_full: bool = False,
 ) -> bool:
     try:
         import nam.train.core as nam_core
         import nam.train.metadata as train_meta
         from nam.models.metadata import UserMetadata
+
+        configure_a2_architecture(nam_core, a2_full=a2_full)
     except ImportError:
         print("Error: 'neural-amp-modeler' is not installed in the current environment.")
         return False
@@ -431,11 +472,18 @@ def train_frontend(
         print(f'  Source Bass:  {inst_name} ({inst_id}, {scale_length_in}")')
         print(f"  Source PU:    {pcfg.name} (pos={pos_mm:.1f}mm)")
         print("  Target:       00_canonical_intermediate (Block 1 Deconvolution)")
+        arch_display = (
+            "Architecture 2 Full (channels_3 + channels_8, slimmable)"
+            if a2_full
+            else "Architecture 2 Lite (channels_8 only, fast)"
+        )
+        print(f"  Model Tier:   {arch_display}")
+        print(f"  Batch Size:   {batch_size}")
         print(f"  Input Audio:  {input_path.name}")
         print(f"  Output Audio: {out_wav_path.name}")
         print(f"  Max Epochs:   {epochs}")
         esr_display = (
-            f"{threshold_esr:.6f} (Studio Quality Early Stopping)"
+            f"{threshold_esr:.6f} (A2-Lite Studio Reference Early Stopping)"
             if threshold_esr is not None
             else "Disabled (Fixed Epochs)"
         )
@@ -589,20 +637,33 @@ def main():
     )
     parser.add_argument("--models-dir", default=str(MODELS_DIR), help="Output models directory")
     parser.add_argument(
-        "--epochs", type=int, default=100, help="Maximum number of training epochs (default: 100)"
+        "--epochs",
+        type=int,
+        default=DEFAULT_MAX_EPOCHS,
+        help=f"Maximum number of training epochs (default: {DEFAULT_MAX_EPOCHS} for A2-Lite studio reference)",
     )
     parser.add_argument(
         "--goal-esr",
         type=float,
         default=DEFAULT_GOAL_ESR,
-        help=f"Goal validation ESR for early stopping (default: {DEFAULT_GOAL_ESR} for studio quality; set to 0 to disable)",
+        help=f"Goal validation ESR for early stopping (default: {DEFAULT_GOAL_ESR} for A2-Lite studio reference; set to 0 to disable)",
     )
     parser.add_argument(
         "--no-goal-esr",
         action="store_true",
         help="Disable goal ESR early stopping and train for the exact number of epochs specified",
     )
-    parser.add_argument("--batch-size", type=int, default=16, help="Batch size (default: 16)")
+    parser.add_argument(
+        "--batch-size",
+        type=int,
+        default=DEFAULT_BATCH_SIZE,
+        help=f"Batch size (default: {DEFAULT_BATCH_SIZE})",
+    )
+    parser.add_argument(
+        "--a2-full",
+        action="store_true",
+        help="Train full slimmable Architecture 2 container with both channels_3 and channels_8 (default: False, trains A2-Lite channels_8 only for 2x faster throughput and unskewed ESR)",
+    )
     parser.add_argument(
         "--show-plot", action="store_true", help="Display matplotlib validation plot window"
     )
@@ -641,6 +702,7 @@ def main():
             "basename": args.basename,
             "fast_dev_run": args.fast_dev_run,
             "gui": args.gui,
+            "a2_full": args.a2_full,
         }
     )
 
@@ -679,6 +741,7 @@ def main():
                 basename=cli_cfg.basename,
                 normalize=args.normalize_frontend,
                 gain_db=args.gain_db,
+                a2_full=cli_cfg.a2_full,
             )
             if not ok:
                 all_ok = False
@@ -722,6 +785,7 @@ def main():
                 basename=cli_cfg.basename
                 if (len(voices_to_run) == 1 and len(instruments_to_run) == 1)
                 else None,
+                a2_full=cli_cfg.a2_full,
             )
             if not ok:
                 all_ok = False
