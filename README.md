@@ -217,6 +217,10 @@ uv run allomorph --stage train --instrument 30in --voice 04_modern_p_ceramic --a
 ```
 *(In modern versions of `neural-amp-modeler` and the official Google Colab trainer, `--architecture A2` is the default. With the optimal bass dry excitation file, Allomorph trains the full slimmable Architecture 2 container (both `channels_3` and `channels_8`) by default under the **A2 Studio Reference** standard (`--goal-esr 0.0080`, `400` max epoch safety ceiling, `--batch-size 32`, monitoring `channels_8`). To isolate the 8-channel submodel only, supply `--a2-lite-only`).*
 
+> [!NOTE]
+> **Complete Training Guide & Audio Pairings:**
+> For the complete reference table of input/target audio pairings for Block 1 (Frontend), Block 2 (Target), and 1-Block Baked models, see [`docs/training.md`](docs/training.md).
+
 ### 4. Master Automation Runner (`allomorph`)
 Execute the entire pipeline or specific stages with a single command:
 

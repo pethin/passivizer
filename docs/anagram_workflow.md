@@ -58,6 +58,7 @@ The Darkglass Anagram allows up to 24 simultaneous blocks in series or parallel.
 > [!NOTE]
 > **Why Pure NAM for Both Stages?**
 > Deconvolving your instrument's linear circuit, spatial aperture, and active buffer slew in Block 1 using a lightweight NAM (A2-Lite or Nano) avoids all hardware IR loader phase smearing, 1024/2048-sample bass truncation, and automatic gain normalization discrepancies. Running Block 1 + Block 2 uses only 2 of the Anagram's 9 neural slots, leaving 7 neural slots free for drive engines, amp captures, and synths.
+> For the complete table of input/target training audio pairings, mathematical proofs, and CLI training commands, see [`docs/training.md`](training.md).
 
 ---
 
