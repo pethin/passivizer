@@ -181,18 +181,27 @@ def fft_convolve(
     out_len = n + m - 1
     out_dtype = np.float64 if (x.dtype == np.float64 or y.dtype == np.float64) else np.float32
 
-    # If long signal and shorter filter, use overlap-add to remain in CPU cache
-    if n > 131072 and m <= 16384:
+    # Vectorized overlap-save for signals larger than block_size where filter is compact
+    if n > 32768 and m <= 32768:
         block_size = 65536
-        n_fft = 1 << (block_size + m - 1).bit_length()
-        Y = np.fft.rfft(y, n_fft)
-        out = np.zeros(out_len, dtype=out_dtype)
-        for start in range(0, n, block_size):
-            chunk = x[start : start + block_size]
-            X = np.fft.rfft(chunk, n_fft)
-            res = np.fft.irfft(X * Y, n_fft)
-            valid_len = min(len(res), out_len - start)
-            out[start : start + valid_len] += res[:valid_len]
+        if block_size <= m:
+            block_size = 1 << (m + 1).bit_length()
+
+        l = block_size - m + 1
+        num_blocks = (n + l - 1) // l
+        pad_end = num_blocks * l - n
+        x_padded = np.pad(x, (m - 1, pad_end), mode="constant")
+
+        shape = (num_blocks, block_size)
+        strides = (l * x_padded.strides[0], x_padded.strides[0])
+        blocks = np.lib.stride_tricks.as_strided(x_padded, shape=shape, strides=strides)
+
+        H = np.fft.rfft(y, block_size)
+        X_blocks = np.fft.rfft(blocks, block_size, axis=-1)
+        Y_blocks = np.fft.irfft(X_blocks * H, block_size, axis=-1)
+
+        valid = Y_blocks[:, m - 1 :]
+        out = valid.reshape(-1)[:out_len].astype(out_dtype)
     else:
         n_fft = 1 << (out_len - 1).bit_length()
         X = np.fft.rfft(x, n_fft)

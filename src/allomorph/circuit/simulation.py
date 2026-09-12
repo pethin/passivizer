@@ -4,6 +4,7 @@ Applies aperture pre-filtering, dynamic magnetic saturation, Foster 2-stage
 core eddy diffusion, and differential RLC transfer functions to 24-bit audio buffers.
 """
 
+import functools
 import math
 import wave
 from collections.abc import Sequence
@@ -43,6 +44,7 @@ from allomorph.config.voices import VOICES
 from allomorph.dsp import (
     FREQS,
     NUM_TAPS,
+    fft_convolve,
     synthesize_minimum_phase_fir,
 )
 from allomorph.physics import (
@@ -59,6 +61,13 @@ TARGETS_DIR = AUDIO_DIR / "targets"
 INTERMEDIATE_TARGET_PEAK_DBFS = -1.5
 INTERMEDIATE_TARGET_RMS_DBFS = -16.5
 CALIBRATION_PEAK_CEILING = 0.9900  # -0.087 dBFS (matching T3K-sweep-v3.wav calibration sweep peak)
+
+
+@functools.lru_cache(maxsize=4)
+def _get_white_noise_vector(n: int) -> np.ndarray:
+    """Generates and caches deterministic Gaussian white noise for Johnson-Nyquist thermal dither."""
+    rng = np.random.RandomState(42)
+    return rng.normal(0.0, 1.0, n).astype(np.float64)
 
 
 def simulate_circuit_audio(
@@ -238,13 +247,9 @@ def simulate_circuit_audio(
             )[: (len(p_fir) + len(c_fir) - 1)].astype(np.float32)
 
             # High-speed FFT convolution of input with compound FIR
-            n_sig = len(in_ch)
-            n_ir = len(fused_fir)
-            n_fft = 1 << (n_sig + n_ir - 1).bit_length()
-            out_ch = np.fft.irfft(
-                np.fft.rfft(in_ch, n_fft) * np.fft.rfft(fused_fir, n_fft),
-                n_fft,
-            )[:n_sig]
+            out_ch = fft_convolve(in_ch, fused_fir, mode="causal")[: len(in_ch)].astype(
+                np.float32
+            )
             channel_outputs.append(out_ch)
             continue
 
@@ -375,11 +380,7 @@ def simulate_circuit_audio(
         )
 
         # High-speed FFT block convolution
-        n_sig = len(in_dyn)
-        n_ir = len(fir)
-        n_fft = 1 << (n_sig + n_ir - 1).bit_length()
-
-        out_ch = np.fft.irfft(np.fft.rfft(in_dyn, n_fft) * np.fft.rfft(fir, n_fft), n_fft)[:n_sig]
+        out_ch = fft_convolve(in_dyn, fir, mode="causal")[: len(in_ch)].astype(np.float32)
         channel_outputs.append(out_ch)
 
     # Sum all pickup contributions
@@ -419,8 +420,8 @@ def simulate_circuit_audio(
 
     # Passive RLC-Shaped Johnson-Nyquist Thermal Noise Dither (-108 dBFS)
     if noise_dither and in_peak > 0.10 and (not is_identity):
-        rng = np.random.RandomState(42)
-        white_noise = rng.normal(0.0, 1.0, len(out_total)).astype(np.float64)
+        n_sig_d = len(out_total)
+        white_noise = _get_white_noise_vector(n_sig_d)
         avg_mag = (
             np.mean(mag_curves, axis=0) if isinstance(mag_curves, (list, tuple)) else mag_curves
         )
@@ -429,11 +430,7 @@ def simulate_circuit_audio(
             synthesize_minimum_phase_fir(avg_mag, num_taps=n_dither_taps, normalize=True),
             dtype=np.float64,
         )
-        n_sig_d = len(white_noise)
-        n_fft_d = 1 << (n_sig_d + n_dither_taps - 1).bit_length()
-        colored_noise = np.fft.irfft(
-            np.fft.rfft(white_noise, n_fft_d) * np.fft.rfft(dither_fir, n_fft_d), n_fft_d
-        )[:n_sig_d]
+        colored_noise = fft_convolve(white_noise, dither_fir, mode="causal")[:n_sig_d]
         colored_rms = max(float(np.sqrt(np.mean(colored_noise**2))), 1e-9)
         target_dither_rms = 10.0 ** (-108.0 / 20.0)
         dither = (colored_noise / colored_rms) * target_dither_rms
