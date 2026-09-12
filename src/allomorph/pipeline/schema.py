@@ -36,7 +36,7 @@ class PipelineCliConfig(AllomorphBaseModel):
 
     instrument: str = "all"
     stage: Literal[
-        "all", "viz", "canonical", "frontends", "frontends-nam", "targets", "train", "bake"
+        "all", "viz", "canonical", "frontends", "targets", "train", "bake"
     ] = "all"
     tier: Literal["clean", "standard", "std", "hotrod", "dynamic", "all"] | None = None
     pickup: str | None = None

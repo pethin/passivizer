@@ -780,7 +780,7 @@ def main(argv: list[str] | None = None) -> None:
     )
     parser.add_argument(
         "--stage",
-        choices=["canonical", "frontends", "frontends-nam", "targets", "all"],
+        choices=["canonical", "frontends", "targets", "all"],
         default=None,
         help="Architecture C execution stage: 'canonical' (generate intermediate sweep), 'frontends' (export frontend wet sweeps / IRs), 'targets' (simulate backend sweeps), 'all'.",
     )
@@ -851,7 +851,7 @@ def main(argv: list[str] | None = None) -> None:
     if args.stage == "canonical":
         generate_canonical_sweep(input_wav=args.input, output_wav=args.out)
         return
-    if args.stage in ["frontends", "frontends-nam"]:
+    if args.stage == "frontends":
         fmt = args.frontend_format
         if args.instrument:
             insts = resolve_instruments(args.instrument)

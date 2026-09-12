@@ -93,13 +93,12 @@ def main(argv: Sequence[str] | None = None):
             "viz",
             "canonical",
             "frontends",
-            "frontends-nam",
             "targets",
             "train",
             "bake",
         ],
         default="all",
-        help="Pipeline stage to execute: 'viz' (interactive frequency charts & portal), 'canonical' (calibrated intermediate baseline sweep), 'frontends' (export frontend wet sweeps / IRs), 'frontends-nam' (train frontend NAM neural models on wet WAVs), 'targets' (simulate 3-tier backend universal target sweeps), 'train' (train backend NAM A2 neural models), 'bake' (on-demand single-block monolithic model), or 'all' (canonical + frontends + targets + viz; default: 'all').",
+        help="Pipeline stage to execute: 'viz' (interactive frequency charts & portal), 'canonical' (calibrated intermediate baseline sweep), 'frontends' (export frontend wet sweeps / IRs / train frontend NAM models), 'targets' (simulate 3-tier backend universal target sweeps), 'train' (train backend NAM A2 neural models), 'bake' (on-demand single-block monolithic model), or 'all' (canonical + frontends + targets + viz; default: 'all').",
     )
     parser.add_argument(
         "--frontend-format",
@@ -359,8 +358,8 @@ def main(argv: Sequence[str] | None = None):
         generate_canonical_sweep(input_wav=input_wav)
         return
 
-    if args.stage in ["frontends", "frontends-nam"] or args.frontend_format == "nam":
-        fmt = "nam" if args.stage == "frontends-nam" else args.frontend_format
+    if args.stage == "frontends" or args.frontend_format == "nam":
+        fmt = args.frontend_format
         if fmt == "nam":
             for inst in instruments_to_run:
                 run_frontend_training(
