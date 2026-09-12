@@ -57,7 +57,7 @@ Where:
 
 Allomorph does not assume a generic volume/tone harness for all instruments. Each voice utilizes its authentic manufacturer and era-specific harness:
 
-### A. Active Preamp Buffer Topologies (`01_modern_jazz_active`, `07_modern_pj_active`, `09_stingray_mm_parallel`, `09b_stingray_mm_series`, `11_modern_pmm_active`)
+### A. Active Preamp Buffer Topologies (`01_modern_jazz_active`, `07_modern_pj_active`, `09_stingray_mm_parallel`, `09b_stingray_mm_series`, `11_modern_pmm_active`, `11b_pmm_hybrid_series`)
 In instruments equipped with active onboard preamps or active buffers (e.g., Sadowsky NYC 2-band, Spector 2-band, Music Man 2-band, Sandberg/Glockenklang, Lakland LH3, EMG ABCX), an internal discrete JFET or op-amp buffer stage directly interfaces with the pickup coils:
 
 ```
@@ -74,6 +74,7 @@ In instruments equipped with active onboard preamps or active buffers (e.g., Sad
    * **Sadowsky 2-Band (Jazz & P/J):** $+4.0\text{ dB}$ Bass boost ($40\text{ Hz}$ shelf) and $+4.0\text{ dB}$ Treble boost ($4.0\text{ kHz}$ shelf).
    * **Music Man StingRay 2-Band:** $+1.8\text{ dB}$ Bass boost ($50\text{ Hz}$ shelf) and $+2.2\text{ dB}$ Treble boost ($4\text{--}7\text{ kHz}$ shelf).
    * **Active Parallel P/MM (`11_modern_pmm_active`):** Split-P neck ($4.80\text{ H}$) and MM bridge parallel humbucker ($1.20\text{ H}$) summed in active parallel ($L_{\text{par}} = 0.96\text{ H}$) into a high-headroom transparent buffer stage; delivers punchy, articulate slap growl with resonant clarity at $3.4\text{ kHz}$ and zero cable drag.
+   * **Active Series P/MM (`11b_pmm_hybrid_series`):** Split-P neck ($4.80\text{ H}$) and MM bridge parallel humbucker ($3.60\text{ H}$) wired in series before the active buffer stage; generates massive $+5.8\text{ dB}$ series boost and authoritative low-mid punch with resonant clarity at $3.2\text{ kHz}$ and complete isolation from cable capacitance.
    * **Series Coil Open-Circuit EMF Surge (`09b_stingray_mm_series`):** Switching the two MM coils into series doubles the open-circuit induced EMF ($V_{\text{out}} = e_1 + e_2 \approx 2e$), generating $+5.6\text{ dB}$ of authoritative passband gain with an authentic $4.1\text{ kHz}$ upper-mid resonance.
 
 ### B. Vintage Dual-Volume Harness (`02_jazz_bass_pair`, `02b_jazz_bass_pair_22nf`, `08_vintage_pj_passive`)
@@ -116,9 +117,8 @@ In instruments equipped with active onboard preamps or active buffers (e.g., Sad
     $$f_c = \frac{1}{2\pi \cdot R_{\text{load}} \cdot C_{\text{series}}} \approx 150\text{ Hz}$$
     Rolls off sub-bass rumble while sharpening the aggressive $1.5\text{--}2.5\text{ kHz}$ bridge bite.
 
-### F. High-Inductance 500k Harnesses (`11b_pmm_hybrid_series`, `12_mudbucker_ultra_series`)
-* High-inductance series pickups ($L > 7\text{ H}$) require $500\text{ k}\Omega$ volume and tone pots to prevent excessive high-frequency rolloff.
-* P/MM series voice uses $47\text{ nF}$ tone cap; Gibson Mudbucker uses $22\text{ nF}$ tone cap.
+### F. High-Inductance 500k Harnesses (`12_mudbucker_ultra_series`)
+* Ultra-high-inductance passive pickups ($L > 10\text{ H}$, such as the Gibson Mudbucker @ $14.4\text{ H}$) require $500\text{ k}\Omega$ volume and tone pots with a $22\text{ nF}$ capacitor to prevent complete treble cutoff, producing a deep, dark subterranean fundamental.
 
 ---
 

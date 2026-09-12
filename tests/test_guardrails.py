@@ -205,7 +205,12 @@ def test_guardrail_transducer_taxonomy_and_zero_conditional_deconvolution():
     phys_file = REPO_ROOT / "src" / "allomorph" / "physics" / "prefilter.py"
     tree = ast.parse(phys_file.read_text())
 
-    prohibited_constants = {"15_source_direct", "15_passive_character"}
+    prohibited_constants = {
+        "15_source_direct",
+        "15_neutral_character",
+        "15b_active_character",
+        "15c_passive_character",
+    }
     for node in ast.walk(tree):
         if isinstance(node, ast.FunctionDef) and node.name == "compute_voice_prefilter_firs":
             for sub_node in ast.walk(node):
@@ -220,39 +225,53 @@ def test_guardrail_transducer_taxonomy_and_zero_conditional_deconvolution():
                     )
 
     # 3. Direct sensor target output mode must evaluate to bit-exact 0.00 dB
-    vcfg = VOICES["15_source_direct"]
+    vcfg = VOICES["15_neutral_character"]
     df_out = build_voice_dataframe(
-        "15_source_direct", vcfg, instrument="canonical_intermediate", mode="output"
+        "15_neutral_character", vcfg, instrument="canonical_intermediate", mode="output"
     )
     mags_out = df_out["magnitude_db"].to_numpy()
     assert np.all(mags_out == 0.0), (
-        f"15_source_direct output mode was not bit-exact 0.00 dB (max error: {np.max(np.abs(mags_out))})"
+        f"15_neutral_character output mode was not bit-exact 0.00 dB (max error: {np.max(np.abs(mags_out))})"
     )
 
-    # 4. Universal deconvolution on Canonical Intermediate must smoothly invert aperture sinc without ripples
+    # 4. Character Voicings preserve aperture (unit impulse)
     from allomorph.physics import compute_voice_prefilter_firs
 
-    firs = compute_voice_prefilter_firs("15_source_direct", instrument="canonical_intermediate")
+    firs = compute_voice_prefilter_firs("15_neutral_character", instrument="canonical_intermediate")
     assert len(firs) == 1
     fir = np.array(firs[0])
+    assert fir[0] == 1.0
+    assert np.all(fir[1:] == 0.0)
 
-    f_bins = np.fft.rfftfreq(8192, 1.0 / 48000.0)
-    H = np.abs(np.fft.rfft(fir, 8192))
-    gain_5k = H[np.argmin(np.abs(f_bins - 5000))] / H[np.argmin(np.abs(f_bins - 20))]
-    assert 1.2 <= gain_5k <= 2.5, f"Expected 1.2 <= gain_5k <= 2.5, got {gain_5k:.3f}"
+    # 5. Direct sensor deconvolution without preserve_aperture must smoothly invert aperture sinc
+    test_direct_cfg = vcfg.model_copy(update={"preserve_aperture": False})
+    VOICES["_test_direct_deconv"] = test_direct_cfg
+    try:
+        firs_dir = compute_voice_prefilter_firs(
+            "_test_direct_deconv", instrument="canonical_intermediate"
+        )
+        assert len(firs_dir) == 1
+        fir_dir = np.array(firs_dir[0])
 
-    # Verify monotonic smooth inversion in 20 Hz to 5000 Hz passband (zero sign flips)
-    mask = (f_bins >= 20.0) & (f_bins <= 5000.0)
-    H_band = H[mask]
-    diffs = np.diff(H_band)
-    sign_flips = sum(
-        1
-        for i in range(len(diffs) - 1)
-        if (diffs[i] > 1e-5 and diffs[i + 1] < -1e-5) or (diffs[i] < -1e-5 and diffs[i + 1] > 1e-5)
-    )
-    assert sign_flips == 0, (
-        f"Deconvolution curve had {sign_flips} sign flips in 20-5000 Hz band (must be smoothly monotonic)"
-    )
+        f_bins = np.fft.rfftfreq(8192, 1.0 / 48000.0)
+        H = np.abs(np.fft.rfft(fir_dir, 8192))
+        gain_5k = H[np.argmin(np.abs(f_bins - 5000))] / H[np.argmin(np.abs(f_bins - 20))]
+        assert 1.2 <= gain_5k <= 2.5, f"Expected 1.2 <= gain_5k <= 2.5, got {gain_5k:.3f}"
+
+        # Verify monotonic smooth inversion in 20 Hz to 5000 Hz passband (zero sign flips)
+        mask = (f_bins >= 20.0) & (f_bins <= 5000.0)
+        H_band = H[mask]
+        diffs = np.diff(H_band)
+        sign_flips = sum(
+            1
+            for i in range(len(diffs) - 1)
+            if (diffs[i] > 1e-5 and diffs[i + 1] < -1e-5) or (diffs[i] < -1e-5 and diffs[i + 1] > 1e-5)
+        )
+        assert sign_flips == 0, (
+            f"Deconvolution curve had {sign_flips} sign flips in 20-5000 Hz band (must be smoothly monotonic)"
+        )
+    finally:
+        del VOICES["_test_direct_deconv"]
 
 
 def test_guardrail_fail_fast_zero_silent_fallbacks():
@@ -401,7 +420,21 @@ def test_guardrail_visualizer_signal_flow_inspector_fidelity():
         "Source Bass Input and Block 1 Deconvolution did not neutralize to flat Canonical Intermediate"
     )
 
-    # 4. Strict Stage Sequence Invariant
+    # 4. Canonical Intermediate Voicing: Stage 3 (0 dB) + Stage 4 = Stage 5 bit-exact
+    s4_all = df.filter(df["stage"] == "4. Block 2 Target Voicing")
+    s5_all = df.filter(df["stage"] == "5. Target Voice Output")
+    assert len(s4_all) > 0
+    assert len(s5_all) > 0
+    for vname in df["voice_name"].unique().to_list():
+        if not vname:
+            continue
+        m4 = s4_all.filter(s4_all["voice_name"] == vname)["magnitude_db"].to_numpy()
+        m5 = s5_all.filter(s5_all["voice_name"] == vname)["magnitude_db"].to_numpy()
+        assert np.allclose(m4, m5, atol=0.01), (
+            f"Stage 3 (0 dB) + Stage 4 did not equal Stage 5 for voice '{vname}'"
+        )
+
+    # 5. Strict Stage Sequence Invariant
     stages = df["stage"].unique().to_list()
     expected_sequence = {
         "1. Source Bass Input",

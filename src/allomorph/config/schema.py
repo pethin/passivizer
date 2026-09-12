@@ -362,7 +362,7 @@ class VoiceConfig(AllomorphBaseModel):
     gain_db: float = 0.0
     scale: str = "34in"
     hpf: float | None = None
-    preserve_aperture: bool | None = None
+    preserve_aperture: bool = False
     coils: list[VoiceCoilConfig] = Field(default_factory=list)
     pickups: list[VoicePickupConfig] | None = None
     circuit: CircuitConfig

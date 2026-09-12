@@ -301,8 +301,13 @@ def test_resolve_voices():
     ]
     assert resolve_voices("09b") == ["09b_stingray_mm_series"]
     assert resolve_voices("09") == ["09_stingray_mm_parallel", "09b_stingray_mm_series"]
-    assert resolve_voices("15") == ["15_source_direct"]
-    assert resolve_voices("16") == ["16_active_character"]
+    assert resolve_voices("15") == [
+        "15_neutral_character",
+        "15b_active_character",
+        "15c_passive_character",
+    ]
+    assert resolve_voices("15b") == ["15b_active_character"]
+    assert resolve_voices("15c") == ["15c_passive_character"]
 
 
 def test_get_source_pickup_strict_errors():

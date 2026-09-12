@@ -1,17 +1,17 @@
 # ==============================================================================
-# 15. SOURCE DIRECT (Dynamic Studio DI / Inverse Canonical Intermediate)
+# 15. NEUTRAL CHARACTER (Dynamic Studio DI / Tier Feel Bypass)
 # ==============================================================================
-# Deconvolutes the Canonical Intermediate aperture baseline (34" scale @ 93.5mm datum)
-# with a bit-exact 0.00 dB flat unity studio buffer. When loaded in Block 2 on the
-# Darkglass Anagram pedalboard, it inverts the intermediate representation to recover
-# the raw, uncolored input signal of Block 1 (pure studio DI / dry string signal),
-# while preserving the dynamic feel continuum (Clean, Dynamic, Hot Rod).
+# Preserves physical pickup aperture and imparts only the character of the
+# selected tier (Clean, Dynamic, Hot Rod).
+# - In 2-block mode: User disables Block 1 IR; Block 2 adds only tier dynamics.
+# - In 1-block mode: In Clean tier, acts as bit-exact 0.00 dB bypass; in Dynamic
+#   tier, adds organic Alnico V compliance, hysteresis, sag, and drag.
 # ==============================================================================
 
-id = "15_source_direct"
-name = "15. Source Direct"
-topology = "Source Direct (Dynamic Studio DI)"
-description = "Deconvolutes Canonical Intermediate to restore the uncolored input signal of Block 1 (pure studio DI) with tier dynamics"
+id = "15_neutral_character"
+name = "15. Neutral Character"
+topology = "Character (Neutral / Studio DI)"
+description = "Preserves physical pickup aperture and adds only tier character (transparent bypass in Clean, organic Alnico V feel in Dynamic, overwound punch in Hot Rod)"
 blend_mode = "direct"
 magnet_type = "alnico_v"
 alpha = 0.26
@@ -36,6 +36,7 @@ Q = 1.4
 sensor_type = "direct"
 gain_db = 0.0
 scale = "34in"
+preserve_aperture = true
 coils = [
     { strings = ["all"], position_from_bridge_m = 0.0935, aperture_width_in = 0.75, weight = 1.0 }
 ]

@@ -446,7 +446,7 @@ def test_body_microphonic_coupling():
 
     # 3. Active-to-active: exact identity
     src_active = PickupConfig(name="EMG Active", magnet_type="active")
-    tgt_active = VOICES["16_active_character"]
+    tgt_active = VOICES["15b_active_character"]
     h_body_active = compute_body_microphonic_coupling(freqs, src_active, tgt_active)
     assert np.allclose(h_body_active, 1.0, atol=1e-12)
 

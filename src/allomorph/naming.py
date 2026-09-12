@@ -80,8 +80,9 @@ VOICE_CONCISE_SLUGS: dict[str, str] = {
     "12_mudbucker_ultra_series": "12_mudbucker",
     "13_dingwall_multiscale_bridge": "13_dingwall",
     "14_upright_bridge_transducer": "14_upright",
-    "15_source_direct": "15_src_direct",
-    "16_active_character": "16_act_buffer",
+    "15_neutral_character": "15_neutral",
+    "15b_active_character": "15b_active",
+    "15c_passive_character": "15c_passive",
 }
 
 

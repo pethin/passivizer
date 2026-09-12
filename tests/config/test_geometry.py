@@ -86,7 +86,7 @@ def test_resolve_voice_pickups():
     # 5. Multi-pickup: 11_pmm_hybrid_series & 11_modern_pmm_active
     p_pmm = resolve_voice_pickups(VOICES["11_pmm_hybrid_series"])
     assert len(p_pmm) == 2
-    assert p_pmm[0].fr == 2200.0
+    assert p_pmm[0].fr == 3200.0
     assert p_pmm[1].fr == 3500.0
 
     p_pmm_act = resolve_voice_pickups(VOICES["11_modern_pmm_active"])

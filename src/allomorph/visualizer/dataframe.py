@@ -128,21 +128,6 @@ def build_voice_dataframe(
             return df.with_columns(pl.lit("Output Voice").alias("mode"))
         return df
 
-    if mode == "difference" and voice_id == "16_active_character" and not is_passive:
-        data = {
-            "frequency": log_freqs,
-            "magnitude_db": [0.0] * len(log_freqs),
-            "voice_id": voice_id,
-            "voice_name": cfg.name,
-            "topology": cfg.topology,
-            "description": cfg.description,
-        }
-        df = pl.DataFrame(data)
-        if cfg == VOICES.get(voice_id):
-            _DIFF_VOICE_DF_CACHE[cache_key_diff] = df
-        if include_mode_col:
-            return df.with_columns(pl.lit("Input/Output Difference").alias("mode"))
-        return df
 
     if mode == "output":
         # 1. Output Voice: Target acoustic aperture + loaded SPICE circuit + string + body bloom
@@ -417,7 +402,7 @@ def get_cached_target_dfs(step: int = 1) -> dict[str, tuple[str, np.ndarray | No
 
 def build_universal_targets_dataframe() -> pl.DataFrame:
     """
-    Calculates magnitude frequency responses for all 22 Universal Target Voicings relative to
+    Calculates magnitude frequency responses for all 23 Universal Target Voicings relative to
     the Canonical Intermediate baseline: H_backend = H_target / H_canonical.
     """
     freqs = np.asarray(log_freqs, dtype=np.float64)
@@ -439,7 +424,7 @@ def build_universal_targets_dataframe() -> pl.DataFrame:
         if vid == "00_canonical_intermediate":
             continue
         vname, db_tgt = target_dfs[vid]
-        if db_tgt is None or (cfg.preserve_aperture or False):
+        if db_tgt is None:
             db_backend = np.zeros_like(freqs)
         else:
             db_backend = db_tgt - db_can
@@ -737,8 +722,7 @@ def build_composite_instrument_dataframe(
 
     # Stage 4: Block 2 Target Voicing (deduplicated across pickups)
     for vid, (vname, db_tgt) in sorted(target_dfs.items()):
-        vcfg = VOICES[vid]
-        if db_tgt is None or (vcfg.preserve_aperture or False):
+        if db_tgt is None:
             db_back = [0.0] * n_pts
         else:
             db_back = np.round(db_tgt - db_can, 2).tolist()
@@ -756,7 +740,7 @@ def build_composite_instrument_dataframe(
             if db_tgt is None:
                 db_out = [0.0] * n_pts
             else:
-                db_out = np.round(db_tgt, 2).tolist()
+                db_out = np.round(db_tgt - db_can, 2).tolist()
 
             freq_col.extend(f_pts)
             mag_col.extend(db_out)

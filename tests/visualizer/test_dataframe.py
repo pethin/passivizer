@@ -2,6 +2,7 @@
 Tests for Polars-based frequency response dataframe generation in allomorph.visualizer.
 """
 
+import numpy as np
 import polars as pl
 
 from allomorph.config import VOICES, load_all_instruments, load_instrument
@@ -179,8 +180,8 @@ def test_build_universal_targets_dataframe():
         "description",
     }
     assert set(df.columns) == expected_cols
-    # 22 target voices * 600 points = 13200 rows
-    assert df.height == 22 * 600
+    # 23 target voices * 600 points = 13800 rows
+    assert df.height == 23 * 600
     assert not df["magnitude_db"].is_nan().any()
     assert not df["magnitude_db"].is_null().any()
 
@@ -213,3 +214,54 @@ def test_build_frontend_deconvolutions_dataframe():
     expected_inst_ids = {k for k in all_insts if k != "canonical_intermediate"}
     assert set(df["instrument_id"].unique().to_list()) == expected_inst_ids
     assert not df["magnitude_db"].is_nan().any()
+
+
+def test_character_voicings_signal_flow_fidelity():
+    """Verify Character Voicings (15, 15b, 15c) Stage 4 and Stage 5 signal flow."""
+    df_targets = build_universal_targets_dataframe()
+
+    # 1. 15b_active_character: cable deconvolution air-band lift (+5 to +15 dB at 10 kHz)
+    v15b = df_targets.filter(df_targets["voice_id"] == "15b_active_character")
+    mags_b = v15b["magnitude_db"].to_numpy()
+    assert abs(mags_b[0]) < 0.1
+    f = v15b["frequency"].to_numpy()
+    idx_10k = int(np.argmin(np.abs(f - 10000.0)))
+    assert 5.0 <= mags_b[idx_10k] <= 15.0
+
+    # 2. 15c_passive_character: cable capacitance loading roll-off (< -3 dB at 10 kHz)
+    v15c = df_targets.filter(df_targets["voice_id"] == "15c_passive_character")
+    mags_c = v15c["magnitude_db"].to_numpy()
+    assert abs(mags_c[0]) < 0.1
+    assert mags_c[idx_10k] < -3.0
+
+    # 3. 15_neutral_character: bit-exact 0.00 dB
+    v15 = df_targets.filter(df_targets["voice_id"] == "15_neutral_character")
+    mags_n = v15["magnitude_db"].to_numpy()
+    assert np.all(mags_n == 0.0)
+
+    inst = load_instrument("34in_standard_p")
+    df_comp = build_composite_instrument_dataframe(inst, step=1)
+    s3 = df_comp.filter(df_comp["stage"] == "3. Canonical Intermediate (0 dB)")
+
+    for vid in ["15_neutral_character", "15b_active_character", "15c_passive_character"]:
+        vname = VOICES[vid].name
+        s4 = df_comp.filter(
+            (df_comp["stage"] == "4. Block 2 Target Voicing") & (df_comp["voice_name"] == vname)
+        )
+        s5 = df_comp.filter(
+            (df_comp["stage"] == "5. Target Voice Output") & (df_comp["voice_name"] == vname)
+        )
+        s4_mags = s4["magnitude_db"].to_numpy()
+        s5_mags = s5["magnitude_db"].to_numpy()
+        s3_mags = s3["magnitude_db"][: len(s4_mags)].to_numpy()
+        assert np.allclose(s3_mags + s4_mags, s5_mags, atol=0.01)
+
+    # Also verify for 05_vintage_62_p_alnico
+    v05_name = VOICES["05_vintage_62_p_alnico"].name
+    s4_v05 = df_comp.filter(
+        (df_comp["stage"] == "4. Block 2 Target Voicing") & (df_comp["voice_name"] == v05_name)
+    )["magnitude_db"].to_numpy()
+    s5_v05 = df_comp.filter(
+        (df_comp["stage"] == "5. Target Voice Output") & (df_comp["voice_name"] == v05_name)
+    )["magnitude_db"].to_numpy()
+    assert np.allclose(s3_mags + s4_v05, s5_v05, atol=0.01)

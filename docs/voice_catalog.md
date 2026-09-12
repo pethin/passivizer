@@ -24,12 +24,12 @@ This catalog details the physical parameters, equivalent RLC circuit values, aco
 | **09b**| `09b_stingray_mm_series` | MM Series Humbucker Active | Active 2-Band | Music Man 2-Band Preamp ($R_{\text{in}}=1\text{M}\Omega, R_{\text{out}}=100\,\Omega$) | $4.80\text{ H}$ (isolated) | $8.80\text{ k}\Omega$ | $4.1\text{ kHz}$ | Dual-coil series humbucker with active 2-band buffer; physical $4:1$ impedance scaling ($L_{\text{ser}}=4 L_{\text{par}}$), $+5.6\text{ dB}$ open-circuit EMF surge, and focused $4.1\text{ kHz}$ active series resonance (StingRay 5 / Sterling series switch). |
 | **10** | `10_rickenbacker_bridge_hpf`| 4003 Bridge HPF | Series HPF | Factory Rickenbacker $330\text{k}\Omega$ Vol, $330\text{k}\Omega$ Tone, $4.7\text{nF}$ Series HPF | $3.80\text{ H}$ | $8.40\text{ k}\Omega$ | $2.2\text{ kHz}$ | High-output single-coil with vintage $4.7\text{ nF}$ series HPF; removes low-end mud below $150\text{ Hz}$, delivering aggressive pick grit and clang. |
 | **11** | `11_modern_pmm_active` | Modern Active P/MM | Active Buffer | Studio Active Buffer ($R_{\text{in}}=1\text{M}\Omega, R_{\text{out}}=100\,\Omega$) | $0.96\text{ H}$ (isolated) | $1.79\text{ k}\Omega$ | $3.4\text{ kHz}$ | Authentic active parallel P/MM (Sandberg California VM / Lakland 44-02); Split-P neck and MM parallel bridge into high-Z buffer with zero cable drag; articulate punch and modern slap growl. |
-| **11b**| `11b_pmm_hybrid_series`| P + MM Hybrid Series| Series Sum | Modern $500\text{k}\Omega$ Vol, $500\text{k}\Omega$ Tone, $47\text{nF}$ Cap | $7.20\text{ H}$ | $14.10\text{ k}\Omega$ | $1.6\text{ kHz}$ | Split P and MM humbucker in passive series sum; $+5.8\text{ dB}$ inductive voltage boost with forward $1.6\text{ kHz}$ low-mid punch. |
+| **11b**| `11b_pmm_hybrid_series`| Modern Active P/MM (Series)| Active Buffer | Studio Active Buffer ($R_{\text{in}}=1\text{M}\Omega, R_{\text{out}}=100\,\Omega$) | $8.40\text{ H}$ (isolated) | $16.90\text{ k}\Omega$ | $3.2\text{ kHz}$ | Split P and MM parallel humbucker wired in series before active buffer; $+5.8\text{ dB}$ inductive boost with punchy authority and zero cable drag. |
 | **12** | `12_mudbucker_ultra_series`| Overwound Series| Ultra Series | Gibson $500\text{k}\Omega$ Vol, $500\text{k}\Omega$ Tone, $22\text{nF}$ Cap | $14.40\text{ H}$| $27.90\text{ k}\Omega$ | $1.2\text{ kHz}$ | Extreme dual-coil series network; subterranean low-end focus, steep natural top-end rolloff. |
 | **13** | `13_dingwall_multiscale_bridge`| Multi-Scale MM | Angled Parallel | Dingwall Active Onboard Buffer ($1\text{ M}\Omega \parallel 25\text{ pF}$, low-Z out) | $2.30\text{ H}$ (isolated)| $4.40\text{ k}\Omega$ | $7.3\text{ kHz}$ | 34"-37" fanned-fret bridge position ($48.0\text{ mm}$) with high-tension wave speeds and active buffered FD3 parallel dual-coil sparkle. |
-| **14** | `14_upright_bridge_transducer`| Upright Transducer | Bridge Force | Direct $100\text{ M}\Omega$ Buffer, $15\text{ nF}$ Subsonic Rumble Cap | — | — | $4.5\text{ kHz}$ | Direct bridge force sensor with velocity-to-force leaky integration; woody double-bass bloom. |
-| **15** | `15_source_direct` | Source Direct (Dynamic DI) | Source Direct | Transparent ($0.00\text{ dB}$ flat linear transfer) | $0.00\text{ H}$ | $50\,\Omega$ | Flat (0 dB) | Deconvolutes Canonical Intermediate aperture to restore uncolored input of Block 1 (pure studio DI) with tier dynamics. |
-| **16** | `16_active_character` | Modern Active Buffer | Active Buffer | Studio Active Buffer ($R_{\text{in}}=1\text{M}\Omega, R_{\text{out}}=100\,\Omega$) | $3.20\text{ H}$ (isolated) | $7.20\text{ k}\Omega$ | $8.2\text{ kHz}$ | Studio active buffer isolating high-Z coils from cable capacitance ($750\text{ pF}$); wideband sparkle, punchy transient headroom, zero cable drag. |
+| **15** | `15_neutral_character` | Neutral Character (Dynamic DI) | Character (Neutral) | Transparent ($0.00\text{ dB}$ flat linear transfer) | $0.00\text{ H}$ | $50\,\Omega$ | Flat (0 dB) | Preserves physical pickup aperture and imparts only tier character (transparent bypass in Clean, organic Alnico V feel in Dynamic, overwound punch in Hot Rod). |
+| **15b**| `15b_active_character` | Active Character (Modern Active Buffer) | Character (Active) | Studio Active Buffer ($R_{\text{in}}=1\text{M}\Omega, R_{\text{out}}=100\,\Omega$) | $3.20\text{ H}$ (isolated) | $7.20\text{ k}\Omega$ | $5.2\text{ kHz}$ | Removes passive cable loading ($750\text{ pF}$) and pot damping to restore wideband hi-fi sparkle and headroom; preserves natural pickup aperture while stacking with tier dynamics. |
+| **15c**| `15c_passive_character` | Passive Character (Passive Loading) | Character (Passive) | Standard Passive Harness ($250\text{k}\Omega\text{ Vol/Tone}, 47\text{nF}, 750\text{pF}$) | $4.20\text{ H}$ | $8.50\text{ k}\Omega$ | $2.8\text{ kHz}$ | Adds high-impedance passive character, resonant peak ($2.8\text{ kHz}$), $750\text{ pF}$ cable loading, and $250\text{k}\Omega$ pot damping to active basses or stacks passive tone; preserves natural aperture. |
 
 
 ---
@@ -172,14 +172,14 @@ This catalog details the physical parameters, equivalent RLC circuit values, aco
 * **Acoustic Character:** Zero cable capacitive loss on the coils. Delivers woody Split-P low-end authority combined with the laser-focused attack, wideband punch, and metallic growl of the Music Man sweet spot. The quintessential modern active slap and fingerstyle tone.
 * **32" Bass Setting:** ABCX Blend at **Center Detent (50/50)** (MMTWX in Dual-Coil Mode - Push/Pull Up).
 
-### 11b. `11b_pmm_hybrid_series` (P/MM Hybrid Series Sum)
-* **Archetype:** Custom P/MM Hybrid in Passive Series
+### 11b. `11b_pmm_hybrid_series` (Modern Active P/MM Bass - Series)
+* **Archetype:** Modern Active P/MM in Series Mode (Lakland 44-02 / Sandberg California VM Series Switch)
 * **Pickup Architecture:** Dual series pickups:
-  * **Precision Neck:** Split-coil Bartolini 8CBP ($L = 4.80\text{ H}$)
-  * **Music Man Bridge:** Single coil / custom series stage ($L = 2.40\text{ H}$)
-* **Control Harness:** Modern $500\text{k}\Omega$ volume pot, $500\text{k}\Omega$ tone pot, $47\text{ nF}$ tone capacitor.
-* **Electrical Parameters:** Series-connected SPICE stages; total series $L_{\text{ser}} = 7.20\text{ H}$, $R_{\text{dc}} = 14.10\text{ k}\Omega$, $R_{\text{eddy}} = 250\text{ k}\Omega$, $C_{\text{coil}} = 50\text{ pF}$. Loaded $f_r = 1.6\text{ kHz}$.
-* **Acoustic Character:** Series inductance addition yields a large $+5.8\text{ dB}$ signal boost and a dense, forward $1.6\text{ kHz}$ resonant center. Fills out sparse instrument arrangements with commanding low-mids.
+  * **Precision Neck:** Split-coil Bartolini 8CBP ($L = 4.80\text{ H}, R_{\text{dc}} = 9.50\text{ k}\Omega$)
+  * **Music Man Bridge:** Dual-coil parallel humbucker ($L = 3.60\text{ H}, R_{\text{dc}} = 7.40\text{ k}\Omega$)
+* **Control Harness:** Onboard active buffer stage ($R_{\text{in}} = 1\text{ M}\Omega, C_{\text{in}} = 25\text{ pF}$, low-Z output driver $R_{\text{out}} = 100\,\Omega$).
+* **Electrical Parameters:** Active series summation: $L_{\text{ser}} = 8.40\text{ H}$, $R_{\text{dc}} = 16.90\text{ k}\Omega$. Buffered $f_r \approx 3.2\text{ kHz}$.
+* **Acoustic Character:** Series wiring before active buffer delivers massive $+5.8\text{ dB}$ signal surge with commanding low-mid authority while preserving crisp transient attack through zero cable loading.
 * **32" Bass Setting:** ABCX Blend at **Center Detent (50/50)** (MMTWX in Dual-Coil Mode - Push/Pull Up).
 
 ### 12. `12_mudbucker_ultra_series` (Ultra-High Inductance Overwound Series)
@@ -209,18 +209,31 @@ This catalog details the physical parameters, equivalent RLC circuit values, aco
 * **Acoustic Character:** Eliminates magnetic pickup comb filtering; delivers smooth, woody double-bass pizzicato bloom with deep sub-bass body resonance.
 * **32" Fretless Setting:** ABCX Blend to **Upright Blend** (85% PCSX + 15% MMTWX Single - Push/Pull Down: J Mode). Pair with **3 Sigma Upright Bass IR** in Anagram Block 3.
 
-### 15. `15_source_direct` (Source Direct - Dynamic Studio DI)
-* **Archetype:** Inverse Canonical Intermediate / Dynamic Studio DI
-* **Design Rationale:** For bass players who want to bypass target pickup shaping in Block 2 and restore the pristine, uncolored input of Block 1 (transparent studio DI / raw string vibration), while retaining the dynamic feel continuum (Clean, Dynamic, Hot Rod).
-* **Linear Transfer Function:** Deconvolutes the Canonical Intermediate $93.5\text{ mm}$ aperture baseline ($1 / H_{\text{can}}$) with a flat studio buffer ($0.00\text{ dB}$).
-* **Non-Linear Dynamics:** In `01_studio_clean`, delivers 100% linear transparent bypass. In `02_standard_dynamic`, engages standard Alnico V magnetic compliance ($V_{\text{sat}} = 0.50$), Dahl hysteresis ($\eta = 0.06$), Lenz velocity drag and attack pitch sag ($k_{\text{sag}} = 0.08, k_{\text{pull}} = 0.04$), dynamic eddy current de-Qing ($k_{\text{eddy}} = 0.16$), and back-EMF string braking ($k_{\text{emf}} = 0.04$) on the direct signal. In `03_hot_rod`, delivers 175% overwound dynamic drive.
-
-### 16. `16_active_character` (Modern Active Buffer)
-* **Archetype:** Studio Pure High-Impedance Active Buffer Twin (Cable Isolation & Wideband Sparkle)
-* **Design Rationale:** For passive bass players (Precision, Jazz, PJ) who want the crystalline sparkle, ultra-fast transient punch, and wideband extension of an active bass without synthetic bass/treble shelving boosts.
+### 15. `15_neutral_character` (Neutral Character - Dynamic Studio DI)
+* **Archetype:** Physical Aperture Preservation / Tier Feel Studio DI
+* **Design Rationale:** For bass players who want to preserve their instrument's exact physical pickup aperture and add only the character of the chosen tier (Clean, Dynamic, Hot Rod).
+* **Signal Flow & Anagram Routing:**
+  * **2-Block Mode (Darkglass Anagram):** The user **disables Block 1 (IR loader)**; Block 2 adds only the tier character directly to the player's dry bass signal.
+  * **1-Block Mode (Baked NAM):** In `01_studio_clean`, acts as an exact $0.00\text{ dB}$ linear bypass. In `02_standard_dynamic`, engages authentic Alnico V compliance ($V_{\text{sat}} = 0.50$), Dahl hysteresis ($\eta = 0.06$), Lenz velocity drag and attack pitch sag ($k_{\text{sag}} = 0.08, k_{\text{pull}} = 0.04$), dynamic eddy current de-Qing ($k_{\text{eddy}} = 0.16$), and back-EMF string braking ($k_{\text{emf}} = 0.04$). In `03_hot_rod`, delivers 175% overwound dynamic drive.
 * **Pickup & Aperture Model:** Preserves the instrument's natural physical pickup placement and aperture ($H_{\text{prefilter}}(f) \equiv 1.0$).
-* **Electrical Physics:** Simulates an onboard $1\text{ M}\Omega$ active buffer stage ($R_{\text{in}} = 1.0\text{ M}\Omega, C_{\text{in}} = 25\text{ pF}, R_{\text{out}} = 100\,\Omega$). The differential SPICE engine deconvolves the heavy $750\text{ pF}$ instrument cable loading and $250\text{k}\Omega$ potentiometer damping, raising the effective resonant peak into the air band ($7.5\text{--}9.0\text{ kHz}$) and restoring crystalline pick articulation and low-end definition.
-* **Dynamic Headroom:** Clean active headroom ($V_{\text{sat}} = 1.20$), zero magnetic saturation, and fast uncompressed attack.
+
+### 15b. `15b_active_character` (Active Character - Modern Active Buffer)
+* **Archetype:** Studio Pure High-Impedance Active Buffer Twin (Cable Isolation & Wideband Sparkle)
+* **Design Rationale:** For passive bass players who want the crystalline sparkle, ultra-fast transient punch, and wideband extension of an active bass without synthetic shelving boosts. Can also be used on active basses to provide extra treble air.
+* **Signal Flow & Anagram Routing:**
+  * **2-Block Mode (Darkglass Anagram):** The user **disables Block 1 (IR loader)**; Block 2 stacks the active buffer electrical circuit on top of tier character directly on the player's dry bass signal.
+  * **1-Block Mode (Baked NAM):** Preserves physical pickup aperture ($H_{\text{prefilter}}(f) \equiv 1.0$) and applies the active buffer circuit ($L=3.2\text{ H}$, active buffer, zero cable capacitance) stacked with tier dynamics.
+* **Electrical Physics:** Simulates an onboard $1\text{ M}\Omega$ active buffer stage ($R_{\text{in}} = 1.0\text{ M}\Omega, C_{\text{in}} = 25\text{ pF}, R_{\text{out}} = 100\,\Omega$). Deconvolves heavy $750\text{ pF}$ instrument cable loading and $250\text{k}\Omega$ potentiometer damping, raising effective resonance into the air band ($5.2\text{ kHz}$) and restoring crystalline pick articulation.
+* **Dynamic Headroom:** Clean active headroom ($V_{\text{sat}} = 1.20$), fast uncompressed attack.
+
+### 15c. `15c_passive_character` (Passive Character - High-Impedance Loading)
+* **Archetype:** High-Impedance Passive Pickup & Cable Loading Digital Twin
+* **Design Rationale:** Adds authentic high-impedance passive character (RLC resonant peak ~2.8 kHz, $750\text{ pF}$ cable capacitance loading, and $250\text{k}\Omega$ pot damping) to active basses. Can also be used on passive basses to stack vintage warmth and rolled-off highs.
+* **Signal Flow & Anagram Routing:**
+  * **2-Block Mode (Darkglass Anagram):** The user **disables Block 1 (IR loader)**; Block 2 stacks the passive RLC circuit on top of tier character directly on the player's dry bass signal.
+  * **1-Block Mode (Baked NAM):** Preserves physical pickup aperture ($H_{\text{prefilter}}(f) \equiv 1.0$) and applies the passive RLC harness ($L=4.2\text{ H}, R_{\text{dc}}=8.5\text{ k}\Omega, C_{\text{cable}}=750\text{ pF}, R_{\text{vol}}=250\text{ k}\Omega$) stacked with tier dynamics.
+* **Electrical Physics:** Simulates classic passive pickup loading: introduces a warm mid-resonance peak at $2.8\text{ kHz}$ ($Q \approx 1.4$) followed by authentic high-frequency cable roll-off ($-15\text{ dB}$ at $10\text{ kHz}$).
+* **Dynamic Character:** Alnico V vintage compliance ($V_{\text{sat}} = 0.50$), magnetic hysteresis, and pick bloom.
 
 ---
 
@@ -264,11 +277,12 @@ $$\Delta x_{\text{norm\_in}} = \Delta\eta \times 34.0'', \quad \text{tilt}_{\tex
 | **`09b_stingray_mm_series`** | StingRay Centerline| $66.0\text{ mm}$ | $34.0''$ | $7.64\%$ | $-0.86''$ | $-1.3\text{ dB}$ bridge bite, $+4.5\text{ dB}$ series inductive surge |
 | **`10_rickenbacker_bridge_hpf`**| 4003 Bridge Coil | $50.8\text{ mm}$ | $34.0''$ | $5.88\%$ | $-1.46''$ | $-2.2\text{ dB}$ bite tilt, 4.7nF series HPF clank bite |
 | **`11_modern_pmm_active`**| P + MM Parallel Center| $95.5\text{ mm}$ | $34.0''$ | $11.06\%$ | $+0.30''$ | $+0.5\text{ dB}$ forward tilt, active buffer cable isolation, slap punch |
-| **`11b_pmm_hybrid_series`**| P + MM Series Center| $95.5\text{ mm}$ | $34.0''$ | $11.06\%$ | $+0.30''$ | $+0.5\text{ dB}$ forward tilt, high-inductance series surge |
+| **`11b_pmm_hybrid_series`**| P + MM Series Center| $95.5\text{ mm}$ | $34.0''$ | $11.06\%$ | $+0.30''$ | $+0.5\text{ dB}$ forward tilt, active series surge and buffer clarity |
 | **`12_mudbucker_ultra_series`**| Sidewinder Center | $95.5\text{ mm}$ | $34.0''$ | $11.06\%$ | $+0.30''$ | Extreme $14.4\text{ H}$ series foundation, $1.25''$ aperture |
 | **`13_dingwall_multiscale_bridge`**| Angled Sweet Spot | $48.0\text{ mm}$ | $37.0''$ | $5.11\%$ | $-1.72''$ | $-2.6\text{ dB}$ bite tilt, multiscale continuum clank |
-| **`14_upright_bridge_transducer`**| Bridge Transducer | $5.0\text{ mm}$ | $41.5''$ | $0.47\%$ | $-3.30''$ | Regularized spatial de-comb, leaky force tilt, body bloom |
-| **`15_source_direct`** | Source Datum | $77.5\text{ mm}$ | $30.0''$ | $10.17\%$ | $0.00''$ | Bit-exact $0.00\text{ dB}$ linear transfer, preserves tier dynamics |
-| **`16_active_character`** | Source Datum | $77.5\text{ mm}$ | $30.0''$ | $10.17\%$ | $0.00''$ | Preserved aperture, active buffer cable deconvolution |
+| **`15_neutral_character`** | Preserved Datum | Source $x$ | Source $L$ | Source $\eta$ | $0.00''$ | Bit-exact $0.00\text{ dB}$ linear transfer, preserves tier dynamics |
+| **`15b_active_character`** | Preserved Datum | Source $x$ | Source $L$ | Source $\eta$ | $0.00''$ | Preserved aperture, active buffer cable deconvolution |
+| **`15c_passive_character`** | Preserved Datum | Source $x$ | Source $L$ | Source $\eta$ | $0.00''$ | Preserved aperture, passive RLC cable loading ($750\text{ pF}$) |
+
 
 

@@ -789,7 +789,7 @@ def simulate_voice(
         src_pickup = get_source_pickup(inst_cfg, voice_id)
 
     diff_curves = None
-    if model.no_eq or (voice_id == "16_active_character" and not is_passive):
+    if model.no_eq:
         diff_curves = [np.ones(len(FREQS), dtype=np.float64).tolist()]
     elif src_pickup.circuit is not None:
         src_model = load_circuit(src_pickup.circuit)

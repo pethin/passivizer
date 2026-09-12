@@ -54,16 +54,19 @@ def test_voices_have_no_hardcoded_source_datums():
         assert not hasattr(cfg, "src_30"), f"{vid} contains deprecated hardcoded 'src_30' datum"
 
 
-def test_source_direct_properties():
-    """Validates that 15_source_direct performs transparent deconvolution of Canonical Intermediate."""
-    # 1. Prefilter FIR on Canonical Intermediate must invert the 93.5mm aperture sinc
-    firs = compute_voice_prefilter_firs("15_source_direct", instrument="canonical_intermediate")
+def test_neutral_character_properties():
+    """Validates that 15_neutral_character preserves aperture and acts as a transparent studio DI."""
+    # 1. Prefilter FIR on Canonical Intermediate preserves physical aperture (unit impulse)
+    firs = compute_voice_prefilter_firs("15_neutral_character", instrument="canonical_intermediate")
     assert len(firs) == 1
     fir = np.array(firs[0])
     assert len(fir) == NUM_TAPS
+    assert fir[0] == 1.0
+    assert np.all(fir[1:] == 0.0)
 
     # 2. Circuit transfer function must be identically 1.0 across all frequencies (no_eq buffer)
-    cfg = VOICES["15_source_direct"]
+    cfg = VOICES["15_neutral_character"]
+    assert cfg.preserve_aperture is True
     model = load_circuit(cfg.circuit)
     assert getattr(model, "no_eq", False) is True
     curves = compute_circuit_transfer_functions(model, freqs=FREQS)
@@ -72,25 +75,44 @@ def test_source_direct_properties():
 
     # 3. Output mode dataframe must be bit-exact 0.00 dB (flat studio DI target)
     df_out = build_voice_dataframe(
-        "15_source_direct", cfg, instrument="canonical_intermediate", mode="output"
+        "15_neutral_character", cfg, instrument="canonical_intermediate", mode="output"
     )
     mags_out = df_out["magnitude_db"].to_numpy()
     assert np.all(mags_out == 0.0)
 
 
 def test_active_character_buffer_properties():
-    """Validates that 16_active_character preserves aperture and acts as an uncolored active buffer."""
+    """Validates that 15b_active_character preserves aperture and acts as an active buffer."""
     # 1. Prefilter FIR preserves physical aperture (unit impulse)
-    firs = compute_voice_prefilter_firs("16_active_character", instrument="34in_standard_p")
+    firs = compute_voice_prefilter_firs("15b_active_character", instrument="34in_standard_p")
     assert len(firs) == 1
     fir = np.array(firs[0])
     assert fir[0] == 1.0
     assert np.all(fir[1:] == 0.0)
 
     # 2. Netlist models active buffer with flat contour
-    cfg = VOICES["16_active_character"]
+    cfg = VOICES["15b_active_character"]
+    assert cfg.preserve_aperture is True
     model = load_circuit(cfg.circuit)
     assert model.has_active_buffer is True
     assert model.preamp_type == "none"
     assert model.R_out == 100.0
     assert model.R_preamp_in >= 1.0e6
+
+
+def test_passive_character_properties():
+    """Validates that 15c_passive_character preserves aperture and models passive RLC loading."""
+    firs = compute_voice_prefilter_firs("15c_passive_character", instrument="34in_standard_p")
+    assert len(firs) == 1
+    fir = np.array(firs[0])
+    assert fir[0] == 1.0
+    assert np.all(fir[1:] == 0.0)
+
+    cfg = VOICES["15c_passive_character"]
+    assert cfg.preserve_aperture is True
+    model = load_circuit(cfg.circuit)
+    assert model.has_active_buffer is False
+    assert model.L == 4.2
+    assert model.Rdc == 8500.0
+    assert model.Rbot == 250000.0
+

@@ -130,6 +130,8 @@ def test_active_preamp_buffer_transfer_function():
 def test_series_dual_pickup_transfer_function():
     model = load_circuit("11b_pmm_hybrid_series")
     assert model.topology == "series"
+    assert model.has_active_buffer is True
+    assert model.preamp_type == "none"
 
     curves = compute_circuit_transfer_functions(model, freqs=FREQS)
     assert len(curves) == 2
@@ -137,9 +139,9 @@ def test_series_dual_pickup_transfer_function():
     mag_n, mag_b = curves
     # Both channels sum at DC with equal weight
     assert math.isclose(mag_n[0], mag_b[0], rel_tol=1e-3)
-    # Combined series inductance shifts peak into low-mids (~1.6 - 2.1 kHz)
+    # Active buffer isolates coils from cable capacitance, preserving high resonance (>= 2800 Hz)
     peak_n = FREQS[mag_n.index(max(mag_n))]
-    assert 1500.0 <= peak_n <= 2100.0
+    assert 2800.0 <= peak_n <= 3600.0
 
 
 def test_active_pmm_transfer_function():

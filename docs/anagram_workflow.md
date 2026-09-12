@@ -106,8 +106,9 @@ In your presets, use the Block 1 output level trim to normalize all voices to an
 | **`12_mudbucker_ultra_series`**| Mudbucker Ultra Series | $+6.2\text{ dB}$ | $-4.5\text{ dB}$ (Controls high-inductance surge) |
 | **`13_dingwall_multiscale_bridge`**| Dingwall Multi-Scale Bridge | $+1.0\text{ dB}$ | $+0.5\text{ dB}$ |
 | **`14_upright_bridge_transducer`**| Upright Acoustic Bridge Transducer | $0.0\text{ dB}$ | $0.0\text{ dB}$ (Transparent unity acoustic baseline) |
-| **`15_source_direct`** | Source Direct (Dynamic Studio DI) | $0.0\text{ dB}$ | $0.0\text{ dB}$ (Transparent unity gain) |
-| **`16_active_character`** | Studio Active Buffer (Zero Cable Loading) | $+0.5\text{ dB}$ | $-0.5\text{ dB}$ (Unity gain buffer) |
+| **`15_neutral_character`** | Neutral Character (Pure Tier Dynamics / Studio DI) | $0.0\text{ dB}$ | $0.0\text{ dB}$ (Transparent unity gain) |
+| **`15b_active_character`** | Active Character (Modern Active Buffer / Air Lift) | $+0.5\text{ dB}$ | $-0.5\text{ dB}$ (Unity gain buffer) |
+| **`15c_passive_character`** | Passive Character (High-Z RLC & Cable Loading) | $+0.5\text{ dB}$ | $-0.5\text{ dB}$ (Vintage passive load) |
 
 ---
 
@@ -140,10 +141,15 @@ Group the pickup profiles into dedicated 3-button banks on the Anagram hardware:
 * **Footswitch B:** `13_dingwall_multiscale_bridge.nam` (Dingwall Multi-Scale Bridge)
 * **Footswitch C:** `14_upright_bridge_transducer.nam` (Upright Acoustic Bridge Transducer)
 
-### Bank 6: Pure Dynamics & Specialized Voicings
-* **Footswitch A:** `02c_jazz_bridge_growl_bias.nam` (Jaco Bridge-Biased Vocal Growl)
-* **Footswitch B:** `std_15_src_direct.nam` (Source Direct - Dynamic Studio DI)
-* **Footswitch C:** `16_active_character.nam` (Active Studio Buffer - Zero Cable Loading)
+### Bank 6: Character Voicings & Pure Dynamics
+* **Footswitch A:** `std_15_neutral.nam` (Neutral Character - Pure Tier Dynamics / Studio DI)
+* **Footswitch B:** `std_15b_active.nam` (Active Character - Modern Active Buffer / Air Lift)
+* **Footswitch C:** `std_15c_passive.nam` (Passive Character - High-Z RLC & Cable Loading)
+
+> [!TIP]
+> **Character Voicings Routing (15, 15b, 15c):**
+> - **2-Block Architecture:** For the Character family, bypass or disable **Block 1** (IR loader) so **Block 2** (NAM Preamp) acts directly on your instrument's uncolored signal. Because `preserve_aperture = true`, the physical aperture is preserved and Block 2 applies only the desired active/passive circuit response and tier dynamics.
+> - **1-Block Baked NAM Architecture:** The single-block capture directly preserves the instrument's aperture. For `15_neutral_character` in Clean tier, it acts as a bit-exact transparent bypass.
 
 ---
 

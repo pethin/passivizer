@@ -133,7 +133,7 @@ $$h_{\text{db}} = 20 \log_{10}\left(\max(h_{\text{diff}}, 10^{-6})\right)$$
    - `bridge_force`: Direct piezo force sensing at the bridge witness point with velocity-to-force leaky integration ($+6\text{ dB/oct}$ from $70\text{--}250\text{ Hz}$) and spruce acoustic damping.
    - `direct`: Pure studio DI or dry string vibration baseline with an acoustic transfer function identically flat across all audible frequencies ($H_{\text{tgt, acoustic}}(f) \equiv 1.0$) and flat active buffer circuitry ($H_{\text{circuit}}(f) \equiv 1.0$).
 2. **Prohibition of Procedural Deconvolution Bypasses:**
-   Never short-circuit physical deconvolution using hardcoded voice ID branches (e.g. `if voice_id == "15_source_direct": return [impulse]`). All acoustic transformations must flow through the universal regularized quotient:
+   Never short-circuit physical deconvolution using hardcoded voice ID branches (e.g. `if voice_id == "15_neutral_character": return [impulse]`). All acoustic transformations must flow through the universal regularized quotient:
    $$H_{\text{quotient}}(f) = \frac{H_{\text{tgt, acoustic}}(f) \cdot H_{\text{src, macro}}(f)}{H_{\text{src, macro}}(f)^2 + \epsilon^2}$$
    When $H_{\text{tgt, acoustic}}(f) = 1.0$, this equation naturally and stably evaluates the inverse macro-aperture ($1 / H_{\text{src}}$) of the source instrument without special-case logic.
 3. **Direct Output Invariant:**
@@ -158,8 +158,9 @@ $$\text{Stage 1: Source Bass Input} \xrightarrow{H_{\text{front}}} \text{Stage 2
 1. **Normative Equivalence to `export_frontend_ir`:** Stage 2 (`Block 1 Deconvolution`) evaluates the exact frequency response of the 2048-tap minimum-phase causal FIR filter synthesized by `export_frontend_ir(inst_id, pickup_key)`. The magnitude response plotted in Stage 2 must match the FFT of the actual exported FIR WAV file within $< 0.5\text{ dB}$ across $20\text{ Hz}$ to $20\text{ kHz}$.
 2. **Wiener Regularization & HF Clamping:** Stage 2 must strictly enforce Wiener regularization and soft-knee boost clamping ($\le +8.0\text{ dB}$ peak, $< +2.0\text{ dB}$ at $20\text{ kHz}$). Unbounded theoretical inverse boosts ($> +8\text{ dB}$) are strictly prohibited.
 3. **Canonical Intermediate Neutralization:** Stage 1 (`Source Bass Input`, $\text{db\_src} = -\text{db\_front}$) and Stage 2 (`Block 1 Deconvolution`, $\text{db\_front}$) neutralize the source pickup into the standardized Canonical Intermediate datum:
-   $$\text{Stage 1} + \text{Stage 2} = \text{Stage 3} \equiv 0.00\text{ dB}$$
-4. **Target Voicing & Output Staging:** Stage 4 (`Block 2 Target Voicing`) represents the universal target transfer function ($H_{\text{back}} = H_{\text{tgt}} / H_{\text{can}}$) from the Canonical Intermediate datum, and Stage 5 (`Target Voice Output`) presents the authentic target voice acoustic response.
+4. **Target Voicing & Output Staging:** Stage 4 (`Block 2 Target Voicing`) represents the universal target transfer function ($H_{\text{back}} = H_{\text{tgt}} / H_{\text{can}}$) from the Canonical Intermediate datum. Evaluated relative to the standardized Canonical Intermediate datum ($0.00\text{ dB}$), Stage 5 (`Target Voice Output`) represents the resulting acoustic target voice output:
+   $$\text{Stage 3} + \text{Stage 4} = \text{Stage 5} \quad (0.00\text{ dB} + \text{db\_back} = \text{db\_out})$$
+   ensuring end-to-end additive signal flow consistency across all frequency bins.
 
 #### 3.7.2 Frontend Deconvolutions (Block 1 IR Fidelity & DC Transmission)
 The standalone Frontend Deconvolution curves (`docs/frequency_responses/{instrument}_frontend.html` and `docs/frequency_responses/frontend_deconvolutions.html`):
@@ -170,7 +171,7 @@ The standalone Frontend Deconvolution curves (`docs/frequency_responses/{instrum
 
 #### 3.7.3 Universal Target Voicings (Block 2 Loaded RLC & Aperture Transfer)
 The Universal Target Voicings visualizer (`docs/frequency_responses/universal_targets.html` via `build_universal_targets_dataframe`):
-1. **Catalog Completeness:** Must encompass all 22 target voices relative to the Canonical Intermediate baseline ($H_{\text{backend}} = H_{\text{target}} / H_{\text{canonical}}$), containing exactly 600 frequency points per voice.
+1. **Catalog Completeness:** Must encompass all 23 target voices relative to the Canonical Intermediate baseline ($H_{\text{backend}} = H_{\text{target}} / H_{\text{canonical}}$), containing exactly 600 frequency points per voice.
 2. **Physical Electroacoustic Boundedness:** Decibels must be finite and non-null (zero NaNs, zero Infs), with peak resonant boost $< +25.0\text{ dB}$ and deep tone-cap roll-off attenuation $> -100.0\text{ dB}$.
 3. **Source Invariance:** Universal target voicings are defined purely relative to the Canonical Intermediate baseline and are strictly source-instrument invariant.
 4. **Pipeline Consistency:** For non-matching target voicings, Stage 4 in `build_composite_instrument_dataframe` matches `build_universal_targets_dataframe` within 0.01 dB rounding precision.
@@ -279,7 +280,7 @@ $$Z_{\text{skin}}(s) = R_{\text{dc}} \cdot k_{\text{skin}} \cdot \left(\sqrt{1 +
 - **Frame-Bounded Audio Processing (`max_samples`):** Support bounded frame prefixes (`max_samples = 4800` to `48000`) in unit tests to drop test execution from $22\text{s}$ down to $0.15\text{s}$ while preserving complete signal pipeline verification.
 
 ### 6.4 Visualizer Vectorization, Caching & Vega-Lite Payload Bounding (Commit `7c6e634`)
-- **Prohibition of Multi-Rate FFTs in Signal Flow Loops:** Never invoke `build_voice_dataframe(mode="difference")`, FIR filter synthesis, or multi-rate FFTs inside per-pickup/per-voice loops within `build_composite_instrument_dataframe`. Across 11 playable instruments with multiple pickup switch positions and 22 target voices, iterative synthesis executes $> 700$ redundant 2048-tap FIR convolutions and 8192-point FFTs, blowing up chart generation from $< 3\text{ s}$ to $> 20\text{ s}$.
+- **Prohibition of Multi-Rate FFTs in Signal Flow Loops:** Never invoke `build_voice_dataframe(mode="difference")`, FIR filter synthesis, or multi-rate FFTs inside per-pickup/per-voice loops within `build_composite_instrument_dataframe`. Across 11 playable instruments with multiple pickup switch positions and 23 target voices, iterative synthesis executes $> 700$ redundant 2048-tap FIR convolutions and 8192-point FFTs, blowing up chart generation from $< 3\text{ s}$ to $> 20\text{ s}$.
 - **Decoupled Universal Backend Caching:** Universal target voicings are defined relative to the Canonical Intermediate baseline ($H_{\text{backend}} = H_{\text{target}} / H_{\text{canonical}}$). Because the Canonical Intermediate is fixed (34" scale, 93.5mm datum, wideband passive reference circuit), target curves are strictly source-invariant and must be precomputed and cached globally once via `get_cached_target_dfs(step=step)`:
   $$\text{db\_back\_dict}[vid] = \text{np.round}(\text{db\_tgt} - \text{db\_can}, 2)$$
 - **Analytical Mirror Reflection for Identity Matches:** For authentic source-to-target digital twin matches (`is_match`), set the mirror reflection directly in vector form:

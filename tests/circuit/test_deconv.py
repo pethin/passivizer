@@ -268,10 +268,11 @@ def test_complex_magnetic_permeability_dispersion():
         )
 
 
-def test_source_direct_simulation():
-    """Verify 15_source_direct deconvolutes Canonical Intermediate aperture and preserves tier dynamics."""
-    vcfg = VOICES["15_source_direct"]
+def test_neutral_character_simulation():
+    """Verify 15_neutral_character preserves aperture and preserves tier dynamics."""
+    vcfg = VOICES["15_neutral_character"]
     assert vcfg.sensor_type == "direct"
+    assert vcfg.preserve_aperture is True
     assert vcfg.alpha == 0.26
     assert vcfg.vsat == 0.50
 
@@ -279,22 +280,18 @@ def test_source_direct_simulation():
     model = load_circuit(vcfg.circuit)
     assert getattr(model, "no_eq", False) is True
 
-    # Evaluated on canonical intermediate, prefilter FIR must invert the 93.5mm aperture sinc
-    firs = compute_voice_prefilter_firs("15_source_direct", instrument="canonical_intermediate")
+    # Evaluated on canonical intermediate, prefilter FIR preserves physical aperture (unit impulse)
+    firs = compute_voice_prefilter_firs("15_neutral_character", instrument="canonical_intermediate")
     assert len(firs) == 1
     fir = np.array(firs[0])
     assert len(fir) == NUM_TAPS
-
-    # Frequency response of FIR should gently deconvolve the high-frequency aperture droop
-    f_bins = np.fft.rfftfreq(8192, 1.0 / 48000.0)
-    H = np.abs(np.fft.rfft(fir, 8192))
-    gain_5k = H[np.argmin(np.abs(f_bins - 5000))] / H[np.argmin(np.abs(f_bins - 20))]
-    assert 1.2 <= gain_5k <= 2.5
+    assert fir[0] == 1.0
+    assert np.all(fir[1:] == 0.0)
 
 
 def test_active_character_differential_cable_isolation():
-    """Verify 16_active_character deconvolves passive cable loading when evaluating from a passive bass."""
-    tgt_model = load_circuit("16_active_character")
+    """Verify 15b_active_character deconvolves passive cable loading when evaluating from a passive bass."""
+    tgt_model = load_circuit("15b_active_character")
     p_circ = INSTRUMENTS["34in_standard_p"].pickups["split_p"].circuit
     assert p_circ is not None
     src_model = load_circuit(p_circ)
@@ -310,3 +307,22 @@ def test_active_character_differential_cable_isolation():
     # At 8 kHz, passive circuit has heavy cable loading, active buffer is isolated
     idx_8k = np.argmin(np.abs(np.array(FREQS) - 8000.0))
     assert h_diff[idx_8k] > 1.0, "Active buffer must deconvolve passive cable loading at 8 kHz"
+
+
+def test_passive_character_circuit_properties():
+    """Verify 15c_passive_character preserves aperture and models passive cable loading."""
+    vcfg = VOICES["15c_passive_character"]
+    assert vcfg.preserve_aperture is True
+    assert vcfg.alpha == 0.28
+    assert vcfg.vsat == 0.50
+
+    model = load_circuit(vcfg.circuit)
+    assert model.has_active_buffer is False
+    assert model.L == 4.2
+    assert model.Rdc == 8500.0
+
+    firs = compute_voice_prefilter_firs("15c_passive_character", instrument="canonical_intermediate")
+    assert len(firs) == 1
+    fir = np.array(firs[0])
+    assert fir[0] == 1.0
+    assert np.all(fir[1:] == 0.0)
