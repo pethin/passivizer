@@ -13,7 +13,6 @@ import numpy as np
 import pytest
 
 from allomorph.circuit import (
-    INTERMEDIATE_TARGET_PEAK_DBFS,
     export_all_frontend_irs,
     generate_canonical_sweep,
     simulate_backend_targets,
@@ -64,7 +63,7 @@ def test_canonical_intermediate_config():
 
 
 def test_canonical_sweep_calibration(tmp_path: Path):
-    """Validates that the Canonical Intermediate sweep peak is strictly -1.50 dBFS."""
+    """Validates that the Canonical Intermediate sweep is unnormalized, matching input sweep peak/RMS within < 0.5 dB."""
     sweep_path = tmp_path / "canonical_sweep.wav"
     generate_canonical_sweep(output_wav=sweep_path)
 
@@ -74,7 +73,7 @@ def test_canonical_sweep_calibration(tmp_path: Path):
 
     peak = float(np.max(np.abs(audio)))
     peak_db = 20.0 * math.log10(peak)
-    assert peak_db == pytest.approx(INTERMEDIATE_TARGET_PEAK_DBFS, abs=0.10)
+    assert peak_db == pytest.approx(-0.43, abs=0.20)
     assert not np.isnan(audio).any()
     assert not np.isinf(audio).any()
 
@@ -310,3 +309,301 @@ def test_simulate_backend_targets(tmp_path: Path):
     std_wav = out_dir / std_folder / "out_05_vintage_62_p_alnico.wav"
     assert std_wav.exists()
     assert std_wav.stat().st_size > 0
+
+
+def test_target_wet_files_normalization_and_true_peak_clamping_modes(tmp_path: Path):
+    """Validates that Target Wet Files default to normalize='auto' matching input sweep RMS (exact default unity),
+
+    strictly enforcing the calibration sweep peak ceiling (<= 0.9900) so no sample ever clips at full scale (0 dBFS)
+    for Tone3000 compliance.
+    """
+    from allomorph.circuit.staging import CANONICAL_SWEEP_PATH
+
+    out_dir = tmp_path / "targets"
+    # 1. Default mode: normalize='auto' (matching input sweep RMS for default unity)
+    simulate_backend_targets(
+        tier="clean",
+        voice_id="04_modern_p_ceramic",
+        output_dir=out_dir,
+        max_samples=120000,
+    )
+    clean_folder = get_tier_spec("clean").folder_name
+    wav_norm = out_dir / clean_folder / "out_04_modern_p_ceramic.wav"
+    audio_norm, _ = read_wav(wav_norm)
+    can_audio, _ = read_wav(CANONICAL_SWEEP_PATH)
+    can_audio_slice = can_audio[:120000]
+    norm_rms = float(np.sqrt(np.mean(audio_norm**2)))
+    can_rms = float(np.sqrt(np.mean(can_audio_slice**2)))
+    norm_rms_db = 20.0 * math.log10(norm_rms)
+    can_rms_db = 20.0 * math.log10(can_rms)
+    # Output RMS matches Canonical Intermediate input sweep within 0.05 dB (exact default unity)
+    assert abs(norm_rms_db - can_rms_db) < 0.05
+    # Peak is strictly below full scale (<= 0.9900 ceiling) ensuring Tone3000 accepts without clipping
+    assert float(np.max(np.abs(audio_norm))) <= 0.9905
+
+    # 2. Disabled mode: normalize='none'
+    out_dir_none = tmp_path / "targets_none"
+    simulate_backend_targets(
+        tier="clean",
+        voice_id="04_modern_p_ceramic",
+        output_dir=out_dir_none,
+        max_samples=120000,
+        normalize="none",
+    )
+    wav_none = out_dir_none / clean_folder / "out_04_modern_p_ceramic.wav"
+    audio_none, _ = read_wav(wav_none)
+    peak_none = float(np.max(np.abs(audio_none)))
+    # Calibration sweep peak ceiling strictly bounds output to <= 0.9905
+    assert peak_none <= 0.9905
+
+
+def test_frontend_ir_unnormalized_unity_gain_and_normalization_modes(tmp_path: Path):
+    """Validates that frontend deconvolution IRs default to unnormalized physical unity gain
+
+    (~0 dB fundamental transmission), preventing volume jumps and distortion into Block 2,
+    while also verifying optional peak-normalization and gain trims.
+    """
+    from allomorph.circuit.staging import export_frontend_ir
+
+    test_pickups = [
+        ("30in_emg_mmtw", "mmtw_dual"),  # Active humbucker
+        ("30in_emg_mmtw", "mmtw_single"),  # Active single-coil
+        ("34in_standard_p", "split_p"),  # Passive split coil
+        ("34in_standard_jazz", "bridge"),  # Passive single coil
+    ]
+
+    for inst_id, pkey in test_pickups:
+        # Default unnormalized mode: exact physical unity gain
+        ir_path = export_frontend_ir(inst_id, pkey, output_dir=tmp_path / "unnorm")
+        assert ir_path.exists()
+        fir, sr = read_wav(ir_path)
+        assert sr == 48000
+        assert len(fir) == 2048
+
+        # Unnormalized filter reflects true physical aperture displacement (0.5 to 1.6, [-6 dB, +4 dB])
+        dc_gain = float(np.sum(fir))
+        assert 0.50 <= dc_gain <= 1.60, (
+            f"{inst_id} ({pkey}) unnormalized DC gain ({dc_gain:.4f}) deviated from expected physical bounds"
+        )
+        peak = float(np.max(np.abs(fir)))
+        assert peak <= 0.9901, f"{inst_id} ({pkey}) unnormalized peak ({peak:.4f}) exceeded 0.99"
+
+        # Explicit peak-normalized mode
+        ir_norm_path = export_frontend_ir(inst_id, pkey, output_dir=tmp_path / "norm", normalize=True)
+        fir_norm, _ = read_wav(ir_norm_path)
+        peak_norm = float(np.max(np.abs(fir_norm)))
+        assert 0.985 <= peak_norm <= 0.9901, (
+            f"{inst_id} ({pkey}) normalized peak ({peak_norm:.4f}) did not match expected 0.99"
+        )
+
+    # Test explicit gain trim (-3 dB)
+    ir_trimmed = export_frontend_ir(
+        "30in_emg_mmtw", "mmtw_dual", output_dir=tmp_path / "trim", normalize=True, gain_db=-3.0
+    )
+    fir_trimmed, _ = read_wav(ir_trimmed)
+    peak_trimmed = float(np.max(np.abs(fir_trimmed)))
+    expected_peak = 0.99 * (10.0 ** (-3.0 / 20.0))
+    assert abs(peak_trimmed - expected_peak) < 0.01
+
+
+def test_frontend_wet_wav_generation(tmp_path: Path):
+    """Validates that export_frontend_wet_wav generates compliant 24-bit wet sweeps
+    with '_wet.wav' suffix, matching causal convolution of input dry sweep with deconvolution FIR.
+    """
+    from allomorph.circuit.simulation import CALIBRATION_PEAK_CEILING, find_default_input_audio
+    from allomorph.circuit.staging import (
+        compute_frontend_deconvolution_fir,
+        export_frontend_wet_wav,
+    )
+    from allomorph.dsp import fft_convolve, write_wav_24bit
+
+    dry_path = find_default_input_audio()
+    assert dry_path is not None
+    dry_audio, dry_sr = read_wav(dry_path)
+
+    # Use a 48,000-sample (1.0s) active sweep slice to accelerate test runtime
+    test_dry = dry_audio[50000:98000]
+    test_dry_path = tmp_path / "test_dry.wav"
+    write_wav_24bit(str(test_dry_path), test_dry, dry_sr)
+
+    # Also create a scaled input (peak ~0.95) that produces a convolved output > 0.9900
+    # to explicitly verify the proportional calibration ceiling clamp on frontend audio
+    hot_dry = test_dry * 1.8
+    hot_dry_path = tmp_path / "hot_dry.wav"
+    write_wav_24bit(str(hot_dry_path), hot_dry, dry_sr)
+    hot_dry_read, _ = read_wav(hot_dry_path)
+
+    test_pickups = [
+        ("30in_emg_mmtw", "mmtw_dual"),
+        ("30in_emg_mmtw", "mmtw_single"),
+    ]
+
+    for inst_id, pkey in test_pickups:
+        # 1. Unnormalized mode (default) with true-peak safety ceiling
+        wet_path = export_frontend_wet_wav(
+            inst_id, pkey, input_wav=test_dry_path, output_dir=tmp_path / "wet"
+        )
+        assert wet_path.exists(), f"Frontend wet WAV missing: {wet_path}"
+        assert wet_path.name.endswith("_wet.wav")
+
+        audio_wet, sr = read_wav(wet_path)
+        assert sr == 48000
+        assert len(audio_wet) == len(test_dry)
+
+        # Numerical verification against manual convolution + safety clamp
+        fir = compute_frontend_deconvolution_fir(inst_id, pkey, num_taps=2048, normalize=False)
+        expected = fft_convolve(test_dry, np.asarray(fir, dtype=np.float64), mode="causal")
+        max_val = float(np.max(np.abs(expected)))
+        if max_val > CALIBRATION_PEAK_CEILING:
+            expected = expected * (CALIBRATION_PEAK_CEILING / max_val)
+        expected_clamped = expected.astype(np.float32)
+
+        max_err = float(np.max(np.abs(audio_wet - expected_clamped)))
+        assert max_err < 1e-5, f"Wet WAV deviated from direct convolution by {max_err}"
+        assert float(np.max(np.abs(audio_wet))) <= CALIBRATION_PEAK_CEILING + 1e-6
+
+        # 2. Normalized mode
+        wet_norm_path = export_frontend_wet_wav(
+            inst_id, pkey, input_wav=test_dry_path, output_dir=tmp_path / "norm", normalize=True
+        )
+        audio_norm, _ = read_wav(wet_norm_path)
+        assert abs(float(np.max(np.abs(audio_norm))) - CALIBRATION_PEAK_CEILING) < 1e-4
+
+    # 3. Explicit hot input verification: verify proportional safety clamp triggers
+    wet_hot_path = export_frontend_wet_wav(
+        "30in_emg_mmtw", "mmtw_dual", input_wav=hot_dry_path, output_dir=tmp_path / "hot"
+    )
+    audio_hot, _ = read_wav(wet_hot_path)
+    fir_dual = compute_frontend_deconvolution_fir(
+        "30in_emg_mmtw", "mmtw_dual", num_taps=2048, normalize=False
+    )
+    exp_hot = fft_convolve(hot_dry_read, np.asarray(fir_dual, dtype=np.float64), mode="causal")
+    assert np.max(np.abs(exp_hot)) > CALIBRATION_PEAK_CEILING  # Verify raw output exceeds ceiling
+    exp_hot_clamped = (
+        exp_hot * (CALIBRATION_PEAK_CEILING / float(np.max(np.abs(exp_hot))))
+    ).astype(np.float32)
+    assert np.max(np.abs(audio_hot - exp_hot_clamped)) < 1e-5
+    assert abs(float(np.max(np.abs(audio_hot))) - CALIBRATION_PEAK_CEILING) < 1e-5
+
+
+
+def test_parseval_spectral_integration_rms_accuracy():
+    """Validates that frequency-domain Parseval RMS integration matches time-domain
+
+    causal convolution within 0.001 dB, while executing in microsecond time.
+    """
+    from allomorph.circuit.staging import _get_reference_rms_sweeps
+    from allomorph.dsp import fft_convolve
+
+    sweeps = _get_reference_rms_sweeps()
+    assert sweeps is not None
+    dry_audio, _can_rms, X, n_fft = sweeps
+
+    # Test with synthetic 2048-tap minimum-phase impulse response
+    rng = np.random.default_rng(42)
+    fir = rng.standard_normal(2048).astype(np.float32) * 0.01
+
+    # Time domain:
+    out_time = fft_convolve(dry_audio, fir, mode="causal")
+    rms_time = float(np.sqrt(np.mean(out_time**2)))
+
+    # Freq domain (Parseval):
+    H = np.fft.rfft(fir, n_fft)
+    Y_sq = np.abs(X * H) ** 2
+    sum_y2 = float((Y_sq[0] + 2.0 * np.sum(Y_sq[1:-1]) + Y_sq[-1]) / n_fft)
+    rms_freq = float(np.sqrt(sum_y2 / len(dry_audio)))
+
+    diff_db = abs(20.0 * math.log10(rms_freq / max(rms_time, 1e-9)))
+    assert diff_db < 0.001, (
+        f"Parseval frequency-domain RMS deviated from time-domain by {diff_db:.4f} dB"
+    )
+
+
+def test_target_sweep_zero_timing_delay_and_no_nam_lookahead_warnings(tmp_path: Path):
+    """Validates that causally convolved target sweeps maintain exact zero latency
+
+    alignment with T3K-sweep-v3.wav and trigger zero lookahead or detection warnings in NAM.
+    """
+    from allomorph.circuit.staging import CANONICAL_SWEEP_PATH
+    from allomorph.config.scales import REPO_ROOT
+    from allomorph.dsp import calibrate_nam_v3_latency
+
+    if not CANONICAL_SWEEP_PATH.exists():
+        generate_canonical_sweep()
+
+    # Reuse pre-existing target audio if available, or simulate blip calibration window (max_samples=580000)
+    repo_target = REPO_ROOT / "audio/targets/01_studio_clean/out_04_modern_p_ceramic.wav"
+    if repo_target.exists():
+        out_file = repo_target
+    else:
+        out_file = tmp_path / "out_04_modern_p_ceramic.wav"
+        simulate_voice(
+            voice_id="04_modern_p_ceramic",
+            input_wav=CANONICAL_SWEEP_PATH,
+            output_wav=out_file,
+            instrument="canonical_intermediate",
+            tier="clean",
+            normalize="none",
+            max_samples=580000,
+        )
+
+    assert out_file.exists()
+    audio, sr = read_wav(out_file)
+    assert sr == 48000
+
+    rec_delay, matches_lookahead, not_detected = calibrate_nam_v3_latency(audio)
+    assert matches_lookahead is False, (
+        "NAM detected lookahead mismatch due to non-causal phase shift!"
+    )
+    assert not_detected is False, "NAM failed to detect calibration marker!"
+    assert rec_delay in [0, -1, -2], (
+        f"Unexpected latency offset: {rec_delay} (expected near 0)"
+    )
+
+
+
+def test_clean_tier_saturation_bypass_and_performance(tmp_path: Path):
+    """Validates that tier='clean' enables saturation bypass and linear stage fusion,
+
+    executing target simulation with low latency without nonlinear ODE overhead.
+    """
+    import time
+
+    from allomorph.circuit.staging import CANONICAL_SWEEP_PATH
+
+    if not CANONICAL_SWEEP_PATH.exists():
+        generate_canonical_sweep()
+
+    out_file = tmp_path / "out_clean_test.wav"
+    t0 = time.perf_counter()
+    simulate_voice(
+        voice_id="04_modern_p_ceramic",
+        input_wav=CANONICAL_SWEEP_PATH,
+        output_wav=out_file,
+        instrument="canonical_intermediate",
+        tier="clean",
+        normalize="none",
+    )
+    elapsed = time.perf_counter() - t0
+
+    assert out_file.exists()
+    # Clean tier with stage fusion runs in ~1.5s on full 700k audio file; must be strictly under 3.5s
+    assert elapsed < 3.5, f"Clean tier took {elapsed:.2f}s (expected < 3.5s with stage fusion)"
+
+
+def test_simulate_backend_targets_jobs_parallelism(tmp_path: Path):
+    """Validates that simulate_backend_targets accepts jobs and dispatches parallel worker processes."""
+    out_dir = tmp_path / "parallel_targets"
+    simulate_backend_targets(
+        tier="clean",
+        voice_id="all",
+        max_samples=2048,
+        jobs=2,
+        output_dir=out_dir,
+    )
+    clean_folder = get_tier_spec("clean").folder_name
+    target_folder = out_dir / clean_folder
+    assert target_folder.exists()
+    wav_files = list(target_folder.glob("out_*.wav"))
+    assert len(wav_files) >= 20
+

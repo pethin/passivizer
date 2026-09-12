@@ -52,11 +52,13 @@ from allomorph.physics import (
 
 AUDIO_DIR = REPO_ROOT / "audio"
 MODELS_DIR = REPO_ROOT / "models"
+MODELS_FRONTENDS_DIR = MODELS_DIR / "frontends"
 CANONICAL_SWEEP_PATH = AUDIO_DIR / "canonical" / "canonical_sweep.wav"
 FRONTENDS_DIR = AUDIO_DIR / "frontends"
 TARGETS_DIR = AUDIO_DIR / "targets"
 INTERMEDIATE_TARGET_PEAK_DBFS = -1.5
 INTERMEDIATE_TARGET_RMS_DBFS = -16.5
+CALIBRATION_PEAK_CEILING = 0.9900  # -0.087 dBFS (matching T3K-sweep-v3.wav calibration sweep peak)
 
 
 def simulate_circuit_audio(
@@ -463,10 +465,11 @@ def simulate_circuit_audio(
                 scale = target_peak / raw_peak
                 out_total = out_total * scale
 
-    # True-Peak Safety Headroom
+    # True-Peak Safety Headroom: strictly prevent 0 dBFS full-scale clipping by bounding
+    # to the calibration sweep peak ceiling (0.9900 / -0.09 dBFS)
     max_val = float(np.max(np.abs(out_total)))
-    if max_val > 0.988:
-        out_total = out_total * (0.988 / max_val)
+    if max_val > CALIBRATION_PEAK_CEILING:
+        out_total = out_total * (CALIBRATION_PEAK_CEILING / max_val)
 
     final_peak = float(np.max(np.abs(out_total)))
     final_rms = float(np.sqrt(np.mean(out_total**2)))

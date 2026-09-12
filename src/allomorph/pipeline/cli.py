@@ -10,6 +10,9 @@ from allomorph.circuit import (
     AUDIO_DIR,
     MODELS_DIR,
     export_all_frontend_irs,
+    export_all_frontend_wet_wavs,
+    export_frontend_ir,
+    export_frontend_wet_wav,
     generate_canonical_sweep,
     simulate_backend_targets,
     simulate_voice,
@@ -33,6 +36,7 @@ from allomorph.naming import (
 )
 from allomorph.pipeline.schema import PipelineCliConfig
 from allomorph.pipeline.stages import (
+    run_frontend_training,
     run_training,
     run_visualization,
 )
@@ -84,9 +88,48 @@ def main(argv: Sequence[str] | None = None):
     )
     parser.add_argument(
         "--stage",
-        choices=["all", "viz", "canonical", "frontends", "targets", "train", "bake"],
+        choices=[
+            "all",
+            "viz",
+            "canonical",
+            "frontends",
+            "frontends-nam",
+            "targets",
+            "train",
+            "bake",
+        ],
         default="all",
-        help="Pipeline stage to execute: 'viz' (interactive frequency charts & portal), 'canonical' (calibrated intermediate baseline sweep), 'frontends' (export 32 native frontend IRs), 'targets' (simulate 3-tier backend universal target sweeps), 'train' (train NAM A2 neural models), 'bake' (on-demand single-block monolithic model), or 'all' (canonical + frontends + targets + viz; default: 'all').",
+        help="Pipeline stage to execute: 'viz' (interactive frequency charts & portal), 'canonical' (calibrated intermediate baseline sweep), 'frontends' (export frontend wet sweeps / IRs), 'frontends-nam' (train frontend NAM neural models on wet WAVs), 'targets' (simulate 3-tier backend universal target sweeps), 'train' (train backend NAM A2 neural models), 'bake' (on-demand single-block monolithic model), or 'all' (canonical + frontends + targets + viz; default: 'all').",
+    )
+    parser.add_argument(
+        "--frontend-format",
+        choices=["wet", "ir", "both", "nam"],
+        default="wet",
+        help="Format for frontend deconvolution exports: 'wet' (wet sweep WAV convolved with FIR), 'ir' (FIR impulse response WAV), 'both' (both wet sweep and IR WAVs), 'nam' (train NAM neural model on wet WAV; default: wet)",
+    )
+    parser.add_argument(
+        "--normalize-frontend",
+        action="store_true",
+        default=False,
+        help="Enable full-scale peak normalization (0.9900) for frontend deconvolution (default: False for unnormalized unity gain)",
+    )
+    parser.add_argument(
+        "--normalize",
+        choices=["auto", "rms", "peak", "none"],
+        default="auto",
+        help="Output level normalization mode for target voice wet simulation (default: auto)",
+    )
+    parser.add_argument(
+        "--target-dbfs",
+        type=float,
+        default=None,
+        help="Explicit target level in dBFS for target voice wet simulation (default: -24.0 dBFS for targets)",
+    )
+    parser.add_argument(
+        "--gain-db",
+        type=float,
+        default=0.0,
+        help="Optional manual gain trim in dB applied to frontend deconvolution filter (default: 0.0 dB)",
     )
     parser.add_argument(
         "--tier",
@@ -196,6 +239,11 @@ def main(argv: Sequence[str] | None = None):
             "vol_pos": args.vol_pos,
             "tone_pos": args.tone_pos,
             "cable_pf": args.cable_pf if args.cable_pf is not None else 750.0,
+            "frontend_format": args.frontend_format,
+            "normalize_frontend": args.normalize_frontend,
+            "normalize": args.normalize,
+            "target_dbfs": args.target_dbfs,
+            "gain_db": args.gain_db,
             "input_wav": args.input_wav,
         }
     )
@@ -284,7 +332,7 @@ def main(argv: Sequence[str] | None = None):
                     instrument=inst,
                     pickup=eff_pickup,
                     tier=effective_tier,
-                    normalize="none",
+                    normalize=args.normalize,
                     max_samples=args.max_samples,
                     vol_pos=args.vol_pos,
                     tone_pos=args.tone_pos,
@@ -311,8 +359,65 @@ def main(argv: Sequence[str] | None = None):
         generate_canonical_sweep(input_wav=input_wav)
         return
 
-    if args.stage == "frontends":
-        export_all_frontend_irs()
+    if args.stage in ["frontends", "frontends-nam"] or args.frontend_format == "nam":
+        fmt = "nam" if args.stage == "frontends-nam" else args.frontend_format
+        if fmt == "nam":
+            for inst in instruments_to_run:
+                run_frontend_training(
+                    instrument=inst,
+                    pickup=args.pickup,
+                    input_wav=input_wav,
+                    epochs=args.epochs,
+                    goal_esr=effective_goal_esr,
+                    fast_dev_run=args.fast_dev_run,
+                    normalize=args.normalize_frontend,
+                    gain_db=args.gain_db,
+                )
+            return
+
+        if instruments_to_run and args.instrument != "all":
+            for inst in instruments_to_run:
+                inst_cfg = load_instrument(inst)
+                pickups_to_run = (
+                    [args.pickup]
+                    if (args.pickup and args.pickup != "auto")
+                    else list(inst_cfg.pickups.keys())
+                )
+                for pkey in pickups_to_run:
+                    if fmt in ["ir", "both"]:
+                        ir_p = export_frontend_ir(
+                            inst,
+                            pkey,
+                            normalize=args.normalize_frontend,
+                            gain_db=args.gain_db,
+                        )
+                        rel_ir = ir_p.relative_to(REPO_ROOT) if ir_p.is_relative_to(REPO_ROOT) else ir_p
+                        print(f" [Frontend IR] Exported {rel_ir}")
+                    if fmt in ["wet", "both"]:
+                        wet_p = export_frontend_wet_wav(
+                            inst,
+                            pkey,
+                            input_wav=input_wav,
+                            normalize=args.normalize_frontend,
+                            gain_db=args.gain_db,
+                        )
+                        rel_wet = wet_p.relative_to(REPO_ROOT) if wet_p.is_relative_to(REPO_ROOT) else wet_p
+                        print(f" [Frontend Wet WAV] Exported {rel_wet}")
+            return
+
+        if fmt in ["ir", "both"]:
+            export_all_frontend_irs(
+                jobs=args.jobs,
+                normalize=args.normalize_frontend,
+                gain_db=args.gain_db,
+            )
+        if fmt in ["wet", "both"]:
+            export_all_frontend_wet_wavs(
+                input_wav=input_wav,
+                jobs=args.jobs,
+                normalize=args.normalize_frontend,
+                gain_db=args.gain_db,
+            )
         return
 
     if args.stage == "targets":
@@ -320,6 +425,9 @@ def main(argv: Sequence[str] | None = None):
             tier=args.tier or "standard",
             voice_id=args.voice,
             max_samples=args.max_samples,
+            jobs=args.jobs,
+            normalize=args.normalize,
+            target_dbfs=args.target_dbfs,
         )
         return
 
@@ -354,18 +462,35 @@ def main(argv: Sequence[str] | None = None):
     if args.stage == "all":
         print("\n--- Step 1: Canonical Intermediate Baseline Sweep ---")
         generate_canonical_sweep(input_wav=input_wav)
-        print("\n--- Step 2: Export All 32 Frontend Deconvolution IRs ---")
-        export_all_frontend_irs()
+        fmt = args.frontend_format
+        if fmt in ["wet", "both"]:
+            print("\n--- Step 2a: Export All 32 Frontend Deconvolution Wet Sweeps ---")
+            export_all_frontend_wet_wavs(
+                input_wav=input_wav,
+                jobs=args.jobs,
+                normalize=args.normalize_frontend,
+                gain_db=args.gain_db,
+            )
+        if fmt in ["ir", "both"]:
+            print("\n--- Step 2b: Export All 32 Frontend Deconvolution IRs ---")
+            export_all_frontend_irs(
+                jobs=args.jobs,
+                normalize=args.normalize_frontend,
+                gain_db=args.gain_db,
+            )
         print("\n--- Step 3: Simulate Backend Targets ---")
         simulate_backend_targets(
             tier=args.tier or "standard",
             voice_id=args.voice,
             max_samples=args.max_samples,
+            jobs=args.jobs,
+            normalize=args.normalize,
+            target_dbfs=args.target_dbfs,
         )
         print("\n--- Step 4: Interactive Altair Frequency Visualization ---")
         if len(instruments_to_run) == 1 and args.instrument != "all":
             run_visualization(instrument=instruments_to_run[0])
         else:
             run_visualization(instrument="all")
-        print("\n[Pipeline Complete: 32 Frontend IRs + Backend Sweeps + Interactive Portal Ready]")
+        print("\n[Pipeline Complete: 32 Frontend Sweeps/IRs + Backend Sweeps + Interactive Portal Ready]")
         return

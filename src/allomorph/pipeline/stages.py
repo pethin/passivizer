@@ -108,3 +108,56 @@ def run_training(
     res = subprocess.run(cmd, cwd=str(REPO_ROOT), check=False)
     if res.returncode != 0:
         print(f"Notice: Model training exited with code {res.returncode}")
+
+
+def run_frontend_training(
+    instrument: str = "30in",
+    pickup: str | None = None,
+    input_wav: str | Path | None = None,
+    output_wav: str | Path | None = None,
+    models_dir: str | Path | None = None,
+    epochs: int = 100,
+    goal_esr: float | None = 0.0005,
+    fast_dev_run: bool = False,
+    basename: str | None = None,
+    normalize: bool = False,
+    gain_db: float = 0.0,
+):
+    """Trains a Neural Amp Modeler (NAM) model locally on Block 1 frontend wet WAVs."""
+    print(
+        f"\n[Frontend Training] Training Neural Amp Modeler model for Block 1 frontend (Instrument: {instrument}, Pickup: {pickup or 'all'})..."
+    )
+    script = SCRIPTS_DIR / "train_nam.py"
+    cmd = [
+        sys.executable,
+        str(script),
+        "--frontend",
+        "--instrument",
+        instrument,
+        "--epochs",
+        str(epochs),
+    ]
+    if pickup:
+        cmd.extend(["--pickup", pickup])
+    if output_wav:
+        cmd.extend(["--output", str(output_wav)])
+    if models_dir:
+        cmd.extend(["--models-dir", str(models_dir)])
+    if basename:
+        cmd.extend(["--basename", basename])
+    if goal_esr is not None and goal_esr > 0:
+        cmd.extend(["--goal-esr", str(goal_esr)])
+    else:
+        cmd.append("--no-goal-esr")
+    if input_wav:
+        cmd.extend(["--input", str(input_wav)])
+    if fast_dev_run:
+        cmd.append("--fast-dev-run")
+    if normalize:
+        cmd.append("--normalize-frontend")
+    if gain_db != 0.0:
+        cmd.extend(["--gain-db", str(gain_db)])
+    res = subprocess.run(cmd, cwd=str(REPO_ROOT), check=False)
+    if res.returncode != 0:
+        print(f"Notice: Frontend model training exited with code {res.returncode}")
+

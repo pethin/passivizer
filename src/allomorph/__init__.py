@@ -5,8 +5,12 @@ Allomorph - Universal Pickup & Transducer Analog Modeling Engine
 __version__ = "0.1.0"
 
 from allomorph.circuit import (
+    CALIBRATION_PEAK_CEILING,
+    compute_frontend_deconvolution_fir,
     export_all_frontend_irs,
+    export_all_frontend_wet_wavs,
     export_frontend_ir,
+    export_frontend_wet_wav,
     generate_canonical_sweep,
     simulate_backend_targets,
     simulate_voice,
@@ -40,6 +44,7 @@ from allomorph.dsp import (
     FS,
     NUM_TAPS,
     NYQ,
+    calibrate_nam_v3_latency,
     fft_convolve,
     read_wav,
     read_wav_24bit,
@@ -62,6 +67,7 @@ from allomorph.physics import (
 )
 
 __all__ = [
+    "CALIBRATION_PEAK_CEILING",
     "FREQS",
     "FS",
     "INSTRUMENTS",
@@ -71,12 +77,16 @@ __all__ = [
     "STRINGS",
     "VOICES",
     "VOICE_CONCISE_SLUGS",
+    "calibrate_nam_v3_latency",
     "compute_aperture_prefilter_fir",
     "compute_coil_aperture",
     "compute_effective_position",
+    "compute_frontend_deconvolution_fir",
     "compute_voice_prefilter_firs",
     "export_all_frontend_irs",
+    "export_all_frontend_wet_wavs",
     "export_frontend_ir",
+    "export_frontend_wet_wav",
     "fft_convolve",
     "generate_canonical_sweep",
     "generate_wave_speed_continuum",

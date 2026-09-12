@@ -6,19 +6,20 @@ and provides the allomorph-sim CLI binary entrypoint.
 """
 
 import argparse
+import functools
 import math
 import os
 from pathlib import Path
+from typing import Literal
 
 import numpy as np
 
 from allomorph.circuit.parser import load_circuit
 from allomorph.circuit.schema import SimulationConfig
 from allomorph.circuit.simulation import (
+    CALIBRATION_PEAK_CEILING,
     CANONICAL_SWEEP_PATH,
     FRONTENDS_DIR,
-    INTERMEDIATE_TARGET_PEAK_DBFS,
-    INTERMEDIATE_TARGET_RMS_DBFS,
     TARGETS_DIR,
     _simulate_voice_task,
     find_default_input_audio,
@@ -85,38 +86,75 @@ def generate_canonical_sweep(input_wav: Path | None = None, output_wav: Path | N
     else:
         h_can_total = h_can_ac
 
-    can_fir = synthesize_minimum_phase_fir(h_can_total, num_taps=2048)
+    can_fir = synthesize_minimum_phase_fir(h_can_total, num_taps=2048, normalize=False)
 
-    filtered = fft_convolve(audio, np.asarray(can_fir, dtype=np.float64), mode="same")
+    filtered = fft_convolve(audio, np.asarray(can_fir, dtype=np.float64), mode="causal")
 
-    raw_peak = float(np.max(np.abs(filtered)))
-    raw_rms = float(np.sqrt(np.mean(filtered**2)))
+    max_val = float(np.max(np.abs(filtered)))
+    if max_val > CALIBRATION_PEAK_CEILING:
+        filtered = filtered * (CALIBRATION_PEAK_CEILING / max_val)
 
-    peak_gain = (10.0 ** (INTERMEDIATE_TARGET_PEAK_DBFS / 20.0)) / max(raw_peak, 1e-9)
-    rms_gain = (10.0 ** (INTERMEDIATE_TARGET_RMS_DBFS / 20.0)) / max(raw_rms, 1e-9)
-    gain = min(peak_gain, rms_gain)
-
-    calibrated = np.clip(filtered * gain, -0.999, 0.999).astype(np.float32)
+    calibrated = filtered.astype(np.float32)
 
     write_wav_24bit(str(output_wav), calibrated, sr)
+    _get_reference_rms_sweeps.cache_clear()
     final_peak_db = 20.0 * math.log10(max(float(np.max(np.abs(calibrated))), 1e-9))
     final_rms_db = 20.0 * math.log10(max(float(np.sqrt(np.mean(calibrated**2))), 1e-9))
     print(
-        f"[Canonical Sweep] Generated {output_wav.name}: Peak = {final_peak_db:.2f} dBFS, RMS = {final_rms_db:.2f} dBFS"
+        f"[Canonical Sweep] Generated {output_wav.name} (unnormalized): Peak = {final_peak_db:.2f} dBFS, RMS = {final_rms_db:.2f} dBFS"
     )
     return output_wav
 
 
-def export_frontend_ir(
+@functools.lru_cache(maxsize=1)
+def _get_reference_rms_sweeps() -> tuple[np.ndarray, float, np.ndarray, int] | None:
+    """Loads default calibration sweep and canonical intermediate target RMS with cached forward FFT."""
+    dry_path = find_default_input_audio()
+    if not dry_path or not Path(dry_path).exists():
+        return None
+    if not CANONICAL_SWEEP_PATH.exists():
+        generate_canonical_sweep()
+    dry_audio, _ = read_wav(dry_path)
+    can_audio, _ = read_wav(CANONICAL_SWEEP_PATH)
+    can_rms = float(np.sqrt(np.mean(can_audio**2)))
+    n = len(dry_audio)
+    n_fft = 1 << (n + 2048 - 1).bit_length()
+    X = np.fft.rfft(dry_audio, n_fft)
+    return dry_audio, can_rms, X, n_fft
+
+
+@functools.lru_cache(maxsize=1)
+def _get_reference_power_spectrum(n_b: int = 8192) -> tuple[float, np.ndarray, int] | None:
+    """Precomputes binned reference power spectrum for ultra-fast Parseval RMS calibration (< 0.05ms per IR)."""
+    sweeps = _get_reference_rms_sweeps()
+    if sweeps is None:
+        return None
+    dry_audio, can_rms, X, n_fft = sweeps
+    n = len(dry_audio)
+    m = n_b // 2 + 1
+    weights = np.ones(len(X), dtype=np.float64) * 2.0
+    weights[0] = 1.0
+    weights[-1] = 1.0
+    p_full = (np.abs(X) ** 2) * weights / (n_fft * n)
+    indices = np.linspace(0, len(p_full) - 1, len(p_full))
+    bin_idx = (indices * (m - 1) / (len(p_full) - 1)).astype(int)
+    p_binned = np.bincount(bin_idx, weights=p_full, minlength=m)
+    return can_rms, p_binned, n_b
+
+
+def compute_frontend_deconvolution_fir(
     inst_id: str,
     pickup_key: str,
-    out_path: Path | None = None,
-    output_dir: Path | str | None = None,
     num_taps: int = 2048,
-) -> Path:
+    normalize: bool = False,
+    gain_db: float = 0.0,
+) -> np.ndarray:
     """
-    Synthesizes a 2048-tap minimum-phase deconvolution IR transforming a source pickup into the Canonical Intermediate.
-    Enforces strictly positive initial polarity to ensure zero phase cancellation when blended in parallel.
+    Computes a 2048-tap minimum-phase deconvolution FIR filter transforming a source pickup
+    into the 34-inch Canonical Intermediate datum.
+
+    By default (normalize=False), produces the exact unnormalized physical deconvolution
+    filter with ~0 dB unity gain across fundamental bass frequencies (40-200 Hz).
     """
     inst = load_instrument(inst_id)
     pickups = inst.pickups
@@ -168,12 +206,53 @@ def export_frontend_ir(
 
     h_total = h_aperture_deconv * h_circuit_deconv
 
-    fir = synthesize_minimum_phase_fir(h_total, num_taps=num_taps)
-    fir = np.asarray(fir, dtype=np.float32)
+    fir = np.asarray(
+        synthesize_minimum_phase_fir(h_total, num_taps=num_taps, normalize=normalize),
+        dtype=np.float32,
+    )
 
     # Polarity check: enforce positive polarity
     if np.sum(fir[:16]) < 0:
         fir = -fir
+
+    if normalize:
+        max_peak = float(np.max(np.abs(fir)))
+        if max_peak > 0.0:
+            fir = (fir / max_peak) * np.float32(CALIBRATION_PEAK_CEILING)
+
+    if gain_db != 0.0:
+        fir = fir * np.float32(10.0 ** (gain_db / 20.0))
+
+    # True-peak safety clamp to prevent 24-bit PCM wrapping
+    peak = float(np.max(np.abs(fir)))
+    if peak > CALIBRATION_PEAK_CEILING:
+        fir = (fir / peak) * np.float32(CALIBRATION_PEAK_CEILING)
+
+    return fir
+
+
+def export_frontend_ir(
+    inst_id: str,
+    pickup_key: str,
+    out_path: Path | None = None,
+    output_dir: Path | str | None = None,
+    num_taps: int = 2048,
+    normalize: bool = False,
+    gain_db: float = 0.0,
+) -> Path:
+    """
+    Synthesizes a 2048-tap minimum-phase deconvolution IR transforming a source pickup into the Canonical Intermediate.
+    Enforces strictly positive initial polarity to ensure zero phase cancellation when blended in parallel.
+    """
+    fir = compute_frontend_deconvolution_fir(
+        inst_id=inst_id,
+        pickup_key=pickup_key,
+        num_taps=num_taps,
+        normalize=normalize,
+        gain_db=gain_db,
+    )
+    inst = load_instrument(inst_id)
+    pickups = inst.pickups
 
     if out_path is None:
         base_dir = Path(output_dir) if output_dir is not None else FRONTENDS_DIR
@@ -200,23 +279,182 @@ def export_frontend_ir(
     return out_path
 
 
-def export_all_frontend_irs(output_dir: Path | None = None):
+def export_frontend_wet_wav(
+    inst_id: str,
+    pickup_key: str,
+    input_wav: Path | str | None = None,
+    out_path: Path | None = None,
+    output_dir: Path | str | None = None,
+    num_taps: int = 2048,
+    normalize: bool = False,
+    gain_db: float = 0.0,
+) -> Path:
+    """
+    Convolves the dry calibration sweep through the source pickup frontend deconvolution FIR,
+    producing a 24-bit 48 kHz wet training sweep (with '_wet' suffix) for Block 1 NAM training.
+    """
+    dry_path: Path | None = Path(input_wav) if input_wav else find_default_input_audio()
+    if not dry_path or not dry_path.exists():
+        for candidate in ["T3K-sweep-v3.wav", "v3_0_0.wav", "input.wav"]:
+            cand_p = REPO_ROOT / candidate
+            if cand_p.exists():
+                dry_path = cand_p
+                break
+    if not dry_path or not dry_path.exists():
+        raise FileNotFoundError(f"Dry calibration sweep not found: {dry_path}")
+
+    audio_dry, sr = read_wav(dry_path)
+    fir = compute_frontend_deconvolution_fir(
+        inst_id=inst_id,
+        pickup_key=pickup_key,
+        num_taps=num_taps,
+        normalize=normalize,
+        gain_db=gain_db,
+    )
+
+    audio_wet = fft_convolve(audio_dry, np.asarray(fir, dtype=np.float64), mode="causal")
+
+    # True-peak safety ceiling matching calibration sweep (0.9900 / -0.087 dBFS):
+    # If unnormalized (default), leave audio untouched unless it exceeds CALIBRATION_PEAK_CEILING.
+    # If exceeding ceiling, apply proportional safety scaling to strictly prevent clipping distortion.
+    max_val = float(np.max(np.abs(audio_wet)))
+    if normalize and max_val > 1e-9 or max_val > CALIBRATION_PEAK_CEILING:
+        audio_wet = audio_wet * (CALIBRATION_PEAK_CEILING / max_val)
+
+    calibrated = audio_wet.astype(np.float32)
+
+    inst = load_instrument(inst_id)
+    pickups = inst.pickups
+
+    if out_path is None:
+        base_dir = Path(output_dir) if output_dir is not None else FRONTENDS_DIR
+        inst_dir = base_dir / inst_id
+        inst_dir.mkdir(parents=True, exist_ok=True)
+        if inst_id.endswith("mmtw") and pickup_key.startswith("mmtw_"):
+            p_name = pickup_key[len("mmtw_") :]
+            out_name = f"{inst_id}_{p_name}_wet.wav"
+        else:
+            out_name = f"{inst_id}_{pickup_key}_wet.wav"
+        out_path = inst_dir / out_name
+
+    out_path = Path(out_path)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    write_wav_24bit(str(out_path), calibrated, sr)
+
+    if len(pickups) == 1:
+        alias_path = out_path.parent / f"{inst_id}_wet.wav"
+        if alias_path != out_path:
+            write_wav_24bit(str(alias_path), calibrated, sr)
+
+    return out_path
+
+
+def _export_frontend_ir_task(task_args: tuple[str, str, Path, int, bool, float]) -> Path:
+    inst_id, p_key, out_dir, num_taps, normalize, gain_db = task_args
+    return export_frontend_ir(
+        inst_id=inst_id,
+        pickup_key=p_key,
+        output_dir=out_dir,
+        num_taps=num_taps,
+        normalize=normalize,
+        gain_db=gain_db,
+    )
+
+
+def export_all_frontend_irs(
+    output_dir: Path | None = None,
+    jobs: int | None = None,
+    normalize: bool = False,
+    gain_db: float = 0.0,
+) -> list[Path]:
     """
     Exports all 32 native frontend deconvolution IRs grouped by instrument subdirectories.
+    Parallelized across CPU cores using ProcessPoolExecutor.
     """
     out_dir = Path(output_dir) if output_dir else FRONTENDS_DIR
     all_insts = load_all_instruments()
-    exported = []
+    tasks: list[tuple[str, str, Path, int, bool, float]] = []
     for inst_id, inst in sorted(all_insts.items()):
         if inst_id == "canonical_intermediate":
             continue
         pickups = inst.pickups
         for p_key in sorted(pickups.keys()):
-            p_file = export_frontend_ir(inst_id, p_key, output_dir=out_dir)
-            exported.append(p_file)
-            rel_p = p_file.relative_to(REPO_ROOT) if p_file.is_relative_to(REPO_ROOT) else p_file
-            print(f" [Frontend IR] Exported {rel_p}")
+            tasks.append((inst_id, p_key, out_dir, 2048, normalize, gain_db))
+
+    # Pre-cache canonical sweep in main process
+    _get_reference_power_spectrum()
+
+    max_workers = jobs if jobs is not None else 1
+    exported: list[Path] = []
+    if len(tasks) > 1 and max_workers > 1:
+        from concurrent.futures import ProcessPoolExecutor
+
+        with ProcessPoolExecutor(max_workers=max_workers) as executor:
+            exported = list(executor.map(_export_frontend_ir_task, tasks))
+    else:
+        for task in tasks:
+            exported.append(_export_frontend_ir_task(task))
+
+    for p_file in exported:
+        rel_p = p_file.relative_to(REPO_ROOT) if p_file.is_relative_to(REPO_ROOT) else p_file
+        print(f" [Frontend IR] Exported {rel_p}")
     print(f"Successfully exported {len(exported)} frontend IRs to {out_dir}")
+    return exported
+
+
+def _export_frontend_wet_wav_task(
+    task_args: tuple[str, str, Path | None, Path, int, bool, float]
+) -> Path:
+    inst_id, p_key, in_path, out_dir, num_taps, normalize, gain_db = task_args
+    return export_frontend_wet_wav(
+        inst_id=inst_id,
+        pickup_key=p_key,
+        input_wav=in_path,
+        output_dir=out_dir,
+        num_taps=num_taps,
+        normalize=normalize,
+        gain_db=gain_db,
+    )
+
+
+def export_all_frontend_wet_wavs(
+    input_wav: Path | str | None = None,
+    output_dir: Path | None = None,
+    jobs: int | None = None,
+    num_taps: int = 2048,
+    normalize: bool = False,
+    gain_db: float = 0.0,
+) -> list[Path]:
+    """
+    Exports all native frontend pickup deconvolution wet sweeps convolved through their FIRs.
+    Parallelized across CPU cores using ProcessPoolExecutor.
+    """
+    out_dir = Path(output_dir) if output_dir else FRONTENDS_DIR
+    all_insts = load_all_instruments()
+    in_path = Path(input_wav) if input_wav else None
+    tasks: list[tuple[str, str, Path | None, Path, int, bool, float]] = []
+    for inst_id, inst in sorted(all_insts.items()):
+        if inst_id == "canonical_intermediate":
+            continue
+        pickups = inst.pickups
+        for p_key in sorted(pickups.keys()):
+            tasks.append((inst_id, p_key, in_path, out_dir, num_taps, normalize, gain_db))
+
+    max_workers = jobs if jobs is not None else 1
+    exported: list[Path] = []
+    if len(tasks) > 1 and max_workers > 1:
+        from concurrent.futures import ProcessPoolExecutor
+
+        with ProcessPoolExecutor(max_workers=max_workers) as executor:
+            exported = list(executor.map(_export_frontend_wet_wav_task, tasks))
+    else:
+        for task in tasks:
+            exported.append(_export_frontend_wet_wav_task(task))
+
+    for p_file in exported:
+        rel_p = p_file.relative_to(REPO_ROOT) if p_file.is_relative_to(REPO_ROOT) else p_file
+        print(f" [Frontend Wet WAV] Exported {rel_p}")
+    print(f"Successfully exported {len(exported)} frontend wet WAVs to {out_dir}")
     return exported
 
 
@@ -225,6 +463,9 @@ def simulate_backend_targets(
     voice_id: str | None = None,
     max_samples: int | None = None,
     output_dir: Path | str | None = None,
+    jobs: int | None = None,
+    normalize: Literal["auto", "peak", "rms", "none"] = "auto",
+    target_dbfs: float | None = None,
 ):
     """
     Simulates target voice audio sweeps using the Canonical Intermediate baseline as input.
@@ -252,6 +493,7 @@ def simulate_backend_targets(
         if voice_id and voice_id != "all"
         else [vid for vid in sorted(VOICES.keys()) if vid != "00_canonical_intermediate"]
     )
+    max_workers = jobs if jobs is not None else min(4, os.cpu_count() or 4)
 
     for t in tiers_to_run:
         folder_name = get_tier_spec(t).folder_name
@@ -259,10 +501,9 @@ def simulate_backend_targets(
         target_out_dir = base_dir / folder_name
         target_out_dir.mkdir(parents=True, exist_ok=True)
 
+        tasks = []
         for vid in voices_to_run:
             out_file = target_out_dir / f"out_{vid}.wav"
-            print(f"[{t.upper()}] Simulating {vid} -> {out_file.name}...")
-
             vcfg = VOICES.get(vid)
             v_alpha = vcfg.alpha if vcfg is not None else 0.25
 
@@ -273,15 +514,35 @@ def simulate_backend_targets(
             else:
                 sim_alpha = v_alpha
 
-            simulate_voice(
-                voice_id=vid,
-                input_wav=CANONICAL_SWEEP_PATH,
-                output_wav=out_file,
-                instrument="canonical_intermediate",
-                alpha=sim_alpha,
-                normalize="none",  # T3K sweep integrity
-                max_samples=max_samples,
+            tasks.append(
+                (
+                    vid,
+                    SimulationConfig(
+                        input_wav=CANONICAL_SWEEP_PATH,
+                        output_wav=out_file,
+                        instrument="canonical_intermediate",
+                        tier=t,
+                        alpha=sim_alpha,
+                        normalize=normalize,
+                        target_dbfs=target_dbfs,
+                        max_samples=max_samples,
+                    ),
+                )
             )
+
+        if len(tasks) > 1 and max_workers > 1:
+            print(
+                f"[{t.upper()}] Simulating {len(tasks)} targets in parallel ({max_workers} workers)..."
+            )
+            from concurrent.futures import ProcessPoolExecutor
+
+            with ProcessPoolExecutor(max_workers=max_workers) as executor:
+                list(executor.map(_simulate_voice_task, tasks))
+        else:
+            for vid, sim_cfg in tasks:
+                out_name = Path(sim_cfg.output_wav).name if sim_cfg.output_wav else f"out_{vid}.wav"
+                print(f"[{t.upper()}] Simulating {vid} -> {out_name}...")
+                simulate_voice(vid, config=sim_cfg)
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -499,9 +760,27 @@ def main(argv: list[str] | None = None) -> None:
     )
     parser.add_argument(
         "--stage",
-        choices=["canonical", "frontends", "targets", "all"],
+        choices=["canonical", "frontends", "frontends-nam", "targets", "all"],
         default=None,
-        help="Architecture C execution stage: 'canonical' (generate intermediate sweep), 'frontends' (export all 32 native frontend IRs), 'targets' (simulate backend sweeps), 'all' (canonical + frontends + targets).",
+        help="Architecture C execution stage: 'canonical' (generate intermediate sweep), 'frontends' (export frontend wet sweeps / IRs), 'targets' (simulate backend sweeps), 'all'.",
+    )
+    parser.add_argument(
+        "--frontend-format",
+        choices=["wet", "ir", "both"],
+        default="wet",
+        help="Format for frontend deconvolution exports: 'wet' (wet sweep WAV convolved with FIR), 'ir' (FIR impulse response WAV), 'both' (both wet sweep and IR WAVs; default: wet)",
+    )
+    parser.add_argument(
+        "--normalize-frontend",
+        action="store_true",
+        default=False,
+        help="Enable full-scale peak normalization (0.9900) for frontend deconvolution (default: False for unnormalized unity gain)",
+    )
+    parser.add_argument(
+        "--gain-db",
+        type=float,
+        default=0.0,
+        help="Optional manual gain trim in dB applied to frontend deconvolution filter (default: 0.0 dB)",
     )
     parser.add_argument(
         "--tier",
@@ -552,19 +831,89 @@ def main(argv: list[str] | None = None) -> None:
     if args.stage == "canonical":
         generate_canonical_sweep(input_wav=args.input, output_wav=args.out)
         return
-    if args.stage == "frontends":
-        export_all_frontend_irs(output_dir=args.out)
+    if args.stage in ["frontends", "frontends-nam"]:
+        fmt = args.frontend_format
+        if args.instrument:
+            insts = resolve_instruments(args.instrument)
+            for inst_id in insts:
+                inst = load_instrument(inst_id)
+                pickups_to_run = (
+                    [args.pickup]
+                    if (args.pickup and args.pickup != "auto")
+                    else list(inst.pickups.keys())
+                )
+                for pkey in pickups_to_run:
+                    if fmt in ["ir", "both"]:
+                        export_frontend_ir(
+                            inst_id,
+                            pkey,
+                            output_dir=args.out,
+                            normalize=args.normalize_frontend,
+                            gain_db=args.gain_db,
+                        )
+                    if fmt in ["wet", "both"]:
+                        export_frontend_wet_wav(
+                            inst_id,
+                            pkey,
+                            input_wav=args.input,
+                            output_dir=args.out,
+                            normalize=args.normalize_frontend,
+                            gain_db=args.gain_db,
+                        )
+            return
+        if fmt in ["ir", "both"]:
+            export_all_frontend_irs(
+                output_dir=args.out,
+                jobs=args.jobs,
+                normalize=args.normalize_frontend,
+                gain_db=args.gain_db,
+            )
+        if fmt in ["wet", "both"]:
+            export_all_frontend_wet_wavs(
+                input_wav=args.input,
+                output_dir=args.out,
+                jobs=args.jobs,
+                normalize=args.normalize_frontend,
+                gain_db=args.gain_db,
+            )
         return
     if args.stage == "targets":
         simulate_backend_targets(
-            tier=args.tier, voice_id=args.voice, max_samples=args.samples, output_dir=args.out
+            tier=args.tier,
+            voice_id=args.voice,
+            max_samples=args.max_samples,
+            output_dir=args.out,
+            jobs=args.jobs,
+            normalize=args.normalize,
+            target_dbfs=args.target_dbfs,
         )
         return
     if args.stage == "all":
         generate_canonical_sweep(input_wav=args.input)
-        export_all_frontend_irs(output_dir=args.out)
+        fmt = args.frontend_format
+        if fmt in ["wet", "both"]:
+            export_all_frontend_wet_wavs(
+                input_wav=args.input,
+                output_dir=args.out,
+                jobs=args.jobs,
+                normalize=args.normalize_frontend,
+                gain_db=args.gain_db,
+            )
+        if fmt in ["ir", "both"]:
+            export_all_frontend_irs(
+                output_dir=args.out,
+                jobs=args.jobs,
+                normalize=args.normalize_frontend,
+                gain_db=args.gain_db,
+            )
         simulate_backend_targets(
-            tier=args.tier, voice_id=args.voice, max_samples=args.samples, output_dir=args.out
+            tier=args.tier,
+            voice_id=args.voice,
+            max_samples=args.max_samples,
+            output_dir=args.out,
+            jobs=args.jobs,
+            normalize=args.normalize,
+            target_dbfs=args.target_dbfs,
         )
         return
 

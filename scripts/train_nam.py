@@ -13,6 +13,7 @@ from typing import Any
 REPO_ROOT = Path(__file__).resolve().parent.parent
 CIRCUITS_DIR = REPO_ROOT / "circuits"
 MODELS_DIR = REPO_ROOT / "models"
+MODELS_FRONTENDS_DIR = MODELS_DIR / "frontends"
 AUDIO_DIR = REPO_ROOT / "audio"
 SCRIPTS_DIR = REPO_ROOT / "scripts"
 
@@ -188,10 +189,16 @@ def train_voice(
         return False
 
     if not output_path.exists():
-        print(f"Error: Target output audio '{output_path}' does not exist.")
-        print("Please run the simulation stage first:")
-        print(f"  uv run python main.py --stage sim --voice {voice} --tier {tier or 'dynamic'}")
-        return False
+        if tier:
+            from allomorph.circuit.staging import simulate_backend_targets
+
+            print(f"[Train NAM] Target audio missing. Simulating: {output_path.name}...")
+            simulate_backend_targets(tier=tier, voice_id=voice)
+        else:
+            print(f"Error: Target output audio '{output_path}' does not exist.")
+            print("Please run the simulation stage first:")
+            print(f"  uv run python main.py --stage sim --voice {voice} --tier {tier or 'dynamic'}")
+            return False
 
     train_work_dir = inst_models_dir / f".train_{model_basename}"
     train_work_dir.mkdir(parents=True, exist_ok=True)
@@ -250,7 +257,7 @@ def train_voice(
 
     print("\nExporting Architecture 2 (.nam) model container with full instrument metadata...")
     nam_meta = NamExportMetadata(
-        training=NamTrainingMetadata.model_validate(train_output.metadata),
+        training=NamTrainingMetadata.model_validate(train_output.metadata.model_dump()),
         license="PolyForm Noncommercial License 1.0.0 (https://polyformproject.org/licenses/noncommercial/1.0.0)",
         copyright="Copyright 2026 Peter Nguyen <peter@phn.dev>. All commercial rights reserved.",
         author="Peter Nguyen <peter@phn.dev>",
@@ -328,6 +335,216 @@ def train_voice(
         return False
 
 
+def train_frontend(
+    instrument: str | InstrumentConfig = "30in",
+    pickup: str | None = None,
+    input_wav: str | Path | None = None,
+    output_wav: str | Path | None = None,
+    models_dir: str | Path = MODELS_FRONTENDS_DIR,
+    epochs: int = 100,
+    goal_esr: float | None = DEFAULT_GOAL_ESR,
+    batch_size: int = 16,
+    silent: bool = True,
+    save_plot: bool = False,
+    fast_dev_run: bool = False,
+    basename: str | None = None,
+    normalize: bool = False,
+    gain_db: float = 0.0,
+) -> bool:
+    try:
+        import nam.train.core as nam_core
+        import nam.train.metadata as train_meta
+        from nam.models.metadata import UserMetadata
+    except ImportError:
+        print("Error: 'neural-amp-modeler' is not installed in the current environment.")
+        return False
+
+    inst_cfg = load_instrument(instrument) if isinstance(instrument, str) else instrument
+    inst_id = inst_cfg.id
+    inst_name = inst_cfg.name
+    scale_length_in = inst_cfg.scale_length_in or 34.0
+
+    pickups_dict = inst_cfg.pickups
+    if pickup and pickup not in ["all", "auto"]:
+        if pickup in pickups_dict:
+            pickups_to_train = [pickup]
+        else:
+            matched = [k for k in pickups_dict if k.endswith(pickup) or pickup in k]
+            if matched:
+                pickups_to_train = [matched[0]]
+            else:
+                raise KeyError(f"Pickup '{pickup}' not found in instrument '{inst_id}'")
+    else:
+        pickups_to_train = list(pickups_dict.keys())
+
+    input_path = find_sweep_input(input_wav)
+    if not input_path or not input_path.exists():
+        print(f"Error: Could not find training sweep file '{input_path}'.")
+        return False
+
+    p_models = Path(models_dir)
+    if p_models.name == "frontends" or str(p_models).endswith("/frontends"):
+        inst_models_dir = p_models / inst_id
+    else:
+        inst_models_dir = p_models / "frontends" / inst_id
+    inst_models_dir.mkdir(parents=True, exist_ok=True)
+
+    all_success = True
+    for pkey in pickups_to_train:
+        pcfg = pickups_dict[pkey]
+        pos_mm = (pcfg.position_from_bridge_m or 0.0) * 1000.0
+        p_name = (
+            pkey[len("mmtw_") :]
+            if (inst_id.endswith("mmtw") and pkey.startswith("mmtw_"))
+            else pkey
+        )
+        model_basename = (
+            basename if (basename and len(pickups_to_train) == 1) else f"{inst_id}_{p_name}"
+        )
+        target_nam = inst_models_dir / f"{model_basename}.nam"
+
+        if output_wav and len(pickups_to_train) == 1:
+            out_wav_path = Path(output_wav)
+        else:
+            out_wav_path = AUDIO_DIR / "frontends" / inst_id / f"{inst_id}_{p_name}_wet.wav"
+
+        if not out_wav_path.exists():
+            from allomorph.circuit.staging import export_frontend_wet_wav
+
+            print(f"[Train Frontend] Generating missing wet WAV: {out_wav_path.name}...")
+            export_frontend_wet_wav(
+                inst_id=inst_id,
+                pickup_key=pkey,
+                input_wav=input_path,
+                out_path=out_wav_path,
+                normalize=normalize,
+                gain_db=gain_db,
+            )
+
+        train_work_dir = inst_models_dir / f".train_{model_basename}"
+        train_work_dir.mkdir(parents=True, exist_ok=True)
+
+        threshold_esr = None if (goal_esr is not None and goal_esr <= 0) else goal_esr
+
+        print("\n========================================")
+        print("  ALLOMORPH NAM FRONTEND TRAINER")
+        print(f'  Source Bass:  {inst_name} ({inst_id}, {scale_length_in}")')
+        print(f"  Source PU:    {pcfg.name} (pos={pos_mm:.1f}mm)")
+        print("  Target:       00_canonical_intermediate (Block 1 Deconvolution)")
+        print(f"  Input Audio:  {input_path.name}")
+        print(f"  Output Audio: {out_wav_path.name}")
+        print(f"  Max Epochs:   {epochs}")
+        esr_display = (
+            f"{threshold_esr:.6f} (Studio Quality Early Stopping)"
+            if threshold_esr is not None
+            else "Disabled (Fixed Epochs)"
+        )
+        print(f"  Goal ESR:     {esr_display}")
+        print(f"  Destination:  {target_nam}")
+        print("========================================\n")
+
+        model_title = f"{inst_name} ({pcfg.name}) Frontend Deconvolution"
+        user_metadata = UserMetadata(
+            name=model_title,
+            modeled_by="Allomorph (Peter Nguyen <peter@phn.dev>)",
+            gear_make=inst_name,
+            gear_model=f"Block 1 Frontend ({pcfg.name})",
+            gear_type="preamp",
+            tone_type="clean",
+        )
+
+        print("Validating dataset and calibration markers...")
+        train_output = nam_core.train(
+            input_path=str(input_path),
+            output_path=str(out_wav_path),
+            train_path=str(train_work_dir),
+            epochs=epochs,
+            batch_size=batch_size,
+            modelname=model_basename,
+            silent=silent,
+            save_plot=save_plot,
+            local=True,
+            threshold_esr=threshold_esr,
+            user_metadata=user_metadata,
+            fast_dev_run=fast_dev_run,
+        )
+
+        if train_output is None or train_output.model is None:
+            print(f"Error: Training did not produce a model for {inst_id} ({pkey}).")
+            all_success = False
+            continue
+
+        print("\nExporting Architecture 2 (.nam) model container with full instrument metadata...")
+        nam_meta = NamExportMetadata(
+            training=NamTrainingMetadata.model_validate(train_output.metadata.model_dump()),
+            license="PolyForm Noncommercial License 1.0.0 (https://polyformproject.org/licenses/noncommercial/1.0.0)",
+            copyright="Copyright 2026 Peter Nguyen <peter@phn.dev>. All commercial rights reserved.",
+            author="Peter Nguyen <peter@phn.dev>",
+            source_instrument=NamSourceInstrumentMeta(
+                id=inst_id,
+                name=inst_name,
+                scale_length_in=scale_length_in,
+                scale_length_m=inst_cfg.scale_length_m,
+                string_wave_speeds=inst_cfg.string_wave_speeds,
+                pickup=NamSourcePickupMeta(
+                    id=pcfg.id or pkey,
+                    name=pcfg.name,
+                    position_from_bridge_m=pcfg.position_from_bridge_m or 0.0,
+                    position_from_bridge_mm=pos_mm,
+                    aperture_width_in=pcfg.aperture_width_in,
+                    coil_spacing_in=pcfg.coil_spacing_in,
+                    type=pcfg.type,
+                ),
+            ),
+            target_voice=NamTargetVoiceMeta(
+                id="00_canonical_intermediate",
+                name="Canonical Intermediate Datum (34in @ 93.5mm)",
+                topology="single_coil",
+                resonant_frequency_hz=4800.0,
+                q_factor=0.707,
+                target_position_34_m=0.0935,
+                effective_position_m=0.0935,
+                pickups=[],
+                coils=[],
+                circuit=None,
+            ),
+        )
+        meta_dump = nam_meta.model_dump()
+        other_metadata = {
+            train_meta.TRAINING_KEY: meta_dump["training"],
+            "license": meta_dump["license"],
+            "copyright": meta_dump["copyright"],
+            "author": meta_dump["author"],
+            "source_instrument": meta_dump["source_instrument"],
+            "target_voice": meta_dump["target_voice"],
+        }
+
+        export_net: Any = train_output.model.net
+        export_net.export(
+            str(inst_models_dir),
+            basename=model_basename,
+            user_metadata=user_metadata,
+            other_metadata=other_metadata,
+        )
+
+        if train_work_dir.exists():
+            shutil.rmtree(train_work_dir, ignore_errors=True)
+
+        if target_nam.exists():
+            size_kb = target_nam.stat().st_size / 1024
+            print("\n[Success] Architecture 2 Model exported successfully!")
+            print(f"  Model Path:    {target_nam} ({size_kb:.1f} KB)")
+            print(f"  Model Title:   {model_title}")
+            print(f"  Source Bass:   {inst_name}")
+            print(f"  Source Pickup: {pcfg.name} ({pos_mm:.1f}mm)")
+            print("  Ready for Darkglass Anagram Block 1 (Preamp) loading.")
+        else:
+            print(f"Warning: Expected model file at {target_nam} not found.")
+            all_success = False
+
+    return all_success
+
+
 def main():
     parser = argparse.ArgumentParser(description="Allomorph NAM Architecture 2 Local Trainer")
     parser.add_argument(
@@ -340,6 +557,29 @@ def main():
         "--voice",
         default="all",
         help="Target pickup voice (ID, comma-separated list, or 'all'; default: 'all')",
+    )
+    parser.add_argument(
+        "--frontend",
+        action="store_true",
+        help="Train NAM neural model on Block 1 frontend deconvolution wet WAVs instead of target voices",
+    )
+    parser.add_argument(
+        "--pickup",
+        "-p",
+        default=None,
+        help="Physical pickup setting for source instrument (default: all pickups on the instrument)",
+    )
+    parser.add_argument(
+        "--normalize-frontend",
+        action="store_true",
+        default=False,
+        help="Enable full-scale peak normalization for frontend wet audio synthesis (default: False for unnormalized unity gain)",
+    )
+    parser.add_argument(
+        "--gain-db",
+        type=float,
+        default=0.0,
+        help="Optional manual gain trim in dB for frontend wet audio synthesis (default: 0.0 dB)",
     )
     parser.add_argument(
         "--input", help="Path to dry training sweep WAV (default: auto-detect T3K-sweep-v3.wav)"
@@ -420,7 +660,36 @@ def main():
         else cli_cfg.goal_esr
     )
 
-    instruments_to_run = resolve_instruments(cli_cfg.instrument)
+    if args.frontend:
+        instruments_to_run = resolve_instruments(cli_cfg.instrument)
+        all_ok = True
+        for inst in instruments_to_run:
+            ok = train_frontend(
+                instrument=inst,
+                pickup=args.pickup,
+                input_wav=cli_cfg.input_wav,
+                output_wav=cli_cfg.output_wav,
+                models_dir=cli_cfg.models_dir,
+                epochs=cli_cfg.epochs,
+                goal_esr=effective_goal_esr,
+                batch_size=cli_cfg.batch_size,
+                silent=not cli_cfg.show_plot,
+                save_plot=cli_cfg.save_plot,
+                fast_dev_run=cli_cfg.fast_dev_run,
+                basename=cli_cfg.basename,
+                normalize=args.normalize_frontend,
+                gain_db=args.gain_db,
+            )
+            if not ok:
+                all_ok = False
+        if not all_ok:
+            sys.exit(1)
+        return
+
+    if cli_cfg.tier and cli_cfg.instrument == "all":
+        instruments_to_run = ["canonical_intermediate"]
+    else:
+        instruments_to_run = resolve_instruments(cli_cfg.instrument)
     voices_to_run = resolve_voices(cli_cfg.voice)
     all_ok = True
     total_runs = len(instruments_to_run) * len(voices_to_run)
@@ -463,3 +732,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

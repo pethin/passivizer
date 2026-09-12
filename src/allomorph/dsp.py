@@ -163,6 +163,7 @@ def fft_convolve(
 
     Supported modes:
       - 'full': Standard full convolution of length len(in1) + len(in2) - 1.
+      - 'causal': Output has length max(len(in1), len(in2)), starting at sample 0 (preserves causal delay).
       - 'same': Output has the same length as max(len(in1), len(in2)), centered with respect to 'full'.
     """
     x = np.asarray(in1)
@@ -200,9 +201,55 @@ def fft_convolve(
 
     if mode == "full":
         return out
+    elif mode == "causal":
+        # Causal slice: starts at sample 0 of convolution (preserves causal filter delay)
+        return out[:n]
     elif mode == "same":
         # Centered slice matching np.convolve(in1, in2, mode="same")
         start = (m - 1) // 2
         return out[start : start + n]
     else:
-        raise ValueError(f"Unsupported mode '{mode}'. Choose 'full' or 'same'.")
+        raise ValueError(f"Unsupported mode '{mode}'. Choose 'full', 'causal', or 'same'.")
+
+
+def calibrate_nam_v3_latency(y: np.ndarray) -> tuple[int, bool, bool]:
+    """
+    Evaluates NAM V3 calibration blip latency alignment using NAM's exact algorithm.
+    Runs entirely in NumPy (< 2ms) without importing torch or pytorch_lightning.
+
+    Returns:
+        (recommended_delay, matches_lookahead_warning, not_detected)
+    """
+    first_blips_start = 480000
+    t_blips = 96000
+    noise_start = 492000
+    noise_end = 498000
+    blip_locations = (504000, 552000)
+    lookahead = 1000
+    lookback = 10000
+    safety_factor = 1
+
+    if len(y) < first_blips_start + t_blips:
+        return 0, False, True
+
+    y_blips = y[first_blips_start : first_blips_start + t_blips]
+    bg = float(np.max(np.abs(y[noise_start:noise_end])))
+    trig_thresh = max(bg + 0.01, 1.1 * bg)
+
+    y_scans = []
+    for blip in blip_locations:
+        i_rel = blip - first_blips_start
+        start_looking = i_rel - lookahead
+        stop_looking = i_rel + lookback
+        y_scans.append(y_blips[start_looking:stop_looking])
+
+    y_avg = np.mean(np.stack(y_scans), axis=0)
+    triggered = np.where(np.abs(y_avg) > trig_thresh)[0]
+    if len(triggered) == 0:
+        return 0, False, True
+
+    delay = int(triggered[0] - lookahead)
+    recommended = delay - safety_factor
+    matches_lookahead = delay == -lookahead
+    return recommended, matches_lookahead, False
+

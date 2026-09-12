@@ -35,7 +35,9 @@ class PipelineCliConfig(AllomorphBaseModel):
     """Validation schema for Allomorph pipeline command-line arguments."""
 
     instrument: str = "all"
-    stage: Literal["all", "viz", "canonical", "frontends", "targets", "train", "bake"] = "all"
+    stage: Literal[
+        "all", "viz", "canonical", "frontends", "frontends-nam", "targets", "train", "bake"
+    ] = "all"
     tier: Literal["clean", "standard", "std", "hotrod", "dynamic", "all"] | None = None
     pickup: str | None = None
     voice: str = "all"
@@ -45,6 +47,11 @@ class PipelineCliConfig(AllomorphBaseModel):
     blend_pos: float | None = Field(default=None, ge=0.0, le=1.0)
     pot_taper: Literal["audio", "linear", "reverse_audio", "mn_blend"] | None = None
     cable_pf: float = Field(default=750.0, ge=0.0, le=20000.0)
+    frontend_format: Literal["wet", "ir", "both", "nam"] = "wet"
+    normalize_frontend: bool = False
+    normalize: Literal["auto", "rms", "peak", "none"] = "auto"
+    target_dbfs: float | None = None
+    gain_db: float = 0.0
     out_dir: str | None = None
     input_wav: str | None = None
     output_wav: str | None = None

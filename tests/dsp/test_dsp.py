@@ -89,6 +89,10 @@ def test_fft_convolve_modes_and_accuracy():
         actual_same = fft_convolve(x, y, mode="same")
         assert np.allclose(actual_same, expected_same, atol=1e-9)
 
+        expected_causal = expected_full[: max(n, m)]
+        actual_causal = fft_convolve(x, y, mode="causal")
+        assert np.allclose(actual_causal, expected_causal, atol=1e-9)
+
     # Test overlap-add path (> 131072 samples)
     n_long = 150000
     m_ir = 256
@@ -98,9 +102,93 @@ def test_fft_convolve_modes_and_accuracy():
     actual_overlap = fft_convolve(x_long, y_ir, mode="same")
     assert len(actual_overlap) == n_long
 
+    actual_causal_long = fft_convolve(x_long, y_ir, mode="causal")
+    assert len(actual_causal_long) == n_long
+
     # Check slice against direct convolve
     slice_len = 1000
     direct_slice = np.convolve(x_long[:slice_len], y_ir, mode="same")
     assert np.allclose(
         actual_overlap[m_ir : slice_len - m_ir], direct_slice[m_ir : slice_len - m_ir], atol=1e-4
     )
+    direct_causal_slice = np.convolve(x_long[:slice_len], y_ir, mode="full")[:slice_len]
+    assert np.allclose(
+        actual_causal_long[: slice_len - m_ir], direct_causal_slice[: slice_len - m_ir], atol=1e-4
+    )
+
+
+def test_causal_preserves_pulse_timing_against_same_shift():
+    """Validates that mode='causal' preserves exact impulse timing, while mode='same'
+
+    shifts the signal by (m - 1) // 2 samples (1023 samples for a 2048-tap FIR).
+    """
+    m = 2048
+    ir = np.zeros(m, dtype=np.float64)
+    ir[0] = 1.0  # Ideal causal impulse
+
+    n = 20000
+    pulse_pos = 10000
+    x = np.zeros(n, dtype=np.float64)
+    x[pulse_pos] = 1.0
+
+    out_causal = fft_convolve(x, ir, mode="causal")
+    out_same = fft_convolve(x, ir, mode="same")
+
+    # In causal mode, the peak is exactly at pulse_pos
+    assert np.argmax(out_causal) == pulse_pos
+
+    # In 'same' mode, the peak is shifted backwards by (m - 1) // 2 = 1023 samples
+    expected_same_pos = pulse_pos - (m - 1) // 2
+    assert np.argmax(out_same) == expected_same_pos
+    assert np.argmax(out_causal) - np.argmax(out_same) == 1023
+
+
+def test_calibrate_nam_v3_latency_detection_and_lookahead():
+    """Validates that calibrate_nam_v3_latency detects zero delay, flags lookahead warnings,
+
+    and handles delayed or silent audio appropriately.
+    """
+    from allomorph.dsp import calibrate_nam_v3_latency
+
+    # 1. Construct synthetic V3 blip audio
+    total_len = 580000
+    y = np.zeros(total_len, dtype=np.float32)
+    # Background noise level 0.001
+    rng = np.random.default_rng(123)
+    y[492000:498000] = rng.uniform(-0.001, 0.001, 6000).astype(np.float32)
+    # Place blips at exactly 504000 and 552000 (amplitude 0.5)
+    y[504000] = 0.5
+    y[552000] = 0.5
+
+    rec, lookahead_warn, not_det = calibrate_nam_v3_latency(y)
+    assert not_det is False
+    assert lookahead_warn is False
+    assert rec == -1  # delay=0, minus safety_factor=1 -> -1
+
+    # 2. Delayed audio by 1023 samples (e.g. from mode="same" shift)
+    y_delayed = np.zeros(total_len, dtype=np.float32)
+    y_delayed[504000 + 1023] = 0.5
+    y_delayed[552000 + 1023] = 0.5
+    rec_d, lookahead_d, not_det_d = calibrate_nam_v3_latency(y_delayed)
+    assert not_det_d is False
+    assert lookahead_d is False
+    assert rec_d == 1022  # delay=1023, minus 1 -> 1022
+
+    # 3. Early audio by 1000 samples (triggers lookahead warning)
+    y_early = np.zeros(total_len, dtype=np.float32)
+    y_early[504000 - 1000] = 0.5
+    y_early[552000 - 1000] = 0.5
+    _rec_e, lookahead_e, not_det_e = calibrate_nam_v3_latency(y_early)
+    assert not_det_e is False
+    assert lookahead_e is True
+
+    # 4. Silent audio -> not detected
+    y_silent = np.zeros(total_len, dtype=np.float32)
+    _rec_s, _lookahead_s, not_det_s = calibrate_nam_v3_latency(y_silent)
+    assert not_det_s is True
+
+    # 5. Too short audio -> not detected
+    y_short = np.zeros(1000, dtype=np.float32)
+    _rec_sh, _lookahead_sh, not_det_sh = calibrate_nam_v3_latency(y_short)
+    assert not_det_sh is True
+

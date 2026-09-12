@@ -102,3 +102,21 @@ def test_train_nam_cli_goal_esr_parsing():
         else args.goal_esr
     )
     assert effective is None
+
+
+def test_train_frontend_signature_and_cli_options():
+    import inspect
+
+    from train_nam import train_frontend
+
+    sig = inspect.signature(train_frontend)
+    assert "instrument" in sig.parameters
+    assert "pickup" in sig.parameters
+    assert "output_wav" in sig.parameters
+    assert "models_dir" in sig.parameters
+    assert "epochs" in sig.parameters
+    assert "goal_esr" in sig.parameters
+    assert "fast_dev_run" in sig.parameters
+    assert "normalize" in sig.parameters
+    assert "gain_db" in sig.parameters
+
