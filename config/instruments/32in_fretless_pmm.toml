@@ -47,6 +47,7 @@ tension_lbs = 132.0
 # Centerline located exactly 266.0mm from 12th fret mark (140.4mm from bridge).
 [pickups.pcsx]
 name = "Reverse EMG PCSX Split-Coil (Neck)"
+position_name = "Neck"
 position_from_bridge_m = 0.1404  # 140.4mm centerline (266.0mm from 12th fret)
 aperture_width_in = 1.10         # 1.10" aperture per split half
 coil_spacing_in = 0.0
@@ -67,6 +68,7 @@ coils = [
 # Selected when MMTWX volume pot is pushed down.
 [pickups.mmtwx_single]
 name = "EMG MMTWX Single-Coil (Bridge)"
+position_name = "Single"
 position_from_bridge_m = 0.0508  # 50.8mm from bridge (2.0")
 aperture_width_in = 0.75         # Narrow 0.75" Jazz bridge aperture
 coil_spacing_in = 0.0
@@ -84,6 +86,7 @@ coils = [
 # Selected when MMTWX volume pot is pulled up.
 [pickups.mmtwx_dual]
 name = "EMG MMTWX Dual-Coil (Centerline)"
+position_name = "Dual"
 position_from_bridge_m = 0.0622  # 62.2mm centerline (2.45")
 aperture_width_in = 1.50         # Dual-coil housing aperture
 coil_spacing_in = 0.90           # 0.90" (22.86mm) spacing between coil centers
@@ -99,7 +102,8 @@ coils = [
 # 4. ACTIVE PARALLEL P/MM BLEND (EMG ABCX Center Detent - Push/Pull Up: MM Mode)
 # ------------------------------------------------------------------------------
 [pickups.blend_parallel]
-name = "EMG PCSX + MMTWX Parallel (Center Detent)"
+name = "EMG PCSX + MMTWX Parallel (P/MM Mode)"
+position_name = "P/MM"
 position_from_bridge_m = 0.1013  # Acoustic centroid
 aperture_width_in = 0.88
 coil_spacing_in = 0.0
@@ -116,6 +120,7 @@ components = [
 # ------------------------------------------------------------------------------
 [pickups.pj_blend_parallel]
 name = "EMG PCSX + MMTWX Single Parallel (P/J Mode)"
+position_name = "P/J"
 position_from_bridge_m = 0.0956  # Acoustic centroid
 aperture_width_in = 0.88
 coil_spacing_in = 0.0

@@ -49,6 +49,7 @@ tension_lbs = 205.0
 # ------------------------------------------------------------------------------
 [pickups.p]
 name = "Dingwall Dual-P Neodymium (Neck)"
+position_name = "Neck"
 position_from_bridge_m = 0.1250  # Centerline 125.0mm
 aperture_width_in = 1.00         # 1.00" aperture per split half
 coil_spacing_in = 0.0
@@ -80,6 +81,7 @@ Ctone = 4.7000000000000004e-08
 
 [pickups.bridge]
 name = "Dingwall FD3n Neodymium (Bridge)"
+position_name = "Bridge"
 position_from_bridge_m = 0.0580  # Bridge placement 58.0mm
 aperture_width_in = 0.85
 coil_spacing_in = 0.65
@@ -109,6 +111,7 @@ Ctone = 4.7000000000000004e-08
 
 [pickups.pair_parallel]
 name = "Dingwall Dual-P + Bridge Parallel"
+position_name = "Parallel"
 position_from_bridge_m = 0.0915  # Centroid 91.5mm
 aperture_width_in = 0.85
 coil_spacing_in = 0.0

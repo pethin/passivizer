@@ -54,6 +54,7 @@ from allomorph.dsp import (
 from allomorph.naming import (
     VOICE_CONCISE_SLUGS,
     get_baked_basename,
+    get_t3k_basename,
     resolve_instruments,
     resolve_voices,
 )
@@ -92,6 +93,7 @@ __all__ = [
     "generate_wave_speed_continuum",
     "get_baked_basename",
     "get_source_pickup",
+    "get_t3k_basename",
     "load_all_instruments",
     "load_instrument",
     "load_scales",

@@ -238,6 +238,7 @@ class PickupConfig(AllomorphBaseModel):
 
     id: str | None = None
     name: str
+    position_name: str | None = None
     position_from_bridge_m: float | None = None
     aperture_width_in: float = 0.75
     coil_spacing_in: float = 0.0
@@ -334,6 +335,7 @@ class VoiceConfig(AllomorphBaseModel):
 
     id: str
     name: str
+    tone_name: str | None = None
     topology: str
     description: str
     blend_mode: str | None = None

@@ -168,3 +168,35 @@ def test_configure_a2_architecture():
     assert "channels_3" in names
     assert "channels_8" in names
 
+
+def test_t3k_pack_trainer_options():
+    import argparse
+    import inspect
+
+    from train_nam import train_voice
+
+    from allomorph.pipeline.schema import NamTrainingConfig, PipelineCliConfig
+
+    # 1. train_voice signature has t3k_pack
+    sig = inspect.signature(train_voice)
+    assert "t3k_pack" in sig.parameters
+    assert sig.parameters["t3k_pack"].default is False
+
+    # 2. NamTrainingConfig has t3k_pack
+    cfg = NamTrainingConfig()
+    assert cfg.t3k_pack is False
+    cfg_t3k = NamTrainingConfig(t3k_pack=True)
+    assert cfg_t3k.t3k_pack is True
+
+    # 3. PipelineCliConfig has t3k_pack
+    p_cfg = PipelineCliConfig()
+    assert p_cfg.t3k_pack is False
+    p_cfg_t3k = PipelineCliConfig(t3k_pack=True)
+    assert p_cfg_t3k.t3k_pack is True
+
+    # 4. CLI parser parsing
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--t3k-pack", action="store_true")
+    assert parser.parse_args([]).t3k_pack is False
+    assert parser.parse_args(["--t3k-pack"]).t3k_pack is True
+

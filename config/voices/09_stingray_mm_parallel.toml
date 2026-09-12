@@ -5,6 +5,7 @@
 # authentic active 2-band preamp buffer (+1.8 dB @ 50 Hz, +2.2 dB @ 4-7 kHz).
 id = "09_stingray_mm_parallel"
 name = "09. Music Man MM (Parallel Humbucker)"
+tone_name = "StingRay Parallel"
 topology = "Dual-Coil Parallel Active Buffer"
 description = "Dual-coil humbucker in parallel with authentic active 2-band preamp buffer (+1.8 dB @ 50 Hz, +2.2 dB @ 4-7 kHz)"
 magnet_type = "alnico_v"

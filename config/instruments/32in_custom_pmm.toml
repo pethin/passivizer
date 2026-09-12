@@ -42,6 +42,7 @@ tension_lbs = 160.0
 # while E/A coil half is mounted backward (towards bridge) for tight low-end definition.
 [pickups.px]
 name = "Reverse EMG PX Split-Coil (Neck)"
+position_name = "Neck"
 position_from_bridge_m = 0.1228  # Effective centerline (122.8mm)
 aperture_width_in = 1.10         # 1.10" aperture per split half
 coil_spacing_in = 0.0
@@ -62,6 +63,7 @@ coils = [
 # Selected when MMTWX volume pot is pushed down.
 [pickups.mmtwx_single]
 name = "EMG MMTWX Single-Coil (Bridge)"
+position_name = "Single"
 position_from_bridge_m = 0.0508  # 50.8mm from bridge (2.0")
 aperture_width_in = 0.75         # Narrow 0.75" Jazz bridge aperture
 coil_spacing_in = 0.0
@@ -79,6 +81,7 @@ coils = [
 # Selected when MMTWX volume pot is pulled up.
 [pickups.mmtwx_dual]
 name = "EMG MMTWX Dual-Coil (Centerline)"
+position_name = "Dual"
 position_from_bridge_m = 0.0622  # 62.2mm centerline (2.45")
 aperture_width_in = 1.50         # Dual-coil housing aperture
 coil_spacing_in = 0.90           # 0.90" (22.86mm) spacing between coil centers
@@ -96,7 +99,8 @@ coils = [
 # Op-amp buffered 50/50 parallel summation of Reverse PX and MMTWX dual-coil.
 # Results in a compound 3-coil array (Reverse P split + MM dual coils).
 [pickups.blend_parallel]
-name = "EMG PX + MMTWX Parallel (Center Detent)"
+name = "EMG PX + MMTWX Parallel (P/MM Mode)"
+position_name = "P/MM"
 position_from_bridge_m = 0.0868  # Acoustic centroid
 aperture_width_in = 0.88
 coil_spacing_in = 0.0
@@ -115,6 +119,7 @@ components = [
 # Results in an authentic 2-pickup P/J sensing array (Reverse P split + J bridge @ 50.8mm).
 [pickups.pj_blend_parallel]
 name = "EMG PX + MMTWX Single Parallel (P/J Mode)"
+position_name = "P/J"
 position_from_bridge_m = 0.0868  # Acoustic centroid
 aperture_width_in = 0.88
 coil_spacing_in = 0.0

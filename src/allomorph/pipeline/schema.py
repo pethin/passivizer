@@ -58,6 +58,7 @@ class PipelineCliConfig(AllomorphBaseModel):
     export_json: str | None = None
     html: str | None = None
     backend: str = "native"
+    t3k_pack: bool = False
 
 
 class Tone3000PackListing(AllomorphBaseModel):
@@ -163,6 +164,7 @@ class NamTrainingConfig(AllomorphBaseModel):
         default=False,
         description="Train full slimmable Architecture 2 container with both channels_3 and channels_8 (default: False, trains A2-Lite channels_8 only)",
     )
+    t3k_pack: bool = False
 
 
 class ArtworkPackConfig(AllomorphBaseModel):

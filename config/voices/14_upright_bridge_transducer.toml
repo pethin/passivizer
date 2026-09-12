@@ -7,6 +7,7 @@
 # dynamic soft-knee bridge compliance, and 100M-Ohm buffer with 15nF rumble cap.
 id = "14_upright_bridge_transducer"
 name = "14. Upright Acoustic Bridge Transducer"
+tone_name = "Upright Piezo"
 topology = "Acoustic Bridge Transducer"
 sensor_type = "bridge_force"
 description = "Direct bridge force transducer with 100M-Ohm buffer, 15nF rumble cap, and velocity-to-force leaky integration"

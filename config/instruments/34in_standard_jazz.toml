@@ -43,6 +43,7 @@ tension_lbs = 171.0
 # ------------------------------------------------------------------------------
 [pickups.neck]
 name = "Jazz Neck Single-Coil"
+position_name = "Neck"
 position_from_bridge_m = 0.1556  # 155.6mm from bridge (10 7/8" from 12th fret)
 aperture_width_in = 0.75         # 0.75" narrow single-coil aperture
 coil_spacing_in = 0.0
@@ -71,6 +72,7 @@ Ctone = 4.7000000000000004e-08
 
 [pickups.bridge]
 name = "60s Jazz Bridge Single-Coil"
+position_name = "Bridge"
 position_from_bridge_m = 0.0635  # 63.5mm from bridge (14 1/2" from 12th fret)
 aperture_width_in = 0.75         # 0.75" narrow single-coil aperture
 coil_spacing_in = 0.0
@@ -99,6 +101,7 @@ Ctone = 4.7000000000000004e-08
 
 [pickups.pair_parallel]
 name = "Jazz Neck + Bridge Parallel"
+position_name = "Parallel"
 position_from_bridge_m = 0.1095  # Acoustic centroid
 aperture_width_in = 0.75
 coil_spacing_in = 0.0

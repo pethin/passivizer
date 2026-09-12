@@ -21,12 +21,14 @@ from allomorph.circuit import (
 from allomorph.config import (
     VOICES,
     get_source_pickup,
+    load_all_instruments,
     load_instrument,
 )
 from allomorph.dsp import read_wav
 from allomorph.naming import (
     VOICE_CONCISE_SLUGS,
     get_baked_basename,
+    get_t3k_basename,
     resolve_instruments,
     resolve_voices,
 )
@@ -111,6 +113,82 @@ def test_concise_naming_invariants():
             assert len(filename) <= 22, (
                 f"Model filename '{filename}' exceeds 22 characters ({len(filename)} chars)"
             )
+
+
+def test_t3k_pack_naming_invariants():
+    """Asserts that all target voices and instrument pickups declare human-readable names
+
+    and produce Tone Name [Pickup Position] basenames strictly <= 34 characters.
+    """
+    # 1. All 24 target voices declare valid tone_name
+    assert len(VOICES) >= 24
+    for vid, vcfg in VOICES.items():
+        assert vcfg.tone_name is not None and vcfg.tone_name.strip(), (
+            f"Voice '{vid}' missing tone_name"
+        )
+        assert len(vcfg.tone_name) <= 23, (
+            f"Voice '{vid}' tone_name '{vcfg.tone_name}' too long ({len(vcfg.tone_name)} chars > 23)"
+        )
+
+    # 2. All playable instruments + canonical intermediate declare valid position_name for each pickup
+    instruments = load_all_instruments()
+    instruments["canonical_intermediate"] = load_instrument("canonical_intermediate")
+    for iid, inst in instruments.items():
+        assert len(inst.pickups) > 0, f"Instrument '{iid}' has no pickups"
+        for pid, pcfg in inst.pickups.items():
+            assert pcfg.position_name is not None and pcfg.position_name.strip(), (
+                f"Instrument '{iid}' pickup '{pid}' missing position_name"
+            )
+            assert len(pcfg.position_name) <= 10, (
+                f"Instrument '{iid}' pickup '{pid}' position_name '{pcfg.position_name}' too long"
+            )
+
+    # 3. P/MM instruments must clearly distinguish P/MM and P/J
+    for pmm_iid in ["32in_custom_pmm", "32in_fretless_pmm"]:
+        pmm_inst = instruments[pmm_iid]
+        assert pmm_inst.pickups["blend_parallel"].position_name == "P/MM"
+        assert pmm_inst.pickups["pj_blend_parallel"].position_name == "P/J"
+
+    # 4. Exhaustive cross-product: EVERY combination of voice and pickup must be <= 34 chars
+    for vid, vcfg in VOICES.items():
+        for iid, inst in instruments.items():
+            for pid, pcfg in inst.pickups.items():
+                tone = vcfg.tone_name or vcfg.name
+                pos = pcfg.position_name or pcfg.name
+                basename = get_t3k_basename(tone, pos)
+                assert len(basename) <= 34, (
+                    f"Basename '{basename}' ({vid} + {iid}/{pid}) exceeds 34 characters: {len(basename)}"
+                )
+                assert basename == f"{tone} [{pos}]"
+
+    # 5. Length boundary and error handling in get_t3k_basename
+    with pytest.raises(ValueError, match="exceeds 34 characters"):
+        get_t3k_basename("This Is An Extremely Long Tone Name", "Parallel")
+
+    assert get_t3k_basename("Vintage 62 P", "Split") == "Vintage 62 P [Split]"
+
+    # 6. Single-pickup instruments omit pickup name suffix
+    assert get_t3k_basename("Vintage 62 P", None) == "Vintage 62 P"
+    assert get_t3k_basename("Vintage 62 P", "") == "Vintage 62 P"
+    assert get_t3k_basename("Vintage 62 P", "   ") == "Vintage 62 P"
+
+    single_p_inst = instruments["34in_standard_p"]
+    assert len(single_p_inst.pickups) == 1
+    pos_p = (
+        None
+        if len(single_p_inst.pickups) <= 1
+        else single_p_inst.pickups["split_p"].position_name
+    )
+    assert get_t3k_basename("Vintage 62 P", pos_p) == "Vintage 62 P"
+
+    single_ray_inst = instruments["34in_active_stingray"]
+    assert len(single_ray_inst.pickups) == 1
+    pos_ray = (
+        None
+        if len(single_ray_inst.pickups) <= 1
+        else single_ray_inst.pickups["mm_parallel"].position_name
+    )
+    assert get_t3k_basename("StingRay Parallel", pos_ray) == "StingRay Parallel"
 
 
 def test_backend_3_tier_dynamics():

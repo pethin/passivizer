@@ -28,6 +28,7 @@ preset = "roundwound_nickel_6string"
 
 [pickups.canonical_median]
 name = "Canonical 93.5mm Acoustic Median"
+position_name = "Median"
 position_from_bridge_m = 0.0935
 aperture_width_in = 0.75
 coil_spacing_in = 0.0

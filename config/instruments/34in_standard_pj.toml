@@ -45,6 +45,7 @@ tension_lbs = 171.0
 # ------------------------------------------------------------------------------
 [pickups.p]
 name = "Vintage Split-Coil P (Neck)"
+position_name = "Neck"
 position_from_bridge_m = 0.1250  # Centerline 125.0mm
 aperture_width_in = 1.00         # 1.00" aperture per split half
 coil_spacing_in = 0.0
@@ -76,6 +77,7 @@ Ctone = 4.7000000000000004e-08
 
 [pickups.j]
 name = "60s Jazz Bridge Single-Coil"
+position_name = "Bridge"
 position_from_bridge_m = 0.0635  # 63.5mm from bridge (14 1/2" from 12th fret)
 aperture_width_in = 0.75         # 0.75" narrow single-coil aperture
 coil_spacing_in = 0.0
@@ -104,6 +106,7 @@ Ctone = 4.7000000000000004e-08
 
 [pickups.pair_parallel]
 name = "Vintage P/J Parallel (Both Volumes 100%)"
+position_name = "Parallel"
 position_from_bridge_m = 0.09425 # Acoustic centroid (125.0mm + 63.5mm) / 2
 aperture_width_in = 0.875        # Blended effective aperture
 coil_spacing_in = 0.0

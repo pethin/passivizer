@@ -103,6 +103,7 @@ def train_voice(
     fast_dev_run: bool = False,
     basename: str | None = None,
     a2_full: bool = False,
+    t3k_pack: bool = False,
 ) -> bool:
     try:
         import nam.train.core as nam_core
@@ -120,6 +121,25 @@ def train_voice(
         raise KeyError(f"Target voice '{voice}' not found in catalog.")
     vcfg = VOICES[voice]
     voice_name = vcfg.name
+
+    if not basename and t3k_pack:
+        try:
+            inst_cfg_tmp = (
+                instrument
+                if isinstance(instrument, InstrumentConfig)
+                else load_instrument(instrument)
+            )
+            if len(inst_cfg_tmp.pickups) <= 1:
+                pos_name = None
+            else:
+                pcfg = get_source_pickup(inst_cfg_tmp, voice)
+                pos_name = pcfg.position_name or pcfg.name
+        except (FileNotFoundError, KeyError, ValueError, OSError):
+            pos_name = None
+        tone_name = vcfg.tone_name or vcfg.name
+        from allomorph.naming import get_t3k_basename
+
+        basename = get_t3k_basename(tone_name, pos_name)
 
     if basename:
         model_basename = basename
@@ -678,6 +698,11 @@ def main():
     )
     parser.add_argument("--basename", help="Explicit basename for the exported .nam model file")
     parser.add_argument(
+        "--t3k-pack",
+        action="store_true",
+        help="Export model file formatted as 'Tone Name [Pickup Position]' (max 34 chars)",
+    )
+    parser.add_argument(
         "--fast-dev-run",
         action="store_true",
         help="Run 1-batch dry run for smoke testing NAM training",
@@ -703,6 +728,7 @@ def main():
             "fast_dev_run": args.fast_dev_run,
             "gui": args.gui,
             "a2_full": args.a2_full,
+            "t3k_pack": args.t3k_pack,
         }
     )
 
@@ -786,6 +812,7 @@ def main():
                 if (len(voices_to_run) == 1 and len(instruments_to_run) == 1)
                 else None,
                 a2_full=cli_cfg.a2_full,
+                t3k_pack=cli_cfg.t3k_pack,
             )
             if not ok:
                 all_ok = False

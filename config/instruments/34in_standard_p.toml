@@ -42,6 +42,7 @@ tension_lbs = 171.0
 # ------------------------------------------------------------------------------
 [pickups.split_p]
 name = "Standard Split-Coil P"
+position_name = "Split"
 position_from_bridge_m = 0.1250  # Centerline 125.0mm
 aperture_width_in = 1.00         # 1.00" aperture per split half
 coil_spacing_in = 0.0

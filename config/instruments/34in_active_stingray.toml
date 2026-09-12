@@ -43,6 +43,7 @@ tension_lbs = 171.0
 # ------------------------------------------------------------------------------
 [pickups.mm_parallel]
 name = "Music Man Dual-Coil Humbucker (Parallel)"
+position_name = "Parallel"
 position_from_bridge_m = 0.0660  # Sweet spot centerline 66.0mm
 aperture_width_in = 1.25         # 1.25" overall aperture envelope
 coil_spacing_in = 0.75           # 0.75" (19.05mm) spacing between coil centers

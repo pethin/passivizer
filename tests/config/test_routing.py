@@ -79,12 +79,12 @@ def test_32in_custom_pmm_routing():
 
     # P/MM series & active voices route to physical parallel center detent blend
     pmm_pickup = get_source_pickup(inst, "11_pmm_hybrid_series")
-    assert pmm_pickup.name == "EMG PX + MMTWX Parallel (Center Detent)"
+    assert pmm_pickup.name == "EMG PX + MMTWX Parallel (P/MM Mode)"
     assert pmm_pickup.position_from_bridge_m is not None
     assert math.isclose(pmm_pickup.position_from_bridge_m, 0.0868, abs_tol=1e-4)
 
     pmm_act_pickup = get_source_pickup(inst, "11_modern_pmm_active")
-    assert pmm_act_pickup.name == "EMG PX + MMTWX Parallel (Center Detent)"
+    assert pmm_act_pickup.name == "EMG PX + MMTWX Parallel (P/MM Mode)"
     assert pmm_act_pickup.position_from_bridge_m is not None
     assert math.isclose(pmm_act_pickup.position_from_bridge_m, 0.0868, abs_tol=1e-4)
 

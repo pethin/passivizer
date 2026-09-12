@@ -45,6 +45,7 @@ tension_lbs = 220.0
 # ------------------------------------------------------------------------------
 [pickups.bridge]
 name = "Dingwall FD3n Neodymium (Bridge)"
+position_name = "Bridge"
 position_from_bridge_m = 0.0480  # Angled bridge sweet spot 48.0mm
 aperture_width_in = 0.85
 coil_spacing_in = 0.65
@@ -73,6 +74,7 @@ Rvol = 500000.0
 
 [pickups.middle]
 name = "Dingwall FD3n Neodymium (Middle)"
+position_name = "Middle"
 position_from_bridge_m = 0.0960  # Middle placement 96.0mm
 aperture_width_in = 0.85
 coil_spacing_in = 0.65
@@ -101,6 +103,7 @@ Rvol = 500000.0
 
 [pickups.pair_parallel]
 name = "Dingwall Bridge + Middle Parallel"
+position_name = "Parallel"
 position_from_bridge_m = 0.0720  # Centroid 72.0mm
 aperture_width_in = 0.85
 coil_spacing_in = 0.0

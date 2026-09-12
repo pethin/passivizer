@@ -7,6 +7,7 @@
 # delivering the aggressive midrange growl of the StingRay 5 and Sterling 3-way toggle.
 id = "09b_stingray_mm_series"
 name = "09b. Music Man MM (Series Humbucker)"
+tone_name = "StingRay Series"
 topology = "Dual-Coil Series Active Buffer"
 description = "Dual-coil humbucker in series with authentic active 2-band preamp buffer (4.1 kHz active series resonance, +5.6 dB series punch)"
 magnet_type = "alnico_v"

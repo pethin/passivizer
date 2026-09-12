@@ -46,6 +46,7 @@ tension_lbs = 145.0
 # ------------------------------------------------------------------------------
 [pickups.p]
 name = "Mustang PJ Split-P (Neck)"
+position_name = "Neck"
 position_from_bridge_m = 0.1550  # Centerline 155.0mm
 aperture_width_in = 1.00         # 1.00" aperture per split half
 coil_spacing_in = 0.0
@@ -77,6 +78,7 @@ Ctone = 4.7000000000000004e-08
 
 [pickups.j]
 name = "Mustang PJ Single-Coil J (Bridge)"
+position_name = "Bridge"
 position_from_bridge_m = 0.0550  # 55.0mm from bridge
 aperture_width_in = 0.75
 coil_spacing_in = 0.0
@@ -105,6 +107,7 @@ Ctone = 4.7000000000000004e-08
 
 [pickups.pair_parallel]
 name = "Mustang P + J Parallel"
+position_name = "Parallel"
 position_from_bridge_m = 0.1050  # Centroid 105.0mm
 aperture_width_in = 0.85
 coil_spacing_in = 0.0

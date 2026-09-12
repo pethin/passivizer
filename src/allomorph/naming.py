@@ -103,6 +103,33 @@ def get_baked_basename(voice_id: str, tier: str = "dynamic", pickup: str = "auto
     return f"{prefix}{slug}"
 
 
+def get_t3k_basename(
+    tone_name: str, position_name: str | None = None, max_length: int = 34
+) -> str:
+    """
+    Generates a Tone3000 pack model basename.
+    Format:
+      - Multi-pickup instruments: `Tone Name [Pickup Position]`
+      - Single-pickup instruments: `Tone Name` (no suffix)
+
+    Enforces that the filename (excluding the `.nam` extension) does not exceed
+    `max_length` (34 characters max). Raises diagnostic ValueError if exceeded.
+    """
+    clean_tone = tone_name.strip()
+    if position_name and position_name.strip():
+        clean_pos = position_name.strip()
+        name = f"{clean_tone} [{clean_pos}]"
+    else:
+        name = clean_tone
+
+    if len(name) > max_length:
+        raise ValueError(
+            f"T3K pack filename '{name}' exceeds {max_length} characters ({len(name)} chars). "
+            f"Tone name '{clean_tone}' or pickup position '{position_name}' must be shortened."
+        )
+    return name
+
+
 def resolve_voices(voice_arg: str | Sequence[str] | None) -> list[str]:
     """
     Parses a voice argument into a list of valid target voice IDs.

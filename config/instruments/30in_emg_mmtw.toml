@@ -37,6 +37,7 @@ tension_lbs = 145.0
 # ------------------------------------------------------------------------------
 [pickups.mmtw_dual]
 name = "EMG MMTW Dual-Coil (Centerline)"
+position_name = "Dual"
 position_from_bridge_m = 0.0775  # 77.5mm centerline
 aperture_width_in = 1.50         # Overall pickup housing sensing envelope
 coil_spacing_in = 0.90           # 0.90" (22.86mm) spacing between coil centers
@@ -57,6 +58,7 @@ coils = [
 # L2 is the active sensing coil; L3 is a phantom dummy coil underneath for hum cancellation.
 [pickups.mmtw_single]
 name = "EMG MMTW Single-Coil (Bridge Coil)"
+position_name = "Single"
 position_from_bridge_m = 0.06607 # 66.07mm (L2 coil center)
 aperture_width_in = 0.75         # Narrow 0.75" single-coil aperture
 coil_spacing_in = 0.0            # Single sensing line (no humbucker comb notch)

@@ -46,6 +46,7 @@ tension_lbs = 171.0
 # ------------------------------------------------------------------------------
 [pickups.neck]
 name = "Modern Active Soapbar (Neck)"
+position_name = "Neck"
 position_from_bridge_m = 0.1350  # 135.0mm from bridge
 aperture_width_in = 1.35         # 1.35" dual-blade soapbar housing
 coil_spacing_in = 0.65           # 0.65" (16.5mm) internal dual-blade spacing
@@ -62,6 +63,7 @@ coils = [
 # ------------------------------------------------------------------------------
 [pickups.bridge]
 name = "Modern Active Soapbar (Bridge)"
+position_name = "Bridge"
 position_from_bridge_m = 0.0550  # 55.0mm from bridge
 aperture_width_in = 1.35         # 1.35" dual-blade soapbar housing
 coil_spacing_in = 0.65           # 0.65" (16.5mm) internal dual-blade spacing
@@ -78,6 +80,7 @@ coils = [
 # ------------------------------------------------------------------------------
 [pickups.pair_parallel]
 name = "Modern Active Soapbars Parallel (Center Detent)"
+position_name = "Parallel"
 position_from_bridge_m = 0.0950  # Acoustic centroid (135.0mm + 55.0mm) / 2
 aperture_width_in = 1.35
 coil_spacing_in = 0.0

@@ -35,6 +35,7 @@ from allomorph.config.scales import REPO_ROOT
 from allomorph.config.voices import VOICES
 from allomorph.naming import (
     get_baked_basename,
+    get_t3k_basename,
     resolve_instruments,
     resolve_voices,
 )
@@ -231,6 +232,11 @@ def main(argv: Sequence[str] | None = None):
         help="Run 1-batch dry run for smoke testing NAM training",
     )
     parser.add_argument(
+        "--t3k-pack",
+        action="store_true",
+        help="Export baked model and audio files formatted as 'Tone Name [Pickup Position]' (max 34 chars)",
+    )
+    parser.add_argument(
         "--list-instruments",
         action="store_true",
         help="List all configured source instruments and their pickups",
@@ -259,6 +265,7 @@ def main(argv: Sequence[str] | None = None):
             "target_dbfs": args.target_dbfs,
             "gain_db": args.gain_db,
             "input_wav": args.input_wav,
+            "t3k_pack": args.t3k_pack,
         }
     )
 
@@ -331,8 +338,24 @@ def main(argv: Sequence[str] | None = None):
                     eff_pickup = src_pickup.id or "default"
                 else:
                     eff_pickup = pickup_setting
+                    if eff_pickup in inst_cfg.pickups:
+                        src_pickup = inst_cfg.pickups[eff_pickup]
+                    else:
+                        raise KeyError(
+                            f"Pickup '{eff_pickup}' not found on instrument '{inst_cfg.id}'."
+                        )
 
-                basename = get_baked_basename(voice, tier=effective_tier, pickup=pickup_setting)
+                if args.t3k_pack:
+                    vcfg = VOICES[voice]
+                    tone_name = vcfg.tone_name or vcfg.name
+                    pos_name = (
+                        None
+                        if len(inst_cfg.pickups) <= 1
+                        else (src_pickup.position_name or src_pickup.name)
+                    )
+                    basename = get_t3k_basename(tone_name, pos_name)
+                else:
+                    basename = get_baked_basename(voice, tier=effective_tier, pickup=pickup_setting)
                 baked_wav = inst_baked_audio_dir / f"{basename}.wav"
 
                 sim_cfg = SimulationConfig(
