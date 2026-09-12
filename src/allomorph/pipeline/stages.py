@@ -74,11 +74,12 @@ def run_training(
     fast_dev_run: bool = False,
     basename: str | None = None,
     batch_size: int = 32,
-    a2_full: bool = False,
+    a2_lite_only: bool = False,
 ):
-    """Trains a Neural Amp Modeler (NAM) A2-Lite model locally under the studio reference standard."""
+    """Trains a Neural Amp Modeler (NAM) Architecture 2 slimmable model locally under the studio reference standard."""
+    arch_lbl = "A2-Lite" if a2_lite_only else "Architecture 2 Slimmable"
     print(
-        f"\n[Training] Training Neural Amp Modeler A2-Lite model for {voice} (Instrument: {instrument})..."
+        f"\n[Training] Training Neural Amp Modeler {arch_lbl} model for {voice} (Instrument: {instrument})..."
     )
     script = SCRIPTS_DIR / "train_nam.py"
     cmd = [
@@ -93,8 +94,8 @@ def run_training(
         "--batch-size",
         str(batch_size),
     ]
-    if a2_full:
-        cmd.append("--a2-full")
+    if a2_lite_only:
+        cmd.append("--a2-lite-only")
     if tier:
         cmd.extend(["--tier", tier])
     if output_wav:
@@ -129,11 +130,12 @@ def run_frontend_training(
     normalize: bool = False,
     gain_db: float = 0.0,
     batch_size: int = 32,
-    a2_full: bool = False,
+    a2_lite_only: bool = False,
 ):
-    """Trains a Neural Amp Modeler (NAM) A2-Lite model locally for Block 1 frontend under studio reference standard."""
+    """Trains a Neural Amp Modeler (NAM) Architecture 2 slimmable model locally for Block 1 frontend under studio reference standard."""
+    arch_lbl = "A2-Lite" if a2_lite_only else "Architecture 2 Slimmable"
     print(
-        f"\n[Frontend Training] Training Neural Amp Modeler A2-Lite model for Block 1 frontend (Instrument: {instrument}, Pickup: {pickup or 'all'})..."
+        f"\n[Frontend Training] Training Neural Amp Modeler {arch_lbl} model for Block 1 frontend (Instrument: {instrument}, Pickup: {pickup or 'all'})..."
     )
     script = SCRIPTS_DIR / "train_nam.py"
     cmd = [
@@ -147,8 +149,8 @@ def run_frontend_training(
         "--batch-size",
         str(batch_size),
     ]
-    if a2_full:
-        cmd.append("--a2-full")
+    if a2_lite_only:
+        cmd.append("--a2-lite-only")
     if pickup:
         cmd.extend(["--pickup", pickup])
     if output_wav:

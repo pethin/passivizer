@@ -143,14 +143,14 @@ class NamTrainingConfig(AllomorphBaseModel):
     output_wav: Path | str | None = None
     models_dir: Path | str = Field(default=Path("models"))
     epochs: int = Field(
-        default=500,
+        default=400,
         gt=0,
-        description="Maximum number of training epochs (default: 500 for A2-Lite studio reference)",
+        description="Maximum number of training epochs (default: 400 for Architecture 2 studio reference)",
     )
     goal_esr: float | None = Field(
-        default=0.0005,
+        default=0.0080,
         ge=0.0,
-        description="Goal validation ESR for early stopping (default: 0.0005 for A2-Lite studio reference)",
+        description="Goal validation ESR for early stopping (default: 0.0080 for Architecture 2 studio reference)",
     )
     no_goal_esr: bool = False
     batch_size: int = Field(default=32, gt=0)
@@ -160,9 +160,9 @@ class NamTrainingConfig(AllomorphBaseModel):
     basename: str | None = None
     fast_dev_run: bool = False
     gui: bool = False
-    a2_full: bool = Field(
+    a2_lite_only: bool = Field(
         default=False,
-        description="Train full slimmable Architecture 2 container with both channels_3 and channels_8 (default: False, trains A2-Lite channels_8 only)",
+        description="Train A2-Lite channels_8 only instead of the full slimmable container (default: False)",
     )
     t3k_pack: bool = False
 

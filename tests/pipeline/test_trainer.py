@@ -52,7 +52,7 @@ def test_default_goal_esr():
 
     from train_nam import DEFAULT_GOAL_ESR, train_voice
 
-    assert DEFAULT_GOAL_ESR == 0.0005
+    assert DEFAULT_GOAL_ESR == 0.0080
     sig = inspect.signature(train_voice)
     assert "goal_esr" in sig.parameters
     assert sig.parameters["goal_esr"].default == DEFAULT_GOAL_ESR
@@ -75,7 +75,7 @@ def test_train_nam_cli_goal_esr_parsing():
         if args.no_goal_esr or (args.goal_esr is not None and args.goal_esr <= 0)
         else args.goal_esr
     )
-    assert effective == 0.0005
+    assert effective == 0.0080
 
     # Custom goal ESR
     args = parser.parse_args(["--goal-esr", "0.0001"])
@@ -120,48 +120,41 @@ def test_train_frontend_signature_and_cli_options():
     assert "fast_dev_run" in sig.parameters
     assert "normalize" in sig.parameters
     assert "gain_db" in sig.parameters
-    assert "a2_full" in sig.parameters
-    assert sig.parameters["a2_full"].default is False
+    assert "a2_lite_only" in sig.parameters
+    assert sig.parameters["a2_lite_only"].default is False
 
 
-def test_train_voice_a2_full_parameter():
+def test_train_voice_a2_lite_only_parameter():
     import inspect
 
     from train_nam import train_voice
 
     sig = inspect.signature(train_voice)
-    assert "a2_full" in sig.parameters
-    assert sig.parameters["a2_full"].default is False
+    assert "a2_lite_only" in sig.parameters
+    assert sig.parameters["a2_lite_only"].default is False
 
 
-def test_train_nam_a2_full_cli_parsing():
+def test_train_nam_a2_lite_only_cli_parsing():
     import argparse
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--a2-full", action="store_true")
+    parser.add_argument("--a2-lite-only", action="store_true")
 
-    # Default case
+    # Default case (slimmable is default)
     args = parser.parse_args([])
-    assert args.a2_full is False
+    assert args.a2_lite_only is False
 
-    # Explicit full
-    args = parser.parse_args(["--a2-full"])
-    assert args.a2_full is True
+    # Explicit lite only
+    args = parser.parse_args(["--a2-lite-only"])
+    assert args.a2_lite_only is True
 
 
 def test_configure_a2_architecture():
     import nam.train.core as nam_core
     from train_nam import configure_a2_architecture
 
-    # Test default lite-only configuration
-    configure_a2_architecture(nam_core, a2_full=False)
-    cfg = nam_core._get_packed_model_config()
-    submodels = cfg["net"]["config"]["submodels"]
-    assert len(submodels) == 1
-    assert submodels[0]["name"] == "channels_8"
-
-    # Test full configuration
-    configure_a2_architecture(nam_core, a2_full=True)
+    # Test default slimmable configuration (both channels_3 and channels_8)
+    configure_a2_architecture(nam_core, a2_lite_only=False)
     cfg_full = nam_core._get_packed_model_config()
     submodels_full = cfg_full["net"]["config"]["submodels"]
     assert len(submodels_full) == 2
@@ -169,34 +162,74 @@ def test_configure_a2_architecture():
     assert "channels_3" in names
     assert "channels_8" in names
 
+    # Test lite-only configuration
+    configure_a2_architecture(nam_core, a2_lite_only=True)
+    cfg = nam_core._get_packed_model_config()
+    submodels = cfg["net"]["config"]["submodels"]
+    assert len(submodels) == 1
+    assert submodels[0]["name"] == "channels_8"
+
 
 def test_esr_progress_callback_hook():
     import nam.train.core as nam_core
     from train_nam import configure_a2_architecture
 
-    configure_a2_architecture(nam_core, a2_full=False)
-    callbacks = nam_core.get_callbacks(threshold_esr=0.0005)
+    # Test slimmable mode early stopping monitors ESR_packed_1 (channels_8)
+    configure_a2_architecture(nam_core, a2_lite_only=False)
+    callbacks = nam_core.get_callbacks(threshold_esr=0.0080)
 
     cb: Any = next(
         (c for c in callbacks if "EsrProgressCallback" in type(c).__name__), None
     )
     assert cb is not None
-    assert cb.target_esr == 0.0005
+    assert cb.target_esr == 0.0080
+    assert cb.a2_lite_only is False
 
-    # Simulate validation epoch end
+    vs_cb: Any = next(
+        (c for c in callbacks if "ValidationStopping" in type(c).__name__), None
+    )
+    assert vs_cb is not None
+    assert vs_cb.monitor == "ESR_packed_1"
+    assert vs_cb.stopping_threshold == 0.0080
+
+    # Test lite-only mode early stopping monitors ESR
+    configure_a2_architecture(nam_core, a2_lite_only=True)
+    callbacks_lite = nam_core.get_callbacks(threshold_esr=0.0080)
+    vs_cb_lite: Any = next(
+        (c for c in callbacks_lite if "ValidationStopping" in type(c).__name__), None
+    )
+    assert vs_cb_lite is not None
+    assert vs_cb_lite.monitor == "ESR"
+
+    # Test threshold_esr=None adds no stopping callback
+    callbacks_none = nam_core.get_callbacks(threshold_esr=None)
+    assert not any("ValidationStopping" in type(c).__name__ for c in callbacks_none)
+
+    # Re-test slimmable validation epoch end with dual submodel metrics
+    configure_a2_architecture(nam_core, a2_lite_only=False)
+    callbacks = nam_core.get_callbacks(threshold_esr=0.0080)
+    cb: Any = next(c for c in callbacks if "EsrProgressCallback" in type(c).__name__)
+
     class DummyTrainer:
         def __init__(self) -> None:
             self.sanity_checking = False
-            self.callback_metrics = {"ESR": 0.00045}
+            self.callback_metrics = {
+                "ESR_packed_1": 0.0078,
+                "ESR_packed_0": 0.0145,
+                "ESR": 0.0223,
+            }
             self.progress_bar_metrics: dict[str, str] = {}
             self.current_epoch = 12
-            self.max_epochs = 500
+            self.max_epochs = 400
 
     trainer: Any = DummyTrainer()
     cb.on_validation_epoch_end(trainer, None)
-    assert trainer.progress_bar_metrics["val_ESR"] == "0.00045"
-    assert trainer.progress_bar_metrics["best_ESR"] == "0.00045"
-    assert cb.best_esr == 0.00045
+    assert trainer.progress_bar_metrics["val_ESR"] == "0.00780"
+    assert trainer.progress_bar_metrics["val_ESR_ch8"] == "0.00780"
+    assert trainer.progress_bar_metrics["val_ESR_ch3"] == "0.01450"
+    assert trainer.progress_bar_metrics["best_ESR"] == "0.00780"
+    assert cb.best_esr == 0.0078
+    assert cb.best_ch3_esr == 0.0145
 
 
 def test_t3k_pack_trainer_options():

@@ -205,17 +205,17 @@ Trains a high-efficiency **NAM Architecture 2 (A2)** neural model on the input/o
 # The input is the raw bass calibration signal (audio/canonical/optimal_bass_dry.wav) and the target is the simulated output:
 nam train audio/canonical/optimal_bass_dry.wav audio/30in_emg_mmtw/out_04_modern_p_ceramic.wav ./models/30in_emg_mmtw/04_modern_p_ceramic.nam --architecture "A2"
 
-# Run via the automated Allomorph trainer (defaults to A2-Lite studio reference goal ESR <= 0.0005 with 500 max epochs):
+# Run via the automated Allomorph trainer (defaults to Architecture 2 slimmable container with goal ESR <= 0.0080):
 uv run allomorph --stage train --instrument 30in --voice 04_modern_p_ceramic
 
 # Customize goal ESR or disable early stopping:
-uv run allomorph --stage train --instrument 30in --voice 04_modern_p_ceramic --goal-esr 0.0002
-uv run allomorph --stage train --instrument 30in --voice 04_modern_p_ceramic --no-goal-esr --epochs 500
+uv run allomorph --stage train --instrument 30in --voice 04_modern_p_ceramic --goal-esr 0.0050
+uv run allomorph --stage train --instrument 30in --voice 04_modern_p_ceramic --no-goal-esr --epochs 400
 
-# Train full slimmable Architecture 2 container (both channels_3 and channels_8):
-uv run allomorph --stage train --instrument 30in --voice 04_modern_p_ceramic --a2-full
+# Train A2-Lite channels_8 only (instead of the default slimmable container):
+uv run allomorph --stage train --instrument 30in --voice 04_modern_p_ceramic --a2-lite-only
 ```
-*(In modern versions of `neural-amp-modeler` and the official Google Colab trainer, `--architecture A2` is the default. Allomorph establishes the **A2-Lite Studio Reference** standard: `--goal-esr 0.0005` ($\approx -33\text{ dB}$ ESR) paired with a `500` max epoch safety ceiling and `--batch-size 32`. By default, training isolates the 8-channel A2-Lite submodel, delivering **$2\times$ faster training throughput** and unskewed ESR reporting (preventing the 3-channel nano submodel from artificially inflating aggregate error). To export a full slimmable container with both submodels, supply `--a2-full`).*
+*(In modern versions of `neural-amp-modeler` and the official Google Colab trainer, `--architecture A2` is the default. With the optimal bass dry excitation file, Allomorph trains the full slimmable Architecture 2 container (both `channels_3` and `channels_8`) by default under the **A2 Studio Reference** standard (`--goal-esr 0.0080`, `400` max epoch safety ceiling, `--batch-size 32`, monitoring `channels_8`). To isolate the 8-channel submodel only, supply `--a2-lite-only`).*
 
 ### 4. Master Automation Runner (`allomorph`)
 Execute the entire pipeline or specific stages with a single command:

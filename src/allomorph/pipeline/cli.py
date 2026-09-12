@@ -222,9 +222,9 @@ def main(argv: Sequence[str] | None = None):
         help="Batch size for model training (default: 32)",
     )
     parser.add_argument(
-        "--a2-full",
+        "--a2-lite-only",
         action="store_true",
-        help="Train full slimmable Architecture 2 container with both channels_3 and channels_8 (default: False, trains A2-Lite channels_8 only for 2x faster throughput and unskewed ESR)",
+        help="Train A2-Lite channels_8 only instead of the full slimmable container",
     )
     parser.add_argument(
         "--fast-dev-run",
@@ -440,7 +440,7 @@ def main(argv: Sequence[str] | None = None):
                     fast_dev_run=args.fast_dev_run,
                     basename=basename,
                     batch_size=args.batch_size,
-                    a2_full=args.a2_full,
+                    a2_lite_only=args.a2_lite_only,
                 )
         return
 
@@ -462,7 +462,7 @@ def main(argv: Sequence[str] | None = None):
                     normalize=args.normalize_frontend,
                     gain_db=args.gain_db,
                     batch_size=args.batch_size,
-                    a2_full=args.a2_full,
+                    a2_lite_only=args.a2_lite_only,
                 )
             return
 
@@ -548,7 +548,7 @@ def main(argv: Sequence[str] | None = None):
                         goal_esr=effective_goal_esr,
                         fast_dev_run=args.fast_dev_run,
                         batch_size=args.batch_size,
-                        a2_full=args.a2_full,
+                        a2_lite_only=args.a2_lite_only,
                     )
         return
 

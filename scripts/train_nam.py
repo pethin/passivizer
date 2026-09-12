@@ -83,22 +83,25 @@ def find_sweep_input(candidate_path: str | Path | None = None) -> Path | None:
     return None
 
 
-DEFAULT_GOAL_ESR = 0.0005  # A2-Lite studio reference early-stopping target (~ -33 dB ESR)
-DEFAULT_MAX_EPOCHS = 500  # A2-Lite studio reference epoch safety ceiling
+DEFAULT_GOAL_ESR = 0.0080  # Architecture 2 studio reference stretch target (~ -21 dB ESR on optimal_bass_dry.wav)
+DEFAULT_MAX_EPOCHS = 400  # Architecture 2 studio reference epoch safety ceiling
 DEFAULT_BATCH_SIZE = 32  # Standard batch size for high GPU core utilization
 CANONICAL_SWEEP_PATH = AUDIO_DIR / "canonical" / "canonical_sweep.wav"
 OPTIMAL_DRY_PATH = AUDIO_DIR / "canonical" / "optimal_bass_dry.wav"
 
 
-def configure_a2_architecture(nam_core: Any, a2_full: bool = False) -> None:
+def configure_a2_architecture(nam_core: Any, a2_lite_only: bool = False) -> None:
     """Configure NAM Architecture 2 packed model submodels and ESR progress logging.
 
-    By default, isolates channels_8 (A2-Lite), providing 2x faster iteration
-    and preventing the 3-channel submodel from inflating reported ESR and blocking early stopping.
-    If a2_full is True, retains all submodels (channels_3 + channels_8).
+    By default (a2_lite_only=False), retains all submodels (channels_3 + channels_8)
+    for the full slimmable system. Early stopping targets the studio reference tier
+    (channels_8 / ESR_packed_1) so that the ultralight nano submodel's lower capacity
+    does not artificially block convergence.
+    If a2_lite_only is True, isolates channels_8 (A2-Lite only).
     Also hooks EsrProgressCallback into nam_core.get_callbacks to provide real-time
     validation ESR progress logging and progress bar tracking.
     """
+
     try:
         import torch
 
@@ -115,7 +118,7 @@ def configure_a2_architecture(nam_core: Any, a2_full: bool = False) -> None:
     )
     nam_core._orig_get_packed_model_config = orig_get_packed_model_config
 
-    if a2_full:
+    if not a2_lite_only:
         nam_core._get_packed_model_config = orig_get_packed_model_config
     else:
 
@@ -133,42 +136,91 @@ def configure_a2_architecture(nam_core: Any, a2_full: bool = False) -> None:
     class EsrProgressCallback(Callback):
         """Logs validation ESR progress and updates progress bar metrics each epoch."""
 
-        def __init__(self, target_esr: float | None = None) -> None:
+        def __init__(
+            self,
+            target_esr: float | None = None,
+            a2_lite_only: bool = False,
+        ) -> None:
             super().__init__()
             self.target_esr: float | None = target_esr
+            self.a2_lite_only: bool = a2_lite_only
             self.best_esr: float = float("inf")
+            self.best_ch3_esr: float = float("inf")
 
         @override
         def on_validation_epoch_end(self, trainer: Any, pl_module: Any) -> None:
             if getattr(trainer, "sanity_checking", False):
                 return
             metrics: dict[str, Any] = getattr(trainer, "callback_metrics", {})
-            raw_esr: Any = metrics.get("ESR")
-            if raw_esr is None:
-                raw_esr = metrics.get("val_loss")
-            if raw_esr is None:
-                return
-            esr_val: float = float(raw_esr.item() if hasattr(raw_esr, "item") else raw_esr)
-            self.best_esr = min(self.best_esr, esr_val)
-
-            if hasattr(trainer, "progress_bar_metrics") and isinstance(
-                trainer.progress_bar_metrics, dict
-            ):
-                trainer.progress_bar_metrics["val_ESR"] = f"{esr_val:.5f}"
-                trainer.progress_bar_metrics["best_ESR"] = f"{self.best_esr:.5f}"
-
             epoch: int = getattr(trainer, "current_epoch", 0)
             max_epochs: Any = getattr(trainer, "max_epochs", "?")
-            esr_db: float = 10.0 * math.log10(max(esr_val, 1e-12))
-            best_db: float = 10.0 * math.log10(max(self.best_esr, 1e-12))
+
             target_str: str = ""
             if self.target_esr is not None:
                 target_db: float = 10.0 * math.log10(max(self.target_esr, 1e-12))
                 target_str = f" | Target: {self.target_esr:.6f} ({target_db:+.2f} dB)"
-            print(
-                f"\n[Epoch {epoch:03d}/{max_epochs}] Val ESR: {esr_val:.6f} ({esr_db:+.2f} dB) | Best: {self.best_esr:.6f} ({best_db:+.2f} dB){target_str}",
-                flush=True,
-            )
+
+            if self.a2_lite_only:
+                raw_esr: Any = metrics.get("ESR")
+                if raw_esr is None:
+                    raw_esr = metrics.get("val_loss")
+                if raw_esr is None:
+                    return
+                esr_val: float = float(raw_esr.item() if hasattr(raw_esr, "item") else raw_esr)
+                self.best_esr = min(self.best_esr, esr_val)
+
+                if hasattr(trainer, "progress_bar_metrics") and isinstance(
+                    trainer.progress_bar_metrics, dict
+                ):
+                    trainer.progress_bar_metrics["val_ESR"] = f"{esr_val:.5f}"
+                    trainer.progress_bar_metrics["best_ESR"] = f"{self.best_esr:.5f}"
+
+                esr_db: float = 10.0 * math.log10(max(esr_val, 1e-12))
+                best_db: float = 10.0 * math.log10(max(self.best_esr, 1e-12))
+                print(
+                    f"\n[Epoch {epoch:03d}/{max_epochs}] Val ESR: {esr_val:.6f} ({esr_db:+.2f} dB) | Best: {self.best_esr:.6f} ({best_db:+.2f} dB){target_str}",
+                    flush=True,
+                )
+            else:
+                # Slimmable Architecture 2: channels_8 is the primary Darkglass Anagram studio tier
+                raw_ch8: Any = metrics.get("ESR_packed_1")
+                raw_ch3: Any = metrics.get("ESR_packed_0")
+                if raw_ch8 is None:
+                    raw_ch8 = metrics.get("ESR")
+                if raw_ch8 is None:
+                    raw_ch8 = metrics.get("val_loss")
+                if raw_ch8 is None:
+                    return
+                ch8_val: float = float(raw_ch8.item() if hasattr(raw_ch8, "item") else raw_ch8)
+                ch3_val: float | None = (
+                    float(raw_ch3.item() if hasattr(raw_ch3, "item") else raw_ch3)
+                    if raw_ch3 is not None
+                    else None
+                )
+                self.best_esr = min(self.best_esr, ch8_val)
+                if ch3_val is not None:
+                    self.best_ch3_esr = min(self.best_ch3_esr, ch3_val)
+
+                if hasattr(trainer, "progress_bar_metrics") and isinstance(
+                    trainer.progress_bar_metrics, dict
+                ):
+                    trainer.progress_bar_metrics["val_ESR"] = f"{ch8_val:.5f}"
+                    trainer.progress_bar_metrics["best_ESR"] = f"{self.best_esr:.5f}"
+                    trainer.progress_bar_metrics["val_ESR_ch8"] = f"{ch8_val:.5f}"
+                    if ch3_val is not None:
+                        trainer.progress_bar_metrics["val_ESR_ch3"] = f"{ch3_val:.5f}"
+
+                ch8_db: float = 10.0 * math.log10(max(ch8_val, 1e-12))
+                best_db = 10.0 * math.log10(max(self.best_esr, 1e-12))
+                ch3_str = ""
+                if ch3_val is not None:
+                    ch3_db = 10.0 * math.log10(max(ch3_val, 1e-12))
+                    ch3_str = f" | Ch3 Nano: {ch3_val:.6f} ({ch3_db:+.2f} dB)"
+
+                print(
+                    f"\n[Epoch {epoch:03d}/{max_epochs}] Val ESR Ch8 (Studio): {ch8_val:.6f} ({ch8_db:+.2f} dB){ch3_str} | Best Ch8: {self.best_esr:.6f} ({best_db:+.2f} dB){target_str}",
+                    flush=True,
+                )
 
     orig_get_callbacks = getattr(nam_core, "_orig_get_callbacks", nam_core.get_callbacks)
     nam_core._orig_get_callbacks = orig_get_callbacks
@@ -178,8 +230,23 @@ def configure_a2_architecture(nam_core: Any, a2_full: bool = False) -> None:
         *args: Any,
         **kwargs: Any,
     ) -> list[Any]:
-        callbacks: list[Any] = orig_get_callbacks(threshold_esr, *args, **kwargs)
-        callbacks.append(EsrProgressCallback(target_esr=threshold_esr))
+        # Call orig_get_callbacks with threshold_esr=None to configure base callbacks
+        # without hardcoding monitor="ESR".
+        callbacks: list[Any] = orig_get_callbacks(None, *args, **kwargs)
+
+        # In slimmable mode, monitor ESR_packed_1 (channels_8) so early stopping
+        # targets the studio model that runs on the Darkglass Anagram.
+        if threshold_esr is not None:
+            monitor_key = "ESR" if a2_lite_only else "ESR_packed_1"
+            stopping_cb_cls = getattr(nam_core, "_ValidationStopping", None)
+            if stopping_cb_cls is not None:
+                callbacks.append(
+                    stopping_cb_cls(monitor=monitor_key, stopping_threshold=threshold_esr)
+                )
+
+        progress_cb = EsrProgressCallback(target_esr=threshold_esr, a2_lite_only=a2_lite_only)
+        nam_core._last_esr_callback = progress_cb
+        callbacks.append(progress_cb)
         return callbacks
 
     nam_core.get_callbacks = get_callbacks_with_logging
@@ -199,7 +266,7 @@ def train_voice(
     save_plot: bool = False,
     fast_dev_run: bool = False,
     basename: str | None = None,
-    a2_full: bool = False,
+    a2_lite_only: bool = False,
     t3k_pack: bool = False,
 ) -> bool:
     try:
@@ -213,7 +280,7 @@ def train_voice(
         if hasattr(torch, "backends") and hasattr(torch.backends, "cudnn"):
             torch.backends.cudnn.benchmark = False
 
-        configure_a2_architecture(nam_core, a2_full=a2_full)
+        configure_a2_architecture(nam_core, a2_lite_only=a2_lite_only)
     except ImportError:
         print("Error: 'neural-amp-modeler' is not installed in the current environment.")
         print("Please run `uv sync` or install project dependencies:")
@@ -370,9 +437,9 @@ def train_voice(
     print(f"  Source PU:   {src_pickup_name} (pos={src_pos_mm:.1f}mm)")
     print(f"  Target Voice:{voice} ({voice_name})")
     arch_display = (
-        "Architecture 2 Full (channels_3 + channels_8, slimmable)"
-        if a2_full
-        else "Architecture 2 Lite (channels_8 only, fast)"
+        "Architecture 2 Lite (channels_8 only, fast)"
+        if a2_lite_only
+        else "Architecture 2 Slimmable (channels_3 + channels_8, full)"
     )
     print(f"  Model Tier:  {arch_display}")
     print(f"  Batch Size:  {batch_size}")
@@ -381,8 +448,12 @@ def train_voice(
     print(f"  Max Epochs:  {epochs}")
     esr_display = (
         f"{threshold_esr:.6f} (A2-Lite Studio Reference Early Stopping)"
-        if threshold_esr is not None
-        else "Disabled (Fixed Epochs)"
+        if (threshold_esr is not None and a2_lite_only)
+        else (
+            f"{threshold_esr:.6f} (A2 Slimmable Studio Reference Early Stopping, Ch8 <= {threshold_esr:.6f})"
+            if threshold_esr is not None
+            else "Disabled (Fixed Epochs)"
+        )
     )
     print(f"  Goal ESR:    {esr_display}")
     print(f"  Destination: {target_nam}")
@@ -484,13 +555,24 @@ def train_voice(
         print(f"  Source Pickup: {src_pickup_name} ({src_pos_mm:.1f}mm)")
         if train_output.metadata.validation_esr is not None:
             vesr = train_output.metadata.validation_esr
+            cb = getattr(nam_core, "_last_esr_callback", None)
+            best_studio_esr = (
+                cb.best_esr if (cb is not None and cb.best_esr < float("inf")) else vesr
+            )
             esr_status = ""
             if threshold_esr is not None:
-                if vesr <= threshold_esr:
+                if best_studio_esr <= threshold_esr:
                     esr_status = f" (Goal Met <= {threshold_esr:.6f})"
                 else:
                     esr_status = f" (Safety ceiling reached at {epochs} epochs)"
-            print(f"  Validation ESR: {vesr:.6f}{esr_status}")
+            if not a2_lite_only:
+                ch8_db = 10.0 * math.log10(max(best_studio_esr, 1e-12))
+                print(
+                    f"  Validation ESR: {best_studio_esr:.6f} (Ch8 Studio, {ch8_db:+.2f} dB) | {vesr:.6f} (Aggregate){esr_status}"
+                )
+            else:
+                esr_db = 10.0 * math.log10(max(best_studio_esr, 1e-12))
+                print(f"  Validation ESR: {best_studio_esr:.6f} ({esr_db:+.2f} dB){esr_status}")
         print("  Ready for Darkglass Anagram Block 1 (Preamp) loading.")
         return True
     else:
@@ -513,14 +595,14 @@ def train_frontend(
     basename: str | None = None,
     normalize: bool = False,
     gain_db: float = 0.0,
-    a2_full: bool = False,
+    a2_lite_only: bool = False,
 ) -> bool:
     try:
         import nam.train.core as nam_core
         import nam.train.metadata as train_meta
         from nam.models.metadata import UserMetadata
 
-        configure_a2_architecture(nam_core, a2_full=a2_full)
+        configure_a2_architecture(nam_core, a2_lite_only=a2_lite_only)
     except ImportError:
         print("Error: 'neural-amp-modeler' is not installed in the current environment.")
         return False
@@ -598,9 +680,9 @@ def train_frontend(
         print(f"  Source PU:    {pcfg.name} (pos={pos_mm:.1f}mm)")
         print("  Target:       00_canonical_intermediate (Block 1 Deconvolution)")
         arch_display = (
-            "Architecture 2 Full (channels_3 + channels_8, slimmable)"
-            if a2_full
-            else "Architecture 2 Lite (channels_8 only, fast)"
+            "Architecture 2 Lite (channels_8 only, fast)"
+            if a2_lite_only
+            else "Architecture 2 Slimmable (channels_3 + channels_8, full)"
         )
         print(f"  Model Tier:   {arch_display}")
         print(f"  Batch Size:   {batch_size}")
@@ -609,8 +691,12 @@ def train_frontend(
         print(f"  Max Epochs:   {epochs}")
         esr_display = (
             f"{threshold_esr:.6f} (A2-Lite Studio Reference Early Stopping)"
-            if threshold_esr is not None
-            else "Disabled (Fixed Epochs)"
+            if (threshold_esr is not None and a2_lite_only)
+            else (
+                f"{threshold_esr:.6f} (A2 Slimmable Studio Reference Early Stopping, Ch8 <= {threshold_esr:.6f})"
+                if threshold_esr is not None
+                else "Disabled (Fixed Epochs)"
+            )
         )
         print(f"  Goal ESR:     {esr_display}")
         print(f"  Destination:  {target_nam}")
@@ -710,6 +796,28 @@ def train_frontend(
             print(f"  Model Title:   {model_title}")
             print(f"  Source Bass:   {inst_name}")
             print(f"  Source Pickup: {pcfg.name} ({pos_mm:.1f}mm)")
+            if train_output.metadata.validation_esr is not None:
+                vesr = train_output.metadata.validation_esr
+                cb = getattr(nam_core, "_last_esr_callback", None)
+                best_studio_esr = (
+                    cb.best_esr if (cb is not None and cb.best_esr < float("inf")) else vesr
+                )
+                esr_status = ""
+                if threshold_esr is not None:
+                    if best_studio_esr <= threshold_esr:
+                        esr_status = f" (Goal Met <= {threshold_esr:.6f})"
+                    else:
+                        esr_status = f" (Safety ceiling reached at {epochs} epochs)"
+                if not a2_lite_only:
+                    ch8_db = 10.0 * math.log10(max(best_studio_esr, 1e-12))
+                    print(
+                        f"  Validation ESR: {best_studio_esr:.6f} (Ch8 Studio, {ch8_db:+.2f} dB) | {vesr:.6f} (Aggregate){esr_status}"
+                    )
+                else:
+                    esr_db = 10.0 * math.log10(max(best_studio_esr, 1e-12))
+                    print(
+                        f"  Validation ESR: {best_studio_esr:.6f} ({esr_db:+.2f} dB){esr_status}"
+                    )
             print("  Ready for Darkglass Anagram Block 1 (Preamp) loading.")
         else:
             print(f"Warning: Expected model file at {target_nam} not found.")
@@ -765,13 +873,13 @@ def main():
         "--epochs",
         type=int,
         default=DEFAULT_MAX_EPOCHS,
-        help=f"Maximum number of training epochs (default: {DEFAULT_MAX_EPOCHS} for A2-Lite studio reference)",
+        help=f"Maximum number of training epochs (default: {DEFAULT_MAX_EPOCHS} for Architecture 2 studio reference)",
     )
     parser.add_argument(
         "--goal-esr",
         type=float,
         default=DEFAULT_GOAL_ESR,
-        help=f"Goal validation ESR for early stopping (default: {DEFAULT_GOAL_ESR} for A2-Lite studio reference; set to 0 to disable)",
+        help=f"Goal validation ESR for early stopping (default: {DEFAULT_GOAL_ESR} for Architecture 2 studio reference; set to 0 to disable)",
     )
     parser.add_argument(
         "--no-goal-esr",
@@ -785,9 +893,9 @@ def main():
         help=f"Batch size (default: {DEFAULT_BATCH_SIZE})",
     )
     parser.add_argument(
-        "--a2-full",
+        "--a2-lite-only",
         action="store_true",
-        help="Train full slimmable Architecture 2 container with both channels_3 and channels_8 (default: False, trains A2-Lite channels_8 only for 2x faster throughput and unskewed ESR)",
+        help="Train A2-Lite channels_8 only instead of the full slimmable container (default: False, trains full slimmable Architecture 2)",
     )
     parser.add_argument(
         "--show-plot", action="store_true", help="Display matplotlib validation plot window"
@@ -832,7 +940,7 @@ def main():
             "basename": args.basename,
             "fast_dev_run": args.fast_dev_run,
             "gui": args.gui,
-            "a2_full": args.a2_full,
+            "a2_lite_only": args.a2_lite_only,
             "t3k_pack": args.t3k_pack,
         }
     )
@@ -874,7 +982,7 @@ def main():
                 basename=cli_cfg.basename,
                 normalize=args.normalize_frontend,
                 gain_db=args.gain_db,
-                a2_full=cli_cfg.a2_full,
+                a2_lite_only=cli_cfg.a2_lite_only,
             )
             if not ok:
                 all_ok = False
@@ -918,7 +1026,7 @@ def main():
                 basename=cli_cfg.basename
                 if (len(voices_to_run) == 1 and len(instruments_to_run) == 1)
                 else None,
-                a2_full=cli_cfg.a2_full,
+                a2_lite_only=cli_cfg.a2_lite_only,
                 t3k_pack=cli_cfg.t3k_pack,
             )
             if not ok:
