@@ -26,7 +26,7 @@ if str(SCRIPTS_DIR) not in sys.path:
 # Bypasses multi-minute solver benchmarking on unchunked validation tensors and silences workspace warnings
 os.environ.setdefault("MIOPEN_FIND_MODE", "FAST")
 os.environ.setdefault("MIOPEN_LOG_LEVEL", "2")
-os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
+os.environ.setdefault("PYTORCH_ALLOC_CONF", "expandable_segments:True")
 
 # Parallelize MIOpen kernel compilation across all CPU cores
 if "MIOPEN_COMPILE_PARALLEL_LEVEL" not in os.environ:
