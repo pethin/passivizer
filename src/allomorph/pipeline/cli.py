@@ -126,7 +126,7 @@ def main(argv: Sequence[str] | None = None):
         "--target-dbfs",
         type=float,
         default=None,
-        help="Explicit target level in dBFS for target voice wet simulation (default: -24.0 dBFS for targets)",
+        help="Explicit target level in dBFS for target voice wet simulation (default: auto-derived from input calibration sweep RMS, ~ -22.1 dBFS)",
     )
     parser.add_argument(
         "--gain-db",
