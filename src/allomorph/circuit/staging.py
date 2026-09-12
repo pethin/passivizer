@@ -9,12 +9,13 @@ import argparse
 import functools
 import math
 import os
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Literal
 
 import numpy as np
 
-from allomorph.circuit.parser import load_circuit
+from allomorph.circuit.parser import CircuitModel, load_circuit
 from allomorph.circuit.schema import SimulationConfig
 from allomorph.circuit.simulation import (
     CALIBRATION_PEAK_CEILING,
@@ -29,10 +30,13 @@ from allomorph.circuit.solver import (
     compute_circuit_transfer_functions,
     compute_differential_circuit_transfer_functions,
 )
-from allomorph.config.geometry import resolve_pickup_coils
+from allomorph.config.geometry import (
+    compute_effective_position,
+    resolve_pickup_coils,
+)
 from allomorph.config.instruments import load_all_instruments, load_instrument
 from allomorph.config.scales import REPO_ROOT, resolve_scale_range
-from allomorph.config.schema import CoilConfig
+from allomorph.config.schema import CoilConfig, InstrumentConfig
 from allomorph.config.voices import VOICES
 from allomorph.dsp import (
     FREQS,
@@ -159,6 +163,98 @@ def _get_reference_power_spectrum(n_b: int = 8192) -> tuple[float, np.ndarray, i
     return can_rms, p_binned, n_b
 
 
+def compute_frontend_transfer_function(
+    inst: InstrumentConfig | str,
+    pickup_key: str,
+    freqs: Sequence[float] | np.ndarray = FREQS,
+    can_model: CircuitModel | None = None,
+) -> np.ndarray:
+    """
+    Computes the continuous regularized transfer function transforming a source pickup
+    into the 34-inch Canonical Intermediate datum (@ 93.5mm), incorporating aperture sinc deconvolution,
+    spatial bridge proximity tilt, loaded electrical circuit deconvolution, and Wiener gain bounds.
+    """
+    inst_cfg = load_instrument(inst) if isinstance(inst, str) else inst
+    pickups = inst_cfg.pickups
+    if pickup_key not in pickups:
+        raise KeyError(f"Pickup key '{pickup_key}' not found in instrument '{inst_cfg.id}'")
+    pickup = pickups[pickup_key]
+
+    f = np.asarray(freqs, dtype=np.float64)
+    scale_range = resolve_scale_range(inst_cfg)
+    coils = resolve_pickup_coils(pickup, inst_cfg)
+
+    # 1. Source acoustic response
+    h_src_ac = numpy_pickup_acoustic_response(f, coils, scale_length_m=scale_range)
+    h_src_norm = h_src_ac / max(h_src_ac[0], 1e-9)
+
+    # 2. Canonical acoustic response (34in standard scale, 93.5mm datum, 0.75in slit)
+    can_coils = [
+        CoilConfig(
+            strings=["all"], position_from_bridge_m=0.0935, aperture_width_in=0.75, weight=1.0
+        )
+    ]
+    h_can_ac = numpy_pickup_acoustic_response(f, can_coils, scale_length_m=(0.8636, 0.8636))
+    h_can_ac_norm = h_can_ac / max(h_can_ac[0], 1e-9)
+
+    h_aperture_deconv = (h_can_ac_norm * h_src_norm) / (h_src_norm**2 + 0.01)
+
+    # 3. Spatial bridge proximity tilt (Source -> Canonical Intermediate datum @ 93.5mm)
+    src_pos_eff = compute_effective_position(coils)
+    src_scale_m = float(inst_cfg.scale_length_m or 0.8636)
+    can_pos_eff = 0.0935
+    can_scale_m = 0.8636
+    eta_src = src_pos_eff / src_scale_m
+    eta_can = can_pos_eff / can_scale_m
+    delta_in = (eta_can - eta_src) * 34.0
+    tilt_db = delta_in * 1.5
+    g_low = 10.0 ** (tilt_db / 20.0)
+    g_hi = 10.0 ** (-tilt_db / 20.0)
+    h_low_tilt = np.sqrt((g_low**2 + (f / 250.0) ** 2) / (1.0 + (f / 250.0) ** 2))
+    h_hi_tilt = np.sqrt((1.0 + g_hi**2 * (f / 2200.0) ** 2) / (1.0 + (f / 2200.0) ** 2))
+    h_tilt = h_low_tilt * h_hi_tilt
+
+    # 4. Circuit deconvolution
+    if can_model is None:
+        can_voice = VOICES.get("00_canonical_intermediate")
+        can_circ = can_voice.circuit if can_voice is not None else None
+        can_model = load_circuit(can_circ) if can_circ is not None else None
+
+    p_circ = pickup.circuit
+    if p_circ and can_model:
+        src_model = load_circuit(p_circ)
+        diff_curves = compute_differential_circuit_transfer_functions(
+            can_model, src_model, freqs=f, max_boost_db=6.0
+        )
+        h_circuit_deconv = np.asarray(diff_curves[0], dtype=np.float64)
+    elif inst_cfg.electronics == "passive":
+        raise ValueError(
+            f"Passive instrument '{inst_cfg.id}' pickup '{pickup_key}' does not define a '[pickups.{pickup_key}.circuit]' "
+            f"configuration. Passive source pickups require an explicit circuit model for differential deconvolution."
+        )
+    else:
+        h_c_src = resolve_pickup_electrical_deconvolution_np(f, pickup, inst_cfg, q_target=0.707)
+        if can_model:
+            can_curves = compute_circuit_transfer_functions(can_model, freqs=f, return_numpy=True)
+            h_can_elec = can_curves[0]
+            h_can_elec_norm = h_can_elec / max(h_can_elec[0], 1e-9)
+            h_circuit_deconv = h_c_src * h_can_elec_norm
+        else:
+            h_circuit_deconv = h_c_src
+
+    h_raw = h_aperture_deconv * h_circuit_deconv * h_tilt
+    raw_db = 20.0 * np.log10(np.maximum(h_raw, 1e-6))
+    g_max_db = 8.0
+    clamped_db = np.where(raw_db > 0.0, g_max_db * np.tanh(raw_db / g_max_db), raw_db)
+
+    # Frequency-dependent ultrasonic roll-off above 8 kHz if exceeding 1.5 dB (keeps 20 kHz strictly < 2.0 dB)
+    f_roll = 8000.0
+    roll_factor = np.clip((f - f_roll) / (24000.0 - f_roll), 0.0, 1.0)
+    hf_excess = np.maximum(clamped_db - 1.5, 0.0)
+    final_db = clamped_db - hf_excess * (0.5 * (1.0 - np.cos(np.pi * roll_factor)))
+    return 10.0 ** (final_db / 20.0)
+
+
 def compute_frontend_deconvolution_fir(
     inst_id: str,
     pickup_key: str,
@@ -173,55 +269,8 @@ def compute_frontend_deconvolution_fir(
     By default (normalize=False), produces the exact unnormalized physical deconvolution
     filter with ~0 dB unity gain across fundamental bass frequencies (40-200 Hz).
     """
-    inst = load_instrument(inst_id)
-    pickups = inst.pickups
-    if pickup_key not in pickups:
-        raise KeyError(f"Pickup key '{pickup_key}' not found in instrument '{inst_id}'")
-    pickup = pickups[pickup_key]
-
     f = np.asarray(FREQS, dtype=np.float64)
-    scale_range = resolve_scale_range(inst)
-    coils = resolve_pickup_coils(pickup, inst)
-
-    # 1. Source acoustic response
-    h_src_ac = numpy_pickup_acoustic_response(f, coils, scale_length_m=scale_range)
-
-    # 2. Canonical acoustic response (34in standard scale, 93.5mm datum, 0.75in slit)
-    can_coils = [
-        CoilConfig(
-            strings=["all"], position_from_bridge_m=0.0935, aperture_width_in=0.75, weight=1.0
-        )
-    ]
-    h_can_ac = numpy_pickup_acoustic_response(f, can_coils, scale_length_m=(0.8636, 0.8636))
-
-    h_aperture_deconv = (h_can_ac * h_src_ac) / (h_src_ac**2 + 0.01)
-
-    # 3. Circuit deconvolution
-    p_circ = pickup.circuit
-    can_voice = VOICES.get("00_canonical_intermediate")
-    can_circ = can_voice.circuit if can_voice is not None else None
-    if p_circ and can_circ:
-        can_model = load_circuit(can_circ)
-        src_model = load_circuit(p_circ)
-        diff_curves = compute_differential_circuit_transfer_functions(can_model, src_model, freqs=f)
-        h_circuit_deconv = np.asarray(diff_curves[0], dtype=np.float64)
-    elif inst.electronics == "passive":
-        raise ValueError(
-            f"Passive instrument '{inst_id}' pickup '{pickup_key}' does not define a '[pickups.{pickup_key}.circuit]' "
-            f"configuration. Passive source pickups require an explicit circuit model for differential deconvolution."
-        )
-    else:
-        h_c_src = resolve_pickup_electrical_deconvolution_np(f, pickup, inst, q_target=0.707)
-        if can_circ:
-            can_model = load_circuit(can_circ)
-            can_curves = compute_circuit_transfer_functions(can_model, freqs=f, return_numpy=True)
-            h_can_elec = can_curves[0]
-            h_can_elec_norm = h_can_elec / max(h_can_elec[0], 1e-9)
-            h_circuit_deconv = h_c_src * h_can_elec_norm
-        else:
-            h_circuit_deconv = h_c_src
-
-    h_total = h_aperture_deconv * h_circuit_deconv
+    h_total = compute_frontend_transfer_function(inst_id, pickup_key, freqs=f)
 
     fir = np.asarray(
         synthesize_minimum_phase_fir(h_total, num_taps=num_taps, normalize=normalize),
