@@ -216,7 +216,19 @@ def compute_frontend_transfer_function(
     h_hi_tilt = np.sqrt((1.0 + g_hi**2 * (f / 2200.0) ** 2) / (1.0 + (f / 2200.0) ** 2))
     h_tilt = h_low_tilt * h_hi_tilt
 
-    # 4. Circuit deconvolution
+    # 4. Scale-Length Tension Snap (Source -> Canonical Intermediate @ 34")
+    src_scale_in = float(inst_cfg.scale_length_in or 34.0)
+    can_scale_in = 34.0
+    if src_scale_in < can_scale_in - 0.2:
+        snap_db = min(3.5, 1.8 * (can_scale_in - src_scale_in) / 4.0)
+        g_snap = 10.0 ** (snap_db / 20.0)
+        h_tension = np.sqrt(
+            (1.0 + g_snap**2 * (f / 2800.0) ** 2) / (1.0 + (f / 2800.0) ** 2)
+        )
+    else:
+        h_tension = np.ones_like(f)
+
+    # 5. Circuit deconvolution
     if can_model is None:
         can_voice = VOICES.get("00_canonical_intermediate")
         can_circ = can_voice.circuit if can_voice is not None else None
@@ -244,7 +256,7 @@ def compute_frontend_transfer_function(
         else:
             h_circuit_deconv = h_c_src
 
-    h_raw = h_aperture_deconv * h_circuit_deconv * h_tilt
+    h_raw = h_aperture_deconv * h_circuit_deconv * h_tilt * h_tension
     raw_db = 20.0 * np.log10(np.maximum(h_raw, 1e-6))
     g_max_db = 8.0
     clamped_db = np.where(raw_db > 0.0, g_max_db * np.tanh(raw_db / g_max_db), raw_db)

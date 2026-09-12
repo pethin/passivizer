@@ -105,3 +105,52 @@ def test_2block_analytic_tilt_cancellation_identity():
                 # Sum of Block 1 and Block 2 tilts must match direct 1-block tilt
                 summed_tilt = tilt_db_b1 + tilt_db_b2
                 assert pytest.approx(summed_tilt, abs=1e-6) == tilt_db_direct
+
+
+def test_2block_analytic_tension_cancellation_identity():
+    """Validates the mathematical identity that in the 2-block decoupled system,
+    for source instruments with scale length <= 34 inches (short, medium, and standard scale),
+    the scale tension snap applied in Block 1 (source -> canonical) plus the scale tension snap applied in Block 2 (canonical -> target)
+    analytically equals the direct 1-block tension snap (source -> target).
+    """
+    all_insts = load_all_instruments()
+    can_scale_in = 34.0
+
+    for inst_id, inst in sorted(all_insts.items()):
+        if inst_id == "canonical_intermediate":
+            continue
+        src_scale_in = float(inst.scale_length_in or 34.0)
+        if src_scale_in > can_scale_in:
+            continue
+
+        # Block 1 tension snap (Source -> Canonical Intermediate @ 34")
+        if src_scale_in < can_scale_in - 0.2:
+            snap_db_b1 = min(3.5, 1.8 * (can_scale_in - src_scale_in) / 4.0)
+        else:
+            snap_db_b1 = 0.0
+
+        for vid, vcfg in sorted(VOICES.items()):
+            if vid == "00_canonical_intermediate" or vcfg.scale == "upright":
+                continue
+            tgt_scale_in = (
+                37.0
+                if vcfg.scale in ["multiscale", "37in"]
+                else (35.0 if vcfg.scale == "multiscale_super" else 34.0)
+            )
+
+            # Block 2 tension snap (Canonical Intermediate @ 34" -> Target)
+            if can_scale_in < tgt_scale_in - 0.2:
+                snap_db_b2 = min(3.5, 1.8 * (tgt_scale_in - can_scale_in) / 4.0)
+            else:
+                snap_db_b2 = 0.0
+
+            # Direct 1-Block tension snap (Source -> Target)
+            if src_scale_in < tgt_scale_in - 0.2:
+                snap_db_direct = min(3.5, 1.8 * (tgt_scale_in - src_scale_in) / 4.0)
+            else:
+                snap_db_direct = 0.0
+
+            # Sum of Block 1 and Block 2 tension snaps must match direct 1-block tension snap
+            summed_snap = snap_db_b1 + snap_db_b2
+            assert pytest.approx(summed_snap, abs=1e-6) == snap_db_direct
+
