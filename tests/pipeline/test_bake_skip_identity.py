@@ -58,11 +58,11 @@ def test_pipeline_cli_bake_skips_identity():
     from allomorph.naming import get_baked_basename
     from allomorph.pipeline.cli import REPO_ROOT, main
 
+    inst_dir = REPO_ROOT / "audio" / "baked" / "34in_active_stingray"
+    had_dir = inst_dir.exists()
+
     baked_wav = (
-        REPO_ROOT
-        / "audio"
-        / "baked"
-        / "34in_active_stingray"
+        inst_dir
         / f"{get_baked_basename('09_stingray_mm_parallel', 'dynamic')}.wav"
     )
     if baked_wav.exists():
@@ -78,8 +78,16 @@ def test_pipeline_cli_bake_skips_identity():
         "--max-samples",
         "2400",
     ]
-    main(test_argv)
-
-    assert not baked_wav.exists(), f"Identity voice should not be output: {baked_wav}"
+    try:
+        main(test_argv)
+        assert not baked_wav.exists(), f"Identity voice should not be output: {baked_wav}"
+    finally:
+        if baked_wav.exists():
+            baked_wav.unlink()
+        if not had_dir and inst_dir.exists():
+            try:
+                inst_dir.rmdir()
+            except OSError:
+                pass
 
 

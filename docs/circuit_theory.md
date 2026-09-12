@@ -170,6 +170,8 @@ Unlike magnetic pickups whose output is induced via Faraday's Law across an indu
    * Non-linear mechanical rocking under pizzicato attack modeled via:
      $$V_{\text{dyn}}(t) = V_{\text{sat}} \cdot \tanh\left(\frac{V(t)}{V_{\text{sat}}}\right)$$
      with $V_{\text{sat}} = 0.42\text{ V}$ (roundwounds) scaled to $0.336\text{ V}$ on 32" fretless flatwounds.
+5. **Acoustic Body & Soundboard Radiation (3 Sigma AST IRs):**
+   * The bridge transducer model synthesizes the raw mechanical shear stress and force at the saddle. To radiate this bridge force through a resonant double-bass spruce soundboard and cavity, the model is designed and **recommended to be paired with 3 Sigma Audio Upright Bass AST (Acoustic Sound Technology) IRs** downstream in Block 3 (or DAW IR host). Specifically, use the **`Acoustic Upright Standard`** folder (identified by the **`AST`** file tag), which 3 Sigma designed specifically for acoustic upright basses with standard piezo bridge pickups.
 
 ---
 

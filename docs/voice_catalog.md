@@ -207,7 +207,8 @@ This catalog details the physical parameters, equivalent RLC circuit values, aco
 * **Anti-Double-Damping:** Automatically matches source string damping ($f_{\text{damp, src}}$) to target double-bass damping ($f_{\text{damp, tgt}}$). When evaluated from flatwound instruments (La Bella LTF), the filter avoids double-muffling the high frequencies while preserving woody bridge bite.
 * **Electrical Parameters:** Pure capacitive piezo sensor ($C_{\text{piezo}} = 1.2\text{ nF}$), direct $100\text{ M}\Omega$ buffer, $15\text{ nF}$ subsonic rumble decoupling @ $32\text{ Hz}$
 * **Acoustic Character:** Eliminates magnetic pickup comb filtering; delivers smooth, woody double-bass pizzicato bloom with deep sub-bass body resonance.
-* **32" Fretless Setting:** ABCX Blend to **Upright Blend** (85% PCSX + 15% MMTWX Single - Push/Pull Down: J Mode). Pair with **3 Sigma Upright Bass IR** in Anagram Block 3.
+* **Downstream Acoustic Soundboard Radiation (Recommended AST IRs):** Upright Piezo synthesizes the authentic mechanical force directly at the bridge saddle. To radiate this raw transducer signal into realistic 3/4 double bass acoustic body and soundboard resonance, it is **strongly recommended to pair this model with 3 Sigma Audio Upright Bass AST (Acoustic Sound Technology) IRs** in Block 3 (Cab IR loader) or your DAW host. Specifically, select impulses from the **`Acoustic Upright Standard`** folder (identified by the **`AST`** file tag), which 3 Sigma Audio designed specifically for acoustic upright basses with a standard piezo pickup.
+* **32" Fretless Setting:** ABCX Blend to **Upright Blend** (85% PCSX + 15% MMTWX Single - Push/Pull Down: J Mode). Pair with **3 Sigma Upright Bass AST IR** in Anagram Block 3.
 
 ### 15. `15_neutral_character` (Neutral Character - Dynamic Studio DI)
 * **Archetype:** Physical Aperture Preservation / Tier Feel Studio DI

@@ -51,7 +51,7 @@ Every pack provides comprehensive coverage across eight modular sonic families, 
    - **Dingwall FD3** (Dingwall Fanned Multi-Scale Bridge, 34"–37" High Wave-Speed Sparkle @ 7.3 kHz)
    - **EB-0 Mudbucker** (Gibson Mudbucker Ultra Series, 14.4H Neck-Heel Sidewinder Sub-Bass)
 5. **Acoustic Transducers:**
-   - **Upright Piezo** (Upright Acoustic Double Bass, Underwood/Realist Bridge Force Sensor with Leaky Integration)
+   - **Upright Piezo** (Upright Acoustic Double Bass, Underwood/Realist Bridge Force Sensor with Leaky Integration — recommended with 3 Sigma Audio "Acoustic Upright Standard" AST IRs)
 6. **Precision Bass & Tone Shaper Family:**
    - **Vintage 62 P** (Vintage '62 P-Bass Alnico V, CTS 250k Tone Open)
    - **Modern P Ceramic** (Modern Ceramic Split-P, Boutique 500k with Hybrid Treble Bleed)
@@ -79,7 +79,7 @@ Every pack provides comprehensive coverage across eight modular sonic families, 
 [Block 2: Preamp / Overdrive]   ◄── Microtubes B7K, Vintage Ultra, SVT, etc.
       │  (Distorts authentic pickup resonance peaks)
       ▼
-[Block 3: Cab IR Loader]        ◄── 8x10, 4x10, 1x15 Speaker Cab Impulse
+[Block 3: Cab IR Loader]        ◄── 8x10, 4x10, 1x15 Speaker Cab Impulse (or 3 Sigma AST IRs for Upright)
       │
       ▼
 [FOH / Interface / DAW]

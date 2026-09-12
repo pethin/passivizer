@@ -105,7 +105,7 @@ In your presets, use the Block 1 output level trim to normalize all voices to an
 | **`11_pmm_hybrid_series`** | P/MM Hybrid (Series Sum 500k) | $+5.8\text{ dB}$ | $-4.0\text{ dB}$ (Prevents clipping downstream drives)|
 | **`12_mudbucker_ultra_series`**| Mudbucker Ultra Series | $+6.2\text{ dB}$ | $-4.5\text{ dB}$ (Controls high-inductance surge) |
 | **`13_dingwall_multiscale_bridge`**| Dingwall Multi-Scale Bridge | $+1.0\text{ dB}$ | $+0.5\text{ dB}$ |
-| **`14_upright_bridge_transducer`**| Upright Acoustic Bridge Transducer | $0.0\text{ dB}$ | $0.0\text{ dB}$ (Transparent unity acoustic baseline) |
+| **`14_upright_bridge_transducer`**| Upright Acoustic Bridge Transducer | $0.0\text{ dB}$ | $0.0\text{ dB}$ (Unity acoustic baseline; pair with 3 Sigma AST IRs) |
 | **`15_neutral_character`** | Neutral Character (Pure Tier Dynamics / Studio DI) | $0.0\text{ dB}$ | $0.0\text{ dB}$ (Transparent unity gain) |
 | **`15b_active_character`** | Active Character (Modern Active Buffer / Air Lift) | $+0.5\text{ dB}$ | $-0.5\text{ dB}$ (Unity gain buffer) |
 | **`15c_passive_character`** | Passive Character (High-Z RLC & Cable Loading) | $+0.5\text{ dB}$ | $-0.5\text{ dB}$ (Vintage passive load) |
@@ -163,9 +163,9 @@ Group the pickup profiles into dedicated 3-button banks on the Anagram hardware:
 
 ---
 
-## 5. Acoustic Upright Dual-Stage Architecture (Block 1 NAM + Block 3 3 Sigma IR)
+## 5. Acoustic Upright Dual-Stage Architecture (Block 1 NAM + Block 3 3 Sigma AST IR)
 
-When targeting an authentic upright double bass tone from a fretless electric bass (such as the 32" Fretless strung with **La Bella Low Tension Flats**), Allomorph splits the acoustic transformation into two specialized stages:
+When targeting an authentic upright double bass tone from a fretless or fretted electric bass (such as the 32" Fretless strung with **La Bella Low Tension Flats**), Allomorph splits the acoustic transformation into two specialized stages:
 
 ```
 [32" Fretless Bass w/ La Bella LTF]
@@ -188,7 +188,8 @@ When targeting an authentic upright double bass tone from a fretless electric ba
                  │
                  ▼
 ┌────────────────────────────────────────────────────────┐
-│ Block 3: Cab IR Loader (3 Sigma Upright Bass IR)       │
+│ Block 3: Cab IR Loader (3 Sigma Upright Bass AST IR)   │
+│   • Acoustic Sound Technology (AST) spruce top physics │
 │   • Full 3/4 acoustic body & spruce soundboard cavity  │
 │   • Helmholtz air resonance (~60 Hz)                   │
 └────────────────────────────────────────────────────────┘
@@ -200,8 +201,15 @@ When targeting an authentic upright double bass tone from a fretless electric ba
 ### Why Both Blocks Are Necessary:
 1. **An IR is Linear Time-Invariant (LTI):** It cannot deconvolve magnetic pickup comb notches, nor can it replicate the non-linear mechanical rocking of a double bass bridge under pizzicato attack. Feeding electric magnetic pickups straight into an acoustic IR sounds like an electric bass inside a hollow box.
 2. **Block 1 Converts Pickup Physics:** Allomorph's NAM model transforms the magnetic velocity-sensing signal into a mechanical bridge force sensor, complete with dynamic compliance compression.
-3. **Block 3 Radiates the Soundboard:** The 3 Sigma IR receives the exact force signal it was designed for, radiating it through a spruce top and resonant double-bass body.
+3. **Block 3 Radiates the Soundboard (3 Sigma AST):** Upright Piezo is engineered and recommended to be paired with **3 Sigma Audio Upright Bass AST (Acoustic Sound Technology) IRs**. The 3 Sigma AST impulse response receives the exact bridge force excitation it was designed for, radiating it through a resonant spruce soundboard and 3/4 double-bass body cavity.
 4. **Anti-Double-Damping:** Because the 32" fretless is strung with La Bella Low Tension Flats, Allomorph's differential string engine automatically adjusts its acoustic damping curve, preventing the dull, muffled tone that occurs when a static acoustic low-pass filter is applied to already-dark flatwound strings.
+
+> [!TIP]
+> **Recommended 3 Sigma Audio IR Folder & File Tag:**
+> In the official 3 Sigma Audio Upright Bass pack, select impulses from the **`Acoustic Upright Standard`** folder (identified by the **`AST`** file tag, e.g. `Upright Standard AST 1.wav`). 3 Sigma Audio notes:
+> > *"Acoustic Upright Standard – IRs for Acoustic Upright Basses with a Standard Piezo Pickup. They are identified by the AST file tag. If your pickup is manufactured by a company not represented in any other folder, this is a great place to start."*
+>
+> Because Allomorph's Block 1 model synthesizes a canonical piezo bridge force transducer with direct buffer and leaky velocity integration, the `Acoustic Upright Standard` AST IR is the exact matching acoustic counterpart.
 
 ---
 

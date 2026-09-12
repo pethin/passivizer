@@ -103,7 +103,7 @@ Overwound neck-heel sidewinder humbucker (14.4H, 500k pots). Resonant peak pulle
 Acoustic Transducers
 
 15. Upright Piezo [Neck]
-Direct bridge force sensor simulation (Underwood/Realist style on 41.5" scale) with velocity-to-force leaky integration (+6 dB/oct from 70–250 Hz) and 32 Hz rumble cut. Woody pizzicato bloom and warm body resonance.
+Direct bridge force sensor simulation (Underwood/Realist style on 41.5" scale) with velocity-to-force leaky integration (+6 dB/oct from 70–250 Hz) and 32 Hz rumble cut. Woody pizzicato bloom and warm body resonance. Recommended to be paired with 3 Sigma Audio Upright Bass AST IRs ("Acoustic Upright Standard" folder with AST file tag) in your cabinet loader for authentic soundboard radiation.
 
 
 Jazz Bass Family

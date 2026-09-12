@@ -5,12 +5,13 @@
 # a 41.5" 3/4 upright scale. Incorporates spatial comb-filter deconvolution,
 # velocity-to-force leaky integration (-6 dB/oct), high-tension wave-speed scaling,
 # dynamic soft-knee bridge compliance, and 100M-Ohm buffer with 15nF rumble cap.
+# Recommended downstream cabinet IR: 3 Sigma Audio Upright Bass AST IRs (specifically the 'Acoustic Upright Standard' folder with the AST file tag).
 id = "14_upright_bridge_transducer"
 name = "14. Upright Acoustic Bridge Transducer"
 tone_name = "Upright Piezo"
 topology = "Acoustic Bridge Transducer"
 sensor_type = "bridge_force"
-description = "Direct bridge force transducer with 100M-Ohm buffer, 15nF rumble cap, and velocity-to-force leaky integration"
+description = "Direct bridge force transducer with 100M-Ohm buffer, 15nF rumble cap, and velocity-to-force leaky integration (recommended with 3 Sigma AST IRs)"
 magnet_type = "piezo"
 alpha = 0.00
 fr = 4500.0
