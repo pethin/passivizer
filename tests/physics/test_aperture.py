@@ -33,8 +33,8 @@ from allomorph.visualizer import build_voice_dataframe
 def test_aperture_zero_frequency():
     speeds = SCALES["30in"].speeds
     res = aperture_response(np.array([0.0]), w_in=1.5, d_in=0.75, speeds=speeds)[0]
-    # Sinc(0) + 0.05 = 1.05; Comb(0) + 0.05 = 1.05; Product = 1.05 * 1.05 = 1.1025
-    assert math.isclose(res, 1.1025, rel_tol=1e-3)
+    # Physical aperture: Sinc(0) = 1.0000, Comb(0) = 1.0000, Product = 1.0000 (0.00 dB)
+    assert math.isclose(res, 1.0, abs_tol=1e-6)
 
 
 def test_aperture_single_vs_dual():

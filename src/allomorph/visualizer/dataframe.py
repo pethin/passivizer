@@ -194,7 +194,7 @@ def build_voice_dataframe(
                 f_notch = 1.0 / (2.0 * delta_tau)
                 f_mid = 1.35 * f_notch
                 f_sigma = max(0.35 * f_notch, 1.0)
-                gamma = 0.88 * 0.5 * (1.0 - np.tanh((f_bins - f_mid) / f_sigma))
+                gamma = 0.5 * (1.0 - np.tanh((f_bins - f_mid) / f_sigma))
                 mag_spectrum = np.sqrt(gamma * P_coherent + (1.0 - gamma) * P_incoherent)
             elif len(H_channels) > 1:
                 mag_spectrum = np.abs(np.sum(H_channels, axis=0))
@@ -214,14 +214,13 @@ def build_voice_dataframe(
                 if tgt_scale in ["multiscale", "37in"]
                 else (35.0 if tgt_scale == "multiscale_super" else 34.0)
             )
-            if 34.0 < tgt_scale_in - 0.2:
-                snap_db = min(3.5, 1.8 * (tgt_scale_in - 34.0) / 4.0)
-                g_snap = 10.0 ** (snap_db / 20.0)
-                h_tension = np.sqrt(
-                    (1.0 + g_snap**2 * (freqs / 2800.0) ** 2) / (1.0 + (freqs / 2800.0) ** 2)
-                )
-            else:
-                h_tension = np.ones_like(freqs)
+            delta_scale = tgt_scale_in - 34.0
+            delta_soft = 0.5 * np.logaddexp(0.0, 2.0 * delta_scale)
+            snap_db = 3.5 * np.tanh((1.8 * delta_soft) / (4.0 * 3.5))
+            g_snap = 10.0 ** (snap_db / 20.0)
+            h_tension = np.sqrt(
+                (1.0 + g_snap**2 * (freqs / 2800.0) ** 2) / (1.0 + (freqs / 2800.0) ** 2)
+            )
 
         # String voicing for target instrument (relative to standard nickel roundwound)
         if (
@@ -303,7 +302,7 @@ def build_voice_dataframe(
             f_notch = 1.0 / (2.0 * delta_tau)
             f_mid = 1.35 * f_notch
             f_sigma = max(0.35 * f_notch, 1.0)
-            gamma = 0.88 * 0.5 * (1.0 - np.tanh((f_bins - f_mid) / f_sigma))
+            gamma = 0.5 * (1.0 - np.tanh((f_bins - f_mid) / f_sigma))
             mag_spectrum = np.sqrt(gamma * P_coherent + (1.0 - gamma) * P_incoherent)
         elif len(H_channels) > 1:
             mag_spectrum = np.abs(np.sum(H_channels, axis=0))

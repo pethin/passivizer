@@ -63,7 +63,10 @@ def resolve_pickup_electrical_response_np(
         for comp in components:
             sub_id = comp.pickup
             if not sub_id or sub_id not in inst_cfg.pickups:
-                continue
+                raise KeyError(
+                    f"Composite pickup '{pickup_cfg.name}' references component '{sub_id}' "
+                    f"which is not defined in instrument '{inst_cfg.id}' pickups"
+                )
             sub_w = comp.weight
             sub_p = inst_cfg.pickups[sub_id]
             sub_elec = resolve_pickup_electrical_response_np(f, sub_p, inst_cfg)
@@ -85,13 +88,16 @@ def resolve_pickup_electrical_deconvolution_np(
     f = np.asarray(freqs, dtype=np.float64)
     if pickup_cfg.type == "composite":
         components = pickup_cfg.components
+        for comp in components:
+            if not comp.pickup or comp.pickup not in inst_cfg.pickups:
+                raise KeyError(
+                    f"Composite pickup '{pickup_cfg.name}' references component '{comp.pickup}' "
+                    f"which is not defined in instrument '{inst_cfg.id}' pickups"
+                )
         has_fr = any(
-            bool(
-                comp.pickup
-                and comp.pickup in inst_cfg.pickups
-                and inst_cfg.pickups[comp.pickup].resonant_frequency_hz
-            )
+            bool(inst_cfg.pickups[comp.pickup].resonant_frequency_hz)
             for comp in components
+            if comp.pickup
         )
         if not has_fr:
             return np.ones_like(f, dtype=np.float64)
@@ -102,7 +108,10 @@ def resolve_pickup_electrical_deconvolution_np(
         for comp in components:
             sub_id = comp.pickup
             if not sub_id or sub_id not in inst_cfg.pickups:
-                continue
+                raise KeyError(
+                    f"Composite pickup '{pickup_cfg.name}' references component '{sub_id}' "
+                    f"which is not defined in instrument '{inst_cfg.id}' pickups"
+                )
             sub_w = comp.weight
             sub_p = inst_cfg.pickups[sub_id]
             sub_deconv = resolve_pickup_electrical_deconvolution_np(

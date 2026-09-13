@@ -64,8 +64,10 @@ def test_1block_difference_dataframe_invariance():
 
 def test_2block_analytic_tilt_cancellation_identity():
     """Validates the mathematical identity that in the 2-block decoupled system,
-    the tilt applied in Block 1 (source -> canonical) plus the tilt applied in Block 2 (canonical -> target)
-    analytically equals the direct 1-block tilt (source -> target).
+    the standing-wave logarithmic displacement ratio applied in Block 1 (source -> canonical)
+    plus the logarithmic displacement ratio applied in Block 2 (canonical -> target)
+    analytically equals the direct 1-block ratio (source -> target):
+    20*log10(eta_can / eta_src) + 20*log10(eta_tgt / eta_can) == 20*log10(eta_tgt / eta_src).
     """
     all_insts = load_all_instruments()
     can_pos_m = 0.0935
@@ -81,9 +83,8 @@ def test_2block_analytic_tilt_cancellation_identity():
             src_pos_m = compute_effective_position(coils)
             eta_src = src_pos_m / src_scale_m
 
-            # Block 1 tilt: Source -> Canonical
-            delta_in_b1 = (eta_can - eta_src) * 34.0
-            tilt_db_b1 = delta_in_b1 * 1.5
+            # Block 1 logarithmic distance ratio: Source -> Canonical
+            delta_g_b1 = 20.0 * np.log10(eta_can / eta_src)
 
             for vid, vcfg in sorted(VOICES.items()):
                 if vid == "00_canonical_intermediate" or vcfg.sensor_type == "direct":
@@ -94,17 +95,15 @@ def test_2block_analytic_tilt_cancellation_identity():
                 tgt_scale_m = (tgt_scale_range[0] + tgt_scale_range[1]) / 2.0
                 eta_tgt = tgt_pos_m / tgt_scale_m
 
-                # Block 2 tilt: Canonical -> Target
-                delta_in_b2 = (eta_tgt - eta_can) * 34.0
-                tilt_db_b2 = delta_in_b2 * 1.5
+                # Block 2 logarithmic distance ratio: Canonical -> Target
+                delta_g_b2 = 20.0 * np.log10(eta_tgt / eta_can)
 
-                # Direct 1-Block tilt: Source -> Target
-                delta_in_direct = (eta_tgt - eta_src) * 34.0
-                tilt_db_direct = delta_in_direct * 1.5
+                # Direct 1-Block logarithmic distance ratio: Source -> Target
+                delta_g_direct = 20.0 * np.log10(eta_tgt / eta_src)
 
-                # Sum of Block 1 and Block 2 tilts must match direct 1-block tilt
-                summed_tilt = tilt_db_b1 + tilt_db_b2
-                assert pytest.approx(summed_tilt, abs=1e-6) == tilt_db_direct
+                # Sum of Block 1 and Block 2 ratios must match direct 1-block ratio analytically
+                summed_delta_g = delta_g_b1 + delta_g_b2
+                assert pytest.approx(summed_delta_g, abs=1e-6) == delta_g_direct
 
 
 def test_2block_analytic_tension_cancellation_identity():

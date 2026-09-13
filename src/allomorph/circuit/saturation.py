@@ -108,11 +108,11 @@ if _HAS_NUMBA:
                 emf_damping = 0.0
                 if k_emf > 0.0:
                     emf_damping = k_emf * excess * math.tanh(x_norm / vsat)
-                drag_high = (
+                drag_high = 1.0 / (
                     1.0
-                    - (k_sag + eddy_factor + pull_damping + stein_damping + emf_damping) * excess
+                    + (k_sag + eddy_factor + pull_damping + stein_damping + emf_damping) * excess
                 )
-                drag_low = 1.0 - (0.25 * k_sag + 0.50 * pull_damping) * excess
+                drag_low = 1.0 / (1.0 + (0.25 * k_sag + 0.50 * pull_damping) * excess)
             else:
                 drag_high = 1.0
                 drag_low = 1.0
@@ -231,11 +231,11 @@ else:
                 emf_damping = 0.0
                 if k_emf > 0.0:
                     emf_damping = k_emf * excess * math.tanh(x_norm / vsat)
-                drag_high = (
+                drag_high = 1.0 / (
                     1.0
-                    - (k_sag + eddy_factor + pull_damping + stein_damping + emf_damping) * excess
+                    + (k_sag + eddy_factor + pull_damping + stein_damping + emf_damping) * excess
                 )
-                drag_low = 1.0 - (0.25 * k_sag + 0.50 * pull_damping) * excess
+                drag_low = 1.0 / (1.0 + (0.25 * k_sag + 0.50 * pull_damping) * excess)
             else:
                 drag_high = 1.0
                 drag_low = 1.0

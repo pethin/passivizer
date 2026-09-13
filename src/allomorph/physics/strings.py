@@ -285,16 +285,10 @@ def compute_dispersive_wave_speed(
     """
     f = np.asarray(freqs, dtype=np.float64)
     if f0 is None or f0 <= 0:
-        if string_name in STRING_FUNDAMENTALS and scale_length_m is None:
-            f0_std = STRING_FUNDAMENTALS[string_name]
-            l_check = 0.8636
-            if abs((v0 / (2.0 * l_check)) - f0_std) / f0_std < 0.15:
-                f0 = f0_std
-        if f0 is None:
-            l_eff = (
-                scale_length_m if (scale_length_m is not None and scale_length_m > 0) else 0.8636
-            )
-            f0 = max(v0 / (2.0 * l_eff), 15.0)
+        l_eff = (
+            scale_length_m if (scale_length_m is not None and scale_length_m > 0) else 0.8636
+        )
+        f0 = max(v0 / (2.0 * l_eff), 15.0)
 
     b_s = get_inharmonicity_for_f0(f0)
     f_disp_max = 3500.0

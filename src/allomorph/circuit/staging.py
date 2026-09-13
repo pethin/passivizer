@@ -39,6 +39,7 @@ from allomorph.config.geometry import (
 from allomorph.config.instruments import load_all_instruments, load_instrument
 from allomorph.config.scales import REPO_ROOT, resolve_scale_range
 from allomorph.config.schema import CoilConfig, InstrumentConfig
+from allomorph.config.strings import STRINGS, get_instrument_string
 from allomorph.config.voices import VOICES
 from allomorph.dsp import (
     FREQS,
@@ -53,6 +54,9 @@ from allomorph.naming import (
     resolve_voices,
 )
 from allomorph.physics import (
+    compute_differential_longitudinal_transfer,
+    compute_differential_string_transfer,
+    compute_saddle_boundary_coupling,
     numpy_pickup_acoustic_response,
     resolve_pickup_electrical_deconvolution_np,
 )
@@ -201,20 +205,17 @@ def compute_frontend_transfer_function(
 
     h_aperture_deconv = (h_can_ac_norm * h_src_norm) / (h_src_norm**2 + 0.01)
 
-    # 3. Spatial bridge proximity tilt (Source -> Canonical Intermediate datum @ 93.5mm)
+    # 3. Spatial bridge proximity scaling (Source -> Canonical Intermediate datum @ 93.5mm)
     src_pos_eff = compute_effective_position(coils)
     src_scale_m = float(inst_cfg.scale_length_m or 0.8636)
     can_pos_eff = 0.0935
     can_scale_m = 0.8636
     eta_src = src_pos_eff / src_scale_m
     eta_can = can_pos_eff / can_scale_m
-    delta_in = (eta_can - eta_src) * 34.0
-    tilt_db = delta_in * 1.5
-    g_low = 10.0 ** (tilt_db / 20.0)
-    g_hi = 10.0 ** (-tilt_db / 20.0)
-    h_low_tilt = np.sqrt((g_low**2 + (f / 250.0) ** 2) / (1.0 + (f / 250.0) ** 2))
-    h_hi_tilt = np.sqrt((1.0 + g_hi**2 * (f / 2200.0) ** 2) / (1.0 + (f / 2200.0) ** 2))
-    h_tilt = h_low_tilt * h_hi_tilt
+    delta_g = 20.0 * np.log10(max(eta_can / max(eta_src, 1e-4), 1e-6))
+    delta_g_soft = 8.0 * np.tanh(delta_g / 8.0)
+    g_0 = 10.0 ** (delta_g_soft / 20.0)
+    h_pos = np.sqrt((g_0**2 + (f / 220.0) ** 2) / (1.0 + (f / 220.0) ** 2))
 
     # 4. Scale-Length Tension Snap (Source -> Canonical Intermediate @ 34")
     src_scale_in = float(inst_cfg.scale_length_in or 34.0)
@@ -227,7 +228,27 @@ def compute_frontend_transfer_function(
         (1.0 + g_snap**2 * (f / 2800.0) ** 2) / (1.0 + (f / 2800.0) ** 2)
     )
 
-    # 5. Circuit deconvolution
+    # 5. Saddle boundary stiffness deconvolution (Source -> Canonical Intermediate)
+    h_saddle_can = compute_saddle_boundary_coupling(f, can_pos_eff, can_scale_m)
+    h_saddle_src = compute_saddle_boundary_coupling(f, src_pos_eff, src_scale_m)
+    r_saddle_db = 20.0 * np.log10(np.maximum(h_saddle_can / np.maximum(h_saddle_src, 1e-6), 1e-6))
+    g_saddle = 4.0
+    r_saddle_soft_db = g_saddle * np.tanh(r_saddle_db / g_saddle)
+    h_saddle_diff = 10.0 ** (r_saddle_soft_db / 20.0)
+
+    # 6. String deconvolution (if source bass string is not standard roundwound nickel)
+    src_string = get_instrument_string(inst_cfg)
+    can_string = STRINGS["roundwound_nickel_standard"]
+    if src_string.preset != "roundwound_nickel_standard":
+        h_str_diff = compute_differential_string_transfer(f, src_string, can_string)
+        h_long_diff = compute_differential_longitudinal_transfer(
+            f, src_string, can_string, scale_length_inches=34.0
+        )
+    else:
+        h_str_diff = np.ones_like(f)
+        h_long_diff = np.ones_like(f)
+
+    # 7. Circuit deconvolution
     if can_model is None:
         can_voice = VOICES.get("00_canonical_intermediate")
         can_circ = can_voice.circuit if can_voice is not None else None
@@ -255,7 +276,15 @@ def compute_frontend_transfer_function(
         else:
             h_circuit_deconv = h_c_src
 
-    h_raw = h_aperture_deconv * h_circuit_deconv * h_tilt * h_tension
+    h_raw = (
+        h_aperture_deconv
+        * h_circuit_deconv
+        * h_pos
+        * h_tension
+        * h_saddle_diff
+        * h_str_diff
+        * h_long_diff
+    )
     raw_db = 20.0 * np.log10(np.maximum(h_raw, 1e-6))
     g_max_db = 8.0
     clamped_db = np.where(raw_db > 0.0, g_max_db * np.tanh(raw_db / g_max_db), raw_db)

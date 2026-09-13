@@ -217,18 +217,18 @@ def compute_voice_prefilter_firs(
 
             is_flatwound = "flat" in (src_string.type or "")
             f_damp = 4200.0 if is_flatwound else 3600.0
-            h_damp = 1.0 / np.sqrt((1.0 - (freqs / f_damp) ** 2) ** 2 + 2.0 * (freqs / f_damp) ** 2)
+            h_damp = 1.0 / np.sqrt(1.0 + (freqs / f_damp) ** 4)
 
             g_sub = 0.15
             h_sub = np.sqrt((g_sub**2 * 32.0**2 + freqs**2) / (32.0**2 + freqs**2))
 
             h_acoustic_transfer = h_decomb * h_damp * h_sub
 
-            h_tilt = np.sqrt((1.0 + (freqs / 250.0) ** 2) / (1.0 + (freqs / 70.0) ** 2))
-            h_tilt = h_tilt / np.max(h_tilt)
+            h_upright_tilt = np.sqrt((1.0 + (freqs / 250.0) ** 2) / (1.0 + (freqs / 70.0) ** 2))
+            h_pos = h_upright_tilt / np.max(h_upright_tilt)
         elif is_identity:
             h_acoustic_transfer = np.ones_like(freqs)
-            h_tilt = np.ones_like(freqs)
+            h_pos = np.ones_like(freqs)
         else:
             if sensor_type == "direct":
                 h_tgt_acoustic = np.ones_like(freqs)
@@ -251,21 +251,16 @@ def compute_voice_prefilter_firs(
             h_acoustic_transfer = 10.0 ** (q_soft_db / 20.0)
 
             if sensor_type == "direct":
-                h_tilt = np.ones_like(freqs)
+                h_pos = np.ones_like(freqs)
             else:
                 eta_tgt = tgt_pos_eff / tgt_scale_m
                 eta_src = b_src_pos_eff / src_scale_m
-                delta_in = (eta_tgt - eta_src) * 34.0
-                tilt_db = delta_in * 1.5
-                g_low = 10.0 ** (tilt_db / 20.0)
-                g_hi = 10.0 ** (-tilt_db / 20.0)
-                h_low_tilt = np.sqrt(
-                    (g_low**2 + (freqs / 250.0) ** 2) / (1.0 + (freqs / 250.0) ** 2)
+                delta_g = 20.0 * np.log10(max(eta_tgt / max(eta_src, 1e-4), 1e-6))
+                delta_g_soft = 8.0 * np.tanh(delta_g / 8.0)
+                g_0 = 10.0 ** (delta_g_soft / 20.0)
+                h_pos = np.sqrt(
+                    (g_0**2 + (freqs / 220.0) ** 2) / (1.0 + (freqs / 220.0) ** 2)
                 )
-                h_hi_tilt = np.sqrt(
-                    (1.0 + g_hi**2 * (freqs / 2200.0) ** 2) / (1.0 + (freqs / 2200.0) ** 2)
-                )
-                h_tilt = h_low_tilt * h_hi_tilt
 
         p_weight = 1.0 if has_multichannel_circuit else p.weight
         p_pol = p.polarity
@@ -305,7 +300,7 @@ def compute_voice_prefilter_firs(
             scale_fac
             * h_acoustic_transfer
             * h_elec_inv
-            * h_tilt
+            * h_pos
             * h_scale_tension
             * h_str_diff
             * h_long_diff
@@ -405,18 +400,18 @@ def compute_aperture_prefilter_fir(
 
         is_flatwound = "flat" in src_string.type
         f_damp = 4200.0 if is_flatwound else 3600.0
-        h_damp = 1.0 / np.sqrt((1.0 - (freqs / f_damp) ** 2) ** 2 + 2.0 * (freqs / f_damp) ** 2)
+        h_damp = 1.0 / np.sqrt(1.0 + (freqs / f_damp) ** 4)
 
         g_sub = 0.15
         h_sub = np.sqrt((g_sub**2 * 32.0**2 + freqs**2) / (32.0**2 + freqs**2))
 
         h_acoustic_transfer = h_decomb * h_damp * h_sub
 
-        h_tilt = np.sqrt((1.0 + (freqs / 250.0) ** 2) / (1.0 + (freqs / 70.0) ** 2))
-        h_tilt = h_tilt / np.max(h_tilt)
-    elif is_identity:
+        h_upright_tilt = np.sqrt((1.0 + (freqs / 250.0) ** 2) / (1.0 + (freqs / 70.0) ** 2))
+        h_pos = h_upright_tilt / np.max(h_upright_tilt)
+    elif is_identity or sensor_type == "direct":
         h_acoustic_transfer = np.ones_like(freqs)
-        h_tilt = np.ones_like(freqs)
+        h_pos = np.ones_like(freqs)
     else:
         h_tgt_acoustic = numpy_pickup_acoustic_response(
             freqs, tgt_coils, scale_length_m=tgt_scale_range
@@ -434,13 +429,10 @@ def compute_aperture_prefilter_fir(
         h_acoustic_transfer = 10.0 ** (q_soft_db / 20.0)
         eta_tgt = tgt_pos_eff / tgt_scale_m
         eta_src = src_pos_eff / src_scale_m
-        delta_in = (eta_tgt - eta_src) * 34.0
-        tilt_db = delta_in * 1.5
-        g_low = 10.0 ** (tilt_db / 20.0)
-        g_hi = 10.0 ** (-tilt_db / 20.0)
-        h_low_tilt = np.sqrt((g_low**2 + (freqs / 250.0) ** 2) / (1.0 + (freqs / 250.0) ** 2))
-        h_hi_tilt = np.sqrt((1.0 + g_hi**2 * (freqs / 2200.0) ** 2) / (1.0 + (freqs / 2200.0) ** 2))
-        h_tilt = h_low_tilt * h_hi_tilt
+        delta_g = 20.0 * np.log10(max(eta_tgt / max(eta_src, 1e-4), 1e-6))
+        delta_g_soft = 8.0 * np.tanh(delta_g / 8.0)
+        g_0 = 10.0 ** (delta_g_soft / 20.0)
+        h_pos = np.sqrt((g_0**2 + (freqs / 220.0) ** 2) / (1.0 + (freqs / 220.0) ** 2))
 
     if is_identity:
         h_tension = np.ones_like(freqs)
@@ -498,7 +490,7 @@ def compute_aperture_prefilter_fir(
     prefilter_curve = (
         h_acoustic_transfer
         * h_elec_inv
-        * h_tilt
+        * h_pos
         * h_tension
         * h_str_diff
         * h_long_diff

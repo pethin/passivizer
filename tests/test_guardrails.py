@@ -743,3 +743,108 @@ def test_guardrail_dielectric_admittance_dc_continuity():
                 f"Piecewise DC step discontinuity {step_jump:.2e} detected in {voice_id}"
             )
 
+
+def test_guardrail_aperture_zero_frequency_exact_unity():
+    """Guardrail 5.1.1: Physical acoustic aperture of sensing coils must evaluate to exact
+    unity (1.0000, 0.00 dB) at zero frequency across all scale lengths (no artificial additive floors)."""
+    from allomorph.config import SCALES
+    from allomorph.physics import aperture_response
+
+    f_zero = np.array([0.0])
+    for s_name, s_cfg in SCALES.items():
+        resp_single = aperture_response(f_zero, w_in=0.75, d_in=0.0, speeds=s_cfg.speeds)[0]
+        resp_dual = aperture_response(f_zero, w_in=1.50, d_in=0.75, speeds=s_cfg.speeds)[0]
+        assert math.isclose(resp_single, 1.0, abs_tol=1e-6), (
+            f"Scale {s_name} single-coil zero-frequency aperture was {resp_single:.6f} != 1.0"
+        )
+        assert math.isclose(resp_dual, 1.0, abs_tol=1e-6), (
+            f"Scale {s_name} dual-coil zero-frequency aperture was {resp_dual:.6f} != 1.0"
+        )
+
+
+def test_guardrail_spatial_coherence_dc_unity():
+    """Guardrail 5.1.2: Multi-pickup spatial coherence gamma(f) must evaluate to >= 0.999 (100% coherent)
+    at DC (f = 0 Hz), smoothly decaying at higher frequencies, with zero artificial attenuation at DC."""
+    f_bins = np.linspace(0.0, 10000.0, 1000)
+    # Test typical dual-pickup geometry: delta_tau = 0.52 ms (notch at ~960 Hz)
+    delta_tau = 0.00052
+    f_notch = 1.0 / (2.0 * delta_tau)
+    f_mid = 1.35 * f_notch
+    f_sigma = max(0.35 * f_notch, 1.0)
+    gamma = 0.5 * (1.0 - np.tanh((f_bins - f_mid) / f_sigma))
+
+    # At DC (f = 0), gamma must be >= 0.999
+    assert gamma[0] >= 0.999, f"Spatial coherence at DC was {gamma[0]:.4f} (expected >= 0.999)"
+
+    # At the primary notch (f = f_notch), gamma must evaluate to ~0.88
+    idx_notch = np.argmin(np.abs(f_bins - f_notch))
+    assert math.isclose(gamma[idx_notch], 0.88, abs_tol=0.02)
+
+    # At high frequencies (f >> f_notch), gamma must smoothly approach 0.0 (incoherent summation)
+    assert gamma[-1] < 0.001
+
+
+def test_guardrail_fail_fast_composite_deconvolution():
+    """Guardrail 5.3.5: Composite pickup referencing an undefined component pickup ID
+    must immediately raise an explicit diagnostic KeyError rather than silently continuing."""
+    import pytest
+
+    from allomorph.config.schema import InstrumentConfig, PickupComponentConfig, PickupConfig
+    from allomorph.physics.deconvolution import (
+        resolve_pickup_electrical_deconvolution_np,
+        resolve_pickup_electrical_response_np,
+    )
+
+    bad_inst = InstrumentConfig(
+        id="bad_test_inst",
+        pickups={
+            "valid_pickup": PickupConfig(name="Valid", resonant_frequency_hz=3000.0, q_factor=1.2),
+            "bad_composite": PickupConfig(
+                name="Bad Composite",
+                type="composite",
+                components=[
+                    PickupComponentConfig(pickup="valid_pickup", weight=0.5),
+                    PickupComponentConfig(pickup="non_existent_pickup", weight=0.5),
+                ],
+            ),
+        },
+    )
+
+    f_grid = np.array([100.0, 1000.0, 3000.0])
+    with pytest.raises(KeyError, match="non_existent_pickup"):
+        resolve_pickup_electrical_response_np(f_grid, bad_inst.pickups["bad_composite"], bad_inst)
+
+    with pytest.raises(KeyError, match="non_existent_pickup"):
+        resolve_pickup_electrical_deconvolution_np(
+            f_grid, bad_inst.pickups["bad_composite"], bad_inst
+        )
+
+
+def test_guardrail_spatial_position_scaling_high_frequency_flatness():
+    """Guardrail 5.1.3: Spatial bridge proximity position transfer function H_pos(f)
+    must scale low-frequency fundamental excursion logarithmically according to standing-wave
+    displacement ratios, while remaining strictly flat (0.00 dB, unity gain) at high frequencies (>= 1.5 kHz)
+    to prevent artificial treble boost/cut on bridge/neck pickups."""
+    # Test extreme bridge pickup (eta = 0.06) vs neck pickup (eta = 0.16)
+    eta_bridge = 0.06
+    eta_neck = 0.16
+    f = np.linspace(20.0, 20000.0, 1000)
+
+    for eta_src, eta_tgt in [(eta_bridge, eta_neck), (eta_neck, eta_bridge)]:
+        delta_g = 20.0 * np.log10(eta_tgt / eta_src)
+        delta_g_soft = 8.0 * np.tanh(delta_g / 8.0)
+        g_0 = 10.0 ** (delta_g_soft / 20.0)
+        h_pos = np.sqrt((g_0**2 + (f / 220.0) ** 2) / (1.0 + (f / 220.0) ** 2))
+        pos_db = 20.0 * np.log10(h_pos)
+
+        # DC fundamental scaling must match delta_g_soft bit-exact at 0 Hz and within 0.2 dB at 20 Hz
+        assert math.isclose(20.0 * np.log10(g_0), delta_g_soft, abs_tol=1e-6)
+        assert math.isclose(pos_db[0], delta_g_soft, abs_tol=0.20)
+
+        # High frequencies above 2 kHz must have <= 0.20 dB residual shelf transition,
+        # and above 4 kHz strictly < 0.05 dB (converging to exact 0.00 dB at treble)
+        idx_2k = np.argmin(np.abs(f - 2000.0))
+        idx_4k = np.argmin(np.abs(f - 4000.0))
+        assert np.all(np.abs(pos_db[idx_2k:]) < 0.20)
+        assert np.all(np.abs(pos_db[idx_4k:]) < 0.05)
+

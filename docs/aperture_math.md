@@ -148,34 +148,35 @@ On fanned-fret instruments like the Dingwall NG2/NG3, pickups are mounted parall
 
 ### D. Scale-Normalized Spatial Bridge Proximity Tilt ($\Delta\eta$)
 String standing-wave vibrational modes obey $y_n(x) \propto \sin(n\pi x / L) = \sin(n\pi \eta)$, where $\eta = x / L$ is the fractional distance along the vibrating string length from the bridge saddle.
-Because harmonic node locations scale proportionally with vibrating length $L$, bridge proximity must be evaluated in **scale-normalized fractional positions** rather than raw millimeters:
+For the fundamental vibrational mode ($n=1$), $\sin(\pi \eta) \approx \pi \eta$ for small $\eta \ll 1$. Thus, the fundamental displacement amplitude scales directly proportional to distance from the bridge:
+$$y_1(\eta) \propto \eta$$
+At high frequencies ($f \ge 1\text{--}2\text{ kHz}$), the standing wave RMS envelope is constant ($1/\sqrt{2}$) everywhere along the string. Therefore, bridge proximity physically affects fundamental excursion, but does **not** alter high-frequency standing-wave amplitude.
+
+#### Standing-Wave Displacement Ratio Low-Shelf Model ($H_{\text{pos}}$):
+To model physical excursion scaling accurately without injecting artificial high-frequency boost or cut, Allomorph applies a **single low-shelf filter** governed by the physical logarithmic distance ratio:
 
 $$\eta_{\text{tgt}} = \frac{x_{\text{tgt}}}{L_{\text{tgt}}}, \quad \eta_{\text{src}} = \frac{x_{\text{src}}}{L_{\text{src}}}$$
 
-$$\Delta\eta = \eta_{\text{tgt}} - \eta_{\text{src}}$$
+$$\Delta G = 20 \log_{10}\left(\frac{\eta_{\text{tgt}}}{\eta_{\text{src}}}\right)$$
 
-$$\Delta x_{\text{norm\_in}} = \Delta\eta \times 34.0''$$
+$$\Delta G_{\text{soft}} = 8.0 \cdot \tanh\left(\frac{\Delta G}{8.0}\right)$$
 
-$$\text{tilt}_{\text{dB}} = \Delta x_{\text{norm\_in}} \times 1.5\text{ dB/in}$$
+$$g_0 = 10^{\Delta G_{\text{soft}} / 20.0}$$
 
-#### The Dual-Band Shelving Tilt Filter:
-To apply this tilt organically without phase kinks or infinite high-frequency divergence, Allomorph implements complementary 1st-order low and high shelving filters:
+$$H_{\text{pos}}(f) = \sqrt{\frac{g_0^2 + (f / 220\text{ Hz})^2}{1 + (f / 220\text{ Hz})^2}}$$
 
-$$g_{\text{low}} = 10^{\text{tilt}_{\text{dB}} / 20.0}, \quad g_{\text{hi}} = 10^{-\text{tilt}_{\text{dB}} / 20.0}$$
-
-$$H_{\text{low\_tilt}}(f) = \sqrt{\frac{g_{\text{low}}^2 + (f / 250\text{ Hz})^2}{1 + (f / 250\text{ Hz})^2}}$$
-
-$$H_{\text{hi\_tilt}}(f) = \sqrt{\frac{1 + g_{\text{hi}}^2 (f / 2200\text{ Hz})^2}{1 + (f / 2200\text{ Hz})^2}}$$
-
-$$H_{\text{tilt}}(f) = H_{\text{low\_tilt}}(f) \cdot H_{\text{hi\_tilt}}(f)$$
-
-* **Target Forward of Source ($\Delta\eta > 0$):** Boosts low-mid fundamental fullness ($< 250\text{ Hz}$) by $+g_{\text{low}}\text{ dB}$ while softening extreme bridge clank ($> 2.2\text{ kHz}$) by $-g_{\text{hi}}\text{ dB}$.
-* **Target Closer to Bridge ($\Delta\eta < 0$):** Boosts bridge bite and transient growl ($> 2.2\text{ kHz}$) while trimming low-end bloat ($< 250\text{ Hz}$).
-* **Proportional Sweet Spot Invariance:** Identical proportional locations across scales (e.g. 32" MM @ $62.2\text{ mm} \implies \eta = 7.65\%$ vs 34" MM @ $66.0\text{ mm} \implies \eta = 7.64\%$) have $\Delta\eta \approx 0$ and receive **exact zero spurious tilt** ($0.00\text{ dB}$ flat).
+* **DC Fundamental Excursion ($f \to 0$):** $H_{\text{pos}}(0) = g_0 = 10^{\Delta G_{\text{soft}} / 20.0}$, precisely matching the physical fundamental standing wave displacement ratio.
+* **High-Frequency Invariance ($f \gg 220\text{ Hz}$):** $H_{\text{pos}}(\infty) \equiv 1.0000$ ($0.00\text{ dB}$ identity). Zero artificial treble counter-tilt or harsh clank injection.
+* **2-Block Decoupled Architecture Identity:** Because logarithmic distance ratios are strictly additive:
+  $$\Delta G_{\text{B1}} + \Delta G_{\text{B2}} = 20\log_{10}\left(\frac{\eta_{\text{can}}}{\eta_{\text{src}}}\right) + 20\log_{10}\left(\frac{\eta_{\text{tgt}}}{\eta_{\text{can}}}\right) \equiv 20\log_{10}\left(\frac{\eta_{\text{tgt}}}{\eta_{\text{src}}}\right) = \Delta G_{\text{direct}}$$
+  the two-stage decoupled pipeline satisfies the spatial scaling identity bit-exact.
+* **Proportional Sweet Spot Invariance:** Identical proportional locations across scales (e.g. 32" MM @ $62.2\text{ mm} \implies \eta = 7.65\%$ vs 34" MM @ $66.0\text{ mm} \implies \eta = 7.64\%$) have $\eta_{\text{tgt}} / \eta_{\text{src}} \approx 1.0$ and receive **exact zero spurious scaling** ($0.00\text{ dB}$ flat).
 
 #### Proportional Scale Tension Snap ($H_{\text{tension}}$):
-When converting from shorter scales ($L_{\text{src}} < L_{\text{tgt}} - 0.2''$):
-$$\text{snap}_{\text{dB}} = \min\left(3.5\text{ dB}, 1.8 \times \frac{L_{\text{tgt}} - L_{\text{src}}}{4.0''}\right)$$
+When converting from shorter scales to longer scales ($L_{\text{src}} < L_{\text{tgt}}$), Allomorph applies a $C^\infty$ infinitely differentiable softplus tension snap:
+$$\Delta L = L_{\text{tgt}} - L_{\text{src}}$$
+$$\Delta L_{\text{soft}} = \frac{1}{2} \ln(1 + e^{2 \Delta L})$$
+$$\text{snap}_{\text{dB}} = 3.5 \cdot \tanh\left(\frac{1.8 \Delta L_{\text{soft}}}{4.0 \times 3.5}\right)$$
 $$H_{\text{tension}}(f) = \sqrt{\frac{1 + 10^{\text{snap}_{\text{dB}} / 10.0} \cdot (f / 2800\text{ Hz})^2}{1 + (f / 2800\text{ Hz})^2}}$$
 
 Yields $+1.8\text{ dB}$ for 30" short scale, $+0.9\text{ dB}$ for 32" medium scale, and $0.0\text{ dB}$ for standard 34" scale, restoring the tight piano-like high-frequency snap of higher string tension.

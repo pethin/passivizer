@@ -404,8 +404,8 @@ def numpy_aperture(
         speeds = [pt.v0 for pt in continuum]
     acc = np.zeros_like(f, dtype=np.float64)
     for v in speeds:
-        sinc_v = np.abs(np.sinc(w_m * f / v)) + 0.05
-        comb_v = np.abs(np.cos(np.pi * d_m * f / v)) + 0.05 if d_in > 0 else 1.0
+        sinc_v = np.abs(np.sinc(w_m * f / v))
+        comb_v = np.abs(np.cos(np.pi * d_m * f / v)) if d_in > 0 else 1.0
         acc += sinc_v * comb_v
     return acc / len(speeds)
 
@@ -424,7 +424,7 @@ def numpy_position(
     acc = np.zeros_like(f, dtype=np.float64)
     for v in speeds:
         arg_p = f * (2.0 * math.pi * pos_m / v)
-        acc += np.abs(np.sin(arg_p)) + 0.15
+        acc += np.abs(np.sin(arg_p))
     return acc / len(speeds)
 
 

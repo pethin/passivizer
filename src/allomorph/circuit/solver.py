@@ -248,11 +248,19 @@ def compute_circuit_transfer_functions(
     s = 1j * w
 
     # Dielectric absorption parameters (Cole-Davidson fractional-order relaxation)
-    alpha_cable = (
-        model.alpha_dielectric_cable
-        if getattr(model, "alpha_dielectric_cable", None) is not None
-        else 0.994
-    )
+    tan_d = getattr(model, "tan_delta", 0.025)
+    if tan_d == 0.0:
+        alpha_cable = 1.0
+    elif (
+        getattr(model, "alpha_dielectric_cable", None) is not None
+        and model.alpha_dielectric_cable != 0.994
+    ):
+        alpha_cable = float(model.alpha_dielectric_cable)
+    elif tan_d is not None and tan_d > 0.0:
+        alpha_cable = 1.0 - (2.0 / np.pi) * np.arctan(float(tan_d))
+    else:
+        alpha_cable = 0.994
+
     alpha_tone = (
         model.alpha_dielectric_tone
         if getattr(model, "alpha_dielectric_tone", None) is not None
@@ -480,9 +488,7 @@ def compute_circuit_transfer_functions(
 
     # Passive RLC Guitar Harness: Coils directly loaded by pots, cable capacitance, and Anagram load
     Rload = (model.Rbot * model.Ranagram) / (model.Rbot + model.Ranagram)
-    tan_d = model.tan_delta
-    G_diel = w * model.Ccable * tan_d if tan_d > 0.0 else 0.0
-    Zload = 1.0 / (1.0 / Rload + Y_cable_diel + s * model.Canagram + G_diel)
+    Zload = 1.0 / (1.0 / Rload + Y_cable_diel + s * model.Canagram)
 
     # Treble bleed impedance (if configured)
     if model.Ctb > 0 and model.Rtb_par > 0:

@@ -413,7 +413,7 @@ def simulate_circuit_audio(
             f_notch = 1.0 / (2.0 * delta_tau)
             f_mid = 1.35 * f_notch
             f_sigma = max(0.35 * f_notch, 1.0)
-            gamma = 0.88 * 0.5 * (1.0 - np.tanh((f_bins_spec - f_mid) / f_sigma))
+            gamma = 0.5 * (1.0 - np.tanh((f_bins_spec - f_mid) / f_sigma))
             M_blend = np.sqrt(gamma * P_coh + (1.0 - gamma) * P_incoh)
 
             H_coh = np.sum(H_chs, axis=0)
