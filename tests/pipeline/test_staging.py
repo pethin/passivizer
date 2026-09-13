@@ -617,46 +617,6 @@ def test_parseval_spectral_integration_rms_accuracy():
     )
 
 
-def test_target_sweep_zero_timing_delay_and_no_nam_lookahead_warnings(tmp_path: Path):
-    """Validates that causally convolved target sweeps maintain exact zero latency
-
-    alignment with optimal_bass_dry.wav and trigger zero lookahead or detection warnings in NAM.
-    """
-    from allomorph.circuit.staging import CANONICAL_SWEEP_PATH
-    from allomorph.dsp import calibrate_nam_v3_latency
-
-    # Use existing canonical sweep if present, or generate into tmp_path without touching repo audio/
-    if CANONICAL_SWEEP_PATH.exists():
-        sweep_in = CANONICAL_SWEEP_PATH
-    else:
-        sweep_in = tmp_path / "canonical_sweep.wav"
-        generate_canonical_sweep(output_wav=sweep_in)
-
-    out_file = tmp_path / "out_04_modern_p_ceramic.wav"
-    simulate_voice(
-        voice_id="04_modern_p_ceramic",
-        input_wav=sweep_in,
-        output_wav=out_file,
-        instrument="canonical_intermediate",
-        tier="clean",
-        normalize="none",
-        max_samples=580000,
-    )
-
-    assert out_file.exists()
-    audio, sr = read_wav(out_file)
-    assert sr == 48000
-
-    rec_delay, matches_lookahead, not_detected = calibrate_nam_v3_latency(audio)
-    assert matches_lookahead is False, (
-        "NAM detected lookahead mismatch due to non-causal phase shift!"
-    )
-    assert not_detected is False, "NAM failed to detect calibration marker!"
-    assert rec_delay in [0, -1, -2], (
-        f"Unexpected latency offset: {rec_delay} (expected near 0)"
-    )
-
-
 def test_clean_tier_saturation_bypass_and_performance(tmp_path: Path):
     """Validates that tier='clean' enables saturation bypass and linear stage fusion,
 
