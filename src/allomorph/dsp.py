@@ -517,11 +517,11 @@ def generate_optimal_bass_dry(
     # 2. Multi-tier full sweeps (15 Hz -> 22 kHz)
     c_dur = max(0.8, 7.0 * scale)
     chirp_tiers = [
-        (15.0, 22000.0, 0.063),
-        (15.0, 22000.0, 0.251),
-        (15.0, 22000.0, 0.501),
-        (15.0, 22000.0, 0.891),
-        (22000.0, 15.0, 0.707),
+        (15.0, 22000.0, 0.050),
+        (15.0, 22000.0, 0.180),
+        (15.0, 22000.0, 0.400),
+        (15.0, 22000.0, 0.700),
+        (22000.0, 15.0, 0.550),
     ]
     for f_s, f_e, amp in chirp_tiers:
         if cur >= total_samples - trail_silence:
@@ -537,11 +537,11 @@ def generate_optimal_bass_dry(
         p = _synth_pluck(41.20, v_amp, v_dur, sample_rate, technique="finger")
         append_segment(p, 0.4)
 
-    # Modal plucks with pitch sag and fret clank (Drop A0 27.5 Hz through C3 130.81 Hz)
-    m_dur = max(0.4, 1.5 * scale)
-    notes = [27.50, 30.87, 41.20, 55.00, 73.42, 98.00, 130.81]
+    # Modal plucks with pitch sag and fret clank across all string registers
+    m_dur = max(0.4, 1.3 * scale)
+    notes = [27.50, 30.87, 41.20, 55.00, 73.42, 82.41, 98.00, 110.00, 130.81, 146.83]
     for n_f in notes:
-        for v_amp in [0.45, 0.85]:
+        for v_amp in [0.45, 0.80]:
             if cur >= total_samples - trail_silence:
                 break
             p = _synth_pluck(n_f, v_amp, m_dur, sample_rate, technique="finger")
@@ -580,19 +580,21 @@ def generate_optimal_bass_dry(
         append_segment(h, 0.4)
 
     # 5. Polyphony & Dyads (Intermodulation Distortion)
+    # Non-octave musical intervals (power 5ths, 4ths) to excite nonlinear IMD
+    # without creating locked octave sub-harmonic bias.
     d_dur = max(0.5, 2.0 * scale)
     dyads = [
-        (27.50, 41.25),
-        (30.87, 46.31),
-        (41.20, 61.74),
-        (55.00, 82.50),
-        (41.20, 82.41),
-        (55.00, 110.00),
+        (27.50, 41.25),  # Low-A0 + E1 (power 5th)
+        (30.87, 46.31),  # Low-B0 + F#1 (power 5th)
+        (41.20, 61.74),  # Low-E1 + B1 (power 5th)
+        (55.00, 82.50),  # Low-A1 + E2 (power 5th)
+        (55.00, 73.42),  # Low-A1 + D2 (perfect 4th)
+        (73.42, 110.00), # D2 + A2 (power 5th)
     ]
     for f1, f2 in dyads:
         if cur >= total_samples - trail_silence:
             break
-        d = _synth_dyad(f1, f2, 0.80, d_dur, sample_rate)
+        d = _synth_dyad(f1, f2, 0.75, d_dur, sample_rate)
         append_segment(d, 0.4)
 
     # Schroeder-phase multitone complex with dynamic swell

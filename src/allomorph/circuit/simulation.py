@@ -388,26 +388,47 @@ def simulate_circuit_audio(
     if len(channel_outputs) > 1 and prefilter_firs is not None and len(prefilter_firs) > 1:
         peaks = [int(np.argmax(np.abs(fir))) for fir in prefilter_firs]
         delta_samples = max(peaks) - min(peaks) if len(peaks) > 1 else 0
-        has_spatial_delay = delta_samples > 0
-        if has_spatial_delay:
-            n_fft_sum = 1 << len(channel_outputs[0]).bit_length()
-            X_chs = [np.fft.rfft(ch, n_fft_sum) for ch in channel_outputs]
-            X_coh = np.sum(X_chs, axis=0)
-            P_coh = np.abs(X_coh) ** 2
-            P_incoh = np.sum([np.abs(X) ** 2 for X in X_chs], axis=0)
+        if delta_samples > 0:
+            # Multi-string wave dispersion cross-coherence decay (Guardrail 5.1.2)
+            # Evaluated analytically in frequency domain to yield a causal, minimum-phase correction filter.
+            # Strictly avoids non-causal circular FFT phase division or audio-dependent noise smearing.
+            N_spec = 4096
+            f_bins_spec = np.fft.rfftfreq(N_spec, 1.0 / sr)
+            H_chs = []
+            for i in range(len(channel_outputs)):
+                fir_p = np.array(prefilter_firs[i], dtype=np.float32)
+                m_curve = mag_curves[i] if i < len(mag_curves) else mag_curves[0]
+                fir_c = np.array(
+                    synthesize_minimum_phase_fir(m_curve, num_taps=NUM_TAPS, normalize=False),
+                    dtype=np.float32,
+                )
+                H_p = np.fft.rfft(fir_p, N_spec)
+                H_c = np.fft.rfft(fir_c, N_spec)
+                H_chs.append(H_p * H_c)
 
-            f_bins = np.fft.rfftfreq(n_fft_sum, 1.0 / sr)
+            P_coh = np.abs(np.sum(H_chs, axis=0)) ** 2
+            P_incoh = np.sum(np.abs(H_chs) ** 2, axis=0)
+
             delta_tau = delta_samples / float(sr)
             f_notch = 1.0 / (2.0 * delta_tau)
             f_start = f_notch
             f_end = 1.7 * f_notch
-            t = np.clip((f_bins - f_start) / (f_end - f_start), 0.0, 1.0)
-            gamma = 0.88 * 0.5 * (1.0 + np.cos(np.pi * t))
+            t_clip = np.clip((f_bins_spec - f_start) / (f_end - f_start), 0.0, 1.0)
+            gamma = 0.88 * 0.5 * (1.0 + np.cos(np.pi * t_clip))
             M_blend = np.sqrt(gamma * P_coh + (1.0 - gamma) * P_incoh)
 
-            eps = 1e-9
-            X_out = M_blend * (X_coh / (np.abs(X_coh) + eps))
-            out_total = np.fft.irfft(X_out, n_fft_sum)[: len(channel_outputs[0])].astype(np.float32)
+            H_coh = np.sum(H_chs, axis=0)
+            mag_coh = np.abs(H_coh)
+            H_spatial = M_blend / np.maximum(mag_coh, 1e-4)
+
+            fir_spatial = np.array(
+                synthesize_minimum_phase_fir(H_spatial, num_taps=1024, normalize=False),
+                dtype=np.float32,
+            )
+            raw_sum = np.sum(channel_outputs, axis=0)
+            out_total = fft_convolve(raw_sum, fir_spatial, mode="causal")[
+                : len(channel_outputs[0])
+            ].astype(np.float32)
         else:
             out_total = np.sum(channel_outputs, axis=0)
     else:
