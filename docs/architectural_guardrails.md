@@ -10,6 +10,7 @@ To preserve fast agent reasoning and prevent LLM context exhaustion, Allomorph m
 1. **`AGENTS.md` (Normative Core):** Contains only high-level rules, negative constraints ("Never do X"), and boundary conditions kept under **$18\text{ KB}$**.
 2. **`docs/architectural_guardrails.md` (Unabridged Handbook):** Contains all extensive LaTeX equations, matrix derivations, parameter mappings, and physics proofs.
 3. **`tests/test_guardrails.py` (Executable Invariants):** Programmatically enforces all rules on every test run.
+4. **Primacy of Physical Modeling over Hardcoded Test Values:** The physical equations and analytical derivations model real physical behavior and serve as the ground truth. When refining or correcting physical modeling (e.g. implementing $C^\infty$ smoothness, removing piecewise steps, regularizing singularities, or fixing multi-pickup delays), hardcoded test values (dB thresholds, frequency bins, gain bounds) are viable and expected to change. Never warp, tune, or artificially clamp genuine physical formulas to fit obsolete or heuristic legacy test assertions; instead, update the tests to reflect the verified physical behavior.
 
 When adding new modeling features, write the mathematical derivations into this document, declare the rule in `AGENTS.md`, and add an invariant check to `tests/test_guardrails.py`.
 
@@ -24,14 +25,16 @@ $$f_{\text{peak, src}} = \frac{\bar{c}}{x_{\text{src}}}, \quad f_{\text{taper\_s
 
 ### 1.2 Wavelength-Dependent Coherence Decay ($\lambda \le d$)
 Evaluate humbucker cross-coherence decay dynamically per string/continuum wave speed $v$ based on acoustic wavelength $\lambda = v/f$ relative to coil spacing $d$:
-$$f_{\text{start}} = \frac{v}{d}, \quad f_{\text{end}} = 1.8 \cdot \frac{v}{d}, \quad \gamma(f, v) = \frac{1}{2}\left[1 + \cos\left(\pi \cdot \text{clip}\left(\frac{f - f_{\text{start}}}{f_{\text{end}} - f_{\text{start}}}, 0, 1\right)\right)\right]$$
-The transition begins right after the constructive peak ($f_{\text{start}}$), smoothly blending into incoherent power summation. Always engage coherence decay for any non-zero sample delay:
+$$f_{\text{mid}} = 1.4 \cdot \frac{v}{d}, \quad f_\sigma = \max\left(0.4 \cdot \frac{v}{d}, 1.0\right), \quad \gamma(f, v) = \frac{1}{2}\left[1 - \tanh\left(\frac{f - f_{\text{mid}}}{f_\sigma}\right)\right]$$
+The transition begins right after the constructive peak, smoothly blending ($C^\infty$) into incoherent power summation without piecewise cosine clipping. Always engage coherence decay for any non-zero sample delay:
 $$\text{has\_spatial\_delay} = (\text{len}(\text{channels}) > 1 \land \Delta\text{samples} > 0)$$
 
-### 1.3 Spatial Arrival Delays & Causal Sample Shifting
-When synthesizing multi-pickup branch FIR filters with spatial propagation delay differences ($\tau_i = \Delta x_i / \bar{c}$), apply delays strictly via causal discrete sample shifting:
-$$\text{delay\_samples} = \lfloor \tau_i \cdot f_s + 0.5 \rfloor, \quad \text{fir} = [0]^{\text{delay\_samples}} + \text{fir}[:N - \text{delay\_samples}]$$
-Never implement fractional arrival delays on causal minimum-phase FIR filters via circular FFT phase rotation ($H(f) \cdot e^{-j 2\pi f \tau_i}$). Because the minimum-phase impulse response peak is concentrated at tap 0, continuous-time sinc interpolation wraps the negative-time non-causal sinc tail around to the end of the circular buffer. Slicing the buffer back to $N$ taps discards this wrapped tail, convolving the frequency spectrum with a Dirichlet kernel and injecting artificial periodic Gibbs truncation ripples ($\Delta f = 1/\tau_i$) across the high frequencies ($8\text{--}20\text{ kHz}$).
+### 1.3 Spatial Arrival Delays & Vector Causal Normalization
+When transforming between multi-pickup configurations with differing pickup spacings, the relative arrival delay across sensing channels must be normalized causally across the entire pickup array:
+$$\tau_{\text{diff}, i} = \tau_{\text{tgt}, i} - \tau_{\text{src}, i}, \quad \tau_i = \tau_{\text{diff}, i} - \min_{j} \tau_{\text{diff}, j}$$
+This guarantees strict physical causality ($\min(\tau_i) \equiv 0$, zero non-causal negative sample shifts) while preserving the exact differential delay between pickups ($\tau_0 - \tau_1 = \Delta\tau_{\text{phys}}$). Delays are applied strictly via causal discrete sample shifting:
+$$\text{delay\_samples}_i = \lfloor \tau_i \cdot f_s + 0.5 \rfloor, \quad \text{fir}_i = [0]^{\text{delay\_samples}_i} + \text{fir}_i[:N - \text{delay\_samples}_i]$$
+Never clamp early pickups to zero or invert spatial delays. Never implement fractional arrival delays on causal minimum-phase FIR filters via circular FFT phase rotation ($H(f) \cdot e^{-j 2\pi f \tau_i}$). Because the minimum-phase impulse response peak is concentrated at tap 0, continuous-time sinc interpolation wraps the negative-time non-causal sinc tail around to the end of the circular buffer. Slicing the buffer back to $N$ taps discards this wrapped tail, convolving the frequency spectrum with a Dirichlet kernel and injecting artificial periodic Gibbs truncation ripples ($\Delta f = 1/\tau_i$) across the high frequencies ($8\text{--}20\text{ kHz}$).
 
 ### 1.4 Sidewinder Architecture
 If coils feed a single central row of pole pieces under the string ($\Delta x = 0$, e.g. Gibson EB Mudbucker), configure a single coil entry with effective center position ($x = x_{\text{center}}$) and expanded aperture width ($w \approx 1.25''$), never a multi-coil spaced array.
@@ -47,7 +50,9 @@ $$\text{snap\_db} = \min\left(3.5\text{ dB}, 1.8 \cdot \frac{L_{\text{tgt}} - L_
 ### 1.7 Continuous Wave-Speed Continuum ($f_0 \in [30.87, 100]\text{ Hz}$)
 Never constrain acoustic spatial filtering to 4 discrete open-string wave speeds or note-name strings (`["E", "A"]`). Integrate acoustic aperture responses ($H_{\text{composite}}$) across a continuous, log-spaced distribution ($N \ge 24$ points, uniform $1/N$ weight) spanning Low B ($30.87\text{ Hz}$) to open G ($100.00\text{ Hz}$). Route continuum points geometrically via register halves (`[1, 2]` treble vs `[3, 4]` bass), never note names. On multi-scale instruments (e.g. 34"-37" Dingwall NG, 32"-35" Dingwall SP1), vibrating string length $L(f_0)$ smoothly interpolates logarithmically from $L_{\text{max}}$ at Low B ($30.87\text{ Hz}$) down to $L_{\text{min}}$ at High G ($100.0\text{ Hz}$):
 $$t(f_0) = \frac{\log_2(f_0) - \log_2(f_{\text{min}})}{\log_2(f_{\text{max}}) - \log_2(f_{\text{min}})}, \quad L(f_0) = L_{\text{max}} - t(f_0) \cdot (L_{\text{max}} - L_{\text{min}}), \quad v_0(f_0) = 2 \cdot L(f_0) \cdot f_0$$
-Derive string stiffness $B_s(f_0)$ logarithmically and calculate mean propagation delay using register centroid $\bar{f}_0 = 66.9045\text{ Hz}$ ($\bar{c} = 2 \bar{L} \bar{f}_0$).
+Derive string stiffness $B_s(f_0)$ via an exact $C^\infty$ Gaussian Radial Basis Function (RBF) solver across empirical laboratory anchors ($f_{0,i} \in \{27.50, 30.87, \dots, 196.00\}\text{ Hz}$):
+$$\mathbf{\Phi}_{i,j} = \exp\left(-\left(\epsilon \cdot \left|\log_2 f_{0,i} - \log_2 f_{0,j}\right|\right)^2\right), \quad \mathbf{\Phi} \mathbf{w} = \log_2 \mathbf{B}_s, \quad B_s(f_0) = 2^{\sum_j w_j \exp\left(-\left(\epsilon \cdot \left|\log_2 f_0 - \log_2 f_{0,j}\right|\right)^2\right)}$$
+with $\epsilon = 0.5$, reproducing calibration anchors to $< 10^{-10}$ relative error while guaranteeing strictly decreasing monotonicity across bass fundamental registers without piecewise linear slope kinks. Calculate mean propagation delay using register centroid $\bar{f}_0 = 66.9045\text{ Hz}$ ($\bar{c} = 2 \bar{L} \bar{f}_0$).
 
 ### 1.8 Longitudinal Wave Transmission & Core Percussion ($H_{\text{long}}(f)$)
 Plucking an electric bass string excites longitudinal compression waves propagating through the steel core wire ($c_L \approx 5100\text{ m/s}$), producing a distinct resonant clank at $f_L = c_L / (2L) \approx 2.7\text{--}3.3\text{ kHz}$. When target voicing string has higher longitudinal coupling than source ($\Delta k_{\text{long}} = \max(k_{\text{long,tgt}} - k_{\text{long,src}}, 0) > 0$):
@@ -71,9 +76,18 @@ Evaluated differentially ($H_{\text{saddle,tgt}} / H_{\text{saddle,src}}$). Eval
 
 ## 2. Mathematical Smoothness, Regularization & Boundary Continuity ($C^1 / C^\infty$)
 
-### 2.1 Regularized Denominators & Soft-Knee Saturation
-Never clamp transfer ratio denominators with premature floors (e.g. `np.maximum(mag, 0.05)`) or apply hard rectangular clipping (`np.clip(..., 0.15, 3.0)`). Use regularized denominators ($\max(\text{mag}, 10^{-6})$) so identical profiles evaluate to exact $1.0000$ ($0.00\text{ dB}$). Bound maximum boosts and damping using asymptotic bidirectional soft-knee saturation:
-$$r_{\text{db}} = 20 \log_{10}(\text{ratio}), \quad r_{\text{soft\_db}} = g \cdot \tanh\left(\frac{r_{\text{db}}}{g}\right)$$
+### 2.1 Regularized Denominators, Asymptotic Limiters & Smooth Norms
+Never clamp transfer ratio denominators with premature floors (e.g. `np.maximum(mag, 0.05)`) or apply hard rectangular clipping (`np.clip(..., 0.15, 3.0)`). Use regularized denominators ($\max(\text{mag}, 10^{-6})$) so identical profiles evaluate to exact $1.0000$ ($0.00\text{ dB}$).
+- **Asymptotic $C^\infty$ Algebraic Rail Limiter ($p=8$):** Output limiting on analog wet audio buffers is governed by:
+  $$f(x) = \frac{x}{\left(1 + \left(\frac{|x|}{V_{\text{sat}}}\right)^8\right)^{1/8}}, \quad V_{\text{sat}} = 0.985$$
+  guaranteeing strict boundedness $|f(x)| \le V_{\text{sat}}$, $C^1$ and $C^2$ continuity everywhere, and small-signal linearity ($|f(x) - x| < 10^{-8}$ for $|x| \le 0.10$).
+- **Charbonnier Pseudo-Norm:** Discontinuous $|x|$ derivatives are regularized via:
+  $$\|x\|_\epsilon = \sqrt{x^2 + \epsilon^2} - \epsilon, \quad \frac{d\|x\|_\epsilon}{dx} = \frac{x}{\sqrt{x^2 + \epsilon^2}}$$
+  vanishing continuously at $x=0$.
+- **Quadratic Steinmetz Core:** The infinite gradient singularity of $|x|^{1.6}$ at origin is eliminated via quadratic regularization:
+  $$S(u) = \left(\frac{u^2}{1 + u^2}\right)^{0.8}$$
+- **Bidirectional Soft-Knee Saturation:** Bound maximum boosts and damping using smooth asymptotic saturation:
+  $$r_{\text{db}} = 20 \log_{10}(\text{ratio}), \quad r_{\text{soft\_db}} = g \cdot \tanh\left(\frac{r_{\text{db}}}{g}\right)$$
 
 ### 2.2 Smooth $C^\infty$ Transition Across $0\text{ dB}$ Threshold
 Never use piecewise conditionals (`np.where(h > 0, h * s, h)`) which create first-derivative slope kinks at $0\text{ dB}$. Use smooth softplus blending:

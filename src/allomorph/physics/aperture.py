@@ -65,7 +65,7 @@ def compute_body_microphonic_coupling(
 
     fn = freqs / fb
     denom = Qb * np.sqrt((1.0 - fn**2) ** 2 + (fn / Qb) ** 2)
-    resonance = np.where(freqs > 10.0, fn / np.maximum(denom, 1e-9), 0.0)
+    resonance = fn / np.maximum(denom, 1e-9)
     damping = np.exp(-((freqs / fdamp) ** 2))
 
     return 1.0 + delta_k * resonance * damping
@@ -311,10 +311,9 @@ def numpy_pickup_acoustic_response(
                 dc_incoh = sum(abs(c.weight) ** 2 for c in active)
                 dc_norm = math.sqrt(total_w**2 + (eps_quad**2) * dc_incoh) / total_w
 
-                f_start = v / delta_x_span
-                f_end = 1.8 * v / delta_x_span
-                t = np.clip((f - f_start) / (f_end - f_start), 0.0, 1.0)
-                gamma = 0.5 * (1.0 + np.cos(np.pi * t))
+                f_mid = 1.4 * v / delta_x_span
+                f_sigma = max(0.4 * v / delta_x_span, 1.0)
+                gamma = 0.5 * (1.0 - np.tanh((f - f_mid) / f_sigma))
                 m_blend = np.sqrt(gamma * p_coh_reg + (1.0 - gamma) * p_incoh) / dc_norm
             else:
                 m_blend = np.abs(coil_sum)

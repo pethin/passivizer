@@ -44,6 +44,14 @@ INHARMONICITY_ANCHORS_BS = np.array(
     [0.000028, 0.000025, 0.000020, 0.000012, 0.000006, 0.000003, 0.0000015, 0.0000008],
     dtype=np.float64,
 )
+
+# Precomputed Gaussian RBF solver (C^inf globally analytic anchor interpolator)
+_LOG_F0_ANCHORS = np.log2(INHARMONICITY_ANCHORS_F0)
+_LOG_BS_ANCHORS = np.log2(INHARMONICITY_ANCHORS_BS)
+_RBF_EPSILON = 0.5
+_RBF_D = np.abs(_LOG_F0_ANCHORS[:, None] - _LOG_F0_ANCHORS[None, :])
+_RBF_A = np.exp(-(_RBF_EPSILON * _RBF_D) ** 2)
+_RBF_WEIGHTS = np.linalg.solve(_RBF_A, _LOG_BS_ANCHORS)
 MEAN_BASS_F0 = (
     66.9045  # Mean open-string fundamental frequency (E1=41.203, A1=55.000, D2=73.416, G2=97.999)
 )
@@ -77,11 +85,10 @@ def compute_differential_string_transfer(
     r_db = 20.0 * np.log10(np.maximum(ratio, 1e-6))
     g_max_db = 8.0
     g_min_db = -36.0
-    r_soft_db = np.where(
-        r_db > 0.0,
-        g_max_db * np.tanh(r_db / g_max_db),
-        g_min_db * np.tanh(r_db / g_min_db),
-    )
+    sigma = 0.5 * (1.0 + np.tanh(0.5 * r_db))
+    f_pos = g_max_db * np.tanh(r_db / g_max_db)
+    f_neg = g_min_db * np.tanh(r_db / g_min_db)
+    r_soft_db = sigma * f_pos + (1.0 - sigma) * f_neg
     h_damp_ratio = 10.0 ** (r_soft_db / 20.0)
 
     bloom_src = float(src_string.bloom_db)
@@ -133,11 +140,12 @@ def pitch_to_note_name(f0: float) -> str:
 
 
 def get_inharmonicity_for_f0(f0: float) -> float:
-    """Interpolates empirical string stiffness / inharmonicity constant B_s for a given f0."""
-    log_f0 = math.log2(max(f0, 20.0))
-    log_anchors = np.log2(INHARMONICITY_ANCHORS_F0)
-    b_s = float(np.interp(log_f0, log_anchors, INHARMONICITY_ANCHORS_BS))
-    return b_s
+    """Interpolates empirical string stiffness / inharmonicity constant B_s for a given f0
+    using an infinitely differentiable (C^inf) Gaussian Radial Basis Function (RBF)."""
+    log_f0 = math.log2(max(f0, 15.0))
+    d = np.abs(log_f0 - _LOG_F0_ANCHORS)
+    basis = np.exp(-(_RBF_EPSILON * d) ** 2)
+    return float(2.0 ** (basis @ _RBF_WEIGHTS))
 
 
 # resolve_scale_range is imported from allomorph.config to maintain a single source of truth

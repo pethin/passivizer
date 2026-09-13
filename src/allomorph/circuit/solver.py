@@ -244,21 +244,29 @@ def compute_circuit_transfer_functions(
     if model.no_eq:
         return _ret([np.ones_like(f)])
 
-    w = np.where(f == 0.0, 2.0 * np.pi * 1e-3, 2.0 * np.pi * f)
+    w = 2.0 * np.pi * f
     s = 1j * w
 
     # Dielectric absorption parameters (Cole-Davidson fractional-order relaxation)
-    alpha_cable = model.alpha_dielectric_cable
-    alpha_tone = model.alpha_dielectric_tone
+    alpha_cable = (
+        model.alpha_dielectric_cable
+        if getattr(model, "alpha_dielectric_cable", None) is not None
+        else 0.994
+    )
+    alpha_tone = (
+        model.alpha_dielectric_tone
+        if getattr(model, "alpha_dielectric_tone", None) is not None
+        else 0.988
+    )
     w0 = 2.0 * np.pi * 1000.0  # 1 kHz calibration reference frequency
-    s_norm = np.maximum(w / w0, 1e-6)
+    s_ratio = np.where(w > 0.0, w / w0, 0.0)
 
     phase_factor_cable = np.exp(1j * (alpha_cable - 1.0) * (np.pi / 2.0))
-    Y_cable_diel = s * model.Ccable * (s_norm ** (alpha_cable - 1.0)) * phase_factor_cable
+    Y_cable_diel = 1j * w0 * model.Ccable * (s_ratio ** alpha_cable) * phase_factor_cable
 
     if model.Ctone > 0:
         phase_factor_tone = np.exp(1j * (alpha_tone - 1.0) * (np.pi / 2.0))
-        Y_c_tone = s * model.Ctone * (s_norm ** (alpha_tone - 1.0)) * phase_factor_tone
+        Y_c_tone = 1j * w0 * model.Ctone * (s_ratio ** alpha_tone) * phase_factor_tone
         Y_tone = Y_c_tone / (1.0 + Y_c_tone * model.Rtone) if model.Rtone > 0 else Y_c_tone
     else:
         Y_tone = 0.0
@@ -284,14 +292,16 @@ def compute_circuit_transfer_functions(
 
     if k_dist > 0.0:
         gamma_dist = k_dist * np.sqrt(s / omega_dist)
-        dist_factor = np.where(np.abs(gamma_dist) < 1e-5, 1.0, np.tanh(gamma_dist) / gamma_dist)
+        safe_gamma = np.where(np.abs(gamma_dist) < 1e-5, 1.0, gamma_dist)
+        dist_factor = np.where(np.abs(gamma_dist) < 1e-5, 1.0, np.tanh(safe_gamma) / safe_gamma)
     else:
         dist_factor = 1.0
 
     if k_dist_b > 0.0:
         gamma_dist_b = k_dist_b * np.sqrt(s / omega_dist)
+        safe_gamma_b = np.where(np.abs(gamma_dist_b) < 1e-5, 1.0, gamma_dist_b)
         dist_factor_b = np.where(
-            np.abs(gamma_dist_b) < 1e-5, 1.0, np.tanh(gamma_dist_b) / gamma_dist_b
+            np.abs(gamma_dist_b) < 1e-5, 1.0, np.tanh(safe_gamma_b) / safe_gamma_b
         )
     else:
         dist_factor_b = 1.0
@@ -496,13 +506,17 @@ def compute_circuit_transfer_functions(
         Y_branch = 1.0 / (model.Rdc + Z_L) + 1.0 / model.Reddy
         Y_shunt2 = Y_c_n + Y_tone
 
-        Z_rick = 1.0 / (s * model.Crick) if model.Crick > 0 else 0.0
-        Z23 = Z_rick + Z23_pot
+        if model.Crick > 0:
+            Y_rick = s * model.Crick
+            Y_series = Y_rick / (1.0 + (Z23_pot + Zload) * Y_rick)
+            H_2_to_3 = (Zload * Y_rick) / (1.0 + (Z23_pot + Zload) * Y_rick)
+        else:
+            Y_series = 1.0 / (Z23_pot + Zload)
+            H_2_to_3 = Zload / (Z23_pot + Zload)
 
-        Y_eff2 = Y_shunt2 + 1.0 / (Z23 + Zload)
+        Y_eff2 = Y_shunt2 + Y_series
         H_dyn_to_2 = Y_branch / (Y_branch + Y_eff2)
-        H_2_to_3 = Zload / (Z23 + Zload)
-        H_total = np.where((f == 0.0) & (model.Crick > 0), 0.0, np.abs(H_dyn_to_2 * H_2_to_3))
+        H_total = np.abs(H_dyn_to_2 * H_2_to_3)
         return _ret([H_total])
 
     elif model.topology == "parallel":

@@ -192,10 +192,9 @@ def build_voice_dataframe(
                 P_incoherent = np.sum(np.abs(H_channels) ** 2, axis=0)
                 delta_tau = delta_samples / 48000.0
                 f_notch = 1.0 / (2.0 * delta_tau)
-                f_start = f_notch
-                f_end = 1.7 * f_notch
-                t = np.clip((f_bins - f_start) / (f_end - f_start), 0.0, 1.0)
-                gamma = 0.88 * 0.5 * (1.0 + np.cos(np.pi * t))
+                f_mid = 1.35 * f_notch
+                f_sigma = max(0.35 * f_notch, 1.0)
+                gamma = 0.88 * 0.5 * (1.0 - np.tanh((f_bins - f_mid) / f_sigma))
                 mag_spectrum = np.sqrt(gamma * P_coherent + (1.0 - gamma) * P_incoherent)
             elif len(H_channels) > 1:
                 mag_spectrum = np.abs(np.sum(H_channels, axis=0))
@@ -302,10 +301,9 @@ def build_voice_dataframe(
             P_incoherent = np.sum(np.abs(H_channels) ** 2, axis=0)
             delta_tau = delta_samples / 48000.0
             f_notch = 1.0 / (2.0 * delta_tau)
-            f_start = f_notch
-            f_end = 1.7 * f_notch
-            t = np.clip((f_bins - f_start) / (f_end - f_start), 0.0, 1.0)
-            gamma = 0.88 * 0.5 * (1.0 + np.cos(np.pi * t))
+            f_mid = 1.35 * f_notch
+            f_sigma = max(0.35 * f_notch, 1.0)
+            gamma = 0.88 * 0.5 * (1.0 - np.tanh((f_bins - f_mid) / f_sigma))
             mag_spectrum = np.sqrt(gamma * P_coherent + (1.0 - gamma) * P_incoherent)
         elif len(H_channels) > 1:
             mag_spectrum = np.abs(np.sum(H_channels, axis=0))

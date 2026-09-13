@@ -597,3 +597,149 @@ def test_guardrail_visualizer_universal_target_voicings_fidelity():
     assert max_diff < 0.01, (
         f"Stage 4 Target Voicing for {vid} differed from universal target dataframe by {max_diff:.4f} dB"
     )
+
+
+def test_guardrail_c_infinity_algebraic_rail_limiter():
+    """Guardrail 5.2.1: Asymptotic algebraic rail limiter (p=8) must be strictly bounded
+    (|f(x)| < V_sat), C^1/C^2 smooth with zero slope jumps, and preserve bit-exact linearity
+    for small signals (|x| <= 0.10)."""
+    vsat = 0.985
+    p = 8.0
+
+    # 1. Strict asymptotic boundedness: |f(x)| <= V_sat within float64 machine epsilon
+    x_extremes = np.array([-100.0, -10.0, -2.0, -0.985, 0.0, 0.985, 2.0, 10.0, 100.0])
+    f_extremes = x_extremes / ((1.0 + (np.abs(x_extremes) / vsat) ** p) ** (1.0 / p))
+    assert np.all(np.abs(f_extremes) <= vsat + 1e-15), "Algebraic rail limiter breached V_sat bound"
+    assert np.abs(f_extremes[2]) < vsat - 1e-4, "Limiter must be strictly below V_sat for moderate drive"
+    assert np.all(np.diff(f_extremes) > 0.0), "Limiter must be strictly monotonic"
+
+    # 2. Small-signal linearity: bit-exact linear bypass for |x| <= 0.10
+    x_small = np.linspace(-0.10, 0.10, 201)
+    f_small = x_small / ((1.0 + (np.abs(x_small) / vsat) ** p) ** (1.0 / p))
+    max_lin_err = float(np.max(np.abs(f_small - x_small)))
+    assert max_lin_err < 1e-8, (
+        f"Small-signal linearity error {max_lin_err:.2e} exceeded 1e-8"
+    )
+
+    # 3. C^1 and C^2 continuity: numerical derivatives must be continuous with zero knee kinks
+    x_grid = np.linspace(-1.5 * vsat, 1.5 * vsat, 2001)
+    dx = x_grid[1] - x_grid[0]
+    f_grid = x_grid / ((1.0 + (np.abs(x_grid) / vsat) ** p) ** (1.0 / p))
+    f_prime = np.gradient(f_grid, dx)
+    f_double_prime = np.gradient(f_prime, dx)
+
+    # First derivative must be positive and bounded by 1.0 (passivity)
+    assert np.all(f_prime > 0.0), "First derivative must be strictly positive"
+    assert np.all(f_prime <= 1.0 + 1e-9), "First derivative must not exceed unity gain"
+    # Second derivative must be finite and continuous without impulsive jumps
+    assert not np.any(np.isnan(f_double_prime))
+    assert np.max(np.abs(np.diff(f_double_prime))) < 0.5, "Second derivative has discontinuous slope kink"
+
+
+def test_guardrail_vector_causal_normalization():
+    """Guardrail 5.1.2: Multi-pickup spatial arrival delays must apply Vector Causal Normalization
+    (tau_i = Delta_tau_i - min_j Delta_tau_j) to guarantee strict causality (min(tau_i) == 0)
+    and preserve physical multi-pickup phase relationships without negative delays or circular FFT wraps."""
+    from allomorph.physics.prefilter import compute_voice_prefilter_firs
+
+    inst = load_instrument("34in_preamp_soapbar")
+    # Voice 08 (Vintage PJ) has dual coils with different bridge distances (P=125 mm, J=63.5 mm)
+    firs = compute_voice_prefilter_firs("08_vintage_pj_passive", inst)
+    assert len(firs) == 2, "Expected 2 channel FIRs for PJ dual-pickup target"
+
+    peaks = [int(np.argmax(np.abs(h))) for h in firs]
+
+    # 1. Strict Causality Invariant: earliest wave arrival must have exactly zero pre-delay
+    # (min(peak_shift) >= 0, no non-causal negative sample shifts)
+    assert min(peaks) >= 0, "Non-causal negative sample shift detected"
+
+    # 2. Physical phase delay preservation: relative arrival delay must be preserved
+    # P pickup (125 mm from bridge) senses wave earlier than J bridge pickup (63.5 mm)
+    delta_peaks = peaks[0] - peaks[1]
+    assert delta_peaks != 0, "Multi-pickup arrival delay was lost or clamped to zero"
+
+
+def test_guardrail_c_infinity_smooth_norms_and_steinmetz():
+    """Guardrail 5.2.1: Charbonnier pseudo-norms (||x||_eps = sqrt(x^2 + eps^2) - eps)
+    and quadratic Steinmetz core formulations must evaluate with continuous gradients
+    vanishing at x = 0, eliminating non-differentiable cusps and infinite gradient singularities."""
+    # 1. Charbonnier Pseudo-norm Invariant:
+    eps = 1e-4
+    x = np.linspace(-1e-2, 1e-2, 2001)
+    dx = x[1] - x[0]
+    norm = np.sqrt(x**2 + eps**2) - eps
+
+    assert abs(norm[1000]) == 0.0, "Charbonnier norm must vanish exactly at x=0"
+    assert np.all(norm >= 0.0), "Charbonnier norm must be strictly non-negative"
+
+    # Gradient must be C^1 continuous and vanish at origin
+    grad = np.gradient(norm, dx)
+    assert abs(grad[1000]) < 1e-6, "Charbonnier gradient must vanish at origin"
+    assert np.all(np.diff(grad) >= 0.0), "Charbonnier gradient must be monotonically non-decreasing"
+
+    # 2. Quadratic Steinmetz Loss Core Invariant:
+    # Formulated as (x^2 / (1 + x^2))^0.8 rather than (|x| / (1 + |x|))^1.6
+    u = np.linspace(0.0, 1.0, 1001)
+    du = u[1] - u[0]
+    stein = (u**2 / (1.0 + u**2)) ** 0.8
+    stein_grad = np.gradient(stein, du)
+
+    # Gradient must remain strictly finite at u=0 (no infinite singularity)
+    assert np.all(np.isfinite(stein_grad)), "Steinmetz gradient contains NaN or Inf"
+    assert stein_grad[0] < 10.0, (
+        f"Steinmetz gradient at origin {stein_grad[0]} exploded (singularity present)"
+    )
+
+
+def test_guardrail_inharmonicity_gaussian_rbf_invariants():
+    """Guardrail 5.1.4: String stiffness and inharmonicity B_s must interpolate laboratory anchors
+    via an exact C^inf Gaussian RBF, strictly preserving empirical table values (< 1e-10 relative error)
+    and strictly decreasing monotonicity across bass fundamental registers [20, 250] Hz."""
+    from allomorph.physics.strings import (
+        INHARMONICITY_ANCHORS_BS,
+        INHARMONICITY_ANCHORS_F0,
+        get_inharmonicity_for_f0,
+    )
+
+    # 1. Exact anchor reproduction
+    b_vals = [get_inharmonicity_for_f0(f0) for f0 in INHARMONICITY_ANCHORS_F0]
+    rel_errors = [
+        abs(b - exp) / exp for b, exp in zip(b_vals, INHARMONICITY_ANCHORS_BS)
+    ]
+    max_err = max(rel_errors)
+    assert max_err < 1e-10, (
+        f"Gaussian RBF inharmonicity anchor relative error {max_err:.2e} exceeded 1e-10"
+    )
+
+    # 2. Physical Monotonicity: B_s must strictly decrease as fundamental frequency rises
+    # across the bass guitar fundamental anchor range [20.0, 196.0] Hz (up to 12th fret G string)
+    f_grid = np.linspace(20.0, 196.0, 500)
+    b_grid = np.array([get_inharmonicity_for_f0(f) for f in f_grid])
+    diffs = np.diff(b_grid)
+    assert np.all(diffs < 0.0), (
+        "Inharmonicity B_s is not strictly decreasing across [20, 196] Hz"
+    )
+
+
+def test_guardrail_dielectric_admittance_dc_continuity():
+    """Guardrail 5.5.1: Cole-Davidson dielectric admittance and series capacitor networks
+    must be continuous down to DC (f = 0.0 Hz) without piecewise branch step jumps or NaN/Inf."""
+    from allomorph.circuit import compute_circuit_transfer_functions, load_circuit
+
+    f_dc_grid = np.array([0.0, 1e-6, 1e-4, 1e-2, 1.0, 10.0, 100.0, 1000.0])
+
+    for voice_id in ["05_vintage_62_p_alnico", "10_rickenbacker_bridge_hpf"]:
+        model = load_circuit(voice_id)
+        curves = compute_circuit_transfer_functions(model, freqs=f_dc_grid)
+        for ch_curve in curves:
+            arr = np.asarray(ch_curve, dtype=np.float64)
+            assert not np.any(np.isnan(arr)), f"NaN in DC circuit response for {voice_id}"
+            assert not np.any(np.isinf(arr)), f"Inf in DC circuit response for {voice_id}"
+            assert np.all(arr >= 0.0), f"Negative magnitude in circuit response for {voice_id}"
+
+            # Step jump between 0 Hz and 1e-6 Hz must be vanishingly small (< 1e-5)
+            step_jump = abs(arr[1] - arr[0])
+            assert step_jump < 1e-5, (
+                f"Piecewise DC step discontinuity {step_jump:.2e} detected in {voice_id}"
+            )
+

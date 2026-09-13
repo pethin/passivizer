@@ -39,10 +39,8 @@ def synthesize_minimum_phase_fir(
     # Extrapolate DC bin if dropping into deep transmission zero to avoid cepstral delta spike
     if mag_grid[0] < mag_grid[1] * 0.5:
         mag_grid[0] = mag_grid[1]
-    mag_grid = np.maximum(mag_grid, 1e-4)
-
-    # Build full symmetric log-magnitude spectrum
-    log_mag = np.log(mag_grid)
+    # Build full symmetric log-magnitude spectrum with C^inf quadratic regularization
+    log_mag = 0.5 * np.log(mag_grid**2 + 1e-8)
     full_log_mag = np.concatenate([log_mag, log_mag[half - 1 : 0 : -1]])
 
     # Real cepstrum via IFFT

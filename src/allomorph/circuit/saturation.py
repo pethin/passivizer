@@ -12,6 +12,9 @@ import numpy as np
 
 from allomorph.circuit.schema import SaturationConfig
 
+# Analytical scalar normalizer for H_pre at 100 Hz: |(wc / (j*2*pi*100 + wc))**0.55| with wc = 2*pi*40
+_H_PRE_100HZ_NORM: float = 0.5807963098547466
+
 try:
     from numba import njit
 
@@ -83,20 +86,28 @@ if _HAS_NUMBA:
             x_high = val - x_low_prev
             e = env[i]
             if e > vsat > 0.0:
-                excess = (e - vsat) / vsat
-                excess = min(excess, 1.0)
-                eddy_factor = k_eddy * excess * math.tanh(abs(x_high) / vsat)
-                abs_low = abs(x_low_prev)
-                abs_high = abs(x_high)
-                w_reg = 0.70 + 0.60 * (abs_low / (abs_low + abs_high + 1e-6))
-                pull_damping = k_pull * w_reg * excess * math.tanh(max(val, 0.0) / vsat)
-                flux_rate = abs(x_high - x_high_prev) * 7.639437
+                excess = math.tanh((e - vsat) / vsat)
+                x_norm = math.sqrt(x_high * x_high + 1e-8) - 1e-4
+                eddy_factor = k_eddy * excess * math.tanh(x_norm / vsat)
+                w_reg = 0.70 + 0.60 * (
+                    (x_low_prev * x_low_prev)
+                    / (x_low_prev * x_low_prev + x_high * x_high + 1e-8)
+                )
+                val_pos = (
+                    math.log1p(math.exp(val / vsat))
+                    if val / vsat < 20.0
+                    else val / vsat
+                )
+                pull_damping = k_pull * w_reg * excess * math.tanh(val_pos)
+                diff_high = x_high - x_high_prev
+                flux_rate = math.sqrt(diff_high * diff_high + 1e-8) * 7.639437
                 stein_damping = 0.0
                 if k_stein > 0.0:
-                    stein_damping = k_stein * excess * ((flux_rate / vsat) ** 0.6)
+                    rate_reg = math.sqrt((flux_rate / vsat) ** 2 + 1e-8)
+                    stein_damping = k_stein * excess * (rate_reg**0.6)
                 emf_damping = 0.0
                 if k_emf > 0.0:
-                    emf_damping = k_emf * excess * math.tanh(abs(x_high) / vsat)
+                    emf_damping = k_emf * excess * math.tanh(x_norm / vsat)
                 drag_high = (
                     1.0
                     - (k_sag + eddy_factor + pull_damping + stein_damping + emf_damping) * excess
@@ -112,15 +123,17 @@ if _HAS_NUMBA:
                 wobble = 0.0
 
             if k_pull > 0.0 and vsat > 0.0 and e > vsat:
-                abs_low = abs(x_low_prev)
-                abs_high = abs(x_high)
-                w_reg = 0.70 + 0.60 * (abs_low / (abs_low + abs_high + 1e-6))
+                w_reg = 0.70 + 0.60 * (
+                    (x_low_prev * x_low_prev)
+                    / (x_low_prev * x_low_prev + x_high * x_high + 1e-8)
+                )
                 pitch_sag = -k_pull * w_reg * excess * (x_high - x_high_prev)
             else:
                 pitch_sag = 0.0
 
             if lambda_L > 0.0 and vsat > 0.0 and e > vsat:
-                ind_mod = -lambda_L * excess * math.tanh(abs(val) / vsat) * (x_high - x_high_prev)
+                val_norm = math.sqrt(val * val + 1e-8) - 1e-4
+                ind_mod = -lambda_L * excess * math.tanh(val_norm / vsat) * (x_high - x_high_prev)
             else:
                 ind_mod = 0.0
 
@@ -196,20 +209,28 @@ else:
             x_high = val - x_low_prev
             e = env[i]
             if e > vsat > 0.0:
-                excess = (e - vsat) / vsat
-                excess = min(excess, 1.0)
-                eddy_factor = k_eddy * excess * math.tanh(abs(x_high) / vsat)
-                abs_low = abs(x_low_prev)
-                abs_high = abs(x_high)
-                w_reg = 0.70 + 0.60 * (abs_low / (abs_low + abs_high + 1e-6))
-                pull_damping = k_pull * w_reg * excess * math.tanh(max(val, 0.0) / vsat)
-                flux_rate = abs(x_high - x_high_prev) * 7.639437
+                excess = math.tanh((e - vsat) / vsat)
+                x_norm = math.sqrt(x_high * x_high + 1e-8) - 1e-4
+                eddy_factor = k_eddy * excess * math.tanh(x_norm / vsat)
+                w_reg = 0.70 + 0.60 * (
+                    (x_low_prev * x_low_prev)
+                    / (x_low_prev * x_low_prev + x_high * x_high + 1e-8)
+                )
+                val_pos = (
+                    math.log1p(math.exp(val / vsat))
+                    if val / vsat < 20.0
+                    else val / vsat
+                )
+                pull_damping = k_pull * w_reg * excess * math.tanh(val_pos)
+                diff_high = x_high - x_high_prev
+                flux_rate = math.sqrt(diff_high * diff_high + 1e-8) * 7.639437
                 stein_damping = 0.0
                 if k_stein > 0.0:
-                    stein_damping = k_stein * excess * ((flux_rate / vsat) ** 0.6)
+                    rate_reg = math.sqrt((flux_rate / vsat) ** 2 + 1e-8)
+                    stein_damping = k_stein * excess * (rate_reg**0.6)
                 emf_damping = 0.0
                 if k_emf > 0.0:
-                    emf_damping = k_emf * excess * math.tanh(abs(x_high) / vsat)
+                    emf_damping = k_emf * excess * math.tanh(x_norm / vsat)
                 drag_high = (
                     1.0
                     - (k_sag + eddy_factor + pull_damping + stein_damping + emf_damping) * excess
@@ -225,15 +246,17 @@ else:
                 wobble = 0.0
 
             if k_pull > 0.0 and vsat > 0.0 and e > vsat:
-                abs_low = abs(x_low_prev)
-                abs_high = abs(x_high)
-                w_reg = 0.70 + 0.60 * (abs_low / (abs_low + abs_high + 1e-6))
+                w_reg = 0.70 + 0.60 * (
+                    (x_low_prev * x_low_prev)
+                    / (x_low_prev * x_low_prev + x_high * x_high + 1e-8)
+                )
                 pitch_sag = -k_pull * w_reg * excess * (x_high - x_high_prev)
             else:
                 pitch_sag = 0.0
 
             if lambda_L > 0.0 and vsat > 0.0 and e > vsat:
-                ind_mod = -lambda_L * excess * math.tanh(abs(val) / vsat) * (x_high - x_high_prev)
+                val_norm = math.sqrt(val * val + 1e-8) - 1e-4
+                ind_mod = -lambda_L * excess * math.tanh(val_norm / vsat) * (x_high - x_high_prev)
             else:
                 ind_mod = 0.0
 
@@ -321,7 +344,8 @@ def apply_elliptical_orbit_projection(
             x_hilbert[pos : pos + take] = x_h[margin : margin + take]
 
     x_hilbert *= x
-    x_hilbert *= np.tanh(np.abs(x) / vsat)
+    x_disp_norm = np.sqrt(x**2 + 1e-8) - 1e-4
+    x_hilbert *= np.tanh(x_disp_norm / vsat)
     x_hilbert *= kappa_orbit
     return x + x_hilbert
 
@@ -436,7 +460,7 @@ def apply_oversampled_saturation(
             wc = 2.0 * np.pi * 40.0
             s = 1j * 2.0 * np.pi * freqs
             H_pre = (wc / (s + wc)) ** 0.55
-            H_pre = H_pre / np.abs(np.interp(100.0, freqs, H_pre))
+            H_pre = H_pre / _H_PRE_100HZ_NORM
             H_de = 1.0 / H_pre
             x_disp = np.fft.irfft(np.fft.rfft(x) * H_pre, n_sig)
             scale = max_in / max(np.max(np.abs(x_disp)), 1e-9)
@@ -444,7 +468,8 @@ def apply_oversampled_saturation(
             if tau_touch > 0.0:
                 H_hp = s / (s + 2.0 * np.pi * 400.0)
                 x_hp = np.fft.irfft(np.fft.rfft(x_disp) * H_hp, n_sig)
-                touch_mod = tau_touch * np.tanh(np.abs(x_disp) / vsat) * x_hp
+                disp_norm = np.sqrt(x_disp**2 + 1e-8) - 1e-4
+                touch_mod = tau_touch * np.tanh(disp_norm / vsat) * x_hp
                 x_disp = x_disp + touch_mod
             if eta_hyst > 0.0:
                 x_disp = apply_dahl_hysteresis(x_disp, eta=eta_hyst)
@@ -494,7 +519,7 @@ def apply_oversampled_saturation(
         wc = 2.0 * np.pi * 40.0
         s_up = 1j * 2.0 * np.pi * freqs_up
         H_pre = (wc / (s_up + wc)) ** 0.55
-        H_pre = H_pre / np.abs(np.interp(100.0, freqs_up, H_pre))
+        H_pre = H_pre / _H_PRE_100HZ_NORM
         H_de = 1.0 / H_pre
         # Direct single-pass forward IRFFT with H_pre applied in frequency domain (saves 2 full 9M-point FFTs)
         x_up_disp = np.fft.irfft(X_up * H_pre, n_up) * float(m)
@@ -503,7 +528,8 @@ def apply_oversampled_saturation(
         if tau_touch > 0.0:
             H_hp = s_up / (s_up + 2.0 * np.pi * 400.0)
             x_up_hp = np.fft.irfft(X_up * H_pre * H_hp, n_up) * float(m)
-            touch_mod = tau_touch * np.tanh(np.abs(x_up_disp) / vsat) * (x_up_hp * scale)
+            up_disp_norm = np.sqrt(x_up_disp**2 + 1e-8) - 1e-4
+            touch_mod = tau_touch * np.tanh(up_disp_norm / vsat) * (x_up_hp * scale)
             x_up_disp = x_up_disp + touch_mod
         if eta_hyst > 0.0:
             x_up_disp = apply_dahl_hysteresis(x_up_disp, eta=eta_hyst)

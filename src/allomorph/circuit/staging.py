@@ -219,14 +219,13 @@ def compute_frontend_transfer_function(
     # 4. Scale-Length Tension Snap (Source -> Canonical Intermediate @ 34")
     src_scale_in = float(inst_cfg.scale_length_in or 34.0)
     can_scale_in = 34.0
-    if src_scale_in < can_scale_in - 0.2:
-        snap_db = min(3.5, 1.8 * (can_scale_in - src_scale_in) / 4.0)
-        g_snap = 10.0 ** (snap_db / 20.0)
-        h_tension = np.sqrt(
-            (1.0 + g_snap**2 * (f / 2800.0) ** 2) / (1.0 + (f / 2800.0) ** 2)
-        )
-    else:
-        h_tension = np.ones_like(f)
+    delta_scale = can_scale_in - src_scale_in
+    delta_soft = 0.5 * np.logaddexp(0.0, 2.0 * delta_scale)
+    snap_db = 3.5 * np.tanh((1.8 * delta_soft) / (4.0 * 3.5))
+    g_snap = 10.0 ** (snap_db / 20.0)
+    h_tension = np.sqrt(
+        (1.0 + g_snap**2 * (f / 2800.0) ** 2) / (1.0 + (f / 2800.0) ** 2)
+    )
 
     # 5. Circuit deconvolution
     if can_model is None:
@@ -264,7 +263,8 @@ def compute_frontend_transfer_function(
     # Frequency-dependent ultrasonic roll-off above 8 kHz if exceeding 1.5 dB (keeps 20 kHz strictly < 2.0 dB)
     f_roll = 8000.0
     roll_factor = np.clip((f - f_roll) / (24000.0 - f_roll), 0.0, 1.0)
-    hf_excess = np.maximum(clamped_db - 1.5, 0.0)
+    beta = 1.2
+    hf_excess = (1.0 / beta) * np.logaddexp(0.0, beta * (clamped_db - 1.5))
     final_db = clamped_db - hf_excess * (0.5 * (1.0 - np.cos(np.pi * roll_factor)))
     return 10.0 ** (final_db / 20.0)
 
@@ -399,17 +399,11 @@ def export_frontend_wet_wav(
         max_delta = 2.0 * math.pi * f_slew * vsat / float(sr)
         audio_wet = _slew_limit_core(audio_wet, max_delta)
 
-        # 2. High-Headroom Soft-Knee Rail Protection
-        # Smoothly saturates forte excursions exceeding -3.1 dBFS (0.70) into 0.985 ceiling
-        # Leaves 99% of normal playing completely linear (zero double-saturation with Block 2)
-        thresh = 0.70
-        margin = vsat - thresh
-        mag = np.abs(audio_wet)
-        audio_wet = np.where(
-            mag > thresh,
-            np.sign(audio_wet) * (thresh + margin * np.tanh((mag - thresh) / margin)),
-            audio_wet,
-        )
+        # 2. High-Headroom C^inf Algebraic Limiter (p = 8) Rail Protection
+        # Smoothly saturates forte excursions into vsat = 0.985 ceiling with infinite differentiability
+        # Leaves 99.9% of normal playing completely linear (zero double-saturation with Block 2)
+        p_order = 8.0
+        audio_wet = audio_wet / np.power(1.0 + np.power(np.abs(audio_wet) / vsat, p_order), 1.0 / p_order)
 
         # 3. Johnson-Nyquist -108 dBFS Thermal Noise Dither
         # Eliminates neural network dead-zone gating on quiet decay tails
