@@ -1,13 +1,13 @@
 """Generate production-ready vector SVG and 1024x1024 JPG artwork for Allomorph Tone3000 Tone Packs.
 
 Features:
-- Pure dark-mode hardware aesthetic with precision CAD engineering grid
-- Authentic 4-string bass pickup geometry (2 Alnico V poles per string)
-- Flush P-split bobbins with ZERO vertical gap (bottom of upper half aligns flush with top of lower half)
-- Spacious vertical separation between P/J (72px) and J/J (159px) pickups
-- Generous side margins (all text stays safely inside >= 130px from borders)
-- Multi-line word-wrapped descriptions and stacked datum callouts for pristine typography
-- High-resolution SVG and converted JPG assets for Tone3000 storefront
+- Pure dark-mode studio hardware aesthetic with soft accent vignette glow
+- Dominant, enlarged pickup silhouettes commanding the center of the artwork for 1"x1" thumbnail discernability
+- Authentic pickup geometries (split-P, dual-J, sweet-spot humbucker, dual soapbars, active blades)
+- Bold, high-contrast typography (prominent ALLOMORPH header, massive instrument titles, clear voicing counts)
+- Zero micro-jargon or microscopic CAD datums that clutter small mobile and storefront thumbnails
+- 3 high-contrast specification badges (scale, pickup architecture, and platform compatibility: "FOR NAM & ANAGRAM")
+- High-resolution SVG and converted 1024x1024 JPG assets for Tone3000 storefront
 """
 
 import subprocess
@@ -45,20 +45,11 @@ def make_pbass_half(
     w: float = 240.0,
     h: float = 114.0,
 ) -> str:
-    """Generate an authentic Precision Bass split bobbin matching EMG/Fender P-bass spec.
-
-    Physical reference (EMG P-Bass CAD drawing):
-    - Bobbin dimensions: 2.250" x 1.100" (57.15mm x 27.94mm) => 240px x 114px (at 19mm / 80px scale)
-    - Corner radius: R .125 (3.17mm) => 13.5px
-    - Mounting screw spacing: 2.450" (62.23mm) center-to-center => 131.0px from center (11.0px past body edge)
-    - Mounting ear radius: R .234 (5.94mm => 25.0px) with center located 1.49mm (6.3px) INSIDE the body edge,
-      producing an authentic 4.45mm (18.7px) protrusion where the mounting hole is offset toward the body.
-    """
+    """Generate an authentic Precision Bass split bobbin with high-contrast chamfer styling."""
     rx = 13.5
     x = cx - w / 2
     y = cy - h / 2
 
-    # Mounting screw is 62.23mm / 2 = 31.115mm from center => 131.0px (11.0px outside casing)
     ear_screw_dx = 131.0
     left_screw_x = cx - ear_screw_dx
     right_screw_x = cx + ear_screw_dx
@@ -69,23 +60,23 @@ def make_pbass_half(
     return f"""
     <!-- P-Bass Bobbin Half at {cx:.1f}, {cy:.1f} ({label}) -->
     <g filter="url(#dropShadow)">
-      <!-- Left Mounting Tab (R=25.0px with center 6.3px inside body at x={x + 6.3:.1f}, screw at x={left_screw_x:.1f}) -->
-      <path d="M {x:.1f} {cy - 24.2:.1f} A 25 25 0 0 0 {x:.1f} {cy + 24.2:.1f} Z" fill="url(#coverGrad)" stroke="#222938" stroke-width="1.8"/>
-      <circle cx="{left_screw_x:.1f}" cy="{cy:.1f}" r="4.0" fill="#080a0f" stroke="#475569" stroke-width="1"/>
-      <circle cx="{left_screw_x:.1f}" cy="{cy:.1f}" r="1.8" fill="#1e293b"/>
+      <!-- Left Mounting Tab -->
+      <path d="M {x:.1f} {cy - 24.2:.1f} A 25 25 0 0 0 {x:.1f} {cy + 24.2:.1f} Z" fill="url(#coverGrad)" stroke="#475569" stroke-width="2.2"/>
+      <circle cx="{left_screw_x:.1f}" cy="{cy:.1f}" r="4.5" fill="#0d1117" stroke="#64748b" stroke-width="1.2"/>
+      <circle cx="{left_screw_x:.1f}" cy="{cy:.1f}" r="2.0" fill="#334155"/>
 
-      <!-- Right Mounting Tab (R=25.0px with center 6.3px inside body at x={x + w - 6.3:.1f}, screw at x={right_screw_x:.1f}) -->
-      <path d="M {x + w:.1f} {cy - 24.2:.1f} A 25 25 0 0 1 {x + w:.1f} {cy + 24.2:.1f} Z" fill="url(#coverGrad)" stroke="#222938" stroke-width="1.8"/>
-      <circle cx="{right_screw_x:.1f}" cy="{cy:.1f}" r="4.0" fill="#080a0f" stroke="#475569" stroke-width="1"/>
-      <circle cx="{right_screw_x:.1f}" cy="{cy:.1f}" r="1.8" fill="#1e293b"/>
+      <!-- Right Mounting Tab -->
+      <path d="M {x + w:.1f} {cy - 24.2:.1f} A 25 25 0 0 1 {x + w:.1f} {cy + 24.2:.1f} Z" fill="url(#coverGrad)" stroke="#475569" stroke-width="2.2"/>
+      <circle cx="{right_screw_x:.1f}" cy="{cy:.1f}" r="4.5" fill="#0d1117" stroke="#64748b" stroke-width="1.2"/>
+      <circle cx="{right_screw_x:.1f}" cy="{cy:.1f}" r="2.0" fill="#334155"/>
 
-      <!-- Main Bobbin Casing -->
-      <rect x="{x:.1f}" y="{y:.1f}" width="{w:.1f}" height="{h:.1f}" rx="{rx:.1f}" fill="url(#coverGrad)" stroke="#334155" stroke-width="1.8"/>
-      <rect x="{x + 3:.1f}" y="{y + 3:.1f}" width="{w - 6:.1f}" height="{h - 6:.1f}" rx="{rx - 2:.1f}" fill="none" stroke="#64748b" stroke-width="0.75" opacity="0.4"/>
-      <rect x="{x + 8:.1f}" y="{y + 8:.1f}" width="{w - 16:.1f}" height="{h - 16:.1f}" rx="{rx - 6:.1f}" fill="#0f131a" stroke="#1c2330" stroke-width="1.2"/>
+      <!-- Main Bobbin Casing with Chamfer Bevel -->
+      <rect x="{x:.1f}" y="{y:.1f}" width="{w:.1f}" height="{h:.1f}" rx="{rx:.1f}" fill="url(#coverGrad)" stroke="#64748b" stroke-width="3.0"/>
+      <rect x="{x + 2:.1f}" y="{y + 2:.1f}" width="{w - 4:.1f}" height="{h - 4:.1f}" rx="{rx - 1:.1f}" fill="none" stroke="#94a3b8" stroke-width="1.2" opacity="0.6"/>
+      <rect x="{x + 7:.1f}" y="{y + 7:.1f}" width="{w - 14:.1f}" height="{h - 14:.1f}" rx="{rx - 4:.1f}" fill="#161c26" stroke="#2a374a" stroke-width="1.5"/>
 
       <!-- Internal Coil Indicator -->
-      <rect x="{x + 16:.1f}" y="{y + 16:.1f}" width="{w - 32:.1f}" height="{h - 32:.1f}" rx="8" fill="none" stroke="{accent}" stroke-width="0.75" stroke-opacity="0.35" stroke-dasharray="5 5"/>
+      <rect x="{x + 16:.1f}" y="{y + 16:.1f}" width="{w - 32:.1f}" height="{h - 32:.1f}" rx="8" fill="none" stroke="{accent}" stroke-width="1.0" stroke-opacity="0.45" stroke-dasharray="5 5"/>
       
       <!-- 4 Poles (2 pairs straddling each string) -->
       {make_pole(s1 - pole_offset, cy)}
@@ -105,13 +96,12 @@ def make_jbass_pickup(
     h: float = 78.0,
     label: str = "",
 ) -> str:
-    """Generate a Jazz Bass single-coil pickup with authentic EMG/Fender Long-J geometry (39.6mm ear spacing)."""
+    """Generate a Jazz Bass single-coil pickup with high-contrast chamfer styling."""
     rx = 10.0
     x = cx - w / 2
     y = cy - h / 2
     pole_offset = 15.0
 
-    # Authentic ear spacing from EMG Long J Housing spec: 1.560" (39.6mm) center-to-center => 83.4px from center
     ear_dx = 83.4
     left_ear_x = cx - ear_dx
     right_ear_x = cx + ear_dx
@@ -119,31 +109,31 @@ def make_jbass_pickup(
     return f"""
     <!-- Jazz Bass Bobbin at {cx:.1f}, {cy:.1f} ({label}) -->
     <g filter="url(#dropShadow)">
-      <!-- Left Mounting Tab Pair (between E & A strings, centered at {left_ear_x:.1f}) -->
-      <path d="M {left_ear_x - 21:.1f} {y:.1f} A 26.7 26.7 0 0 1 {left_ear_x + 21:.1f} {y:.1f} Z" fill="url(#coverGrad)" stroke="#222938" stroke-width="1.5"/>
-      <circle cx="{left_ear_x:.1f}" cy="{y - 4.5:.1f}" r="3.2" fill="#080a0f" stroke="#475569" stroke-width="0.8"/>
-      <circle cx="{left_ear_x:.1f}" cy="{y - 4.5:.1f}" r="1.4" fill="#1e293b"/>
+      <!-- Left Mounting Tab Pair -->
+      <path d="M {left_ear_x - 21:.1f} {y:.1f} A 26.7 26.7 0 0 1 {left_ear_x + 21:.1f} {y:.1f} Z" fill="url(#coverGrad)" stroke="#475569" stroke-width="2.0"/>
+      <circle cx="{left_ear_x:.1f}" cy="{y - 4.5:.1f}" r="3.5" fill="#0d1117" stroke="#64748b" stroke-width="1.0"/>
+      <circle cx="{left_ear_x:.1f}" cy="{y - 4.5:.1f}" r="1.6" fill="#334155"/>
       
-      <path d="M {left_ear_x - 21:.1f} {y + h:.1f} A 26.7 26.7 0 0 0 {left_ear_x + 21:.1f} {y + h:.1f} Z" fill="url(#coverGrad)" stroke="#222938" stroke-width="1.5"/>
-      <circle cx="{left_ear_x:.1f}" cy="{y + h + 4.5:.1f}" r="3.2" fill="#080a0f" stroke="#475569" stroke-width="0.8"/>
-      <circle cx="{left_ear_x:.1f}" cy="{y + h + 4.5:.1f}" r="1.4" fill="#1e293b"/>
+      <path d="M {left_ear_x - 21:.1f} {y + h:.1f} A 26.7 26.7 0 0 0 {left_ear_x + 21:.1f} {y + h:.1f} Z" fill="url(#coverGrad)" stroke="#475569" stroke-width="2.0"/>
+      <circle cx="{left_ear_x:.1f}" cy="{y + h + 4.5:.1f}" r="3.5" fill="#0d1117" stroke="#64748b" stroke-width="1.0"/>
+      <circle cx="{left_ear_x:.1f}" cy="{y + h + 4.5:.1f}" r="1.6" fill="#334155"/>
 
-      <!-- Right Mounting Tab Pair (between D & G strings, centered at {right_ear_x:.1f}) -->
-      <path d="M {right_ear_x - 21:.1f} {y:.1f} A 26.7 26.7 0 0 1 {right_ear_x + 21:.1f} {y:.1f} Z" fill="url(#coverGrad)" stroke="#222938" stroke-width="1.5"/>
-      <circle cx="{right_ear_x:.1f}" cy="{y - 4.5:.1f}" r="3.2" fill="#080a0f" stroke="#475569" stroke-width="0.8"/>
-      <circle cx="{right_ear_x:.1f}" cy="{y - 4.5:.1f}" r="1.4" fill="#1e293b"/>
+      <!-- Right Mounting Tab Pair -->
+      <path d="M {right_ear_x - 21:.1f} {y:.1f} A 26.7 26.7 0 0 1 {right_ear_x + 21:.1f} {y:.1f} Z" fill="url(#coverGrad)" stroke="#475569" stroke-width="2.0"/>
+      <circle cx="{right_ear_x:.1f}" cy="{y - 4.5:.1f}" r="3.5" fill="#0d1117" stroke="#64748b" stroke-width="1.0"/>
+      <circle cx="{right_ear_x:.1f}" cy="{y - 4.5:.1f}" r="1.6" fill="#334155"/>
       
-      <path d="M {right_ear_x - 21:.1f} {y + h:.1f} A 26.7 26.7 0 0 0 {right_ear_x + 21:.1f} {y + h:.1f} Z" fill="url(#coverGrad)" stroke="#222938" stroke-width="1.5"/>
-      <circle cx="{right_ear_x:.1f}" cy="{y + h + 4.5:.1f}" r="3.2" fill="#080a0f" stroke="#475569" stroke-width="0.8"/>
-      <circle cx="{right_ear_x:.1f}" cy="{y + h + 4.5:.1f}" r="1.4" fill="#1e293b"/>
+      <path d="M {right_ear_x - 21:.1f} {y + h:.1f} A 26.7 26.7 0 0 0 {right_ear_x + 21:.1f} {y + h:.1f} Z" fill="url(#coverGrad)" stroke="#475569" stroke-width="2.0"/>
+      <circle cx="{right_ear_x:.1f}" cy="{y + h + 4.5:.1f}" r="3.5" fill="#0d1117" stroke="#64748b" stroke-width="1.0"/>
+      <circle cx="{right_ear_x:.1f}" cy="{y + h + 4.5:.1f}" r="1.6" fill="#334155"/>
 
-      <!-- Main Bobbin Casing -->
-      <rect x="{x:.1f}" y="{y:.1f}" width="{w:.1f}" height="{h:.1f}" rx="{rx:.1f}" fill="url(#coverGrad)" stroke="#334155" stroke-width="1.8"/>
-      <rect x="{x + 3:.1f}" y="{y + 3:.1f}" width="{w - 6:.1f}" height="{h - 6:.1f}" rx="{rx - 2:.1f}" fill="none" stroke="#64748b" stroke-width="0.75" opacity="0.4"/>
-      <rect x="{x + 6:.1f}" y="{y + 6:.1f}" width="{w - 12:.1f}" height="{h - 12:.1f}" rx="{rx - 4:.1f}" fill="#0f131a" stroke="#1c2330" stroke-width="1.2"/>
+      <!-- Main Bobbin Casing with Chamfer Bevel -->
+      <rect x="{x:.1f}" y="{y:.1f}" width="{w:.1f}" height="{h:.1f}" rx="{rx:.1f}" fill="url(#coverGrad)" stroke="#64748b" stroke-width="3.0"/>
+      <rect x="{x + 2:.1f}" y="{y + 2:.1f}" width="{w - 4:.1f}" height="{h - 4:.1f}" rx="{rx - 1:.1f}" fill="none" stroke="#94a3b8" stroke-width="1.2" opacity="0.6"/>
+      <rect x="{x + 6:.1f}" y="{y + 6:.1f}" width="{w - 12:.1f}" height="{h - 12:.1f}" rx="{rx - 3:.1f}" fill="#161c26" stroke="#2a374a" stroke-width="1.5"/>
 
       <!-- Internal Coil Indicator -->
-      <rect x="{x + 14:.1f}" y="{y + 14:.1f}" width="{w - 28:.1f}" height="{h - 28:.1f}" rx="6" fill="none" stroke="{accent}" stroke-width="0.75" stroke-opacity="0.35" stroke-dasharray="6 6"/>
+      <rect x="{x + 14:.1f}" y="{y + 14:.1f}" width="{w - 28:.1f}" height="{h - 28:.1f}" rx="6" fill="none" stroke="{accent}" stroke-width="1.0" stroke-opacity="0.45" stroke-dasharray="6 6"/>
 
       <!-- 8 Poles (4 pairs of 2 straddling E, A, D, G) -->
       {make_pole(x_strings[0] - pole_offset, cy)}
@@ -167,30 +157,21 @@ def make_stingray_pickup(
     h: float = 204.0,
     label: str = "MUSIC MAN HUMBUCKER",
 ) -> str:
-    """Generate an authentic Music Man StingRay 4-string humbucker based on Partsland #AB021 spec.
-
-    Physical reference:
-    - Body: 101.7mm total width (94.0mm mounting screw c-c) x 48.5mm height => 380px x 204px
-    - 3-screw mounting pattern: 2 ears on bass side (left), 1 ear on treble side (right)
-    - 8 massive 3/8" (9.5mm) Alnico V pole pieces (radius 18px) in 2 rows of 4 straddling each string
-    """
-    rx = 14.0
+    """Generate an authentic Music Man StingRay humbucker with high-contrast chamfer styling."""
+    rx = 15.0
     x = cx - w / 2
     y = cy - h / 2
 
-    # Left mounting ears (bass side: 2 ears spaced vertically)
     left_screw_x = cx - 198.0
     ear_y1 = cy - 54.0
     ear_y2 = cy + 54.0
 
-    # Right mounting ear (treble side: 1 ear centered vertically)
     right_screw_x = cx + 198.0
     ear_yr = cy
 
     pole_r = 18.0
     row_offset = 38.0
 
-    # Upper row (neck coil), lower row (bridge coil)
     upper_poles = "".join(make_pole(s, cy - row_offset, r=pole_r) for s in x_strings)
     lower_poles = "".join(make_pole(s, cy + row_offset, r=pole_r) for s in x_strings)
 
@@ -198,28 +179,28 @@ def make_stingray_pickup(
     <!-- Music Man StingRay Humbucker at {cx:.1f}, {cy:.1f} ({label}) -->
     <g filter="url(#dropShadow)">
       <!-- Left Upper Mounting Tab (Bass Side) -->
-      <path d="M {x:.1f} {ear_y1 - 18:.1f} A 20 20 0 0 0 {x:.1f} {ear_y1 + 18:.1f} Z" fill="url(#coverGrad)" stroke="#222938" stroke-width="1.8"/>
-      <circle cx="{left_screw_x:.1f}" cy="{ear_y1:.1f}" r="4.0" fill="#080a0f" stroke="#475569" stroke-width="1"/>
-      <circle cx="{left_screw_x:.1f}" cy="{ear_y1:.1f}" r="1.8" fill="#1e293b"/>
+      <path d="M {x:.1f} {ear_y1 - 18:.1f} A 20 20 0 0 0 {x:.1f} {ear_y1 + 18:.1f} Z" fill="url(#coverGrad)" stroke="#475569" stroke-width="2.2"/>
+      <circle cx="{left_screw_x:.1f}" cy="{ear_y1:.1f}" r="4.5" fill="#0d1117" stroke="#64748b" stroke-width="1.2"/>
+      <circle cx="{left_screw_x:.1f}" cy="{ear_y1:.1f}" r="2.0" fill="#334155"/>
 
       <!-- Left Lower Mounting Tab (Bass Side) -->
-      <path d="M {x:.1f} {ear_y2 - 18:.1f} A 20 20 0 0 0 {x:.1f} {ear_y2 + 18:.1f} Z" fill="url(#coverGrad)" stroke="#222938" stroke-width="1.8"/>
-      <circle cx="{left_screw_x:.1f}" cy="{ear_y2:.1f}" r="4.0" fill="#080a0f" stroke="#475569" stroke-width="1"/>
-      <circle cx="{left_screw_x:.1f}" cy="{ear_y2:.1f}" r="1.8" fill="#1e293b"/>
+      <path d="M {x:.1f} {ear_y2 - 18:.1f} A 20 20 0 0 0 {x:.1f} {ear_y2 + 18:.1f} Z" fill="url(#coverGrad)" stroke="#475569" stroke-width="2.2"/>
+      <circle cx="{left_screw_x:.1f}" cy="{ear_y2:.1f}" r="4.5" fill="#0d1117" stroke="#64748b" stroke-width="1.2"/>
+      <circle cx="{left_screw_x:.1f}" cy="{ear_y2:.1f}" r="2.0" fill="#334155"/>
 
       <!-- Right Center Mounting Tab (Treble Side - Single Ear) -->
-      <path d="M {x + w:.1f} {ear_yr - 22:.1f} A 24 24 0 0 1 {x + w:.1f} {ear_yr + 22:.1f} Z" fill="url(#coverGrad)" stroke="#222938" stroke-width="1.8"/>
-      <circle cx="{right_screw_x:.1f}" cy="{ear_yr:.1f}" r="4.0" fill="#080a0f" stroke="#475569" stroke-width="1"/>
-      <circle cx="{right_screw_x:.1f}" cy="{ear_yr:.1f}" r="1.8" fill="#1e293b"/>
+      <path d="M {x + w:.1f} {ear_yr - 22:.1f} A 24 24 0 0 1 {x + w:.1f} {ear_yr + 22:.1f} Z" fill="url(#coverGrad)" stroke="#475569" stroke-width="2.2"/>
+      <circle cx="{right_screw_x:.1f}" cy="{ear_yr:.1f}" r="4.5" fill="#0d1117" stroke="#64748b" stroke-width="1.2"/>
+      <circle cx="{right_screw_x:.1f}" cy="{ear_yr:.1f}" r="2.0" fill="#334155"/>
 
-      <!-- Main Pickup Housing -->
-      <rect x="{x:.1f}" y="{y:.1f}" width="{w:.1f}" height="{h:.1f}" rx="{rx:.1f}" fill="url(#coverGrad)" stroke="#334155" stroke-width="2.0"/>
-      <rect x="{x + 3:.1f}" y="{y + 3:.1f}" width="{w - 6:.1f}" height="{h - 6:.1f}" rx="{rx - 2:.1f}" fill="none" stroke="#64748b" stroke-width="0.75" opacity="0.4"/>
-      <rect x="{x + 7:.1f}" y="{y + 7:.1f}" width="{w - 14:.1f}" height="{h - 14:.1f}" rx="{rx - 4:.1f}" fill="#0f131a" stroke="#1c2330" stroke-width="1.2"/>
+      <!-- Main Pickup Housing with Chamfer Bevel -->
+      <rect x="{x:.1f}" y="{y:.1f}" width="{w:.1f}" height="{h:.1f}" rx="{rx:.1f}" fill="url(#coverGrad)" stroke="#64748b" stroke-width="3.0"/>
+      <rect x="{x + 2:.1f}" y="{y + 2:.1f}" width="{w - 4:.1f}" height="{h - 4:.1f}" rx="{rx - 1:.1f}" fill="none" stroke="#94a3b8" stroke-width="1.2" opacity="0.6"/>
+      <rect x="{x + 7:.1f}" y="{y + 7:.1f}" width="{w - 14:.1f}" height="{h - 14:.1f}" rx="{rx - 4:.1f}" fill="#161c26" stroke="#2a374a" stroke-width="1.5"/>
 
       <!-- Internal Dual Coil Bobbin Outlines -->
-      <rect x="{x + 14:.1f}" y="{y + 12:.1f}" width="{w - 28:.1f}" height="{h / 2 - 16:.1f}" rx="6" fill="none" stroke="{accent}" stroke-width="0.75" stroke-opacity="0.35" stroke-dasharray="6 6"/>
-      <rect x="{x + 14:.1f}" y="{cy + 4:.1f}" width="{w - 28:.1f}" height="{h / 2 - 16:.1f}" rx="6" fill="none" stroke="{accent}" stroke-width="0.75" stroke-opacity="0.35" stroke-dasharray="6 6"/>
+      <rect x="{x + 14:.1f}" y="{y + 12:.1f}" width="{w - 28:.1f}" height="{h / 2 - 16:.1f}" rx="6" fill="none" stroke="{accent}" stroke-width="1.0" stroke-opacity="0.45" stroke-dasharray="6 6"/>
+      <rect x="{x + 14:.1f}" y="{cy + 4:.1f}" width="{w - 28:.1f}" height="{h / 2 - 16:.1f}" rx="6" fill="none" stroke="{accent}" stroke-width="1.0" stroke-opacity="0.45" stroke-dasharray="6 6"/>
 
       <!-- 8 Massive Alnico V 3/8" Pole Pieces -->
       {upper_poles}
@@ -237,20 +218,11 @@ def make_soapbar_pickup(
     h: float = 160.0,
     label: str = "PASSIVE SOAPBAR",
 ) -> str:
-    """Generate an authentic passive soapbar pickup based on Nordstrand Big Break / Yamaha YGD H5 CAD spec.
-
-    Physical reference:
-    - 4-string: 3.500" x 1.500" (88.9mm x 38.1mm) => 375px x 160px, 8 poles (2 rows of 4)
-    - 5-string: 4.000" x 1.500" (101.6mm x 38.1mm) => 428px x 160px, 10 poles (2 rows of 5)
-    - Corner radius: R .125" (3.18mm) => 13.5px
-    - Mounting holes: 3.250" (4-str: 348px, 174px from center) or 3.750" (5-str: 401px, 200.5px from center)
-    - Inset semi-circular mounting screw cutouts on left and right ends (.125 DIA)
-    - Exposed cylindrical Alnico V pole pieces (2 rows straddling string axes)
-    """
+    """Generate an authentic passive soapbar pickup with high-contrast chamfer styling."""
     is_5string = len(x_strings) == 5
     if w is None:
         w = 428.0 if is_5string else 375.0
-    rx = 13.5
+    rx = 14.0
     x = cx - w / 2
     y = cy - h / 2
 
@@ -264,37 +236,32 @@ def make_soapbar_pickup(
     upper_poles = "".join(make_pole(s, cy - row_offset, r=pole_r) for s in x_strings)
     lower_poles = "".join(make_pole(s, cy + row_offset, r=pole_r) for s in x_strings)
 
-    corner_text = "ALNICO DUAL-COIL"
-
     return f"""
     <!-- Passive Soapbar Pickup at {cx:.1f}, {cy:.1f} ({label}) -->
     <g filter="url(#dropShadow)">
-      <!-- Main Soapbar Casing -->
-      <rect x="{x:.1f}" y="{y:.1f}" width="{w:.1f}" height="{h:.1f}" rx="{rx:.1f}" fill="url(#coverGrad)" stroke="#334155" stroke-width="1.8"/>
-      <rect x="{x + 3:.1f}" y="{y + 3:.1f}" width="{w - 6:.1f}" height="{h - 6:.1f}" rx="{rx - 2:.1f}" fill="none" stroke="#64748b" stroke-width="0.75" opacity="0.4"/>
-      <rect x="{x + 6:.1f}" y="{y + 6:.1f}" width="{w - 12:.1f}" height="{h - 12:.1f}" rx="{rx - 4:.1f}" fill="#0d1117" stroke="#1c2330" stroke-width="1.2"/>
+      <!-- Main Soapbar Casing with Chamfer Bevel -->
+      <rect x="{x:.1f}" y="{y:.1f}" width="{w:.1f}" height="{h:.1f}" rx="{rx:.1f}" fill="url(#coverGrad)" stroke="#64748b" stroke-width="3.0"/>
+      <rect x="{x + 2:.1f}" y="{y + 2:.1f}" width="{w - 4:.1f}" height="{h - 4:.1f}" rx="{rx - 1:.1f}" fill="none" stroke="#94a3b8" stroke-width="1.2" opacity="0.6"/>
+      <rect x="{x + 7:.1f}" y="{y + 7:.1f}" width="{w - 14:.1f}" height="{h - 14:.1f}" rx="{rx - 4:.1f}" fill="#161c26" stroke="#2a374a" stroke-width="1.5"/>
 
-      <!-- Inset Mounting Tabs & Screw Recesses (Bartolini / Nordstrand style) -->
+      <!-- Inset Mounting Tabs & Screw Recesses -->
       <!-- Left Inset Recess -->
-      <path d="M {x + 6:.1f} {cy - 20:.1f} A 20 20 0 0 1 {x + 6:.1f} {cy + 20:.1f} Z" fill="#080a0f" stroke="#1e293b" stroke-width="1.2"/>
-      <circle cx="{left_screw_x:.1f}" cy="{cy:.1f}" r="4.2" fill="#080a0f" stroke="#475569" stroke-width="1"/>
-      <circle cx="{left_screw_x:.1f}" cy="{cy:.1f}" r="1.8" fill="#1e293b"/>
+      <path d="M {x + 6:.1f} {cy - 20:.1f} A 20 20 0 0 1 {x + 6:.1f} {cy + 20:.1f} Z" fill="#0d1117" stroke="#334155" stroke-width="1.5"/>
+      <circle cx="{left_screw_x:.1f}" cy="{cy:.1f}" r="4.5" fill="#0d1117" stroke="#64748b" stroke-width="1.2"/>
+      <circle cx="{left_screw_x:.1f}" cy="{cy:.1f}" r="2.0" fill="#334155"/>
 
       <!-- Right Inset Recess -->
-      <path d="M {x + w - 6:.1f} {cy - 20:.1f} A 20 20 0 0 0 {x + w - 6:.1f} {cy + 20:.1f} Z" fill="#080a0f" stroke="#1e293b" stroke-width="1.2"/>
-      <circle cx="{right_screw_x:.1f}" cy="{cy:.1f}" r="4.2" fill="#080a0f" stroke="#475569" stroke-width="1"/>
-      <circle cx="{right_screw_x:.1f}" cy="{cy:.1f}" r="1.8" fill="#1e293b"/>
+      <path d="M {x + w - 6:.1f} {cy - 20:.1f} A 20 20 0 0 0 {x + w - 6:.1f} {cy + 20:.1f} Z" fill="#0d1117" stroke="#334155" stroke-width="1.5"/>
+      <circle cx="{right_screw_x:.1f}" cy="{cy:.1f}" r="4.5" fill="#0d1117" stroke="#64748b" stroke-width="1.2"/>
+      <circle cx="{right_screw_x:.1f}" cy="{cy:.1f}" r="2.0" fill="#334155"/>
 
       <!-- Internal Dual Coil Bobbin Outlines -->
-      <rect x="{x + 16:.1f}" y="{y + 12:.1f}" width="{w - 32:.1f}" height="{h / 2 - 16:.1f}" rx="6" fill="none" stroke="{accent}" stroke-width="0.75" stroke-opacity="0.3" stroke-dasharray="6 6"/>
-      <rect x="{x + 16:.1f}" y="{cy + 4:.1f}" width="{w - 32:.1f}" height="{h / 2 - 16:.1f}" rx="6" fill="none" stroke="{accent}" stroke-width="0.75" stroke-opacity="0.3" stroke-dasharray="6 6"/>
+      <rect x="{x + 16:.1f}" y="{y + 12:.1f}" width="{w - 32:.1f}" height="{h / 2 - 16:.1f}" rx="6" fill="none" stroke="{accent}" stroke-width="1.0" stroke-opacity="0.4" stroke-dasharray="6 6"/>
+      <rect x="{x + 16:.1f}" y="{cy + 4:.1f}" width="{w - 32:.1f}" height="{h / 2 - 16:.1f}" rx="6" fill="none" stroke="{accent}" stroke-width="1.0" stroke-opacity="0.4" stroke-dasharray="6 6"/>
 
       <!-- Exposed Cylindrical Alnico V Pole Pieces -->
       {upper_poles}
       {lower_poles}
-
-      <!-- Corner Technical Markings -->
-      <text x="{x + w - 24:.1f}" y="{y + h - 14:.1f}" fill="#64748b" font-size="10" font-family="system-ui, -apple-system, sans-serif" font-weight="800" letter-spacing="1" text-anchor="end">{corner_text}</text>
     </g>
     """
 
@@ -308,16 +275,8 @@ def make_emg40_pickup(
     h: float = 160.0,
     label: str = "ACTIVE EMG 40",
 ) -> str:
-    """Generate an authentic active 5-string EMG 40 soapbar pickup based on EMG CAD spec.
-
-    Physical reference:
-    - Dimensions: 4.000" x 1.500" (101.6mm x 38.1mm) => 428px x 160px
-    - Corner radius: R .125" (3.18mm) => 13.5px
-    - Mounting holes: 3.750" (95.25mm) center-to-center => 401px (200.5px from center)
-    - Inset semi-circular mounting screw cutouts on left and right ends (.125 DIA)
-    - Dual internal sensing blades (360px wide) covering 5 string axes (440 to 760)
-    """
-    rx = 13.5
+    """Generate an authentic active 5-string EMG 40 soapbar pickup with high-contrast styling."""
+    rx = 14.0
     _ = x_strings
     x = cx - w / 2
     y = cy - h / 2
@@ -333,35 +292,37 @@ def make_emg40_pickup(
     return f"""
     <!-- Active EMG 40 Soapbar Pickup at {cx:.1f}, {cy:.1f} ({label}) -->
     <g filter="url(#dropShadow)">
-      <!-- Main Soapbar Casing -->
-      <rect x="{x:.1f}" y="{y:.1f}" width="{w:.1f}" height="{h:.1f}" rx="{rx:.1f}" fill="url(#coverGrad)" stroke="#334155" stroke-width="1.8"/>
-      <rect x="{x + 3:.1f}" y="{y + 3:.1f}" width="{w - 6:.1f}" height="{h - 6:.1f}" rx="{rx - 2:.1f}" fill="none" stroke="#64748b" stroke-width="0.75" opacity="0.4"/>
-      <rect x="{x + 6:.1f}" y="{y + 6:.1f}" width="{w - 12:.1f}" height="{h - 12:.1f}" rx="{rx - 4:.1f}" fill="#0d1117" stroke="#1c2330" stroke-width="1.2"/>
+      <!-- Main Soapbar Casing with Crisp Light-Catching Chamfer -->
+      <rect x="{x:.1f}" y="{y:.1f}" width="{w:.1f}" height="{h:.1f}" rx="{rx:.1f}" fill="url(#coverGrad)" stroke="#64748b" stroke-width="3.0"/>
+      <!-- Top Specular Highlight Bevel -->
+      <rect x="{x + 2:.1f}" y="{y + 2:.1f}" width="{w - 4:.1f}" height="{h - 4:.1f}" rx="{rx - 1:.1f}" fill="none" stroke="#94a3b8" stroke-width="1.2" opacity="0.6"/>
+      <!-- Inner Bobbin Recess -->
+      <rect x="{x + 7:.1f}" y="{y + 7:.1f}" width="{w - 14:.1f}" height="{h - 14:.1f}" rx="{rx - 4:.1f}" fill="#161c26" stroke="#2a374a" stroke-width="1.5"/>
 
-      <!-- Inset Mounting Tabs & Screw Recesses (EMG style) -->
+      <!-- Inset Mounting Tabs & Screw Recesses -->
       <!-- Left Inset Recess -->
-      <path d="M {x + 6:.1f} {cy - 20:.1f} A 20 20 0 0 1 {x + 6:.1f} {cy + 20:.1f} Z" fill="#080a0f" stroke="#1e293b" stroke-width="1.2"/>
-      <circle cx="{left_screw_x:.1f}" cy="{cy:.1f}" r="4.2" fill="#080a0f" stroke="#475569" stroke-width="1"/>
-      <circle cx="{left_screw_x:.1f}" cy="{cy:.1f}" r="1.8" fill="#1e293b"/>
+      <path d="M {x + 6:.1f} {cy - 20:.1f} A 20 20 0 0 1 {x + 6:.1f} {cy + 20:.1f} Z" fill="#0d1117" stroke="#334155" stroke-width="1.5"/>
+      <circle cx="{left_screw_x:.1f}" cy="{cy:.1f}" r="4.5" fill="#0d1117" stroke="#64748b" stroke-width="1.2"/>
+      <circle cx="{left_screw_x:.1f}" cy="{cy:.1f}" r="2.0" fill="#334155"/>
 
       <!-- Right Inset Recess -->
-      <path d="M {x + w - 6:.1f} {cy - 20:.1f} A 20 20 0 0 0 {x + w - 6:.1f} {cy + 20:.1f} Z" fill="#080a0f" stroke="#1e293b" stroke-width="1.2"/>
-      <circle cx="{right_screw_x:.1f}" cy="{cy:.1f}" r="4.2" fill="#080a0f" stroke="#475569" stroke-width="1"/>
-      <circle cx="{right_screw_x:.1f}" cy="{cy:.1f}" r="1.8" fill="#1e293b"/>
+      <path d="M {x + w - 6:.1f} {cy - 20:.1f} A 20 20 0 0 0 {x + w - 6:.1f} {cy + 20:.1f} Z" fill="#0d1117" stroke="#334155" stroke-width="1.5"/>
+      <circle cx="{right_screw_x:.1f}" cy="{cy:.1f}" r="4.5" fill="#0d1117" stroke="#64748b" stroke-width="1.2"/>
+      <circle cx="{right_screw_x:.1f}" cy="{cy:.1f}" r="2.0" fill="#334155"/>
 
-      <!-- Internal Dual Sensing Blade Rails (360px wide covering 5 strings) -->
+      <!-- Internal Dual Sensing Blade Rails (Luminous, High Vibrancy) -->
       <!-- Upper Blade Rail -->
-      <rect x="{blade_x:.1f}" y="{cy - blade_offset - 3:.1f}" width="{blade_w:.1f}" height="6" rx="3" fill="#1e293b" stroke="#334155" stroke-width="0.8"/>
-      <rect x="{blade_x + 3:.1f}" y="{cy - blade_offset - 1:.1f}" width="{blade_w - 6:.1f}" height="2" rx="1" fill="{accent}" fill-opacity="0.6"/>
+      <rect x="{blade_x:.1f}" y="{cy - blade_offset - 5:.1f}" width="{blade_w:.1f}" height="10" rx="5" fill="#09131a" stroke="{accent}" stroke-width="1.5"/>
+      <rect x="{blade_x + 2:.1f}" y="{cy - blade_offset - 3:.1f}" width="{blade_w - 4:.1f}" height="6" rx="3" fill="{accent}" fill-opacity="0.95"/>
+      <line x1="{blade_x + 6:.1f}" y1="{cy - blade_offset:.1f}" x2="{blade_x + blade_w - 6:.1f}" y2="{cy - blade_offset:.1f}" stroke="#ffffff" stroke-width="1.5" opacity="0.9"/>
+
       <!-- Lower Blade Rail -->
-      <rect x="{blade_x:.1f}" y="{cy + blade_offset - 3:.1f}" width="{blade_w:.1f}" height="6" rx="3" fill="#1e293b" stroke="#334155" stroke-width="0.8"/>
-      <rect x="{blade_x + 3:.1f}" y="{cy + blade_offset - 1:.1f}" width="{blade_w - 6:.1f}" height="2" rx="1" fill="{accent}" fill-opacity="0.6"/>
+      <rect x="{blade_x:.1f}" y="{cy + blade_offset - 5:.1f}" width="{blade_w:.1f}" height="10" rx="5" fill="#09131a" stroke="{accent}" stroke-width="1.5"/>
+      <rect x="{blade_x + 2:.1f}" y="{cy + blade_offset - 3:.1f}" width="{blade_w - 4:.1f}" height="6" rx="3" fill="{accent}" fill-opacity="0.95"/>
+      <line x1="{blade_x + 6:.1f}" y1="{cy + blade_offset:.1f}" x2="{blade_x + blade_w - 6:.1f}" y2="{cy + blade_offset:.1f}" stroke="#ffffff" stroke-width="1.5" opacity="0.9"/>
 
       <!-- Internal Coil Boundary Indication -->
-      <rect x="{x + 24:.1f}" y="{y + 16:.1f}" width="{w - 48:.1f}" height="{h - 32:.1f}" rx="8" fill="none" stroke="{accent}" stroke-width="0.75" stroke-opacity="0.25" stroke-dasharray="6 6"/>
-
-      <!-- Corner Technical Markings (EMG Style) -->
-      <text x="{x + w - 24:.1f}" y="{y + h - 14:.1f}" fill="#64748b" font-size="10" font-family="system-ui, -apple-system, sans-serif" font-weight="800" letter-spacing="1" text-anchor="end">EMG DUAL-BLADE</text>
+      <rect x="{x + 24:.1f}" y="{y + 16:.1f}" width="{w - 48:.1f}" height="{h - 32:.1f}" rx="8" fill="none" stroke="{accent}" stroke-width="1.0" stroke-opacity="0.4" stroke-dasharray="6 6"/>
     </g>
     """
 
@@ -376,310 +337,120 @@ def generate_pack_svg(model_key: str) -> str:
         "precision": {
             "accent": "#f59e0b",
             "title": "STANDARD PRECISION BASS",
-            "desc_line1": "Calibrated for 34&quot; Standard Fender Precision Bass",
-            "desc_line2": "Alnico V Split-Coil Bobbins • 11.2 kΩ DC Resistance • 5.8 H Inductance",
-            "scale": "34&quot; SCALE",
-            "badge2": "ALNICO V SPLIT-P",
-            "badge3": "11.2 kΩ DUAL-COIL",
+            "scale": '34" SCALE',
+            "badge2": "ALNICO SPLIT-P",
+            "badge3": "FOR NAM &amp; ANAGRAM",
             "voicing_count": 21,
+            "num_strings": 4,
+            "hero_scale": 1.35,
             "content": _svg_content(
-                lambda accent: (
-                    f"""
-                <!-- Background Flux Lines -->
-                <g fill="none" stroke="{accent}" stroke-opacity="0.14" stroke-width="1.2">
-                  <ellipse cx="520" cy="480" rx="145" ry="80"/>
-                  <ellipse cx="520" cy="480" rx="205" ry="115" stroke-dasharray="8 6"/>
-                  <ellipse cx="680" cy="594" rx="145" ry="80"/>
-                  <ellipse cx="680" cy="594" rx="205" ry="115" stroke-dasharray="8 6"/>
-                </g>
-                <!-- RLC Inductance Curve -->
-                <path d="M 160 760 Q 340 755 520 725 T 640 605 T 760 725 T 1040 805" fill="none" stroke="{accent}" stroke-opacity="0.22" stroke-width="2.5" stroke-dasharray="6 6"/>
-                <!-- P-Bass Split Coils (EA at 520, DG at 680: Exactly 0.0px vertical gap, flush alignment) -->
-                {make_pbass_half(520, 480, (strings[0], strings[1]), accent, "BASS E/A")}
-                {make_pbass_half(680, 594, (strings[2], strings[3]), accent, "TREBLE D/G")}
-                <!-- Datum labels (Word-wrapped and safely placed within margins >= 130px) -->
-                <g font-family="system-ui, -apple-system, sans-serif" fill="#cbd5e1" font-weight="800" letter-spacing="1">
-                  <!-- Left Datum -->
-                  <text x="130" y="472" font-size="14">SPLIT-P COIL</text>
-                  <text x="130" y="492" font-size="12" fill="#94a3b8" font-weight="600">125mm BRIDGE DATUM</text>
-                  <line x1="130" y1="502" x2="365" y2="502" stroke="#334155" stroke-dasharray="3 3" stroke-width="1"/>
-
-                  <!-- Right Datum -->
-                  <text x="1070" y="586" text-anchor="end" font-size="14">DUAL-DATUM SPLIT</text>
-                  <text x="1070" y="606" text-anchor="end" font-size="12" fill="#94a3b8" font-weight="600">REVERSE-COIL OFFSET</text>
-                  <line x1="835" y1="616" x2="1070" y2="616" stroke="#334155" stroke-dasharray="3 3" stroke-width="1"/>
-                </g>
-            """
-                )
+                lambda accent: f"""
+                {make_pbass_half(520, 458, (strings[0], strings[1]), accent, "BASS E/A")}
+                {make_pbass_half(680, 572, (strings[2], strings[3]), accent, "TREBLE D/G")}
+                """
             ),
         },
         "jazz": {
             "accent": "#0ea5e9",
             "title": "STANDARD JAZZ BASS",
-            "desc_line1": "Calibrated for 34&quot; Standard Fender Jazz Bass (60s Spacing)",
-            "desc_line2": "Dual Alnico V Single Coils • 8-Pole Staggered Apertures • 250kΩ Vol/Tone",
-            "scale": "34&quot; SCALE",
-            "badge2": "ALNICO V DUAL-J",
-            "badge3": "60s PICKUP SPACING",
+            "scale": '34" SCALE',
+            "badge2": "60s DUAL-J",
+            "badge3": "FOR NAM &amp; ANAGRAM",
             "voicing_count": 20,
+            "num_strings": 4,
+            "hero_scale": 1.30,
             "content": _svg_content(
-                lambda accent: (
-                    f"""
-                <!-- Background Flux Lines -->
-                <g fill="none" stroke="{accent}" stroke-opacity="0.14" stroke-width="1.2">
-                  <ellipse cx="600" cy="430" rx="230" ry="70"/>
-                  <ellipse cx="600" cy="430" rx="300" ry="100" stroke-dasharray="8 6"/>
-                  <ellipse cx="600" cy="665" rx="230" ry="70"/>
-                  <ellipse cx="600" cy="665" rx="300" ry="100" stroke-dasharray="8 6"/>
-                </g>
-                <!-- RLC Inductance Curve -->
-                <path d="M 160 760 Q 360 755 500 710 T 660 585 T 780 715 T 1040 805" fill="none" stroke="{accent}" stroke-opacity="0.22" stroke-width="2.5" stroke-dasharray="6 6"/>
-                <!-- Neck and Bridge J Pickups (Vertical clearance = 159px) -->
-                {make_jbass_pickup(600, 430, strings, accent, w=385, h=78, label="NECK PICKUP")}
-                {make_jbass_pickup(600, 665, strings, accent, w=396, h=78, label="BRIDGE PICKUP")}
-                <!-- Datum labels (Word-wrapped and safely placed within margins >= 130px) -->
-                <g font-family="system-ui, -apple-system, sans-serif" fill="#cbd5e1" font-weight="800" letter-spacing="1">
-                  <!-- Left Datums -->
-                  <text x="130" y="422" font-size="14">NECK COIL</text>
-                  <text x="130" y="442" font-size="12" fill="#94a3b8" font-weight="600">155.6mm DATUM</text>
-                  <line x1="130" y1="452" x2="375" y2="452" stroke="#334155" stroke-dasharray="3 3" stroke-width="1"/>
-
-                  <text x="130" y="657" font-size="14">BRIDGE COIL</text>
-                  <text x="130" y="677" font-size="12" fill="#94a3b8" font-weight="600">63.5mm DATUM</text>
-                  <line x1="130" y1="687" x2="365" y2="687" stroke="#334155" stroke-dasharray="3 3" stroke-width="1"/>
-
-                  <!-- Right Datum -->
-                  <text x="1070" y="540" text-anchor="end" font-size="14">PARALLEL SUMMATION</text>
-                  <text x="1070" y="560" text-anchor="end" font-size="12" fill="#94a3b8" font-weight="600">HUM-CANCELLATION COMB</text>
-                  <line x1="835" y1="570" x2="1070" y2="570" stroke="#334155" stroke-dasharray="3 3" stroke-width="1"/>
-                </g>
-            """
-                )
+                lambda accent: f"""
+                {make_jbass_pickup(600, 415, strings, accent, w=385, h=78, label="NECK PICKUP")}
+                {make_jbass_pickup(600, 615, strings, accent, w=396, h=78, label="BRIDGE PICKUP")}
+                """
             ),
         },
         "pj": {
             "accent": "#a855f7",
             "title": "STANDARD P/J BASS",
-            "desc_line1": "Calibrated for 34&quot; Standard Fender P/J Bass",
-            "desc_line2": "Split-P Neck &amp; J-Bridge Dual Topology • True Differential Deconvolution",
-            "scale": "34&quot; SCALE",
-            "badge2": "P/J HYBRID COILS",
-            "badge3": "ACTIVE/PASSIVE HARNESS",
+            "scale": '34" SCALE',
+            "badge2": "P/J HYBRID",
+            "badge3": "FOR NAM &amp; ANAGRAM",
             "voicing_count": 19,
+            "num_strings": 4,
+            "hero_scale": 1.25,
             "content": _svg_content(
-                lambda accent: (
-                    f"""
-                <!-- Background Flux Lines -->
-                <g fill="none" stroke="{accent}" stroke-opacity="0.14" stroke-width="1.2">
-                  <ellipse cx="520" cy="410" rx="135" ry="70"/>
-                  <ellipse cx="680" cy="524" rx="135" ry="70"/>
-                  <ellipse cx="600" cy="690" rx="230" ry="65"/>
-                  <ellipse cx="600" cy="690" rx="300" ry="95" stroke-dasharray="8 6"/>
-                </g>
-                <!-- RLC Inductance Curve -->
-                <path d="M 160 760 Q 340 755 500 720 T 640 590 T 760 715 T 1040 805" fill="none" stroke="{accent}" stroke-opacity="0.22" stroke-width="2.5" stroke-dasharray="6 6"/>
-                <!-- Split-P at Neck (EA at 520, DG at 680: Exactly 0.0px vertical gap, flush alignment) -->
-                {make_pbass_half(520, 410, (strings[0], strings[1]), accent, "P-BASS EA")}
-                {make_pbass_half(680, 524, (strings[2], strings[3]), accent, "P-BASS DG")}
-                <!-- Jazz Pickup at Bridge (y=690: 72px vertical clearance below DG) -->
-                {make_jbass_pickup(600, 690, strings, accent, w=396, h=78, label="J-BRIDGE")}
-                <!-- Datum labels (Word-wrapped and safely placed within margins >= 130px) -->
-                <g font-family="system-ui, -apple-system, sans-serif" fill="#cbd5e1" font-weight="800" letter-spacing="1">
-                  <!-- Left Datums -->
-                  <text x="130" y="402" font-size="14">SPLIT-P COIL</text>
-                  <text x="130" y="422" font-size="12" fill="#94a3b8" font-weight="600">125mm DATUM</text>
-                  <line x1="130" y1="432" x2="365" y2="432" stroke="#334155" stroke-dasharray="3 3" stroke-width="1"/>
-
-                  <text x="130" y="682" font-size="14">J-BRIDGE COIL</text>
-                  <text x="130" y="702" font-size="12" fill="#94a3b8" font-weight="600">63.5mm DATUM</text>
-                  <line x1="130" y1="712" x2="365" y2="712" stroke="#334155" stroke-dasharray="3 3" stroke-width="1"/>
-
-                  <!-- Right Datum -->
-                  <text x="1070" y="540" text-anchor="end" font-size="14">BLEND MATRIX</text>
-                  <text x="1070" y="560" text-anchor="end" font-size="12" fill="#94a3b8" font-weight="600">DUAL-TOPOLOGY SUM</text>
-                  <line x1="835" y1="570" x2="1070" y2="570" stroke="#334155" stroke-dasharray="3 3" stroke-width="1"/>
-                </g>
-            """
-                )
+                lambda accent: f"""
+                {make_pbass_half(520, 388, (strings[0], strings[1]), accent, "P-BASS EA")}
+                {make_pbass_half(680, 502, (strings[2], strings[3]), accent, "P-BASS DG")}
+                {make_jbass_pickup(600, 650, strings, accent, w=396, h=78, label="J-BRIDGE")}
+                """
             ),
         },
         "mustang": {
             "accent": "#f43f5e",
             "title": "MUSTANG P/J BASS",
-            "desc_line1": "Calibrated for 30&quot; Short-Scale Fender Mustang P/J Bass",
-            "desc_line2": "Compact P/J Hybrid Routing • Low-Tension Attack &amp; Fast Transient Bloom",
-            "scale": "30&quot; SHORT SCALE",
-            "badge2": "MUSTANG P/J HYBRID",
-            "badge3": "FAST TRANSIENT DYNAMICS",
+            "scale": '30" SHORT SCALE',
+            "badge2": "MUSTANG P/J",
+            "badge3": "FOR NAM &amp; ANAGRAM",
             "voicing_count": 22,
+            "num_strings": 4,
+            "hero_scale": 1.25,
+            "extra_bg": """
+                <g opacity="0.10">
+                  <line x1="880" y1="60" x2="880" y2="1140" stroke="#f43f5e" stroke-width="28"/>
+                  <line x1="915" y1="60" x2="915" y2="1140" stroke="#f43f5e" stroke-width="12"/>
+                </g>
+            """,
             "content": _svg_content(
-                lambda accent: (
-                    f"""
-                <!-- Racing Stripes Aesthetic (Mustang Heritage) -->
-                <g opacity="0.12">
-                  <line x1="880" y1="60" x2="880" y2="1140" stroke="{accent}" stroke-width="28"/>
-                  <line x1="915" y1="60" x2="915" y2="1140" stroke="{accent}" stroke-width="12"/>
-                </g>
-                <!-- Background Flux Lines -->
-                <g fill="none" stroke="{accent}" stroke-opacity="0.14" stroke-width="1.2">
-                  <ellipse cx="520" cy="410" rx="135" ry="70"/>
-                  <ellipse cx="680" cy="524" rx="135" ry="70"/>
-                  <ellipse cx="600" cy="690" rx="230" ry="65"/>
-                  <ellipse cx="600" cy="690" rx="300" ry="95" stroke-dasharray="8 6"/>
-                </g>
-                <!-- RLC Inductance Curve -->
-                <path d="M 160 760 Q 320 755 480 710 T 620 575 T 740 705 T 1040 805" fill="none" stroke="{accent}" stroke-opacity="0.22" stroke-width="2.5" stroke-dasharray="6 6"/>
-                <!-- Split-P at Neck (EA at 520, DG at 680: Exactly 0.0px vertical gap, flush alignment) -->
-                {make_pbass_half(520, 410, (strings[0], strings[1]), accent, "MUSTANG P-EA")}
-                {make_pbass_half(680, 524, (strings[2], strings[3]), accent, "MUSTANG P-DG")}
-                <!-- Jazz Pickup at Bridge (y=690: 72px vertical clearance below DG) -->
-                {make_jbass_pickup(600, 690, strings, accent, w=396, h=78, label="MUSTANG J-BRIDGE")}
-                <!-- Datum labels (Word-wrapped and safely placed within margins >= 130px) -->
-                <g font-family="system-ui, -apple-system, sans-serif" fill="#cbd5e1" font-weight="800" letter-spacing="1">
-                  <!-- Left Datums -->
-                  <text x="130" y="402" font-size="14">30&quot; MUSTANG P</text>
-                  <text x="130" y="422" font-size="12" fill="#94a3b8" font-weight="600">110mm DATUM</text>
-                  <line x1="130" y1="432" x2="365" y2="432" stroke="#334155" stroke-dasharray="3 3" stroke-width="1"/>
-
-                  <text x="130" y="682" font-size="14">J-BRIDGE COIL</text>
-                  <text x="130" y="702" font-size="12" fill="#94a3b8" font-weight="600">56mm DATUM</text>
-                  <line x1="130" y1="712" x2="365" y2="712" stroke="#334155" stroke-dasharray="3 3" stroke-width="1"/>
-
-                  <!-- Right Datum -->
-                  <text x="1070" y="540" text-anchor="end" font-size="14">30&quot; SHORT SCALE</text>
-                  <text x="1070" y="560" text-anchor="end" font-size="12" fill="#94a3b8" font-weight="600">LOW-TENSION BLOOM</text>
-                  <line x1="835" y1="570" x2="1070" y2="570" stroke="#334155" stroke-dasharray="3 3" stroke-width="1"/>
-                </g>
-            """
-                )
+                lambda accent: f"""
+                {make_pbass_half(520, 388, (strings[0], strings[1]), accent, "MUSTANG P-EA")}
+                {make_pbass_half(680, 502, (strings[2], strings[3]), accent, "MUSTANG P-DG")}
+                {make_jbass_pickup(600, 650, strings, accent, w=396, h=78, label="MUSTANG J-BRIDGE")}
+                """
             ),
         },
         "preamp_soapbar": {
             "accent": "#06b6d4",
             "title": "PREAMP SOAPBAR BASS",
-            "desc_line1": "Calibrated for 34&quot; Preamp Dual-Soapbar Bass",
-            "desc_line2": "Passive Alnico Dual-Coils • Exposed Round Poles • Active 3-Band Preamp",
-            "scale": "34&quot; SCALE",
-            "badge2": "ALNICO DUAL-COIL",
-            "badge3": "ACTIVE 3-BAND PREAMP",
+            "scale": '34" SCALE',
+            "badge2": "DUAL SOAPBAR",
+            "badge3": "FOR NAM &amp; ANAGRAM",
             "voicing_count": 22,
             "num_strings": 5,
+            "hero_scale": 1.24,
             "content": _svg_content(
-                lambda accent: (
-                    f"""
-                <!-- Background Flux Lines -->
-                <g fill="none" stroke="{accent}" stroke-opacity="0.14" stroke-width="1.2">
-                  <ellipse cx="600" cy="430" rx="230" ry="90"/>
-                  <ellipse cx="600" cy="430" rx="300" ry="120" stroke-dasharray="8 6"/>
-                  <ellipse cx="600" cy="670" rx="230" ry="90"/>
-                  <ellipse cx="600" cy="670" rx="300" ry="120" stroke-dasharray="8 6"/>
-                </g>
-                <!-- RLC Inductance Curve -->
-                <path d="M 160 770 Q 360 765 500 700 T 640 550 T 780 700 T 1040 810" fill="none" stroke="{accent}" stroke-opacity="0.22" stroke-width="2.5" stroke-dasharray="6 6"/>
-                <!-- Neck and Bridge Passive Soapbars (Neck cy=430, Bridge cy=670: 80px gap) -->
-                {make_soapbar_pickup(600, 430, strings, accent, label="NECK SOAPBAR")}
-                {make_soapbar_pickup(600, 670, strings, accent, label="BRIDGE SOAPBAR")}
-                <!-- Datum labels (Word-wrapped and safely placed within margins >= 130px) -->
-                <g font-family="system-ui, -apple-system, sans-serif" fill="#cbd5e1" font-weight="800" letter-spacing="1">
-                  <!-- Left Datums -->
-                  <text x="130" y="422" font-size="14">NECK SOAPBAR</text>
-                  <text x="130" y="442" font-size="12" fill="#94a3b8" font-weight="600">135.0mm DATUM</text>
-                  <line x1="130" y1="452" x2="355" y2="452" stroke="#334155" stroke-dasharray="3 3" stroke-width="1"/>
-
-                  <text x="130" y="662" font-size="14">BRIDGE SOAPBAR</text>
-                  <text x="130" y="682" font-size="12" fill="#94a3b8" font-weight="600">55.0mm DATUM</text>
-                  <line x1="130" y1="692" x2="355" y2="692" stroke="#334155" stroke-dasharray="3 3" stroke-width="1"/>
-
-                  <!-- Right Datum -->
-                  <text x="1070" y="540" text-anchor="end" font-size="14">10 ALNICO POLES</text>
-                  <text x="1070" y="560" text-anchor="end" font-size="12" fill="#94a3b8" font-weight="600">DUAL-COIL SOAPBARS</text>
-                  <line x1="845" y1="570" x2="1070" y2="570" stroke="#334155" stroke-dasharray="3 3" stroke-width="1"/>
-                </g>
-            """
-                )
+                lambda accent: f"""
+                {make_soapbar_pickup(600, 415, strings_5, accent, label="NECK SOAPBAR")}
+                {make_soapbar_pickup(600, 615, strings_5, accent, label="BRIDGE SOAPBAR")}
+                """
             ),
         },
         "active_stingray": {
             "accent": "#f97316",
             "title": "ACTIVE STINGRAY BASS",
-            "desc_line1": "Calibrated for 34&quot; Active Music Man StingRay / Sterling Ray34",
-            "desc_line2": "Oversized 3/8&quot; Alnico V Poles • Sweet-Spot Dual Coil • Active 2-Band Preamp",
-            "scale": "34&quot; SCALE",
-            "badge2": "SWEET-SPOT HUMBUCKER",
-            "badge3": "ACTIVE 2-BAND PREAMP",
+            "scale": '34" SCALE',
+            "badge2": "MM HUMBUCKER",
+            "badge3": "FOR NAM &amp; ANAGRAM",
             "voicing_count": 21,
+            "num_strings": 4,
+            "hero_scale": 1.45,
             "content": _svg_content(
-                lambda accent: (
-                    f"""
-                <!-- Background Magnetic Flux Field -->
-                <g fill="none" stroke="{accent}" stroke-opacity="0.14" stroke-width="1.2">
-                  <ellipse cx="600" cy="550" rx="240" ry="130"/>
-                  <ellipse cx="600" cy="550" rx="320" ry="170" stroke-dasharray="8 6"/>
-                  <ellipse cx="600" cy="550" rx="400" ry="210" stroke-dasharray="4 8" stroke-opacity="0.08"/>
-                </g>
-                <!-- RLC Inductance Curve with StingRay 2.5 kHz Notch and 4.2 kHz Peak -->
-                <path d="M 160 760 Q 340 755 480 720 T 560 745 T 660 565 T 780 710 T 1040 805" fill="none" stroke="{accent}" stroke-opacity="0.24" stroke-width="2.5" stroke-dasharray="6 6"/>
-                <!-- Music Man Sweet-Spot Humbucker centered at cy=550 -->
-                {make_stingray_pickup(600, 550, strings, accent, label="SWEET-SPOT HUMBUCKER")}
-                <!-- Datum labels (Word-wrapped and safely placed within margins >= 130px) -->
-                <g font-family="system-ui, -apple-system, sans-serif" fill="#cbd5e1" font-weight="800" letter-spacing="1">
-                  <!-- Left Datum -->
-                  <text x="130" y="532" font-size="14">SWEET SPOT COIL</text>
-                  <text x="130" y="552" font-size="12" fill="#94a3b8" font-weight="600">66.0mm BRIDGE DATUM</text>
-                  <line x1="130" y1="562" x2="380" y2="562" stroke="#334155" stroke-dasharray="3 3" stroke-width="1"/>
-
-                  <!-- Right Datum -->
-                  <text x="1070" y="532" text-anchor="end" font-size="14">3/8&quot; ALNICO V POLES</text>
-                  <text x="1070" y="552" text-anchor="end" font-size="12" fill="#94a3b8" font-weight="600">ACTIVE 2-BAND PREAMP</text>
-                  <line x1="820" y1="562" x2="1070" y2="562" stroke="#334155" stroke-dasharray="3 3" stroke-width="1"/>
-                </g>
-            """
-                )
+                lambda accent: f"""
+                {make_stingray_pickup(600, 515, strings, accent, label="SWEET-SPOT HUMBUCKER")}
+                """
             ),
         },
         "active_emg": {
             "accent": "#10b981",
             "title": "ACTIVE EMG BASS",
-            "desc_line1": "Calibrated for 34&quot; Active EMG Soapbar Bass",
-            "desc_line2": "Dual EMG Ceramic Blades • Internal Low-Noise Buffer • Option C Baseline",
-            "scale": "34&quot; SCALE",
-            "badge2": "ACTIVE EMG SOAPBAR",
-            "badge3": "DUAL BLADE RAILS",
+            "scale": '34" SCALE',
+            "badge2": "ACTIVE SOAPBAR",
+            "badge3": "FOR NAM &amp; ANAGRAM",
             "voicing_count": 22,
             "num_strings": 5,
+            "hero_scale": 1.24,
             "content": _svg_content(
-                lambda accent: (
-                    f"""
-                <!-- Background Flux Lines -->
-                <g fill="none" stroke="{accent}" stroke-opacity="0.14" stroke-width="1.2">
-                  <ellipse cx="600" cy="430" rx="230" ry="90"/>
-                  <ellipse cx="600" cy="430" rx="300" ry="120" stroke-dasharray="8 6"/>
-                  <ellipse cx="600" cy="670" rx="230" ry="90"/>
-                  <ellipse cx="600" cy="670" rx="300" ry="120" stroke-dasharray="8 6"/>
-                </g>
-                <!-- RLC Inductance Curve -->
-                <path d="M 160 770 Q 360 765 500 700 T 640 550 T 780 700 T 1040 810" fill="none" stroke="{accent}" stroke-opacity="0.22" stroke-width="2.5" stroke-dasharray="6 6"/>
-                <!-- Neck and Bridge Active EMG Soapbars (Neck cy=430, Bridge cy=670: 80px gap) -->
-                {make_emg40_pickup(600, 430, strings_5, accent, label="NECK EMG SOAPBAR")}
-                {make_emg40_pickup(600, 670, strings_5, accent, label="BRIDGE EMG SOAPBAR")}
-                <!-- Datum labels (Word-wrapped and safely placed within margins >= 130px) -->
-                <g font-family="system-ui, -apple-system, sans-serif" fill="#cbd5e1" font-weight="800" letter-spacing="1">
-                  <!-- Left Datums -->
-                  <text x="130" y="422" font-size="14">NECK SOAPBAR</text>
-                  <text x="130" y="442" font-size="12" fill="#94a3b8" font-weight="600">135.0mm DATUM</text>
-                  <line x1="130" y1="452" x2="355" y2="452" stroke="#334155" stroke-dasharray="3 3" stroke-width="1"/>
-
-                  <text x="130" y="662" font-size="14">BRIDGE SOAPBAR</text>
-                  <text x="130" y="682" font-size="12" fill="#94a3b8" font-weight="600">55.0mm DATUM</text>
-                  <line x1="130" y1="692" x2="355" y2="692" stroke="#334155" stroke-dasharray="3 3" stroke-width="1"/>
-
-                  <!-- Right Datum -->
-                  <text x="1070" y="540" text-anchor="end" font-size="14">ACTIVE BUFFER</text>
-                  <text x="1070" y="560" text-anchor="end" font-size="12" fill="#94a3b8" font-weight="600">LOW-Z DUAL BLADES</text>
-                  <line x1="845" y1="570" x2="1070" y2="570" stroke="#334155" stroke-dasharray="3 3" stroke-width="1"/>
-                </g>
-            """
-                )
+                lambda accent: f"""
+                {make_emg40_pickup(600, 415, strings_5, accent, label="NECK EMG SOAPBAR")}
+                {make_emg40_pickup(600, 615, strings_5, accent, label="BRIDGE EMG SOAPBAR")}
+                """
             ),
         },
     }
@@ -687,201 +458,176 @@ def generate_pack_svg(model_key: str) -> str:
     cfg = ArtworkPackConfig.model_validate(configs[model_key])
     acc = cfg.accent
     strings = strings_5 if cfg.num_strings == 5 else strings_4
+    hero_scale = cfg.hero_scale
+    cy_hero = 550.0
+
+    sy1 = 515.0 + (270.0 - cy_hero) / hero_scale
+    sy2 = 515.0 + (830.0 - cy_hero) / hero_scale
 
     if cfg.num_strings == 5:
-        strings_svg = f"""  <!-- Physical Bass Strings (Vertical Over Pickups - 5 Strings) -->
-  <g>
-    <!-- B String (Heavy Gauge ~5.4px) -->
-    <line x1="{strings[0]:.1f}" y1="295" x2="{strings[0]:.1f}" y2="820" stroke="url(#stringGrad)" stroke-width="5.4"/>
-    <line x1="{strings[0]:.1f}" y1="295" x2="{strings[0]:.1f}" y2="820" stroke="#ffffff" stroke-width="0.8" opacity="0.6"/>
-    <text x="{strings[0]:.1f}" y="282" fill="#94a3b8" font-size="16" font-family="system-ui, -apple-system, sans-serif" font-weight="800" text-anchor="middle">B (130)</text>
+        strings_svg = f"""  <!-- Physical Bass Strings (5 Strings) -->
+    <g filter="url(#stringShadow)">
+      <!-- B String -->
+      <line x1="{strings[0]:.1f}" y1="{sy1:.1f}" x2="{strings[0]:.1f}" y2="{sy2:.1f}" stroke="url(#stringGrad)" stroke-width="16.0"/>
+      <line x1="{strings[0]:.1f}" y1="{sy1:.1f}" x2="{strings[0]:.1f}" y2="{sy2:.1f}" stroke="#ffffff" stroke-width="3.5" opacity="0.95"/>
 
-    <!-- E String (Gauge ~4.4px) -->
-    <line x1="{strings[1]:.1f}" y1="295" x2="{strings[1]:.1f}" y2="820" stroke="url(#stringGrad)" stroke-width="4.4"/>
-    <line x1="{strings[1]:.1f}" y1="295" x2="{strings[1]:.1f}" y2="820" stroke="#ffffff" stroke-width="0.7" opacity="0.6"/>
-    <text x="{strings[1]:.1f}" y="282" fill="#94a3b8" font-size="16" font-family="system-ui, -apple-system, sans-serif" font-weight="800" text-anchor="middle">E (100)</text>
+      <!-- E String -->
+      <line x1="{strings[1]:.1f}" y1="{sy1:.1f}" x2="{strings[1]:.1f}" y2="{sy2:.1f}" stroke="url(#stringGrad)" stroke-width="13.5"/>
+      <line x1="{strings[1]:.1f}" y1="{sy1:.1f}" x2="{strings[1]:.1f}" y2="{sy2:.1f}" stroke="#ffffff" stroke-width="3.0" opacity="0.95"/>
 
-    <!-- A String (Gauge ~3.4px) -->
-    <line x1="{strings[2]:.1f}" y1="295" x2="{strings[2]:.1f}" y2="820" stroke="url(#stringGrad)" stroke-width="3.4"/>
-    <line x1="{strings[2]:.1f}" y1="295" x2="{strings[2]:.1f}" y2="820" stroke="#ffffff" stroke-width="0.7" opacity="0.6"/>
-    <text x="{strings[2]:.1f}" y="282" fill="#94a3b8" font-size="16" font-family="system-ui, -apple-system, sans-serif" font-weight="800" text-anchor="middle">A (80)</text>
+      <!-- A String -->
+      <line x1="{strings[2]:.1f}" y1="{sy1:.1f}" x2="{strings[2]:.1f}" y2="{sy2:.1f}" stroke="url(#stringGrad)" stroke-width="11.5"/>
+      <line x1="{strings[2]:.1f}" y1="{sy1:.1f}" x2="{strings[2]:.1f}" y2="{sy2:.1f}" stroke="#ffffff" stroke-width="2.5" opacity="0.95"/>
 
-    <!-- D String (Gauge ~2.6px) -->
-    <line x1="{strings[3]:.1f}" y1="295" x2="{strings[3]:.1f}" y2="820" stroke="url(#stringGrad)" stroke-width="2.6"/>
-    <line x1="{strings[3]:.1f}" y1="295" x2="{strings[3]:.1f}" y2="820" stroke="#ffffff" stroke-width="0.6" opacity="0.6"/>
-    <text x="{strings[3]:.1f}" y="282" fill="#94a3b8" font-size="16" font-family="system-ui, -apple-system, sans-serif" font-weight="800" text-anchor="middle">D (65)</text>
+      <!-- D String -->
+      <line x1="{strings[3]:.1f}" y1="{sy1:.1f}" x2="{strings[3]:.1f}" y2="{sy2:.1f}" stroke="url(#stringGrad)" stroke-width="9.5"/>
+      <line x1="{strings[3]:.1f}" y1="{sy1:.1f}" x2="{strings[3]:.1f}" y2="{sy2:.1f}" stroke="#ffffff" stroke-width="2.2" opacity="0.95"/>
 
-    <!-- G String (Gauge ~2.0px) -->
-    <line x1="{strings[4]:.1f}" y1="295" x2="{strings[4]:.1f}" y2="820" stroke="url(#stringGrad)" stroke-width="2.0"/>
-    <line x1="{strings[4]:.1f}" y1="295" x2="{strings[4]:.1f}" y2="820" stroke="#ffffff" stroke-width="0.5" opacity="0.6"/>
-    <text x="{strings[4]:.1f}" y="282" fill="#94a3b8" font-size="16" font-family="system-ui, -apple-system, sans-serif" font-weight="800" text-anchor="middle">G (45)</text>
-  </g>"""
+      <!-- G String -->
+      <line x1="{strings[4]:.1f}" y1="{sy1:.1f}" x2="{strings[4]:.1f}" y2="{sy2:.1f}" stroke="url(#stringGrad)" stroke-width="8.0"/>
+      <line x1="{strings[4]:.1f}" y1="{sy1:.1f}" x2="{strings[4]:.1f}" y2="{sy2:.1f}" stroke="#ffffff" stroke-width="2.0" opacity="0.95"/>
+    </g>"""
     else:
-        strings_svg = f"""  <!-- Physical Bass Strings (Vertical Over Pickups) -->
-  <g>
-    <!-- E String (Heavy Gauge ~4.8px) -->
-    <line x1="{strings[0]:.1f}" y1="295" x2="{strings[0]:.1f}" y2="820" stroke="url(#stringGrad)" stroke-width="4.8"/>
-    <line x1="{strings[0]:.1f}" y1="295" x2="{strings[0]:.1f}" y2="820" stroke="#ffffff" stroke-width="0.8" opacity="0.6"/>
-    <text x="{strings[0]:.1f}" y="282" fill="#94a3b8" font-size="16" font-family="system-ui, -apple-system, sans-serif" font-weight="800" text-anchor="middle">E (105)</text>
+        strings_svg = f"""  <!-- Physical Bass Strings (4 Strings) -->
+    <g filter="url(#stringShadow)">
+      <!-- E String -->
+      <line x1="{strings[0]:.1f}" y1="{sy1:.1f}" x2="{strings[0]:.1f}" y2="{sy2:.1f}" stroke="url(#stringGrad)" stroke-width="16.0"/>
+      <line x1="{strings[0]:.1f}" y1="{sy1:.1f}" x2="{strings[0]:.1f}" y2="{sy2:.1f}" stroke="#ffffff" stroke-width="3.5" opacity="0.95"/>
 
-    <!-- A String (Gauge ~3.8px) -->
-    <line x1="{strings[1]:.1f}" y1="295" x2="{strings[1]:.1f}" y2="820" stroke="url(#stringGrad)" stroke-width="3.8"/>
-    <line x1="{strings[1]:.1f}" y1="295" x2="{strings[1]:.1f}" y2="820" stroke="#ffffff" stroke-width="0.7" opacity="0.6"/>
-    <text x="{strings[1]:.1f}" y="282" fill="#94a3b8" font-size="16" font-family="system-ui, -apple-system, sans-serif" font-weight="800" text-anchor="middle">A (85)</text>
+      <!-- A String -->
+      <line x1="{strings[1]:.1f}" y1="{sy1:.1f}" x2="{strings[1]:.1f}" y2="{sy2:.1f}" stroke="url(#stringGrad)" stroke-width="13.5"/>
+      <line x1="{strings[1]:.1f}" y1="{sy1:.1f}" x2="{strings[1]:.1f}" y2="{sy2:.1f}" stroke="#ffffff" stroke-width="3.0" opacity="0.95"/>
 
-    <!-- D String (Gauge ~3.0px) -->
-    <line x1="{strings[2]:.1f}" y1="295" x2="{strings[2]:.1f}" y2="820" stroke="url(#stringGrad)" stroke-width="3.0"/>
-    <line x1="{strings[2]:.1f}" y1="295" x2="{strings[2]:.1f}" y2="820" stroke="#ffffff" stroke-width="0.6" opacity="0.6"/>
-    <text x="{strings[2]:.1f}" y="282" fill="#94a3b8" font-size="16" font-family="system-ui, -apple-system, sans-serif" font-weight="800" text-anchor="middle">D (65)</text>
+      <!-- D String -->
+      <line x1="{strings[2]:.1f}" y1="{sy1:.1f}" x2="{strings[2]:.1f}" y2="{sy2:.1f}" stroke="url(#stringGrad)" stroke-width="11.5"/>
+      <line x1="{strings[2]:.1f}" y1="{sy1:.1f}" x2="{strings[2]:.1f}" y2="{sy2:.1f}" stroke="#ffffff" stroke-width="2.5" opacity="0.95"/>
 
-    <!-- G String (Gauge ~2.2px) -->
-    <line x1="{strings[3]:.1f}" y1="295" x2="{strings[3]:.1f}" y2="820" stroke="url(#stringGrad)" stroke-width="2.2"/>
-    <line x1="{strings[3]:.1f}" y1="295" x2="{strings[3]:.1f}" y2="820" stroke="#ffffff" stroke-width="0.5" opacity="0.6"/>
-    <text x="{strings[3]:.1f}" y="282" fill="#94a3b8" font-size="16" font-family="system-ui, -apple-system, sans-serif" font-weight="800" text-anchor="middle">G (45)</text>
-  </g>"""
+      <!-- G String -->
+      <line x1="{strings[3]:.1f}" y1="{sy1:.1f}" x2="{strings[3]:.1f}" y2="{sy2:.1f}" stroke="url(#stringGrad)" stroke-width="9.0"/>
+      <line x1="{strings[3]:.1f}" y1="{sy1:.1f}" x2="{strings[3]:.1f}" y2="{sy2:.1f}" stroke="#ffffff" stroke-width="2.2" opacity="0.95"/>
+    </g>"""
 
     svg = f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 1200" width="1200" height="1200">
   <defs>
-    <!-- Background Radial Gradient -->
-    <radialGradient id="bgGrad" cx="50%" cy="45%" r="70%">
-      <stop offset="0%" stop-color="#151922"/>
-      <stop offset="45%" stop-color="#0e1117"/>
-      <stop offset="100%" stop-color="#07080a"/>
+    <!-- Background Radial Gradient: Rich graphite slate center fading smoothly to deep black -->
+    <radialGradient id="bgGrad" cx="50%" cy="46%" r="65%">
+      <stop offset="0%" stop-color="#222b3b"/>
+      <stop offset="35%" stop-color="#151b25"/>
+      <stop offset="70%" stop-color="#0d1117"/>
+      <stop offset="100%" stop-color="#080a0f"/>
     </radialGradient>
 
     <!-- Outer Bezel Linear -->
     <linearGradient id="bezelGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#2a3342"/>
-      <stop offset="30%" stop-color="#181f2a"/>
-      <stop offset="70%" stop-color="#0f141c"/>
-      <stop offset="100%" stop-color="#222a36"/>
+      <stop offset="0%" stop-color="#475569"/>
+      <stop offset="30%" stop-color="#2a374a"/>
+      <stop offset="70%" stop-color="#141c28"/>
+      <stop offset="100%" stop-color="#334155"/>
     </linearGradient>
 
+    <!-- Silky-Smooth Studio Backlight Bloom: Pure accent color diffusion with zero hard boundaries -->
+    <radialGradient id="heroGlow" cx="50%" cy="46%" r="48%">
+      <stop offset="0%" stop-color="{acc}" stop-opacity="0.45"/>
+      <stop offset="25%" stop-color="{acc}" stop-opacity="0.28"/>
+      <stop offset="50%" stop-color="{acc}" stop-opacity="0.12"/>
+      <stop offset="75%" stop-color="{acc}" stop-opacity="0.03"/>
+      <stop offset="100%" stop-color="{acc}" stop-opacity="0.0"/>
+    </radialGradient>
+
     <!-- Pickup Cover Gradient -->
-    <linearGradient id="coverGrad" x1="20%" y1="0%" x2="80%" y2="100%">
-      <stop offset="0%" stop-color="#242c3b"/>
-      <stop offset="50%" stop-color="#181d26"/>
-      <stop offset="100%" stop-color="#101319"/>
+    <linearGradient id="coverGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#3b485d"/>
+      <stop offset="35%" stop-color="#263142"/>
+      <stop offset="100%" stop-color="#151b24"/>
     </linearGradient>
 
     <!-- Metallic Pole Gradient -->
     <radialGradient id="poleGrad" cx="35%" cy="35%" r="70%">
       <stop offset="0%" stop-color="#ffffff"/>
-      <stop offset="25%" stop-color="#e2e8f0"/>
-      <stop offset="60%" stop-color="#64748b"/>
-      <stop offset="100%" stop-color="#334155"/>
+      <stop offset="25%" stop-color="#f1f5f9"/>
+      <stop offset="60%" stop-color="#94a3b8"/>
+      <stop offset="100%" stop-color="#475569"/>
     </radialGradient>
 
-    <!-- Steel String Linear -->
+    <!-- Steel String Linear (High-Gloss Steel) -->
     <linearGradient id="stringGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#475569" stop-opacity="0.4"/>
-      <stop offset="40%" stop-color="#f8fafc" stop-opacity="0.9"/>
-      <stop offset="70%" stop-color="#94a3b8" stop-opacity="0.7"/>
-      <stop offset="100%" stop-color="#334155" stop-opacity="0.4"/>
+      <stop offset="0%" stop-color="#64748b"/>
+      <stop offset="25%" stop-color="#ffffff"/>
+      <stop offset="60%" stop-color="#cbd5e1"/>
+      <stop offset="100%" stop-color="#475569"/>
     </linearGradient>
 
-    <!-- Drop Shadow Filter -->
-    <filter id="dropShadow" x="-25%" y="-25%" width="150%" height="150%">
-      <feDropShadow dx="0" dy="18" stdDeviation="16" flood-color="#000000" flood-opacity="0.85"/>
-      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#000000" flood-opacity="0.5"/>
+    <!-- Clean Drop Shadow: Generous filter region so no blur clipping occurs -->
+    <filter id="dropShadow" x="-50%" y="-50%" width="200%" height="200%">
+      <feDropShadow dx="0" dy="20" stdDeviation="18" flood-color="#000000" flood-opacity="0.92"/>
+      <feDropShadow dx="0" dy="6" stdDeviation="8" flood-color="#000000" flood-opacity="0.65"/>
+    </filter>
+
+    <filter id="stringShadow" x="-50%" y="-20%" width="200%" height="140%">
+      <feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="#000000" flood-opacity="0.80"/>
     </filter>
   </defs>
 
   <!-- Canvas Background -->
   <rect width="1200" height="1200" fill="url(#bgGrad)"/>
+  <!-- Seamless Studio Backlight Bloom across canvas (no shape clipping) -->
+  <rect width="1200" height="1200" fill="url(#heroGlow)"/>
+  {cfg.extra_bg}
 
   <!-- Outer Precision Enclosure Bezel -->
-  <rect x="24" y="24" width="1152" height="1152" rx="28" fill="none" stroke="url(#bezelGrad)" stroke-width="4"/>
-  <rect x="36" y="36" width="1128" height="1128" rx="20" fill="none" stroke="#ffffff" stroke-opacity="0.04" stroke-width="1"/>
-
-  <!-- Technical Coordinate Grid -->
-  <g stroke="#ffffff" stroke-opacity="0.025" stroke-width="1">
-    <line x1="120" y1="60" x2="120" y2="1140"/>
-    <line x1="240" y1="60" x2="240" y2="1140"/>
-    <line x1="360" y1="60" x2="360" y2="1140"/>
-    <line x1="480" y1="60" x2="480" y2="1140"/>
-    <line x1="600" y1="60" x2="600" y2="1140" stroke-opacity="0.06"/>
-    <line x1="720" y1="60" x2="720" y2="1140"/>
-    <line x1="840" y1="60" x2="840" y2="1140"/>
-    <line x1="960" y1="60" x2="960" y2="1140"/>
-    <line x1="1080" y1="60" x2="1080" y2="1140"/>
-
-    <line x1="60" y1="180" x2="1140" y2="180"/>
-    <line x1="60" y1="300" x2="1140" y2="300"/>
-    <line x1="60" y1="420" x2="1140" y2="420"/>
-    <line x1="60" y1="540" x2="1140" y2="540"/>
-    <line x1="60" y1="660" x2="1140" y2="660"/>
-    <line x1="60" y1="780" x2="1140" y2="780"/>
-    <line x1="60" y1="900" x2="1140" y2="900"/>
-    <line x1="60" y1="1020" x2="1140" y2="1020"/>
-  </g>
+  <rect x="24" y="24" width="1152" height="1152" rx="32" fill="none" stroke="url(#bezelGrad)" stroke-width="4"/>
+  <rect x="36" y="36" width="1128" height="1128" rx="24" fill="none" stroke="#ffffff" stroke-opacity="0.08" stroke-width="1.5"/>
 
   <!-- Precision Corner Registration Crosshairs -->
-  <g stroke="{acc}" stroke-width="1.5" stroke-opacity="0.6">
-    <line x1="60" y1="75" x2="90" y2="75"/><line x1="75" y1="60" x2="75" y2="90"/><circle cx="75" cy="75" r="5" fill="none"/>
-    <line x1="1110" y1="75" x2="1140" y2="75"/><line x1="1125" y1="60" x2="1125" y2="90"/><circle cx="1125" cy="75" r="5" fill="none"/>
-    <line x1="60" y1="1125" x2="90" y2="1125"/><line x1="75" y1="1110" x2="75" y2="1140"/><circle cx="75" cy="1125" r="5" fill="none"/>
-    <line x1="1110" y1="1125" x2="1140" y2="1125"/><line x1="1125" y1="1110" x2="1125" y2="1140"/><circle cx="1125" cy="1125" r="5" fill="none"/>
+  <g stroke="{acc}" stroke-width="2.2" stroke-opacity="0.85">
+    <line x1="60" y1="75" x2="90" y2="75"/><line x1="75" y1="60" x2="75" y2="90"/><circle cx="75" cy="75" r="6" fill="none"/>
+    <line x1="1110" y1="75" x2="1140" y2="75"/><line x1="1125" y1="60" x2="1125" y2="90"/><circle cx="1125" cy="75" r="6" fill="none"/>
+    <line x1="60" y1="1125" x2="90" y2="1125"/><line x1="75" y1="1110" x2="75" y2="1140"/><circle cx="75" cy="1125" r="6" fill="none"/>
+    <line x1="1110" y1="1125" x2="1140" y2="1125"/><line x1="1125" y1="1110" x2="1125" y2="1140"/><circle cx="1125" cy="1125" r="6" fill="none"/>
   </g>
 
-  <!-- Top Metadata Bar (Safely within margins at 130px and 1070px) -->
-  <text x="130" y="80" fill="#94a3b8" font-size="15" font-family="system-ui, -apple-system, sans-serif" font-weight="700" letter-spacing="3">// ALLOMORPH ANALOG TWIN PIPELINE</text>
-  <text x="1070" y="80" fill="#94a3b8" font-size="15" font-family="system-ui, -apple-system, sans-serif" font-weight="700" letter-spacing="3" text-anchor="end">TONE3000 EDITION // BLOCK 1 PREAMP</text>
-
-  <!-- Primary Branding Header -->
-  <g transform="translate(600, 175)">
-    <text x="0" y="0" fill="#ffffff" font-size="70" font-family="system-ui, -apple-system, sans-serif" font-weight="900" letter-spacing="14" text-anchor="middle">ALLOMORPH</text>
-    <text x="0" y="40" fill="#94a3b8" font-size="18" font-family="system-ui, -apple-system, sans-serif" font-weight="700" letter-spacing="6" text-anchor="middle">ANALOG PICKUP DIGITAL TWIN ARCHITECTURE</text>
+  <!-- Primary Branding Header: Perfectly balanced from top -->
+  <g transform="translate(600, 184)">
+    <text x="0" y="0" fill="#ffffff" font-size="108" font-family="system-ui, -apple-system, sans-serif" font-weight="900" letter-spacing="16" text-anchor="middle">ALLOMORPH</text>
+    <text x="0" y="46" fill="{acc}" font-size="25" font-family="system-ui, -apple-system, sans-serif" font-weight="800" letter-spacing="6" text-anchor="middle">ANALOG PICKUP DIGITAL TWINS</text>
   </g>
 
   <!-- Header Technical Divider -->
-  <line x1="180" y1="245" x2="1020" y2="245" stroke="#334155" stroke-width="1"/>
-  <line x1="520" y1="245" x2="680" y2="245" stroke="{acc}" stroke-width="2.5"/>
+  <line x1="80" y1="270" x2="1120" y2="270" stroke="#334155" stroke-width="2"/>
+  <line x1="440" y1="270" x2="760" y2="270" stroke="{acc}" stroke-width="4.5"/>
 
-  <!-- Center Hardware Visual &amp; Specs -->
-  {cfg.content(acc)}
+  <!-- Center Hero Pickup & Strings Container -->
+  <g transform="translate(600, {cy_hero:.1f}) scale({hero_scale:.2f}) translate(-600, -515)">
+    {cfg.content(acc)}
 
-  {strings_svg}
+    {strings_svg}
+  </g>
 
   <!-- Bottom Hero Section -->
-  <!-- Accent Line -->
-  <line x1="130" y1="860" x2="1070" y2="860" stroke="#1e293b" stroke-width="2"/>
-  <line x1="130" y1="860" x2="420" y2="860" stroke="{acc}" stroke-width="3.5"/>
+  <line x1="80" y1="830" x2="1120" y2="830" stroke="#334155" stroke-width="2"/>
+  <line x1="80" y1="830" x2="420" y2="830" stroke="{acc}" stroke-width="4.5"/>
 
-  <!-- Edition Title -->
-  <text x="130" y="915" fill="#ffffff" font-size="46" font-family="system-ui, -apple-system, sans-serif" font-weight="900" letter-spacing="3">{cfg.title}</text>
+  <!-- Tone Pack Title (BIG & BOLD) -->
+  <text x="80" y="902" fill="#ffffff" font-size="66" font-family="system-ui, -apple-system, sans-serif" font-weight="900" letter-spacing="1.5">{cfg.title}</text>
   
-  <!-- Edition Subtitle / Voicing Count -->
-  <text x="130" y="955" fill="{acc}" font-size="19" font-family="system-ui, -apple-system, sans-serif" font-weight="800" letter-spacing="2.5">{cfg.voicing_count} DIGITAL TWIN VOICINGS  //  HIGH-IMPEDANCE PASSIVE EMULATION</text>
+  <!-- Edition Subtitle / Voicing Count (BIG & BOLD) -->
+  <text x="80" y="960" fill="{acc}" font-size="28" font-family="system-ui, -apple-system, sans-serif" font-weight="800" letter-spacing="3.0">{cfg.voicing_count} DIGITAL TWIN VOICINGS</text>
   
-  <!-- Word-Wrapped Description (Line 1 & Line 2, safe margins >= 130px) -->
-  <text x="130" y="988" fill="#cbd5e1" font-size="16" font-family="system-ui, -apple-system, sans-serif" font-weight="600" letter-spacing="0.5">{cfg.desc_line1}</text>
-  <text x="130" y="1012" fill="#94a3b8" font-size="15" font-family="system-ui, -apple-system, sans-serif" font-weight="500" letter-spacing="0.5">{cfg.desc_line2}</text>
+  <!-- Specification Badges (3 Large High-Contrast Badges) -->
+  <g transform="translate(0, 1000)">
+    <!-- Badge 1 (Scale) -->
+    <rect x="80" y="0" width="230" height="68" rx="16" fill="#141a24" stroke="#3b485d" stroke-width="2.2"/>
+    <text x="195" y="43" fill="#f8fafc" font-size="22" font-family="system-ui, -apple-system, sans-serif" font-weight="800" letter-spacing="1.5" text-anchor="middle">{cfg.scale}</text>
 
-  <!-- Bottom Hardware Specification Chips (Comfortable widths, safe within margin) -->
-  <g transform="translate(130, 1042)">
-    <!-- Chip 1 (Scale) -->
-    <rect x="0" y="0" width="165" height="42" rx="8" fill="#141822" stroke="#2a3344" stroke-width="1.6"/>
-    <text x="82" y="27" fill="#f8fafc" font-size="14.5" font-family="system-ui, -apple-system, sans-serif" font-weight="800" letter-spacing="1" text-anchor="middle">{cfg.scale}</text>
+    <!-- Badge 2 (Pickup) -->
+    <rect x="330" y="0" width="370" height="68" rx="16" fill="#141a24" stroke="#3b485d" stroke-width="2.2"/>
+    <text x="515" y="43" fill="#f8fafc" font-size="22" font-family="system-ui, -apple-system, sans-serif" font-weight="800" letter-spacing="1.5" text-anchor="middle">{cfg.badge2}</text>
 
-    <!-- Chip 2 (Pickup Style) -->
-    <rect x="178" y="0" width="195" height="42" rx="8" fill="#141822" stroke="#2a3344" stroke-width="1.6"/>
-    <text x="275" y="27" fill="#f8fafc" font-size="14.5" font-family="system-ui, -apple-system, sans-serif" font-weight="800" letter-spacing="1" text-anchor="middle">{cfg.badge2}</text>
-
-    <!-- Chip 3 (Topology) -->
-    <rect x="386" y="0" width="225" height="42" rx="8" fill="#141822" stroke="#2a3344" stroke-width="1.6"/>
-    <text x="498" y="27" fill="#f8fafc" font-size="14.5" font-family="system-ui, -apple-system, sans-serif" font-weight="800" letter-spacing="1" text-anchor="middle">{cfg.badge3}</text>
-
-    <!-- Chip 4 (Platform) -->
-    <rect x="624" y="0" width="195" height="42" rx="8" fill="#141822" stroke="#2a3344" stroke-width="1.6"/>
-    <text x="721" y="27" fill="#f8fafc" font-size="14.5" font-family="system-ui, -apple-system, sans-serif" font-weight="800" letter-spacing="1" text-anchor="middle">BLOCK 1 NAM + IR</text>
-
-    <!-- Chip 5 (Certified) -->
-    <rect x="832" y="0" width="105" height="42" rx="8" fill="#182030" stroke="{acc}" stroke-width="1.6"/>
-    <text x="884" y="27" fill="{acc}" font-size="14.5" font-family="system-ui, -apple-system, sans-serif" font-weight="900" letter-spacing="1" text-anchor="middle">NAM A2</text>
+    <!-- Badge 3 (Target / Platform) -->
+    <rect x="720" y="0" width="400" height="68" rx="16" fill="#141a24" stroke="{acc}" stroke-width="3.0"/>
+    <text x="920" y="43" fill="{acc}" font-size="22" font-family="system-ui, -apple-system, sans-serif" font-weight="900" letter-spacing="1.5" text-anchor="middle">{cfg.badge3}</text>
   </g>
-</svg>
-"""
+</svg>"""
     # Strict validation of XML syntax
     ET.fromstring(svg)
     return svg

@@ -172,13 +172,15 @@ class ArtworkPackConfig(AllomorphBaseModel):
 
     accent: str = Field(..., pattern=r"^#[0-9a-fA-F]{6}$")
     title: str
-    desc_line1: str
-    desc_line2: str
+    desc_line1: str = ""
+    desc_line2: str = ""
     scale: str
     badge2: str
-    badge3: str
+    badge3: str = "FOR NAM &amp; ANAGRAM"
     voicing_count: int = 22
     num_strings: int = 4
+    hero_scale: float = 1.30
+    extra_bg: str = ""
     content: Callable[[str], str]
 
 
