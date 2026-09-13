@@ -1,6 +1,6 @@
 ALLOMORPH: ACTIVE STINGRAY BASS EDITION
 
-Transform your active Music Man StingRay or Sterling Ray4/Ray34 bass into 21 legendary vintage passive, modern active, progressive rock, and acoustic pickup configurations.
+Transform your active Music Man StingRay (4 or 5-string) or Sterling Ray34/Ray35/Ray4/Ray5 bass into 21 legendary vintage passive, modern active, progressive rock, and acoustic pickup configurations.
 
 
 OVERVIEW
@@ -17,7 +17,7 @@ Rather than modeling an amplifier or speaker cabinet, these models capture:
 • Pure capacitive ToneStyler rotary shunts with undamped vocal resonance
 • Active onboard discrete preamps and EQ buffers
 
-Calibrated for a 34" Standard Scale Active Music Man StingRay (or Sterling Ray34 / Ray4 / SUB) equipped with the iconic bridge sweet-spot dual-coil humbucker (66.0mm centerline) and onboard active 2-band or 3-band preamp. Exact differential deconvolution neutralizes your onboard preamp's buffered resonance and sweet-spot aperture, reconstructing wide-spaced dual singles, neck split-coils, and acoustic transducers in real time with zero latency.
+Calibrated for 4 and 5-string 34" Standard Scale Active Music Man StingRay basses (USA StingRay 4/5, StingRay Special, or Sterling Ray34 / Ray35 / Ray4 / Ray5 / SUB) equipped with the iconic bridge sweet-spot dual-coil humbucker (66.0mm centerline) and onboard active 2-band or 3-band preamp. Full wave-speed continuum modeling down to 30.87 Hz ensures seamless calibration across both 4 and 5-string instruments (down to low B). Exact differential deconvolution neutralizes your onboard preamp's buffered resonance and sweet-spot aperture, reconstructing wide-spaced dual singles, neck split-coils, and acoustic transducers in real time with zero latency.
 
 
 RECOMMENDED SIGNAL CHAIN
@@ -33,6 +33,7 @@ Why Block 1? Drive and preamp circuits react directly to pickup resonant peaks. 
 
 QUICK INSTRUMENT SETUP
 
+• 3-Way Mode Switch (if equipped on 5-string / Ray35): Set to Parallel (Position 1 / toward bridge)
 • Onboard Active EQ (Bass, Treble, Mid): Set to Center Detents (Flat / 0 dB)
 
 Plug straight in. Because the StingRay features a single bridge sweet-spot humbucker, all target models map directly to your physical humbucker. All impedance matching, aperture repositioning, pot loading, and active preamp EQs are handled automatically by the NAM models.

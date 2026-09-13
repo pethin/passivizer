@@ -126,7 +126,7 @@ The final positions in every pack are reserved for studio impedance and loading 
 ---
 
 ### 2.6 Active StingRay Bass Edition (21 Voicings)
-*Source Instrument:* 34" active Music Man StingRay / Sterling Ray34 with single bridge sweet-spot dual-coil humbucker ($66.0\text{ mm}$) and active 2-band preamp.  
+*Source Instrument:* 34" active Music Man StingRay / Sterling Ray34 / Ray35 (4 and 5-string) with single bridge sweet-spot dual-coil humbucker ($66.0\text{ mm}$) and active 2-band or 3-band preamp. Universally calibrated down to low B ($30.87\text{ Hz}$).  
 *Native Exclusions:* `StingRay Parallel` ($H_{\text{diff}} \equiv 1.0$).
 
 | Rank Range | Sonic Family | Rationale / Musical Character |
