@@ -388,3 +388,100 @@ This guarantees:
 2. Exact causal impulse response propagation.
 3. Authentic inter-pickup acoustic phase comb cancellation at $600\text{--}800\text{ Hz}$ when blending neck and bridge pickups in parallel.
 
+---
+
+## 13. Real Spatial Comb Mechanics, Excursion Physics & 34" Transducer Geometries
+
+To evaluate pickup placement with true mathematical and physical rigor, the interaction between vibrating strings and magnetic pole pieces must be analyzed across three physical dimensions: **stationary spatial comb filtering**, **low-frequency velocity tilt**, and **amplitude-dependent dynamic excursion non-linearity**.
+
+---
+
+### A. The Fretted String Reality: Fret-Invariant Spatial Comb Filtering
+
+A pervasive myth in guitar lutherie claims that pickups are positioned to cancel specific musical harmonics on the open string (e.g., placing a P-bass pickup at $125\text{ mm}$ to cancel the 7th harmonic at $L/7 = 123.4\text{ mm}$). 
+
+In physical wave mechanics, this static node explanation is a misconception:
+1. **The Moving Node Paradox:** When a string is fretted at fret $F$, the vibrating string length shortens to $L_{\text{eff}} = L \cdot 2^{-F/12}$. While pickup distance $x$ from the bridge saddle remains fixed, the harmonic node locations ($x_{\text{node}} = k L_{\text{eff}} / n$) move with every fret. At the 5th fret, the 7th harmonic node has moved to $92.4\text{ mm}$; at the 12th fret, it sits at $61.7\text{ mm}$. A static pickup does **not** permanently cancel any musical harmonic across all notes.
+2. **The Fret-Invariant Spatial Comb Filter:** What **does** remain strictly invariant across all frets is the **spatial comb filter frequency response** $H_{\text{pos}}(f)$. 
+   
+Transverse wave propagation speed on a given string is determined strictly by string tension $T$ and linear mass density $\mu$:
+$$v = \sqrt{\frac{T}{\mu}} = 2 \cdot L_{\text{open}} \cdot f_{\text{open}}$$
+
+Because the bridge saddle acts as a rigid termination ($y(0) = 0$), the superposition of incident and reflected waves at distance $x$ from the saddle imposes an absolute spatial comb filter envelope on string displacement:
+$$H_{\text{pos}}(f) = \left| \sin\left(\frac{2\pi f x}{v}\right) \right|$$
+
+The spatial cancellation nulls occur at fixed frequencies in Hertz:
+$$f_{\text{null}, k} = k \cdot \frac{v}{2x}, \quad k \in \{1, 2, 3, \dots\}$$
+
+Because wave speed $v$ is an intrinsic physical property of each tuned string, **these cancellation frequencies in Hertz are identical whether the note is played open or fretted anywhere up the neck**:
+
+| Transducer Position ($x$) | Low E ($v_E = 71.1\text{ m/s}$) 1st Null | A String ($v_A = 95.0\text{ m/s}$) 1st Null | D String ($v_D = 126.8\text{ m/s}$) 1st Null | High G ($v_G = 169.3\text{ m/s}$) 1st Null |
+| :--- | :---: | :---: | :---: | :---: |
+| **Bridge Single-Coil ($54.6\text{ mm}$)** | **$651\text{ Hz}$** | $870\text{ Hz}$ | $1,161\text{ Hz}$ | $1,550\text{ Hz}$ |
+| **StingRay MM Center ($66.0\text{ mm}$)** | **$538\text{ Hz}$** | $720\text{ Hz}$ | $961\text{ Hz}$ | $1,283\text{ Hz}$ |
+| **Single Centroid Datum ($93.5\text{ mm}$)** | **$380\text{ Hz}$** | $508\text{ Hz}$ | $678\text{ Hz}$ | $905\text{ Hz}$ |
+| **Reverse-P: E/A Half ($115.6\text{ mm}$)** | **$307\text{ Hz}$** | $411\text{ Hz}$ | — | — |
+| **Standard P-Bass ($125.0\text{ mm}$)** | **$284\text{ Hz}$** | $380\text{ Hz}$ | $507\text{ Hz}$ | $677\text{ Hz}$ |
+| **Reverse-P: D/G Half ($145.4\text{ mm}$)** | — | — | $436\text{ Hz}$ | **$582\text{ Hz}$** |
+
+#### The Deconvolution Implication:
+If a physical bass possesses only a single pickup at the **$93.5\text{ mm}$ median**, the instrument has an acoustic null on the low E string at **$380\text{ Hz}$**. Recreating a StingRay tone (whose first null sits much higher at $538\text{ Hz}$ and has massive constructive energy at $380\text{ Hz}$) forces the deconvolution filter to boost the missing $380\text{ Hz}$ content. In Allomorph, Wiener noise regularization clamps maximum boost to $+8.0\text{ dB}$, meaning an inverted single pickup will always be an approximation of the physical comb spectrum.
+
+---
+
+### B. Low-Frequency Velocity Tilt & Fundamental Scaling ($\propto f \cdot x$)
+
+For low frequencies where the spatial argument is small ($\frac{2\pi f x}{v} \ll 1$):
+$$\sin\left(\frac{2\pi f x}{v}\right) \approx \frac{2\pi f x}{v} \propto f \cdot x$$
+
+This first-order Taylor expansion yields two foundational acoustic behaviors:
+1. **Raw Fundamental Output Scales Directly with $x$:**
+   Low-frequency fundamental voltage scales linearly with distance $x$ from the bridge. Moving from a bridge position ($x = 55\text{ mm}$) to a neck position ($x = 130\text{ mm}$) yields a physical gain increase of:
+   $$\Delta G_{\text{fund}} = 20 \log_{10}\left(\frac{130\text{ mm}}{55\text{ mm}}\right) \approx \mathbf{+7.5\text{ dB}}$$
+   This $+7.5\text{ dB}$ fundamental fullness is physically present in the string's motion at the neck position; it is not an EQ artifact.
+2. **High-Pass Spectral Derivative Tilt ($+6\text{ dB/octave}$):**
+   Because $\sin\left(\frac{2\pi f x}{v}\right) \propto f$ at small $x$, bridge-side pickups act as physical differentiators (velocity sensors), introducing a natural $+6\text{ dB/octave}$ high-pass spectral tilt that attenuates the sub-fundamental while accentuating high harmonics and transient pick attack. 
+   At the neck position ($x = 130\text{--}145\text{ mm}$), the linear approximation breaks down above $80\text{--}100\text{ Hz}$, delivering a flat, massive fundamental passband.
+
+---
+
+### C. Amplitude-Dependent String Excursion & Magnetic Non-Linear Saturation
+
+The maximum mechanical excursion of a plucked string forms a triangular profile tapering to zero at the bridge saddle witness point ($x = 0$):
+$$y_{\text{string}}(x) \approx y_{\text{pluck}} \cdot \frac{x}{x_{\text{pluck}}}$$
+
+This excursion gradient creates fundamentally different magnetic flux compression regimes:
+* **Neck Transducer ($x = 130.5\text{ mm}$):** The large physical string displacement $\Delta y$ modulates magnetic flux deeply into the non-linear curvature of the pickup's magnetic circuit. This generates dynamic soft-knee compression:
+  $$V_{\text{out}}(t) = V_{\text{sat}} \cdot \tanh\left(\frac{v(t)}{V_{\text{sat}}}\right)$$
+  as well as displacement-modulated reluctance inductance shifts ($\lambda_L$ "dynamic quack"). When the bassist digs in aggressively ($ff$), the neck pickup physically compresses and blooms with tactile give.
+* **Bridge Transducer ($x = 54.6\text{--}66.0\text{ mm}$):** String displacement is physically constrained by bridge proximity, while transverse string acceleration and angular velocity are high. The pickup operates in an almost purely linear magnetic regime, producing sharp, uncompressed, metallic transient clank.
+* **Single Centroid Sensor ($x = 93.5\text{ mm}$):** Experiences only a static, intermediate excursion level, physically incapable of delivering the deep non-linear bloom of the neck position or the extreme linear transient spikes of the bridge position.
+
+---
+
+### D. Reverse-P Mechanical Stagger Physics on 34" Scale
+
+Bass strings have vastly different mechanical properties across registers:
+* Low E strings feature large linear mass density ($\mu \approx 0.018\text{ kg/m}$) and wide physical excursion. Samping E/A closer to the bridge (**$115.6\text{ mm}$**) restricts mechanical excursion, tightening low-end fundamental transient attack and eliminating flub.
+* High G strings feature low linear mass ($\mu \approx 0.003\text{ kg/m}$) and high bending stiffness. Samping D/G further from the bridge (**$145.4\text{ mm}$**) captures larger mechanical excursion, providing singing warmth, fundamental weight, and sustain.
+
+A single straight pickup or soapbar senses all strings at an identical distance $x$, lacking this physical register-dependent mechanical balance.
+
+---
+
+### E. Architectural Synthesis: Real Harmonics Dual-Transducer vs. Single-Pickup Reference
+
+| Architectural Criterion | Architecture 1: Real Harmonic Dual-Transducer (Reverse PX + MMTWX) | Architecture 2: Single-Pickup Reference (Centroid @ $93.5\text{ mm}$) |
+| :--- | :--- | :--- |
+| **Spatial Comb Filtering** | **Physical Ground Truth:** Comb nulls physically located at $284\text{ Hz}$ (P) and $538\text{ Hz}$ (MM) | **DSP Synthesis:** Fixed null at $380\text{ Hz}$; requires Wiener deconvolution boost |
+| **Fundamental Energy** | **Authentic Physical $+7.5\text{ dB}$ Excursion** at neck pickup | **Synthesized Shelving Tilt** ($H_{\text{tilt}}$) |
+| **Non-Linear Core Saturation** | **Dynamic Physical Bloom** on neck pickup; linear velocity spikes on bridge | **Uniform Intermediate Compression** across all registers |
+| **Per-String Mechanical Balance** | **Reverse-P Physical Stagger** ($115.6\text{ mm}$ E/A vs $145.4\text{ mm}$ D/G) | **Flat Uniform Distance;** DSP continuum correction |
+| **Plucking Hand Feedback** | **Dual Physical Anchors** (pliable neck zone or stiff bridge recoil) | **Single Physical Anchor** ($93.5\text{ mm}$) |
+| **Live Stage Operation** | Requires matching pickup switch to Anagram target preset | **100% Decoupled;** Zero switch-mismatch cognitive load |
+| **Secondary Magnetic Drag** | Minimal active drag (two low-flux active apertures) | **Absolute Zero Drag** (Single active pickup) |
+| **Standalone Analog Tone** | **4 Pro Iconic Sounds Natively** (P, MM, J-Bridge, P/MM) | **1 Neutral Intermediate Tone** without DSP |
+| **Optimal Use Case** | Pure tone recording, studio sessions, tactile players | Patch-heavy live touring, zero-distraction pedalboard setups |
+
+
+

@@ -43,48 +43,97 @@ While an Impulse Response (IR) or FIR filter can reproduce a static frequency cu
 
 ---
 
-## The Ideal Source Instrument: Single-Pickup Architecture (34" Scale)
+## Source Instrument Hardware Architectures (34" Standard Scale)
 
-While Allomorph supports multi-pickup and active-blend source instruments, the **optimal hardware platform** for driving all 14 digital twin voicings is a **single-pickup, zero-control bass**.
-By installing a single active EMG pickup wired straight to the output jack, you establish an uncompromising reference baseline:
+While Allomorph supports any active, passive, or acoustic source bass, physical transducer hardware fundamentally determines the boundary conditions of deconvolution. On a standard **34.0" scale ($863.6\text{ mm}$)**, Allomorph establishes two reference hardware architectures depending on the engineering priority:
+
+1. **The Actual Ideal Bass: Real Harmonic Dual-Transducer Architecture (Reverse PX + MMTWX)** — Built for maximum acoustic realism, tactile dynamic feedback, reverse-split string balancing, and standalone analog versatility by sampling string standing-wave modes at their physical harmonic antinodes.
+2. **The Ideal Single-Pickup Bass: The Zero-Decoupling Reference Transducer** — Built for zero cognitive overhead, foolproof patch switching on stage, zero inter-pickup phase comb notches, and zero secondary magnetic string drag.
+
+---
+
+### Architecture 1: The Actual Ideal Bass — Real Harmonic Dual-Transducer (34" Scale)
+
+In physical string mechanics, transverse wave reflections off the rigid bridge saddle impose an absolute, fret-invariant spatial comb filter envelope on string displacement:
+$$H_{\text{pos}}(f) = \left| \sin\left(\frac{2\pi f x}{v}\right) \right|$$
+where $x$ is the physical distance from the bridge saddle and $v = \sqrt{T/\mu}$ is the string's intrinsic transverse wave speed.
+
+Because wave speed $v$ is constant for each tuned string, the cancellation nulls occur at **fixed frequencies in Hertz across all frets**:
+$$f_{\text{null}, k} = k \cdot \frac{v}{2x}, \quad k \in \{1, 2, 3, \dots\}$$
+
+A single pickup at any fixed location $x$ enforces a single set of comb nulls. By deploying a **Reverse EMG PX Split-Coil + EMG MMTWX Dual-Mode** with active parallel blending (EMG ABCX) on a 34" scale, the instrument physically captures real spatial wave mechanics at their authentic source locations:
+
+```
+[Nut] ════════════════════════════════════════════════════════════════════════════════ [Bridge]
+                                  ◄─── Reverse PX ───►      ◄─── MMTWX ───►
+                                   D/G: 145.4 mm            Neck: 77.4 mm
+                                   E/A: 115.6 mm            Bridge: 54.6 mm
+```
+
+#### 1. Real Spatial Comb Filtering Across the Frequency Spectrum
+* **Neck Transducer (Reverse EMG PX Split @ $130.5\text{ mm}$ Centerline):**
+  * **Low-Frequency Output ($\propto f \cdot x$):** Large distance from the bridge saddle yields $+7.5\text{ dB}$ higher raw fundamental output ($20\log_{10}(130/55)$) than the bridge position, providing deep, authoritative fundamental body physically at the transducer.
+  * **Forward D/G Half ($x = 145.4\text{ mm}$):** Senses high strings where physical excursion is naturally small, adding warm low-mids, singing body, and long sustain without thinness.
+  * **Rearward E/A Half ($x = 115.6\text{ mm}$):** First comb null sits at $307\text{ Hz}$ on low E. Senses heavy low strings closer to the bridge where mechanical excursion is controlled, tightening low-end fundamental transient attack and eliminating flub.
+* **Bridge Transducer (EMG MMTWX Dual-Mode @ $66.0\text{ mm}$ Centerline):**
+  * **Dual-Coil Centerline ($x = 66.0\text{ mm}$):** Pushes the first spatial comb null up to $538\text{ Hz}$ on low E (leaving the entire low-mid growl passband completely un-notched). Its physical $0.90''$ coil spacing generates the authentic $2.5\text{ kHz}$ acoustic humbucker notch directly on the string.
+  * **Single-Coil Mode ($x = 54.6\text{ mm}$):** Pushes the first comb null to $651\text{ Hz}$. Senses high transverse velocity and saddle witness-point boundary stiffness ($H_{\text{saddle}}$), delivering biting 60s/70s Jazz bridge growl and percussive attack.
+
+#### 2. Physical & Dynamic Advantages Over a Single Point
+* **Minimal Deconvolution Effort ($H_{\text{diff}} \approx 0\text{ dB}$):** When targeting a Vintage P-Bass (Voice 05) or a StingRay (Voice 09), the pickup is *already in the physically authentic position*. Block 1 only applies passive RLC circuit modeling and magnetic feel—never fighting the $+8.0\text{ dB}$ Wiener soft-knee boost ceiling to reconstruct missing comb frequencies.
+* **Physical Dynamic Excursion & Soft-Knee Compression:** Large string displacement over the neck pickup drives the magnetic core into natural soft-knee flux compression ($V_{\text{sat}} \cdot \tanh(v/V_{\text{sat}})$) and dynamic inductance modulation ($\lambda_L$ "quack"), responding with tactile give when digging in hard.
+* **Dual Plucking Hand Anchors:** Anchoring over the PX naturally places the plucking hand in the warm, round mechanical attack zone; anchoring over the MMTWX puts the hand in the tight, fast transient recoil zone.
+* **Standalone Analog Fallback:** Without digital processing, the bass natively provides 4 distinct iconic sounds (Solo Reverse P, Solo StingRay Dual, Solo J-Bridge Single, and Blended P/MM).
+
+---
+
+### Architecture 2: The Ideal Single-Pickup Bass — The Zero-Decoupling Reference Transducer (34" Scale)
+
+For players prioritizing **pure software decoupling with zero cognitive overhead on stage**, the single-pickup architecture eliminates all mechanical switching:
 
 ```
 [12th Fret] ◄────────────── 338.3 mm ──────────────► [Pickup Center] ◄──── 93.5 mm ────► [Bridge Saddle]
 ```
 
-### 1. The Single-Pickup Philosophy: Total Decoupling & Zero Comb Nulls
+#### 1. The Single-Pickup Philosophy: Total Decoupling & Zero Comb Nulls
 * **No Comb-Filtering Nulls to Invert:** Humbuckers with dual coils under the same string introduce physical phase cancellation notches ($f = v / 2d \approx 2.5\text{ kHz}$) that cannot be cleanly inverted in DSP without boosting noise. A single line of sensing per string provides a clean, notch-free transfer function that allows Allomorph to synthesize any target aperture or dual-coil comb filter effortlessly.
 * **Total Preset Decoupling:** Eliminates the "hand-foot desync" problem. You never have to adjust physical knobs or flip coil switches to match patch changes on your pedalboard; stepping on a Darkglass Anagram footswitch transforms the tone entirely in software.
+* **Zero Secondary Magnetic Drag:** With only one pickup mounted, there are no secondary magnets dampening string vibration, maximizing open-string sustain and harmonic bloom.
 
-### 2. Recommended Pickup: EMG PX or EMG 35P4X (18V)
-* **Split-Coil Geometry (Zero Comb Nulls):** The E/A and D/G strings each pass over only **one** isolated coil ($d = 0$). There is zero inter-coil phase cancellation along any string.
-* **Hum-Canceling Common-Mode Rejection:** Reverse-wound, reverse-polarity split bobbins ensure 100% hum-free performance on a pot-free instrument.
-* **Ceramic X-Series Preamp @ 18V:** Delivers an ultra-wide, linear frequency response ($f_r \approx 3.2\text{ kHz}$), near-zero core saturation, and $>8.5\text{V}_{\text{p-p}}$ dynamic headroom.
-* **Form Factors:** Traditional two-piece split-P covers (**EMG PX**) or a single $3.50'' \times 1.50''$ rectangular soapbar (**EMG 35P4X** for 4-string, **40P5X** for 5-string).
+#### 2. Recommended Pickup: EMG PX, EMG 35AX, or EMG 35P4X (18V)
+* **Narrow Aperture ($w \le 0.75''$) Stacked Coaxial or Split-Coil:** Single sensing line per string ($d = 0.0''$). The first aperture null sits above $3.7\text{ kHz}$ on low E and above $8.8\text{ kHz}$ on G.
+* **Hum-Canceling Common-Mode Rejection:** Stacked dummy coil or reverse split bobbins ensure 100% hum-free performance.
+* **Ceramic/Alnico X-Series Preamp @ 18V:** Ultra-wide linear bandwidth, near-zero core saturation, and $>8.5\text{V}_{\text{p-p}}$ dynamic headroom with low $2\text{ k}\Omega$ output impedance (immune to cable loading).
 
-### 3. Lutherie Datums: The $93.5\text{ mm}$ ($3.68''$) Acoustic Median
-On a standard **34.0" scale length** ($863.6\text{ mm}$), **$93.5\text{ mm}$** is the exact mathematical median between a 60s Jazz Bridge ($63.5\text{ mm}$) and a standard Precision Bass ($125.0\text{ mm}$):
+#### 3. Lutherie Datums: The $93.5\text{ mm}$ ($3.68''$) Canonical Intermediate Datum
+On a 34.0" scale length ($863.6\text{ mm}$), **$93.5\text{ mm}$** is the exact mathematical median between a 60s Jazz Bridge ($63.5\text{ mm}$) and a standard Precision Bass ($125.0\text{ mm}$), and serves as Allomorph's **Canonical Intermediate reference datum** ($\eta_{\text{datum}} = 10.83\%$):
 
 $$\bar{x} = \frac{63.5\text{ mm} + 125.0\text{ mm}}{2} = 94.25\text{ mm} \approx \mathbf{93.5\text{ mm}}$$
 
-This median position achieves a **Reverse-P Dual-Datum Alignment**:
+* **Exact $0.00\text{ dB}$ Spatial Tilt to Canonical Baseline:** Because the physical pickup sits directly on the datum, deconvolution into Stage 3 requires zero spatial shelving tilt ($\Delta\eta = 0.000$).
+* **Symmetric Filter Bounds:** Every voice in the 23-voice catalog is reachable within $\pm 3.7\text{ dB}$ of spatial shelving tilt, never exceeding the $+8.0\text{ dB}$ Wiener soft-knee boost ceiling.
 
-| Geometry | Measurement from Bridge Saddle | Measurement from 12th Fret | Notes |
-| :--- | :--- | :--- | :--- |
-| **Reverse-P: E/A Coil Half** | **$80.8\text{ mm}$** ($3.18''$) | **$351.0\text{ mm}$** ($13.82''$) | **Exact StingRay sweet spot!** Rearward placement keeps low E & A strings punchy, tight, and articulate. |
-| **Reverse-P: D/G Coil Half** | **$106.2\text{ mm}$** ($4.18''$) | **$325.6\text{ mm}$** ($12.82''$) | **Within $4.8\text{ mm}$ of a vintage P-Bass!** Forward placement gives high D & G strings warm, singing body. |
-| **Reverse-P Acoustic Centroid** | **$93.5\text{ mm}$** ($3.68''$) | **$338.3\text{ mm}$** ($13.32''$) | Perfect geometric acoustic balance across all 4 strings. |
-| **Soapbar Center (EMG 35P4X)** | **$93.5\text{ mm}$** ($3.68''$) | **$338.3\text{ mm}$** ($13.32''$) | Casing cavity: $74.5\text{ mm}$ bridge edge, $112.5\text{ mm}$ neck edge. |
+#### 4. Disadvantages & Trade-offs Relative to Real Harmonic Sampling
+While operationally foolproof, the single-pickup design introduces distinct acoustic and physical compromises:
+1. **Synthetic vs. Real Harmonics:** Bridge bite ($< 66\text{ mm}$) and neck warmth ($> 125\text{ mm}$) must be synthesized through DSP shelving filters ($H_{\text{tilt}}$), rather than captured from real standing-wave antinodes.
+2. **No Per-String Harmonic Stagger:** A straight pickup senses all strings at the same distance, lacking the mechanical bass-tightening and treble-warming of a reverse split.
+3. **Single Plucking Anchor:** Restricts physical thumb placement to a single position ($93.5\text{ mm}$).
+4. **Neutral Standalone Voicing:** Without Block 1 processing, the instrument outputs a sterile intermediate tone without iconic standalone character.
 
-* **Why this position outclasses all others:** 
-  1. The low E and A strings are physically sampled right where a Music Man StingRay senses, ensuring tight sub-bass, punchy low-mids, and zero flub.
-  2. The high D and G strings are physically sampled within $5\text{ mm}$ of an authentic 1962 Fender P-Bass, ensuring rich fundamental bloom and eliminating high-register "plinkiness."
-  3. Because the pickup is equidistant between bridge single-coils ($63.5\text{ mm}$) and neck split-coils ($125.0\text{ mm}$), the DSP acoustic tilt adjustments in Allomorph are kept to an absolute minimum ($\le 1.8\text{ dB}$ in either direction).
+---
 
-### 4. Zero-Control Electrical Wiring (Direct-to-Jack)
-* **Wiring:** Connect the EMG pickup signal wire directly to the stereo 1/4" output jack Tip, battery negative to Ring (for automatic power switching on cable insertion), and pickup/battery ground to Sleeve.
-* **Power:** Two 9V batteries wired in series (**18V**) for maximum linear headroom.
-* **Zero Loading:** Eliminates potentiometer wiper resistance, pot capacitance loading, and accidental level bumps, ensuring $100\%$ consistent calibration into Block 1 every time you plug in.
+### Head-to-Head Architectural Comparison (34" Scale)
+
+| Architectural Metric | Architecture 1: Real Harmonic Dual-Transducer (Reverse PX + MMTWX) | Architecture 2: Single-Pickup Reference (Centroid @ $93.5\text{ mm}$) |
+| :--- | :--- | :--- |
+| **Harmonic Mode Sampling** | **Physical Antinodes** (Low modes @ $130.5\text{ mm}$, High modes @ $66.0\text{ mm}$) | **Single Fixed Point** (Mode 9 node @ $96\text{ mm}$ suppressed) |
+| **Allomorph Filter Effort** | **Minimal** ($H_{\text{diff}} \approx 0\text{ dB}$ on P-Bass & MM targets) | **Moderate** ($\pm 3.7\text{ dB}$ synthetic shelving tilt required) |
+| **String Balance (E/A vs D/G)** | **Physically Optimized** via Reverse-P stagger ($115.6\text{ mm}$ vs $145.4\text{ mm}$) | **DSP Corrected** via 24-point wave-speed continuum |
+| **Right-Hand Thumb Rests** | **Dual Positions** (Deep neck warmth or tight bridge recoil) | **Single Position** ($93.5\text{ mm}$) |
+| **Pedalboard Decoupling** | Requires matching pickup switch to Anagram preset | **100% Decoupled** (Never touch switches on stage) |
+| **Secondary Magnetic Drag** | Slight (two active low-flux magnetic apertures) | **Absolute Zero** (Single active pickup) |
+| **Standalone / Direct Sound** | **4 Iconic Pro Tones** natively (P, MM, J-Bridge, P/MM) | **1 Neutral Intermediate Tone** |
+| **Ideal Player Use Case** | Pure tone aficionados, recording sessions, tactile players | Touring pedalboard players, patch-heavy live sets |
 
 ---
 
