@@ -5,42 +5,40 @@ Transform your 34" active EMG soapbar bass into 22 legendary vintage passive, mo
 
 OVERVIEW
 
-Allomorph delivers precision digital twins of iconic pickup topologies and control harnesses engineered for Neural Amp Modeler (NAM) and the Darkglass Anagram pedalboard.
+Allomorph turns your active EMG soapbar bass into a versatile tonal chameleon. Instead of modeling an amplifier or speaker cabinet, Allomorph sits at the very beginning of your signal chain (Block 1 on the Darkglass Anagram) to reshape the actual sound, pickup response, and feel of your instrument.
 
-Rather than modeling an amplifier or speaker cabinet, these models capture:
-• True differential circuit deconvolution (H_diff = H_tgt / H_src)
-• Active EMG dual-blade aperture geometry and spatial string comb-filtering
-• Universal active EMG baseline calibration (Option C @ fr = 4.15 kHz, Q = 1.40)
-• Era-accurate potentiometer loading (250k, 500k, 330k) and tone capacitor values
-• High-impedance passive coil eddy currents and complex skin-effect damping
-• Cable capacitance loading (750 pF) and active buffer deconvolution
-• Pure capacitive ToneStyler rotary shunts with undamped vocal resonance
-• Non-linear magnetic core saturation, string pull, and dynamic compliance
+Active EMG soapbars are world-famous for their whisper-quiet operation, punchy low-mids, and razor-sharp pick attack in metal and rock. But when you need the warm, organic woody body of a vintage Fender, the hollow slap clank of a StingRay, or the woody resonance of an upright, their internal active buffering can sound overly sterile and compressed. Allomorph bridges that gap, giving your active EMG bass:
+• Classic Precision Bass warmth, woody low-mids, and Motown flatwound thump
+• The iconic scoop of vintage '60s Jazz Basses and singing Jaco bridge growl
+• Thunderous Music Man StingRay humbucker punch, hollow slap scoop, and series bark
+• Modern active slap preamps, boutique P/MM hybrids, and cutting progressive rock clank
+• Acoustic upright double bass resonance for jazz and acoustic sessions
+• Authentic vintage passive dynamics and organic tube-amp feel, replacing active EMG highs
 
-Calibrated for a 34" Standard Scale Active EMG Bass (Spector Euro, ESP LTD, Schecter Hellraiser, Schecter Riot, Dean Edge, Jackson Pro) equipped with dual active EMG soapbars (EMG 35/40/45 series) and onboard internal low-noise buffers. Full wave-speed continuum modeling down to 30.87 Hz ensures seamless calibration across 4, 5, or 6-string instruments. Exact differential deconvolution neutralizes your active pickups' buffered resonance and soapbar aperture, reconstructing each target twin in real time with zero latency.
+Calibrated for 34" Standard Scale Active EMG Basses (Spector Euro, ESP LTD, Schecter Hellraiser/Riot, Dean Edge, Jackson Pro) equipped with dual active EMG soapbars (EMG 35/40/45 series) and internal low-noise buffers. Full wave-speed modeling down to 30.87 Hz ensures seamless calibration across 4, 5, or 6-string instruments (down to low B). Plug in, select a model, and hear your active EMG bass deliver authentic vintage and boutique character in real time with zero latency.
 
 
 RECOMMENDED SIGNAL CHAIN
 
 [Active EMG Bass]
-  -> [Block 1: Allomorph NAM Preamp]  (Input / Pickup Front-End)
+  -> [Block 1: Allomorph Pickup Twin] (Input / Pickup Front-End)
   -> [Block 2: Amp / Drive / Preamp]  (Darkglass B7K, SVT, B-15, etc.)
   -> [Block 3: Speaker Cabinet IR]    (8x10, 4x10, 1x15, etc.)
   -> [FOH / Audio Interface / DAW]
 
-Why Block 1? Drive and preamp circuits react directly to pickup resonant peaks. Placing Allomorph first ensures downstream pedals distort authentic vintage passive or active resonant envelopes rather than a generic active DI.
+Why Block 1? Overdrive pedals and amps react directly to the resonant character of your pickups. Putting Allomorph first ensures downstream pedals and amp models distort the authentic growl of a P-bass split-coil, the clank of a StingRay, or the scoop of dual single-coils, rather than a generic active DI.
 
 
 QUICK INSTRUMENT SETUP
 
 For each voicing, set your bass's physical pickup blend knob to the recommended bracketed setting [Parallel], [Neck], or [Bridge]:
 
-• [Parallel]: Pickup Blend at Center Detent (50% Neck / 50% Bridge Parallel)
-• [Neck]: Pickup Blend 100% Neck (Solo Neck Active EMG Soapbar)
-• [Bridge]: Pickup Blend 100% Bridge (Solo Bridge Active EMG Soapbar)
+• [Parallel]: Pickup Blend at Center Detent (Both EMG Soapbars Active)
+• [Neck]: Pickup Blend 100% Neck (Solo Neck EMG Soapbar)
+• [Bridge]: Pickup Blend 100% Bridge (Solo Bridge EMG Soapbar)
 • Onboard Active EQ (Bass, Mid, Treble): Set to Center Detents (Flat / 0 dB)
 
-Plug straight in. All impedance matching, aperture repositioning, pot loading, and active preamp EQs are handled automatically by the NAM models.
+Plug straight in. All pickup positioning, pot loading, tone capacitor shaping, and active preamp EQs are handled automatically by the models.
 
 
 THE 22 DIGITAL TWIN VOICINGS
@@ -49,91 +47,91 @@ THE 22 DIGITAL TWIN VOICINGS
 Precision Bass & Tone Shaper Family
 
 01. Vintage 62 P [Neck]
-Transforms your neck EMG soapbar into an iconic 1962 CTS 250k split-coil with 47nF paper-in-oil cap wide open. Lower eddy damping yields organic touch sensitivity, woody bloom, and open harmonic extension (2.1 kHz peak).
+The gold standard: a vintage 1962 Precision Bass with tone wide open. Warm, woody low-mids, open harmonic bloom, and organic touch sensitivity that sits perfectly in any mix.
 
 02. Modern P Ceramic [Neck]
-High-inductance ceramic split-coil (Bartolini 8CBP style, 4.8H) loaded by boutique 500k pots, 22nF cap, and treble bleed. Delivers aggressive pick attack, tight low-mids, and bright transient snap.
+Modern boutique P-bass tone. Aggressive, punchy, and clear with tight low-mids and bright transient snap—built for aggressive rock, pop, and modern worship.
 
 03. Vintage 62 P 22nF [Neck]
-Vintage '62 split-coil with modern 22nF pure capacitive shunt. Punchy 440 Hz low-mid peak (+1.5 dB, -3 dB @ 750 Hz) that cuts fret clatter while retaining forward mix punch and authoritative weight.
+Vintage P-bass with a modern vocal low-mid punch. Cuts finger clatter and high-end sizzle while keeping a muscular, forward presence in a busy mix.
 
 04. Vintage 62 P 47nF [Neck]
-Iconic Jamerson/Pino flatwound tone: 47nF pure capacitive shunt with flatwound string damping. Resonant 450 Hz bump with steep top-end rolloff for pillowy sub-bass mass.
+The legendary Motown flatwound sound (James Jamerson / Pino Palladino). Fat, pillowy sub-bass thump with rolled-off highs that glues the groove together.
 
 05. Vintage 50s P 100nF [Neck]
-Fullerton factory 0.1µF spec with zero wiper damping. Massive sub-bass shelf rolloff (-3 dB @ 240 Hz) for subterranean dub and reggae thump that shakes the foundation.
+Ultra-deep vintage '50s dub spec. Pure, earth-shaking sub-bass thump with zero top-end click—perfect for reggae, dub, hip-hop, and classic R&B.
 
 
 Jazz Bass Family
 
 06. 60s Jazz Pair [Parallel]
-Reconstructs authentic 1960s dual single-coils in parallel with 3 5/8" spacing, loaded by dual 250k volume pots (125k net) and a 47nF cap. Natural woody low-mid resonance (2.7 kHz peak) with iconic 1 kHz phase-cancellation scoop.
+The golden-era '60s Jazz Bass sound. Both pickups wide open deliver that iconic hollow midrange scoop, warm low-mids, and smooth, singing top-end.
 
 07. 60s Jazz 22nF [Parallel]
-Dual single-coil response with a 22nF ToneStyler pure capacitive shunt. Eliminates wiper resistance to produce an undamped 762 Hz vocal mid bump (-3 dB @ 1225 Hz), preserving aggressive Jaco/Miller bite without treble clank.
+Jazz Bass pair with a vocal midrange punch. Thickens up your fingerstyle attack and smooths out harsh fret clank while keeping every note articulate.
 
 08. Modern Jazz Active [Parallel]
-Sadowsky-style active 2-band buffer with cable isolation (1M in, 100 ohm out). Wideband sparkle, punchy low end (+4 dB @ 40 Hz), crystalline treble (+4 dB @ 4 kHz), and scooped slap definition.
+The quintessential NYC active slap tone: tight, massive sub-bass and crisp, glassy highs with a scooped midrange that pops right out of a dense mix.
 
 09. Jaco Bridge Growl [Bridge]
-Reconstructs decoupled dual volumes with 55k neck wiper resistance from your bridge EMG pickup. Shifts comb notch into vocal 550–800 Hz zone for signature Jaco bridge growl while retaining low-end body.
+The unmistakable Jaco Pastorius tone: solo bridge pickup with authentic neck-pot decoupling under the hood for that signature singing, vocal bridge growl and burp.
 
 10. 60s Jazz Bridge [Bridge]
-Authentic 60s bridge datum (63.5mm from saddle) with 250k harness. Focused midrange bite (800 Hz–1.6 kHz) with articulate, percussive staccato finger attack.
+Solo '60s bridge single-coil. Tight, laser-focused midrange bite and percussive attack, perfect for 16th-note funk and fast staccato fingerstyle.
 
 
 Music Man StingRay Family
 
 11. StingRay Parallel [Bridge]
-Parallel dual-coil humbucker centered at 66.0mm with active 2-band preamp (+5 dB bass @ 50 Hz, +3 dB treble @ 7 kHz). Cable isolation, 2.5 kHz mid-scoop, and signature metallic slap clank.
+The iconic Music Man StingRay sound: thunderous low end, aggressive metallic slap clank, and that hollow midrange scoop heard on thousands of hit records.
 
 12. StingRay Series [Bridge]
-Dual-coil humbucker in series with active 2-band preamp. +2.5 dB hotter output with aggressive 2.1 kHz midrange bark and softened treble clank (StingRay 5 / Sterling series switch).
+StingRay wired in series for a hotter, thicker signal with punchy low-mids and an aggressive, in-your-face rock bark.
 
 
 P/MM Modern Hybrids
 
 13. Modern P∕MM Active [Parallel]
-Sandberg California / Lakland 44-02 style Split-P and Music Man bridge humbucker in parallel with onboard active buffer (3.4 kHz peak). Woody P-bass weight combined with laser-focused MM slap bite.
+Modern boutique session hybrid (Sandberg California / Lakland style). Blends the warm body of a P-bass neck with the punchy slap bite of a Music Man bridge humbucker.
 
 14. P∕MM Hybrid Series [Parallel]
-Split P and MM humbucker wired in series (7.2H inductance, 500k pots). Massive +5.8 dB inductive surge with a forward, muscular 1.6 kHz punch and wall-shaking low-mids.
+P-bass neck and Music Man bridge wired in series for a massive wall of sound with immense low-mid thrust and heavy overdrive sustain.
 
 
 Progressive & Classic Rock Legends
 
 15. Rickenbacker 4003 [Bridge]
-High-output bridge coil with factory 330k pots and vintage 4.7nF series high-pass capacitor. Cuts sub-bass mud below 150 Hz for biting prog-rock pick grit and clank.
+The quintessential prog-rock clank (Chris Squire / Geddy Lee). Tight, lean low end with biting, aggressive pick attack and cutting upper-mid grit.
 
 16. Dingwall FD3 [Bridge]
-Angled bridge sweet spot (48.0mm datum) of a 34"–37" fanned-fret bass with active buffer stage and stainless roundwound physics. Extreme high wave-speed clank and FD3 dual-coil sparkle (7.3 kHz peak).
+Modern progressive metal tone: razor-sharp pick clank, extreme note clarity, and piano-like low-B definition tailored for drop tunings and heavy distortion.
 
 17. EB-0 Mudbucker [Neck]
-Overwound neck-heel sidewinder humbucker (14.4H, 500k pots). Resonant peak pulled to 1.2 kHz with steep natural acoustic rolloff for colossal subterranean low end without top-end fizz.
+The legendary Gibson "Mudbucker": a dark, colossal wall of pure vintage bass rumble with zero top-end harshness—pure '60s and '70s British blues-rock.
 
 
 Acoustic Transducers
 
 18. Upright Piezo [Neck]
-Direct bridge force sensor simulation (Underwood/Realist style on 41.5" scale) with velocity-to-force leaky integration (+6 dB/oct from 70–250 Hz) and 32 Hz rumble cut. Woody pizzicato bloom and warm body resonance. Recommended to be paired with 3 Sigma Audio Upright Bass AST IRs ("Acoustic Upright Standard" folder with AST file tag) in your cabinet loader for authentic soundboard radiation.
+Acoustic upright double bass: transforms your electric bass into a woody, resonant acoustic upright with natural body thump and organic finger feel. Pair with 3 Sigma Audio "Acoustic Upright Standard" AST IRs in your cabinet loader for authentic soundboard acoustic bloom.
 
 
 P/J Bass Family
 
 19. Modern PJ Active [Parallel]
-Ceramic split-neck and single-bridge with active 2-band buffer (+4 dB @ 40 Hz, +4 dB @ 4 kHz) and cable isolation (7.6 kHz peak). Modern slap snap with deep sub-bass foundation.
+Modern active P/J punch (Sadowsky/Spector style). Combines thick split-coil body with bridge single-coil cut, boosted by a powerful active 2-band EQ.
 
 20. Vintage PJ Passive [Parallel]
-1980s Fender Special / Yamaha BB style Alnico split/single pair with dual 250k volume loading (125k net). Thick hard-rock punch, woody mid bite, and authoritative low grunt.
+Classic '80s rock P/J tone (Fender Precision Special / Yamaha BB). Thick hard-rock punch with aggressive midrange bite and authoritative low-end grunt.
 
 
 Studio Buffers & Dynamics
 
 21. Passive Character
-Authentic high-impedance passive RLC network simulation (4.2H inductance, 2.8 kHz resonance, Q = 1.4) loaded with a vintage CTS 250k harness and 750 pF cable capacitance. Replaces sterile active EMG buffering with organic vintage passive dynamics, woody low-mid body, and rolled-off highs.
+Vintage Passive Character: turns your active EMG bass into a warm, organic passive instrument with natural vintage tube-amp dynamics, woody low-mid body, and smooth, rolled-off highs.
 
 22. Active Character
-Studio 1M ohm active buffer twin. Deconvolves active EMG internal resonance and cable capacitance from your stock soapbars, shifting resonance to 7.5–9.0 kHz for pristine pick attack and hi-fi air.
+Studio Active Buffer: removes cable drag and pot loading, opening up pristine hi-fi clarity, ultra-fast transient attack, and airy top-end sparkle.
 
 
 LICENSE & DISCLAIMER

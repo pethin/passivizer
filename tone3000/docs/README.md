@@ -25,9 +25,43 @@ Each pack contains up to 22 precision digital twin voicings calibrated via true 
 All pack descriptions in this directory strictly adhere to Tone3000 platform guidelines:
 1. **Character Limit Compliance:** Tone3000 enforces a strict maximum length of 10,000 characters per listing. All 7 packs stay safely under this ceiling.
 2. **Pickup Configuration Tags:** Multi-pickup editions (Jazz, P/J, Mustang P/J, Active Soapbar) include bracketed physical selector tags on every voicing (`[Parallel]`, `[Neck]`, `[Bridge]`) so users know exactly how to set their instrument switches for optimal acoustic cancellation matching.
-3. **Concise Voicing Summaries:** Each target voicing is distilled into 1–2 punchy, informative sentences highlighting the resonant peak ($f_r$), pot loading, and physical sonic character.
+3. **Concise Voicing Summaries:** Each target voicing is distilled into 1–2 punchy, informative sentences highlighting real-world musical feel, mix behavior, and sonic character.
 4. **Independent Legal Disclaimers:** Trademark disclaimers and non-commercial/commercial user rights are explicitly codified per listing.
 5. **Native Identity Exclusion:** Base-instrument 1:1 identical duplicates ($H_{\text{diff}} \equiv 1.0$) are omitted, ensuring every model in the pack provides transformational capacity (see [`ranking_system.md`](ranking_system.md)).
+
+---
+
+## Storefront Voice & Bassist-Centric Copywriting Guidelines
+
+When writing or updating Tone3000 storefront descriptions, always translate complex analog modeling math into musical language that working bassists immediately understand and connect with:
+
+### 1. The Cardinal Rule
+**Never describe the mathematics when you can describe the musical tone, feel, and mix placement.**
+Bassists browse Tone3000 to find sounds that inspire them, solve gigging problems, or give them iconic tones they cannot physically get with their stock instrument. Focus on:
+- **Iconic Players & Eras:** James Jamerson, Pino Palladino, Jaco Pastorius, Marcus Miller, Chris Squire, Geddy Lee, NYC session slap, '60s Motown, '80s hard rock.
+- **Mix Placement & EQ Feel:** Vocal midrange growl, hollow slap scoop, pillowy sub-bass thump, cutting pick clank, woody low-mids, glassy hi-fi air.
+- **Playing Styles:** Slap & pop, 16th-note staccato fingerstyle, drop-tuned metal, reggae/dub, acoustic jazz gigs.
+
+### 2. Jargon Translation Guide
+
+| Avoid Engineering Mumbo-Jumbo | Use Bassist-Friendly Language |
+| :--- | :--- |
+| *True differential circuit deconvolution ($H_{\text{diff}} = H_{\text{tgt}} / H_{\text{src}}$)* | Transforms your instrument's sound right at the pickups in real time |
+| *Aperture geometry & spatial string comb-filtering* | Pickup placement, sweet spots, and harmonic phase interactions |
+| *Bessel $J_1(x)/x$ cylindrical pole transfer* | Round pole-piece punch and dynamic transient attack |
+| *High-impedance coil eddy currents & skin-effect damping* | Warm, woody low-mid body and smooth vintage top-end bloom |
+| *Decoupled dual volumes with 55k neck wiper resistance* | Rolling the neck volume back just a touch for singing Jaco bridge growl |
+| *22nF pure capacitive shunt with undamped vocal peak* | Vocal midrange punch that cuts finger clatter and keeps notes articulate |
+| *47nF paper-in-oil cap with flatwound damping* | Classic Jamerson/Pino Motown flatwound thump with fat, pillowy sub-bass |
+| *0.1µF Fullerton factory spec with sub-bass shelf rolloff* | Ultra-deep vintage '50s dub spec for massive, earth-shaking low end |
+| *Sadowsky-style 2-band buffer with cable isolation* | The quintessential NYC active slap tone: massive lows and crisp, glassy highs |
+| *Series wiring with +5.8 dB inductive surge* | Hotter, muscular series punch with wall-shaking low-mid growl and sustain |
+| *4.7nF series high-pass capacitor prog-rock clank* | Classic prog-rock clank (Chris Squire/Geddy Lee): tight lows with aggressive pick grit |
+| *FD3 34"–37" multi-scale fanned fret active sparkle* | Modern progressive metal tone: razor-sharp pick attack and piano-like low-B clarity |
+| *14.4H overwound neck-heel sidewinder Mudbucker* | The Gibson Mudbucker: dark, colossal vintage bass wall of sound |
+| *Bridge piezo force sensor with leaky integration* | Acoustic upright double bass: woody resonance, body thump, and organic acoustic feel |
+| *Studio 1MΩ active buffer (750 pF cable deconvolution)* | Studio Active Buffer: opens up wide-open hi-fi highs, fast transients, and airy attack |
+| *4.2H RLC high-Z network replacing active buffering* | Vintage Passive Character: turns an active bass into a warm, organic vintage passive instrument |
 
 ---
 
