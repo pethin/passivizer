@@ -145,11 +145,12 @@ Group the pickup profiles into dedicated 3-button banks on the Anagram hardware:
 
 ### Bank 6: Character Voicings & Pure Dynamics
 * **Footswitch A:** `std_15_neutral.nam` (Neutral Character - Pure Tier Dynamics / Studio DI)
-* **Footswitch B:** `std_15b_active.nam` (Active Character - Modern Active Buffer / Air Lift)
-* **Footswitch C:** `std_15c_passive.nam` (Passive Character - High-Z RLC & Cable Loading)
+* **Footswitch B:** `std_15b_active.nam` (Active Character - Modern Active Buffer / Air Lift; loaded into Footswitch C for Active Basses)
+* **Footswitch C:** `std_15c_passive.nam` (Passive Character - High-Z RLC & Cable Loading; loaded into Footswitch B for Active Basses)
 
 > [!TIP]
 > **Character Voicings Routing (15, 15b, 15c):**
+> - **Active Basses Configuration:** For active instruments (`active_emg_bass`, `active_stingray_bass`, `preamp_soapbar_bass`), Footswitch B loads `std_15c_passive.nam` and Footswitch C loads `std_15b_active.nam` so the primary transformational voicing (Passive Character - high-impedance RLC loading) occupies the primary footswitch.
 > - **2-Block Architecture:** For the Character family, bypass or disable **Block 1** (IR loader) so **Block 2** (NAM Preamp) acts directly on your instrument's uncolored signal. Because `preserve_aperture = true`, the physical aperture is preserved and Block 2 applies only the desired active/passive circuit response and tier dynamics.
 > - **1-Block Baked NAM Architecture:** The single-block capture directly preserves the instrument's aperture. For `15_neutral_character` in Clean tier, it acts as a bit-exact transparent bypass.
 

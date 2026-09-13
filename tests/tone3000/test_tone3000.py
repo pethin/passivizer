@@ -159,6 +159,28 @@ def test_tone3000_active_instrument_guidance():
         )
 
 
+def test_tone3000_character_voicing_ranking_order():
+    """Verify that active bass packs rank Passive Character before Active Character,
+    while passive bass packs rank Active Character before Passive Character.
+
+    Under the Inverse-Availability Principle, active instruments already possess onboard active
+    buffering, so an authentic high-impedance passive RLC network provides the primary transformative
+    value ("Passivizer") and must appear earlier in the storefront listing.
+    """
+    for pack in PACK_EDITIONS:
+        txt_path = DOCS_DIR / f"{pack}.txt"
+        content = txt_path.read_text(encoding="utf-8")
+        pos_p = content.find("Passive Character")
+        pos_a = content.find("Active Character")
+        assert pos_p != -1, f"Passive Character missing in {pack}.txt"
+        assert pos_a != -1, f"Active Character missing in {pack}.txt"
+
+        if pack in ACTIVE_PACKS:
+            assert pos_p < pos_a, f"Active pack {pack}.txt must rank Passive Character before Active Character"
+        else:
+            assert pos_a < pos_p, f"Passive pack {pack}.txt must rank Active Character before Passive Character"
+
+
 def test_tone3000_artwork_files_exist():
     """Verify that every pack has valid JPG and SVG artwork in tone3000/assets/."""
     for pack in PACK_EDITIONS:

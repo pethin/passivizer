@@ -34,6 +34,7 @@ Storefront categories must accurately reflect analog electrical topologies and p
 The final positions in every pack are reserved for studio impedance and loading transformations:
 - **Active Character (Modern Studio Active Buffer):** Deconvolves $750\text{ pF}$ cable capacitance and pot damping from the user's physical pickups, shifting resonance into the hi-fi air band ($7.5\text{--}9.0\text{ kHz}$) with $1\text{M}\Omega$ input impedance.
 - **Passive Character (High-Impedance Passive Pickup & Cable Loading):** Simulates an authentic high-impedance passive RLC network ($L = 4.2\text{ H}, f_r = 2.8\text{ kHz}, Q = 1.4$) loaded by a standard $250\text{k}\Omega$ CTS volume/tone harness and $750\text{ pF}$ cable capacitance. On active instruments (StingRay, Active Soapbar), it replaces sterile onboard active buffering with organic vintage passive dynamics, woody low-mid body, and rolled-off highs.
+- **Ordering Rule (Inverse-Availability):** For passive instrument editions (`standard_precision_bass`, `standard_jazz_bass`, `standard_pj_bass`, `mustang_pj_bass`), Active Character is ranked before Passive Character because passive players seeking an active buffer prioritize the active transformation. Conversely, for active instrument editions (`active_emg_bass`, `active_stingray_bass`, `preamp_soapbar_bass`), Passive Character is ranked before Active Character, as transforming an active instrument into an organic high-impedance passive RLC network provides the primary transformative value of the product ("Passivizer").
 
 ---
 
@@ -120,7 +121,7 @@ The final positions in every pack are reserved for studio impedance and loading 
 | **15–17** | **Progressive & Classic Rock Legends** | Rickenbacker 4003 ($4.7\text{nF}$ HPF), Dingwall multi-scale ($7.3\text{ kHz}$ sparkle), and Gibson Mudbucker ($14.4\text{ H}$). |
 | **18** | **Acoustic Transducers** | Bridge piezo force sensor on $41.5''$ upright scale with velocity-to-force leaky integration. |
 | **19–20** | **P/J Bass Family** | Modern active and vintage '80s passive P/J configurations. |
-| **21–22** | **Studio Buffers & Dynamics** | Studio $1\text{M}\Omega$ active buffer and Passive Character ($4.2\text{ H}$ RLC passive network replacing sterile active highs). |
+| **21–22** | **Studio Buffers & Dynamics** | Passive Character ($4.2\text{ H}$ RLC passive network replacing sterile active highs) and Studio $1\text{M}\Omega$ active buffer. |
 
 ---
 
@@ -137,7 +138,7 @@ The final positions in every pack are reserved for studio impedance and loading 
 | **15–17** | **Progressive & Classic Rock Legends** | Rickenbacker 4003 ($4.7\text{nF}$ HPF), Dingwall multi-scale ($7.3\text{ kHz}$ peak), and Gibson Mudbucker ($14.4\text{ H}$). |
 | **18** | **Acoustic Transducers** | Bridge piezo force sensor on $41.5''$ upright scale with velocity-to-force leaky integration. |
 | **19** | **Music Man StingRay Family** | Active 2-Band Series bark (+2.5 dB gain, forward 2.1 kHz mids). |
-| **20–21** | **Studio Buffers & Dynamics** | Studio $1\text{M}\Omega$ active buffer and Passive Character ($4.2\text{ H}$ RLC passive network restoring vintage passive dynamics). |
+| **20–21** | **Studio Buffers & Dynamics** | Passive Character ($4.2\text{ H}$ RLC passive network restoring vintage passive dynamics) and Studio $1\text{M}\Omega$ active buffer. |
 
 ---
 
@@ -154,7 +155,7 @@ The final positions in every pack are reserved for studio impedance and loading 
 | **15–17** | **Progressive & Classic Rock Legends** | Rickenbacker 4003 ($4.7\text{nF}$ HPF), Dingwall multi-scale ($7.3\text{ kHz}$ sparkle), and Gibson Mudbucker ($14.4\text{ H}$). |
 | **18** | **Acoustic Transducers** | Bridge piezo force sensor on $41.5''$ upright scale with velocity-to-force leaky integration. |
 | **19–20** | **P/J Bass Family** | Modern active and vintage '80s passive P/J configurations. |
-| **21–22** | **Studio Buffers & Dynamics** | Studio $1\text{M}\Omega$ active buffer and Passive Character ($4.2\text{ H}$ RLC passive network replacing active EMG highs). |
+| **21–22** | **Studio Buffers & Dynamics** | Passive Character ($4.2\text{ H}$ RLC passive network replacing active EMG highs) and Studio $1\text{M}\Omega$ active buffer. |
 
 ---
 
